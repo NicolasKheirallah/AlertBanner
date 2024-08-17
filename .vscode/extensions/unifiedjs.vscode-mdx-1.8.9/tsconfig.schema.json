@@ -1,0 +1,17 @@
+{
+  "properties": {
+    "mdx": {
+      "title": "MDX language server options",
+      "properties": {
+        "checkMdx": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Enable error reporting in type-checked MDX files."
+        },
+        "plugins": {
+          "$ref": "https://json.schemastore.org/remarkrc.json#/properties/plugins"
+        }
+      }
+    }
+  }
+}

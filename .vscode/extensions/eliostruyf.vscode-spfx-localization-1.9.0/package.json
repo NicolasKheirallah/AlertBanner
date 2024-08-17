@@ -1,0 +1,162 @@
+{
+	"name": "vscode-spfx-localization",
+	"displayName": "SPFx Localization",
+	"description": "SharePoint Framework extension to manage localization in projects.",
+	"version": "1.9.0",
+	"icon": "assets/spfx-localization.png",
+	"publisher": "eliostruyf",
+	"engines": {
+		"vscode": "^1.40.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"keywords": [
+		"SharePoint",
+		"SPFx",
+		"TypeScript",
+		"Localization",
+		"Resources"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/estruyf/vscode-spfx-localization"
+	},
+	"activationEvents": [
+		"onCommand:extension.spfxLocalizationCreateKey",
+		"onCommand:extension.spfxLocalizationInsertKey",
+		"onCommand:extension.spfxLocalizationImport",
+		"onCommand:extension.spfxCsvImport",
+		"onCommand:extension.spfxCsvExport",
+		"workspaceContains:**/config/package-solution.json"
+	],
+	"main": "./out/extension",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "SPFx Localization Configuration",
+			"properties": {
+				"spfxLocalization.csvFileLocation": {
+					"type": "string",
+					"default": "./spfx-locale.csv",
+					"description": "The location of the SPFx locale labels CSV/XLSX file."
+				},
+				"spfxLocalization.csvDelimiter": {
+					"type": "string",
+					"default": ";",
+					"description": "The delimiter to use in the CSV file."
+				},
+				"spfxLocalization.csvUseBom": {
+					"type": "boolean",
+					"default": false,
+					"description": "Use UTF8 BOM marker for CSV files. Can be useful on Windows to make UTF8 CSV files recognizable by Excel for example."
+				},
+				"spfxLocalization.csvUseComment": {
+					"type": "boolean",
+					"default": false,
+					"description": "Enable comment column in CSV. You can use this column for notices, such as 'translated' or 'new'."
+				},
+				"spfxLocalization.csvUseTimestamp": {
+					"type": "boolean",
+					"default": false,
+					"description": "Auto-fill timestamp column with current timestamp when new strings are added."
+				},
+				"spfxLocalization.autoCsvExport": {
+					"type": "boolean",
+					"default": false,
+					"description": "Specify if you want to automatically export to the CSV/XLSX file when creating new labels."
+				},
+				"spfxLocalization.localeFileExtension": {
+					"type": "string",
+					"default": "js",
+					"enum": [
+						"js",
+						"ts"
+					],
+					"description": "Specify the extension type of the localization files. Default is JavaScript, but you can be changed to TypeScript."
+				}
+			}
+		},
+		"commands": [
+			{
+				"command": "extension.spfxLocalizationInsertKey",
+				"title": "SPFx create and insert localization key for selected text"
+			},
+			{
+				"command": "extension.spfxLocalizationCreateKey",
+				"title": "SPFx create new localization key"
+			},
+			{
+				"command": "extension.spfxLocalizationImport",
+				"title": "SPFx import localization strings dependency"
+			},
+			{
+				"command": "extension.spfxCsvImport",
+				"title": "SPFx import locale labels from CSV/XLSX"
+			},
+			{
+				"command": "extension.spfxCsvExport",
+				"title": "SPFx export locale labels to CSV/XLSX"
+			}
+		],
+		"menus": {
+			"editor/context": [
+				{
+					"when": "spfxProjectCheck && editorHasSelection",
+					"command": "extension.spfxLocalizationInsertKey",
+					"group": "SPFxLocalizationActions"
+				},
+				{
+					"when": "spfxProjectCheck",
+					"command": "extension.spfxLocalizationCreateKey",
+					"group": "SPFxLocalizationActions"
+				},
+				{
+					"when": "spfxProjectCheck",
+					"command": "extension.spfxLocalizationImport",
+					"group": "SPFxLocalizationActions"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "node ./out/test/runTest.js"
+	},
+	"devDependencies": {
+		"@types/csv-parse": "^1.2.2",
+		"@types/csv-stringify": "^3.1.0",
+		"@types/vscode": "1.40.0",
+		"@vscode/test-electron": "^1.6.2",
+		"@types/glob": "^8.0.0",
+		"@types/mocha": "^10.0.1",
+		"@types/node": "^12.20.55",
+		"@typescript-eslint/eslint-plugin": "^5.45.0",
+		"@typescript-eslint/parser": "^5.45.0",
+		"eslint": "^8.28.0",
+		"glob": "^8.0.3",
+		"mocha": "^10.1.0",
+		"typescript": "^4.9.3"
+	},
+	"dependencies": {
+		"csv-parse": "^5.3.3",
+		"csv-stringify": "^6.2.3",
+		"@nbelyh/exceljs": "^4.3.1"
+	},
+	"__metadata": {
+		"id": "fb16bd4d-968c-408e-832f-958e78cd2056",
+		"publisherId": "ce311c06-a2b7-469e-a0dd-319e3a3d9d25",
+		"publisherDisplayName": "Elio Struyf",
+		"targetPlatform": "undefined",
+		"isApplicationScoped": false,
+		"updated": true,
+		"isPreReleaseVersion": false,
+		"installedTimestamp": 1673475221181,
+		"preRelease": false
+	}
+}

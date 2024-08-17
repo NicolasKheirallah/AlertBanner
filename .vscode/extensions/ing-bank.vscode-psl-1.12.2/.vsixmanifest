@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+	<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+		<Metadata>
+			<Identity Language="en-US" Id="vscode-psl" Version="1.12.2" Publisher="ing-bank" />
+			<DisplayName>vscode-psl</DisplayName>
+			<Description xml:space="preserve">Profile Scripting Language support</Description>
+			<Tags>snippet,keybindings,json,profileTable,Profile Table Definition,__ext_TBL,profileColumn,Profile Column Definition,__ext_COL,profileData,Profile Data Item,__ext_DAT,profileSerialData,Profile Serialized Data Element,__ext_serial,psl,Profile Scripting Language,__ext_PROC,__ext_PSL,__ext_psl,profileBatch,Profile Batch Definition,__ext_BATCH,profileTrigger,Profile Trigger Definition,__ext_TRIG</Tags>
+			<Categories>Programming Languages</Categories>
+			<GalleryFlags>Public Preview</GalleryFlags>
+			
+			<Properties>
+				<Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.72.2" />
+				<Property Id="Microsoft.VisualStudio.Code.ExtensionDependencies" Value="" />
+				<Property Id="Microsoft.VisualStudio.Code.ExtensionPack" Value="" />
+				<Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="workspace" />
+				<Property Id="Microsoft.VisualStudio.Code.LocalizedLanguages" Value="" />
+				
+				
+				<Property Id="Microsoft.VisualStudio.Services.Links.Source" Value="https://github.com/ing-bank/vscode-psl.git" />
+				<Property Id="Microsoft.VisualStudio.Services.Links.Getstarted" Value="https://github.com/ing-bank/vscode-psl.git" />
+				<Property Id="Microsoft.VisualStudio.Services.Links.GitHub" Value="https://github.com/ing-bank/vscode-psl.git" />
+				<Property Id="Microsoft.VisualStudio.Services.Links.Support" Value="https://github.com/ing-bank/vscode-psl/issues" />
+				<Property Id="Microsoft.VisualStudio.Services.Links.Learn" Value="https://github.com/ing-bank/vscode-psl#readme" />
+				
+				
+				<Property Id="Microsoft.VisualStudio.Services.GitHubFlavoredMarkdown" Value="true" />
+				<Property Id="Microsoft.VisualStudio.Services.Content.Pricing" Value="Free"/>
+
+				
+				
+			</Properties>
+			<License>extension/LICENSE.txt</License>
+			
+		</Metadata>
+		<Installation>
+			<InstallationTarget Id="Microsoft.VisualStudio.Code"/>
+		</Installation>
+		<Dependencies/>
+		<Assets>
+			<Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true" />
+			<Asset Type="Microsoft.VisualStudio.Services.Content.Details" Path="extension/README.md" Addressable="true" />
+<Asset Type="Microsoft.VisualStudio.Services.Content.Changelog" Path="extension/CHANGELOG.md" Addressable="true" />
+<Asset Type="Microsoft.VisualStudio.Services.Content.License" Path="extension/LICENSE.txt" Addressable="true" />
+		</Assets>
+	</PackageManifest>

@@ -1,0 +1,76 @@
+{
+	"name": "json-to-ts",
+	"displayName": "JSON to TS",
+	"description": "Convert JSON object to typescript interfaces",
+	"version": "1.8.0",
+	"publisher": "MariusAlchimavicius",
+	"author": "https://github.com/mariusalch",
+	"icon": "icon.png",
+	"repository": "https://github.com/MariusAlch/vscode-json-to-ts",
+	"engines": {
+		"vscode": "^1.74.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"keywords": [
+		"types",
+		"util",
+		"typescript",
+		"json"
+	],
+	"activationEvents": [],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "jsonToTs.fromClipboard",
+				"title": "JSON to TS: Convert from clipboard"
+			},
+			{
+				"command": "jsonToTs.fromSelection",
+				"title": "JSON to TS: Convert from text selection"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "jsonToTs.fromClipboard",
+				"key": "shift+ctrl+alt+V"
+			},
+			{
+				"command": "jsonToTs.fromSelection",
+				"key": "shift+ctrl+alt+S"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint \"src/**/*.ts\"",
+		"watch": "tsc -watch -p ./"
+	},
+	"devDependencies": {
+		"@types/node": "^18",
+		"@types/vscode": "^1.73.0",
+		"@typescript-eslint/eslint-plugin": "^6.7.0",
+		"@typescript-eslint/parser": "^6.7.0",
+		"eslint": "^8.26.0",
+		"typescript": "^5.4.2"
+	},
+	"dependencies": {
+		"json-to-ts": "^2.1.0"
+	},
+	"__metadata": {
+		"id": "2e4a6a59-8d62-4ea6-99ba-09ca1fb20dca",
+		"publisherId": "f55bd440-21a0-4dda-a4cc-41a0a342bf8b",
+		"publisherDisplayName": "MariusAlchimavicius",
+		"targetPlatform": "undefined",
+		"isApplicationScoped": false,
+		"updated": true,
+		"isPreReleaseVersion": false,
+		"hasPreReleaseVersion": false,
+		"installedTimestamp": 1714688685775,
+		"pinned": false,
+		"preRelease": false
+	}
+}

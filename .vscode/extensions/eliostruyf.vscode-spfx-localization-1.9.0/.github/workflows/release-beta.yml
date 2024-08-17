@@ -1,0 +1,34 @@
+name: Pre-Release
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: "Build and release"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install the dependencies
+        run: yarn
+      
+      - name: Generate the README
+        run: node scripts/prepare-readme.js
+
+      - uses: estruyf/gh-action-beta-version@v0.0.12
+        with:
+          build-id: ${{ github.run_id }}
+          path: package.json
+          append-or-replace: 'append'
+
+      - name: Publish
+        run: npx vsce publish -p ${{ secrets.VSCE_PAT }} --pre-release --yarn --baseImagesUrl https://raw.githubusercontent.com/estruyf/vscode-spfx-localization/dev

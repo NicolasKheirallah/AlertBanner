@@ -1,0 +1,47 @@
+{
+  "ms-Grid": {
+    "prefix": "spfx-grid",
+    "body": "@include ms-Grid;",
+    "description": "Includes the ms-Grid styles"
+  },
+  "ms-Grid-row": {
+    "prefix": "spfx-grid-row",
+    "body": "@include ms-Grid-row;",
+    "description": "Includes the ms-Grid-row styles"
+  },
+  "ms-Grid-col": {
+    "prefix": "spfx-grid-col",
+    "body": "@include ms-Grid-col;",
+    "description": "Includes the ms-Grid-col styles"
+  },
+  "ms-sm*": {
+    "prefix": "spfx-grid-sm*",
+    "body": "@include ms-sm${1|1,2,3,4,5,6,7,8,9,10,11,12|};",
+    "description": "Includes the ms-sm and allows you to choose its size"
+  },
+  "ms-md*": {
+    "prefix": "spfx-grid-md*",
+    "body": "@include ms-md${1|1,2,3,4,5,6,7,8,9,10,11,12|};",
+    "description": "Includes the ms-md and allows you to choose its size"
+  },
+  "ms-lg*": {
+    "prefix": "spfx-grid-lg*",
+    "body": "@include ms-lg${1|1,2,3,4,5,6,7,8,9,10,11,12|};",
+    "description": "Includes the ms-lg and allows you to choose its size"
+  },
+  "ms-xl*": {
+    "prefix": "spfx-grid-xl*",
+    "body": "@include ms-xl${1|1,2,3,4,5,6,7,8,9,10,11,12|};",
+    "description": "Includes the ms-xl and allows you to choose its size"
+  },
+  "ms-xxl*": {
+    "prefix": "spfx-grid-xxl*",
+    "body": "@include ms-xxl${1|1,2,3,4,5,6,7,8,9,10,11,12|};",
+    "description": "Includes the ms-xxl and allows you to choose its size"
+  },
+  "ms-xxxl*": {
+    "prefix": "spfx-grid-xxxl*",
+    "body": "@include ms-xxxl${1|1,2,3,4,5,6,7,8,9,10,11,12|};",
+    "description": "Includes the ms-xxxl and allows you to choose its size"
+  }
+}

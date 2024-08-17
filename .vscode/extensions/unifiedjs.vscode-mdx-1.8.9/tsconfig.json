@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "references": [{"path": "../language-service"}],
+  "compilerOptions": {
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "skipLibCheck": true
+  }
+}

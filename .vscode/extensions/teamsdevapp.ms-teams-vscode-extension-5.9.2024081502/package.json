@@ -1,0 +1,1711 @@
+{
+	"name": "ms-teams-vscode-extension",
+	"displayName": "Teams Toolkit",
+	"description": "Create, debug, and deploy Teams apps with Teams Toolkit",
+	"version": "5.9.2024081502",
+	"publisher": "TeamsDevApp",
+	"author": "Microsoft Corporation",
+	"private": true,
+	"icon": "media/teams.png",
+	"main": "./out/src/extension.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/OfficeDev/TeamsFx"
+	},
+	"views": {
+		"teamsfx-toolkit": [
+			{
+				"id": "teamsfx-toolkit",
+				"name": "Commands"
+			}
+		]
+	},
+	"engines": {
+		"vscode": "^1.66.0"
+	},
+	"license": "MIT",
+	"keywords": [
+		"Microsoft Teams",
+		"Azure",
+		"Microsoft 365"
+	],
+	"preview": false,
+	"categories": [
+		"Azure",
+		"Extension Packs",
+		"Snippets"
+	],
+	"aiKey": "0c6ae279ed8443289764825290e4f9e2-1a736e7c-1324-4338-be46-fc2a58ae4d14-7255",
+	"featureFlag": "true",
+	"files": [
+		"out/**/*"
+	],
+	"activationEvents": [
+		"onCommand:fx-extension.create",
+		"onCommand:fx-extension.createFromWalkthrough",
+		"onCommand:fx-extension.openLifecycleTreeview",
+		"onCommand:fx-extension.openDocument",
+		"onCommand:fx-extension.openReadMe",
+		"onCommand:fx-extension.openSamples",
+		"onCommand:fx-extension.openWelcome",
+		"onCommand:fx-extension.buildIntelligentAppsWalkthrough",
+		"onCommand:fx-extension.selectAndDebug",
+		"onCommand:fx-extension.selectTutorials",
+		"onCommand:fx-extension.signinM365",
+		"onCommand:fx-extension.validate-getStarted-prerequisites",
+		"onCommand:workbench.action.tasks.runTask",
+		"onCommand:workbench.action.debug.start",
+		"workspaceContains:/.fx/**/*",
+		"workspaceContains:teamsapp.yml",
+		"onView:teamsfx-empty-project",
+		"onUri",
+		"workspaceContains:/**/manifest.json",
+		"workspaceContains:/manifest*.xml"
+	],
+	"enabledApiProposals": [],
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": "limited",
+			"description": "%teamstoolkit.capabilities.untrustedWorkspaces.description%",
+			"restrictedConfigurations": []
+		}
+	},
+	"contributes": {
+		"icons": {
+			"teamsfx-add-feature": {
+				"description": "Add feature icon in command tree view",
+				"default": {
+					"fontPath": "./media/font/teamstoolkit.woff",
+					"fontCharacter": "\\E000"
+				}
+			},
+			"teamsfx-developer-portal": {
+				"description": "Developer portal icon in command tree view",
+				"default": {
+					"fontPath": "./media/font/teamstoolkit.woff",
+					"fontCharacter": "\\E001"
+				}
+			},
+			"teamsfx-m365": {
+				"description": "Microsoft 365 icon in command tree view",
+				"default": {
+					"fontPath": "./media/font/teamstoolkit.woff",
+					"fontCharacter": "\\E002"
+				}
+			},
+			"teamsfx-add-environment": {
+				"description": "Microsoft 365 icon in command tree view",
+				"default": {
+					"fontPath": "./media/font/teamstoolkit.woff",
+					"fontCharacter": "\\E004"
+				}
+			},
+			"teamsfx-copilot-plugin": {
+				"description": "API Plugin icon in scaffold questions",
+				"default": {
+					"fontPath": "./media/font/teamstoolkit.woff",
+					"fontCharacter": "\\E005"
+				}
+			},
+			"teamsfx-custom-copilot": {
+				"description": "Custom Engine Copilot icon in scaffold questions",
+				"default": {
+					"fontPath": "./media/font/teamstoolkit.woff",
+					"fontCharacter": "\\E006"
+				}
+			}
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "teamsfx",
+					"title": "Teams Toolkit",
+					"icon": "media/teams.svg"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "teamsfx-empty-project",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-empty-project-with-api-copilot-plugin",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project-with-api-copilot-plugin.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-empty-project-with-chat",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project-with-chat.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-empty-project-with-chat-with-api-copilot-plugin",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project-with-chat-with-api-copilot-plugin.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-empty-project-new-user",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project-new-user.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-empty-project-new-user-with-api-copilot-plugin",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project-new-user-with-api-copilot-plugin.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-empty-project-new-user-with-chat",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project-new-user-with-chat.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-empty-project-new-user-with-chat-with-api-copilot-plugin",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-empty-project-new-user-with-chat-with-api-copilot-plugin.content%",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"view": "teamsfx-project-and-check-upgradeV3",
+				"contents": "%teamstoolkit.viewsWelcome.teamsfx-project-and-check-upgradeV3.content%",
+				"enablement": "fx-extension.initialized"
+			}
+		],
+		"views": {
+			"teamsfx": [
+				{
+					"id": "teamsfx-accounts",
+					"name": "Accounts",
+					"when": "fx-extension.isTeamsFx"
+				},
+				{
+					"id": "teamsfx-environment",
+					"name": "Environment",
+					"when": "fx-extension.isTeamsFx && !fx-extension.canUpgradeV3 && isWorkspaceTrusted"
+				},
+				{
+					"id": "teamsfx-development",
+					"name": "Development",
+					"when": "fx-extension.isTeamsFx"
+				},
+				{
+					"id": "teamsfx-lifecycle",
+					"name": "Lifecycle",
+					"when": "fx-extension.isTeamsFx && !fx-extension.canUpgradeV3"
+				},
+				{
+					"id": "teamsfx-utility",
+					"name": "Utility",
+					"when": "fx-extension.isTeamsFx && !fx-extension.canUpgradeV3"
+				},
+				{
+					"id": "teamsfx-project-and-check-upgradeV3",
+					"name": "Upgrade",
+					"when": "fx-extension.isTeamsFx && fx-extension.canUpgradeV3 && isWorkspaceTrusted"
+				},
+				{
+					"id": "teamsfx-help-and-feedback",
+					"name": "Help and feedback",
+					"when": "fx-extension.isTeamsFx && !fx-extension.canUpgradeV3",
+					"visibility": "visible"
+				},
+				{
+					"id": "teamsfx-help",
+					"name": "Help",
+					"when": "false",
+					"visibility": "collapsed"
+				},
+				{
+					"id": "teamsfx-empty-project",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && !fx-extension.isNewUser && !fx-extension.isOfficeAddIn && !fx-extension.isChatParticipantEnabled && !fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-empty-project-with-api-copilot-plugin",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && !fx-extension.isNewUser && !fx-extension.isOfficeAddIn && !fx-extension.isChatParticipantEnabled && fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-empty-project-with-chat",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && !fx-extension.isNewUser && !fx-extension.isOfficeAddIn && fx-extension.isChatParticipantEnabled && !fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-empty-project-with-chat-with-api-copilot-plugin",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && !fx-extension.isNewUser && !fx-extension.isOfficeAddIn && fx-extension.isChatParticipantEnabled && fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-empty-project-new-user",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && fx-extension.isNewUser && !fx-extension.isOfficeAddIn && !fx-extension.isChatParticipantEnabled && !fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-empty-project-new-user-with-api-copilot-plugin",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && fx-extension.isNewUser && !fx-extension.isOfficeAddIn && !fx-extension.isChatParticipantEnabled && fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-empty-project-new-user-with-chat",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && fx-extension.isNewUser && !fx-extension.isOfficeAddIn && fx-extension.isChatParticipantEnabled && !fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-empty-project-new-user-with-chat-with-api-copilot-plugin",
+					"name": "Teams Toolkit",
+					"when": "!fx-extension.isTeamsFx && fx-extension.isNewUser && !fx-extension.isOfficeAddIn && fx-extension.isChatParticipantEnabled && fx-extension.isApiCopilotPluginEnabled"
+				},
+				{
+					"id": "teamsfx-officedev-development",
+					"name": "Development",
+					"when": "fx-extension.isOfficeAddIn"
+				},
+				{
+					"id": "teamsfx-officedev-lifecycle",
+					"name": "Lifecycle",
+					"when": "fx-extension.isOfficeAddIn"
+				},
+				{
+					"id": "teamsfx-officedev-utility",
+					"name": "Utility",
+					"when": "fx-extension.isOfficeAddIn"
+				},
+				{
+					"id": "teamsfx-officedev-help-and-feedback",
+					"name": "Help and feedback",
+					"when": "fx-extension.isOfficeAddIn",
+					"visibility": "visible"
+				}
+			]
+		},
+		"menus": {
+			"view/title": [
+				{
+					"command": "fx-extension.addEnvironmentWithIcon",
+					"when": "view == teamsfx-environment",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fx-extension.refreshEnvironment",
+					"when": "view == teamsfx-environment",
+					"group": "navigation@2"
+				},
+				{
+					"command": "fx-extension.openAccountLink",
+					"when": "view == teamsfx-accounts",
+					"group": "navigation@2"
+				},
+				{
+					"command": "fx-extension.createAccount",
+					"when": "view == teamsfx-accounts",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fx-extension.openEnvLink",
+					"when": "view == teamsfx-environment",
+					"group": "navigation@3"
+				},
+				{
+					"command": "fx-extension.openDevelopmentLink",
+					"when": "view == teamsfx-development",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fx-extension.openLifecycleLink",
+					"when": "view == teamsfx-lifecycle",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fx-extension.openHelpFeedbackLink",
+					"when": "view == teamsfx-help-and-feedback",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fx-extension.openOfficeDevDevelopmentLink",
+					"when": "view == teamsfx-officedev-development",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fx-extension.openOfficeDevLifecycleLink",
+					"when": "view == teamsfx-officedev-lifecycle",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fx-extension.openOfficeDevHelpFeedbackLink",
+					"when": "view == teamsfx-officedev-help-and-feedback",
+					"group": "navigation@1"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "fx-extension.signOut",
+					"when": "view == teamsfx-accounts && viewItem == signedinM365",
+					"group": "inline@1"
+				},
+				{
+					"command": "fx-extension.azureAccountSignOutHelp",
+					"when": "view == teamsfx-accounts && viewItem == signedinAzure",
+					"group": "inline@1"
+				},
+				{
+					"command": "fx-extension.m365AccountSettings",
+					"when": "view == teamsfx-accounts && viewItem == signedinM365",
+					"group": "inline@2"
+				},
+				{
+					"command": "fx-extension.refreshSideloading",
+					"when": "view == teamsfx-accounts && viewItem =~ /^checkSideloading$|^checkSideloading-info$/",
+					"group": "inline@1"
+				},
+				{
+					"command": "fx-extension.checkSideloading",
+					"when": "view == teamsfx-accounts && viewItem == checkSideloading-info",
+					"group": "inline@2"
+				},
+				{
+					"command": "fx-extension.refreshCopilot",
+					"when": "view == teamsfx-accounts && viewItem =~ /^checkCopilot$|^checkCopilot-info$/",
+					"group": "inline@1"
+				},
+				{
+					"command": "fx-extension.checkCopilotCallback",
+					"when": "view == teamsfx-accounts && viewItem == checkCopilot-info",
+					"group": "inline@2"
+				},
+				{
+					"command": "fx-extension.azureAccountSettings",
+					"when": "view == teamsfx-accounts && viewItem == signedinAzure",
+					"group": "inline@2"
+				},
+				{
+					"command": "fx-extension.openDocumentLink",
+					"when": "view == teamsfx-accounts && viewItem =~ /^signinM365$|^signinAzure$/",
+					"group": "inline"
+				},
+				{
+					"command": "fx-extension.preview",
+					"when": "view == teamsfx-environment && viewItem =~ /environment-provisioned|local-existing-app/"
+				},
+				{
+					"command": "fx-extension.previewWithIcon",
+					"when": "view == teamsfx-environment && viewItem =~ /environment-provisioned|local-existing-app/",
+					"group": "inline@3"
+				},
+				{
+					"command": "fx-extension.localdebug",
+					"when": "view == teamsfx-environment && viewItem =~ /^local$/"
+				},
+				{
+					"command": "fx-extension.localdebugWithIcon",
+					"when": "view == teamsfx-environment && viewItem =~ /^local$/",
+					"group": "inline@3"
+				},
+				{
+					"command": "fx-extension.debugInTestToolWithIcon",
+					"when": "view == teamsfx-environment && viewItem =~ /^testtool$/",
+					"group": "inline@3"
+				},
+				{
+					"command": "fx-extension.manageCollaborator",
+					"when": "view == teamsfx-environment && viewItem =~ /environment/",
+					"group": "inline@3"
+				},
+				{
+					"command": "fx-extension.openSubscriptionInPortal",
+					"when": "view == teamsfx-environment && viewItem == openSubscriptionInPortal",
+					"group": "inline@3"
+				},
+				{
+					"command": "fx-extension.openResourceGroupInPortal",
+					"when": "view == teamsfx-environment && viewItem == openResourceGroupInPortal",
+					"group": "inline@3"
+				},
+				{
+					"command": "fx-extension.openDocumentLink",
+					"when": "view == teamsfx-development && viewItem =~ /^fx-extension.(create|openSamples|openManifest)$/",
+					"group": "inline"
+				},
+				{
+					"command": "fx-extension.openDocumentLink",
+					"when": "view == teamsfx-lifecycle && viewItem =~ /^fx-extension.(provision|deploy|publish)$/",
+					"group": "inline"
+				},
+				{
+					"command": "fx-extension.openDocumentLink",
+					"when": "view == teamsfx-utility && viewItem =~ /^fx-extension.(build|publishInDeveloperPortal)$/",
+					"group": "inline"
+				}
+			],
+			"editor/title/run": [
+				{
+					"command": "fx-extension.selectAndDebug",
+					"when": "!inDebugMode && debuggersAvailable && fx-extension.runIconActive",
+					"group": "teamsfx"
+				}
+			],
+			"editor/title": [
+				{
+					"command": "fx-extension.openPreviewAadFile",
+					"when": "resourceFilename == aad.template.json && fx-extension.isAadManifestEnabled",
+					"group": "navigation"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "fx-extension.addEnvironmentWithIcon",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.azureAccountSettings",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.createAccount",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.deployManifestFromCtxMenu",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.grantPermission",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.listCollaborator",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.manageCollaborator",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.localdebug",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.localdebugWithIcon",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.debugInTestToolWithIcon",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.m365AccountSettings",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openAccountLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openLifecycleLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openDevelopmentLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openDocumentLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openEnvLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openHelpFeedbackLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openPreviewAadFile",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openResourceGroupInPortal",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openSchema",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openSubscriptionInPortal",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.preview",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.previewWithIcon",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.refreshEnvironment",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.refreshSideloading",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.checkSideloading",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.refreshCopilot",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.checkCopilotCallback",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.checkCopilotAccess",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.selectAndDebug",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.signOut",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.checkProjectUpgrade",
+					"when": "fx-extension.canUpgradeV3"
+				},
+				{
+					"command": "fx-extension.openOfficeDevLifecycleLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openOfficeDevDevelopmentLink",
+					"when": "false"
+				},
+				{
+					"command": "fx-extension.openOfficeDevHelpFeedbackLink",
+					"when": "false"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "fx-extension.create",
+				"title": "%teamstoolkit.commands.createProject.title%",
+				"enablement": "!fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.createFromWalkthrough",
+				"title": "Teams - Create Project",
+				"enablement": "never"
+			},
+			{
+				"command": "fx-extension.openLifecycleTreeview",
+				"title": "Teams - Open Lifecycle Treeview",
+				"enablement": "never"
+			},
+			{
+				"command": "fx-extension.openDocument",
+				"title": "%teamstoolkit.commands.document.title%",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.openReadMe",
+				"title": "Teams - Open Read Me",
+				"enablement": "never"
+			},
+			{
+				"command": "fx-extension.openSamples",
+				"title": "%teamstoolkit.commands.viewSamples.title%",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.openWelcome",
+				"title": "%teamstoolkit.commands.getstarted.title%",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.buildIntelligentAppsWalkthrough",
+				"title": "%teamstoolkit.commands.walkthroughs.buildIntelligentApps.title%",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.selectAndDebug",
+				"title": "%teamstoolkit.commands.debug.title%",
+				"icon": "$(run)"
+			},
+			{
+				"command": "fx-extension.selectTutorials",
+				"title": "%teamstoolkit.commands.selectTutorials.title%",
+				"icon": "$(tasklist)",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.validate-getStarted-prerequisites",
+				"title": "Teams - Validate Get Started Prerequisites",
+				"enablement": "never"
+			},
+			{
+				"command": "fx-extension.addEnvironment",
+				"title": "%teamstoolkit.commands.createEnvironment.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && !fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.addEnvironmentWithIcon",
+				"title": "%teamstoolkit.commands.createEnvironment.title%",
+				"icon": "$(add)",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && !fx-extension.commandLocked"
+			},
+			{
+				"command": "fx-extension.build",
+				"title": "%teamstoolkit.commands.zipPackage.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && !fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.checkProjectUpgrade",
+				"title": "%teamstoolkit.commands.upgradeProject.title%",
+				"enablement": "fx-extension.initialized && isWorkspaceTrusted",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.cmpAccounts",
+				"title": "%teamstoolkit.commands.accounts.title%",
+				"category": "Teams",
+				"enablement": "fx-extension.initialized"
+			},
+			{
+				"command": "fx-extension.deploy",
+				"title": "%teamstoolkit.commands.deploy.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && !fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.updateAadAppManifest",
+				"title": "%teamstoolkit.commands.updateAadAppManifest.title%",
+				"enablement": "fx-extension.isTeamsFx && fx-extension.isAadManifestEnabled && isWorkspaceTrusted",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.migrateTeamsManifest",
+				"title": "%teamstoolkit.commands.migrateManifest.title%",
+				"enablement": "isWorkspaceTrusted",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.migrateTeamsTabApp",
+				"title": "%teamstoolkit.commands.migrateApp.title%",
+				"enablement": "isWorkspaceTrusted",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.openAppManagement",
+				"title": "%teamstoolkit.commands.devPortal.title%",
+				"enablement": "fx-extension.isTeamsFx && !fx-extension.isTDPIntegrationEnabled",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.publishInDeveloperPortal",
+				"title": "%teamstoolkit.commandsTreeViewProvider.publishInDevPortalTitle%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && fx-extension.isTDPIntegrationEnabled && !fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.openReportIssues",
+				"title": "%teamstoolkit.commands.reportIssue.title%",
+				"enablement": "fx-extension.isTeamsFx",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.provision",
+				"title": "%teamstoolkit.commands.provision.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && !fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.publish",
+				"title": "%teamstoolkit.commands.publish.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && !fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.updatePreviewFile",
+				"title": "%teamstoolkit.commands.updateManifest.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.validateManifest",
+				"title": "%teamstoolkit.commands.validateManifest.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.azureAccountSettings",
+				"title": "%teamstoolkit.commands.azureAccountSettings.title%",
+				"icon": "$(settings-gear)"
+			},
+			{
+				"command": "fx-extension.createAccount",
+				"title": "%teamstoolkit.commands.createAccount.title%",
+				"icon": "$(add)"
+			},
+			{
+				"command": "fx-extension.deployManifestFromCtxMenu",
+				"title": "%teamstoolkit.commands.deployManifest.ctxMenu.title%"
+			},
+			{
+				"command": "fx-extension.grantPermission",
+				"title": "%teamstoolkit.commands.addAppOwner.title%",
+				"icon": "$(person-add)"
+			},
+			{
+				"command": "fx-extension.listCollaborator",
+				"title": "%teamstoolkit.commands.listAppOwner.title%",
+				"icon": "$(organization)"
+			},
+			{
+				"command": "fx-extension.manageCollaborator",
+				"title": "%teamstoolkit.commands.manageCollaborator.title%",
+				"enablement": "!fx-extension.commandLocked",
+				"icon": "$(organization)"
+			},
+			{
+				"command": "fx-extension.localdebug",
+				"title": "%teamstoolkit.commands.localDebug.title%",
+				"enablement": "!fx-extension.commandLocked && !fx-extension.isManifestOnlyOfficeAddIn",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.localdebugWithIcon",
+				"title": "%teamstoolkit.commands.localDebug.title%",
+				"icon": "$(debug-alt)"
+			},
+			{
+				"command": "fx-extension.debugInTestToolWithIcon",
+				"title": "%teamstoolkit.commands.debugInTestTool.title%",
+				"icon": "$(debug-alt)"
+			},
+			{
+				"command": "fx-extension.m365AccountSettings",
+				"title": "%teamstoolkit.commands.m365AccountSettings.title%",
+				"icon": "$(settings-gear)"
+			},
+			{
+				"command": "fx-extension.openAccountLink",
+				"title": "%teamstoolkit.commands.accountsLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openLifecycleLink",
+				"title": "%teamstoolkit.commands.lifecycleLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openDevelopmentLink",
+				"title": "%teamstoolkit.commands.developmentLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openDocumentLink",
+				"title": "%teamstoolkit.commands.openDocumentLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.azureAccountSignOutHelp",
+				"title": "%teamstoolkit.commands.azureAccount.signOutHelp%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openEnvLink",
+				"title": "%teamstoolkit.commands.environmentsLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openHelpFeedbackLink",
+				"title": "%teamstoolkit.commands.feedbackLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openPreviewAadFile",
+				"title": "%teamstoolkit.commands.previewAadManifest.title%",
+				"icon": "$(file-code)"
+			},
+			{
+				"command": "fx-extension.openResourceGroupInPortal",
+				"title": "%teamstoolkit.commands.openInPortal.title%",
+				"icon": "$(ports-open-browser-icon)"
+			},
+			{
+				"command": "fx-extension.openSchema",
+				"title": "%teamstoolkit.commands.openManifestSchema.title%",
+				"icon": "$(file-code)"
+			},
+			{
+				"command": "fx-extension.openSubscriptionInPortal",
+				"title": "%teamstoolkit.commands.openInPortal.title%",
+				"icon": "$(ports-open-browser-icon)"
+			},
+			{
+				"command": "fx-extension.preview",
+				"title": "%teamstoolkit.commands.previewApp.title%"
+			},
+			{
+				"command": "fx-extension.previewWithIcon",
+				"title": "%teamstoolkit.commands.previewApp.title%",
+				"icon": "$(run)"
+			},
+			{
+				"command": "fx-extension.refreshEnvironment",
+				"title": "%teamstoolkit.commands.refresh.title%",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "fx-extension.refreshSideloading",
+				"title": "%teamstoolkit.commands.refresh.title%",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "fx-extension.checkSideloading",
+				"title": "%teamstoolkit.accountTree.sideloadingWarningTooltip%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.refreshCopilot",
+				"title": "%teamstoolkit.commands.refresh.title%",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "fx-extension.checkCopilotCallback",
+				"title": "%teamstoolkit.accountTree.copilotWarningTooltip%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.checkCopilotAccess",
+				"title": "%teamstoolkit.commands.checkCopilotAccess%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.signOut",
+				"title": "%teamstoolkit.commands.signOut.title%",
+				"icon": "$(sign-out)"
+			},
+			{
+				"command": "fx-extension.addWebpart",
+				"title": "%teamstoolkit.commmands.addWebpart.title%",
+				"enablement": "fx-extension.isTeamsFx && isWorkspaceTrusted && !fx-extension.commandLocked",
+				"category": "Teams"
+			},
+			{
+				"command": "fx-extension.openOfficeDevLifecycleLink",
+				"title": "%teamstoolkit.commands.lifecycleLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openOfficeDevDevelopmentLink",
+				"title": "%teamstoolkit.commands.developmentLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.openOfficeDevHelpFeedbackLink",
+				"title": "%teamstoolkit.commands.feedbackLink.title%",
+				"icon": "$(info)"
+			},
+			{
+				"command": "fx-extension.stopDebugging",
+				"title": "%teamstoolkit.commandsTreeViewProvider.officeAddIn.stopDebugTitle%",
+				"enablement": "fx-extension.isOfficeAddIn && !fx-extension.isManifestOnlyOfficeAddIn"
+			},
+			{
+				"command": "fx-extension.invokeChat",
+				"title": "%teamstoolkit.commandsTreeViewProvider.getCopilotHelpTitle%",
+				"category": "Teams",
+				"enablement": "fx-extension.isChatParticipantEnabled"
+			}
+		],
+		"taskDefinitions": [
+			{
+				"type": "teamsfx",
+				"required": [
+					"command"
+				],
+				"properties": {
+					"command": {
+						"anyOf": [
+							{
+								"const": "debug-check-prerequisites",
+								"description": "%teamstoolkit.taskDefinitions.command.prerequisites.description%"
+							},
+							{
+								"const": "debug-start-local-tunnel",
+								"description": "%teamstoolkit.taskDefinitions.command.startLocalTunnel.description%"
+							},
+							{
+								"const": "provision",
+								"description": "%teamstoolkit.taskDefinitions.command.provision.description%"
+							},
+							{
+								"const": "deploy",
+								"description": "%teamstoolkit.taskDefinitions.command.deploy.description%"
+							},
+							{
+								"const": "launch-web-client",
+								"description": "%teamstoolkit.taskDefinitions.command.launchWebClient.description%"
+							},
+							{
+								"const": "launch-desktop-client",
+								"description": "%teamstoolkit.taskDefinitions.command.launchDesktopClient.description%"
+							}
+						]
+					},
+					"args": {
+						"description": "The arguments of the command.",
+						"anyOf": [
+							{
+								"type": "object",
+								"required": [
+									"prerequisites"
+								],
+								"properties": {
+									"prerequisites": {
+										"type": "array",
+										"description": "%teamstoolkit.taskDefinitions.args.prerequisites.title%",
+										"items": {
+											"type": "string",
+											"anyOf": [
+												{
+													"const": "nodejs",
+													"title": "%teamstoolkit.taskDefinitions.args.prerequisites.nodejsTitle%"
+												},
+												{
+													"const": "m365Account",
+													"title": "%teamstoolkit.taskDefinitions.args.prerequisites.m365AccountTitle%"
+												},
+												{
+													"const": "copilotAccess",
+													"title": "%teamstoolkit.taskDefinitions.args.prerequisites.copilotAccessTitle%"
+												},
+												{
+													"const": "portOccupancy",
+													"title": "%teamstoolkit.taskDefinitions.args.prerequisites.portsTitle%"
+												}
+											]
+										}
+									},
+									"portOccupancy": {
+										"type": "array",
+										"items": {
+											"type": "number"
+										},
+										"description": "%teamstoolkit.taskDefinitions.args.portOccupancy.title%"
+									}
+								},
+								"if": {
+									"properties": {
+										"prerequisites": {
+											"contains": {
+												"const": "portOccupancy"
+											}
+										}
+									}
+								},
+								"then": {
+									"required": [
+										"portOccupancy"
+									]
+								},
+								"else": {
+									"not": {
+										"required": [
+											"portOccupancy"
+										]
+									}
+								},
+								"additionalProperties": false
+							},
+							{
+								"type": "object",
+								"required": [
+									"type",
+									"ports"
+								],
+								"properties": {
+									"type": {
+										"type": "string",
+										"description": "%teamstoolkit.taskDefinitions.args.type.title%",
+										"const": "dev-tunnel"
+									},
+									"ports": {
+										"type": "array",
+										"description": "%teamstoolkit.taskDefinitions.args.ports.title%",
+										"items": {
+											"type": "object",
+											"required": [
+												"portNumber",
+												"protocol"
+											],
+											"properties": {
+												"portNumber": {
+													"type": "integer",
+													"description": "%teamstoolkit.taskDefinitions.args.ports.portNumber.title%"
+												},
+												"protocol": {
+													"type": "string",
+													"description": "%teamstoolkit.taskDefinitions.args.ports.protocol.title%",
+													"oneOf": [
+														{
+															"const": "http"
+														},
+														{
+															"const": "https"
+														}
+													]
+												},
+												"access": {
+													"type": "string",
+													"description": "%teamstoolkit.taskDefinitions.args.ports.access.title%",
+													"oneOf": [
+														{
+															"const": "public"
+														},
+														{
+															"const": "private"
+														}
+													],
+													"default": "private"
+												},
+												"writeToEnvironmentFile": {
+													"type": "object",
+													"description": "%teamstoolkit.taskDefinitions.args.writeToEnvironmentFile.title%",
+													"properties": {
+														"domain": {
+															"type": "string",
+															"description": "%teamstoolkit.taskDefinitions.args.writeToEnvironmentFile.domain.title%"
+														},
+														"endpoint": {
+															"type": "string",
+															"description": "%teamstoolkit.taskDefinitions.args.writeToEnvironmentFile.endpoint.title%"
+														}
+													},
+													"additionalProperties": false
+												}
+											},
+											"additionalProperties": false
+										}
+									},
+									"env": {
+										"type": "string",
+										"description": "%teamstoolkit.taskDefinitions.args.env.title%",
+										"anyOf": [
+											{
+												"const": "local"
+											},
+											{}
+										]
+									},
+									"expiration": {
+										"type": "number",
+										"description": "%teamstoolkit.taskDefinitions.args.expiration.title%",
+										"minimum": 3600,
+										"default": 3600
+									}
+								},
+								"additionalProperties": false
+							},
+							{
+								"type": "object",
+								"required": [
+									"env"
+								],
+								"properties": {
+									"env": {
+										"type": "string",
+										"description": "%teamstoolkit.taskDefinitions.args.env.title%",
+										"anyOf": [
+											{
+												"const": "local"
+											},
+											{}
+										]
+									}
+								},
+								"additionalProperties": false
+							},
+							{
+								"type": "object",
+								"required": [
+									"url"
+								],
+								"properties": {
+									"url": {
+										"type": "string",
+										"description": "%teamstoolkit.taskDefinitions.args.url.title%"
+									}
+								},
+								"additionalProperties": false
+							}
+						]
+					}
+				}
+			}
+		],
+		"problemMatchers": [
+			{
+				"name": "teamsfx-frontend-watch",
+				"label": "TeamsFx Frontend Problems",
+				"owner": "Teams Toolkit",
+				"source": "teamsfx",
+				"applyTo": "allDocuments",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}/tabs"
+				],
+				"pattern": [
+					{
+						"regexp": "^.*?\\.js$",
+						"file": 0
+					},
+					{
+						"regexp": "^\\s*Line\\s+(\\d+):(\\d+):\\s+(.*)$",
+						"line": 1,
+						"column": 2,
+						"message": 3
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".*",
+					"endsPattern": "Compiled|Failed"
+				},
+				"severity": "error"
+			},
+			{
+				"name": "teamsfx-backend-watch",
+				"label": "TeamsFx Backend Problems",
+				"owner": "Teams Toolkit",
+				"source": "teamsfx",
+				"applyTo": "allDocuments",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}/api"
+				],
+				"pattern": [
+					{
+						"regexp": "^.*$",
+						"file": 0,
+						"location": 1,
+						"message": 2
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^.*(Job host stopped|signaling restart).*$",
+					"endsPattern": "^.*(Worker process started and initialized|Host lock lease acquired by instance ID).*$"
+				}
+			},
+			{
+				"name": "teamsfx-func-hosted-bot-watch",
+				"label": "TeamsFx Azure Functions Hosted Bot Problems",
+				"owner": "Teams Toolkit",
+				"source": "teamsfx",
+				"applyTo": "allDocuments",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}/bot"
+				],
+				"pattern": [
+					{
+						"regexp": "^.*$",
+						"file": 0,
+						"location": 1,
+						"message": 2
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^.*(Job host stopped|signaling restart).*$",
+					"endsPattern": "^.*(Worker process started and initialized|Host lock lease acquired by instance ID).*$"
+				}
+			},
+			{
+				"name": "teamsfx-auth-watch",
+				"label": "TeamsFx SimpleAuth Problems",
+				"owner": "Teams Toolkit",
+				"source": "teamsfx",
+				"applyTo": "allDocuments",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": [
+					{
+						"regexp": "^.*$",
+						"file": 0,
+						"location": 1,
+						"message": 2
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".*",
+					"endsPattern": ".*"
+				}
+			},
+			{
+				"name": "teamsfx-ngrok-watch",
+				"label": "TeamsFx Ngrok Problems",
+				"owner": "Teams Toolkit",
+				"source": "teamsfx",
+				"applyTo": "allDocuments",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": [
+					{
+						"regexp": "^.*$",
+						"file": 0,
+						"location": 1,
+						"message": 2
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "starting web service",
+					"endsPattern": "started tunnel|failed to reconnect session"
+				}
+			},
+			{
+				"name": "teamsfx-local-tunnel-watch",
+				"label": "TeamsFx Local Tunnel Problems",
+				"owner": "Teams Toolkit",
+				"source": "teamsfx",
+				"applyTo": "allDocuments",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": [
+					{
+						"regexp": "^.*$",
+						"file": 0,
+						"location": 1,
+						"message": 2
+					}
+				],
+				"background": {
+					"beginsPattern": "Forwarding URL https?://.* to https?://.*",
+					"endsPattern": "Local tunnel service is started successfully"
+				}
+			},
+			{
+				"name": "teamsfx-bot-watch",
+				"label": "TeamsFx Bot Problems",
+				"owner": "Teams Toolkit",
+				"source": "teamsfx",
+				"applyTo": "allDocuments",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}/bot"
+				],
+				"pattern": [
+					{
+						"regexp": "^.*$",
+						"file": 0,
+						"location": 1,
+						"message": 2
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "[nodemon] starting",
+					"endsPattern": "listening|[nodemon] app crashed"
+				}
+			}
+		],
+		"languages": [
+			{
+				"id": "teamsfx-toolkit-output"
+			}
+		],
+		"grammars": [
+			{
+				"language": "teamsfx-toolkit-output",
+				"scopeName": "teamsfx-toolkit.output",
+				"path": "./syntaxes/teamsfx-toolkit-output.tmLanguage"
+			}
+		],
+		"walkthroughs": [
+			{
+				"id": "buildIntelligentApps",
+				"title": "%teamstoolkit.walkthroughs.buildIntelligentApps.title%",
+				"description": "%teamstoolkit.walkthroughs.buildIntelligentApps.description%",
+				"steps": [
+					{
+						"id": "twoPathsToIntelligentApps",
+						"title": "%teamstoolkit.walkthroughs.buildIntelligentApps.twoPathsToIntelligentApps.title%",
+						"description": "%teamstoolkit.walkthroughs.buildIntelligentApps.twoPathsToIntelligentApps.description%",
+						"media": {
+							"svg": "media/walkthroughs/intelligent-apps/step1.svg"
+						}
+					},
+					{
+						"id": "copilotPlugin",
+						"title": "%teamstoolkit.walkthroughs.buildIntelligentApps.copilotPlugin.title%",
+						"description": "%teamstoolkit.walkthroughs.buildIntelligentApps.copilotPlugin.description%",
+						"media": {
+							"svg": "media/walkthroughs/intelligent-apps/step2.svg"
+						}
+					},
+					{
+						"id": "buildPlugin",
+						"title": "%teamstoolkit.walkthroughs.buildIntelligentApps.buildPlugin.title%",
+						"description": "%teamstoolkit.walkthroughs.buildIntelligentApps.buildPlugin.description%",
+						"media": {
+							"svg": "media/walkthroughs/intelligent-apps/step3.svg"
+						}
+					},
+					{
+						"id": "customCopilot",
+						"title": "%teamstoolkit.walkthroughs.buildIntelligentApps.customCopilot.title%",
+						"description": "%teamstoolkit.walkthroughs.buildIntelligentApps.customCopilot.description%",
+						"media": {
+							"svg": "media/walkthroughs/intelligent-apps/step4.svg"
+						}
+					},
+					{
+						"id": "buildCustomCopilot",
+						"title": "%teamstoolkit.walkthroughs.buildIntelligentApps.buildCustomCopilot.title%",
+						"description": "%teamstoolkit.walkthroughs.buildIntelligentApps.buildCustomCopilot.description%",
+						"media": {
+							"svg": "media/walkthroughs/intelligent-apps/step5.svg"
+						}
+					},
+					{
+						"id": "intelligentAppResources",
+						"title": "%teamstoolkit.walkthroughs.buildIntelligentApps.intelligentAppResources.title%",
+						"description": "%teamstoolkit.walkthroughs.buildIntelligentApps.intelligentAppResources.description%",
+						"media": {
+							"svg": "media/walkthroughs/intelligent-apps/step6.svg"
+						}
+					}
+				],
+				"when": "fx-extension.isApiCopilotPluginEnabled"
+			},
+			{
+				"id": "teamsToolkitGetStarted",
+				"title": "%teamstoolkit.walkthroughs.title%",
+				"description": "%teamstoolkit.walkthroughs.description%",
+				"steps": [
+					{
+						"id": "teamsToolkitEnvironment",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitEnvironment.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitEnvironment.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/Prerequisites.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitEnvironment.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitBuildApp",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitBuildApp.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitBuildApp.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/Create.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitBuildApp.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitCreateFreeAccount",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitCreateFreeAccount.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitCreateFreeAccount.description%",
+						"media": {
+							"markdown": "media/itp/itp.md"
+						}
+					},
+					{
+						"id": "teamsToolkitPreview",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitPreview.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitPreview.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/F5.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitPreview.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitDeploy",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitDeploy.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitDeploy.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/Deployment.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitDeploy.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitExploreMore",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitExploreMore.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitExploreMore.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/whatsnext.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitExploreMore.altText%"
+						}
+					}
+				],
+				"when": "!fx-extension.isChatParticipantEnabled"
+			},
+			{
+				"id": "teamsToolkitGetStartedWithChat",
+				"title": "%teamstoolkit.walkthroughs.title%",
+				"description": "%teamstoolkit.walkthroughs.withChat.description%",
+				"steps": [
+					{
+						"id": "teamsToolkitEnvironment",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitEnvironment.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitEnvironment.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/Prerequisites.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitEnvironment.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitBuildAppWithChat",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitBuildApp.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitBuildAppWithChat.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/Create.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitBuildApp.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitCreateFreeAccount",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitCreateFreeAccount.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitCreateFreeAccount.description%",
+						"media": {
+							"markdown": "media/itp/itp.md"
+						}
+					},
+					{
+						"id": "teamsToolkitPreview",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitPreview.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitPreview.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/F5.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitPreview.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitDeploy",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitDeploy.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitDeploy.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/Deployment.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitDeploy.title%"
+						}
+					},
+					{
+						"id": "teamsToolkitExploreMore",
+						"title": "%teamstoolkit.walkthroughs.steps.teamsToolkitExploreMore.title%",
+						"description": "%teamstoolkit.walkthroughs.steps.teamsToolkitExploreMore.description%",
+						"media": {
+							"svg": "media/walkthroughs/get-started/whatsnext.svg",
+							"altText": "%teamstoolkit.walkthroughs.steps.teamsToolkitExploreMore.altText%"
+						}
+					}
+				],
+				"when": "fx-extension.isChatParticipantEnabled"
+			}
+		],
+		"configuration": {
+			"title": "Teams Toolkit",
+			"properties": {
+				"fx-extension.developCopilotPlugin": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Enable to develop Copilot extension (Reload Visual Studio Code after changing this setting to take effect). Get more info from [How to Extend Microsoft 365 Copilot](https://aka.ms/teamsfx-copilot-plugin)."
+				},
+				"fx-extension.logLevel": {
+					"type": "string",
+					"enum": [
+						"Info",
+						"Verbose",
+						"Debug"
+					],
+					"default": "Info",
+					"markdownDescription": "Set the log level of Teams Toolkit. The default value is `Info`. The available values are `Debug`, `Verbose`, `Info`. The definitions of the log levels are:\n\n`Debug`:\n\n- HTTP request and response details from Teams Toolkit to external services such as Azure, Microsoft 365, and Teams Developer Portal.\n- Information related to Microsoft 365 and Azure accounts and access permissions.\n- Debugging information for each Teams Toolkit command execution, such as stack trace, ARM deployment information, etc.\n\n`Verbose`:\n\n- Progress information when executing lifecycle commands defined in the YAML file.\n- Execution details of each action that defined in the YAML file, including outcomes, result summaries, diagnostic information, etc.\n\n`Info`: Teams Toolkit command execution summaries.\n"
+				}
+			}
+		},
+		"chatParticipants": []
+	},
+	"scripts": {
+		"lint:staged": "lint-staged",
+		"vscode:prepublish": "rimraf out && npm run package",
+		"package": "npm run check-types && npm run vite && node esbuild.mjs --production",
+		"build": "npm run check-types && npm run vite && node esbuild.mjs",
+		"check-types": "tsc --noEmit",
+		"vite": "vite build --config vite.config.mts",
+		"watch": "npm-run-all -p watch:*",
+		"watch:esbuild": "node esbuild.mjs --watch",
+		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+		"watch:vite": "vite build --config vite.config.mts --watch",
+		"build:test": "tsc --project tsconfig.test.json --incremental",
+		"test:unit": "npm run build:test && nyc mocha --config .mocharc.json \"test/**/*.test.ts\"",
+		"test:integration": "echo 'to be implementd'",
+		"test:e2e": "echo 'to be implementd'",
+		"check-format": "prettier --list-different --config .prettierrc.js --ignore-path .prettierignore \"src/**/*.ts\" \"test/**/*.ts\" \"*.{js,json}\"",
+		"format": "prettier --write --config .prettierrc.js --ignore-path .prettierignore \"src/**/*.ts\" \"test/**/*.ts\" \"*.{js,json}\"",
+		"lint:fix": "eslint --config .eslintrc.js package.json src test --ext .ts --fix --fix-type [problem,suggestion]",
+		"lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+		"check-sensitive": "npx eslint --plugin 'no-secrets' --cache --ignore-pattern 'package.json' --ignore-pattern 'package-lock.json'",
+		"precommit": "npm run check-sensitive && lint-staged",
+		"updateFont": "node ./scripts/updateFont.js",
+		"previewFont": "start ./media/font/teamstoolkit.html",
+		"version": "bash ../../.github/scripts/vsc-version.sh",
+		"pack-local": "pnpm dlx vsce package --no-dependencies"
+	},
+	"devDependencies": {
+		"@azure/arm-subscriptions": "^5.0.0",
+		"@azure/core-auth": "^1.4.0",
+		"@azure/ms-rest-azure-env": "^2.0.0",
+		"@fluentui/react": "^8.106.1",
+		"@istanbuljs/nyc-config-typescript": "^1.0.2",
+		"@types/chai": "^4.2.14",
+		"@types/chai-as-promised": "^7.1.3",
+		"@types/chai-spies": "^1.0.3",
+		"@types/express": "^4.17.14",
+		"@types/fs-extra": "^9.0.5",
+		"@types/jscodeshift": "^0.11.2",
+		"@types/lodash": "^4.14.181",
+		"@types/mocha": "^8.0.4",
+		"@types/mock-fs": "^4.13.1",
+		"@types/node": "^14.14.21",
+		"@types/react": "^17.0.3",
+		"@types/react-copy-to-clipboard": "^5.0.4",
+		"@types/react-dom": "^17.0.2",
+		"@types/react-router-dom": "^5.1.7",
+		"@types/react-syntax-highlighter": "^15.5.5",
+		"@types/semver": "^7.3.4",
+		"@types/sinon": "^9.0.9",
+		"@types/string-similarity": "^4.0.2",
+		"@types/tmp": "^0.2.0",
+		"@types/uuid": "^8.3.0",
+		"@types/validator": "^13.1.1",
+		"@types/vscode": "^1.66.0",
+		"@typescript-eslint/eslint-plugin": "^5.0.0",
+		"@typescript-eslint/parser": "^5.0.0",
+		"@vitejs/plugin-react": "^4.3.1",
+		"@vscode/codicons": "0.0.33",
+		"ast-types": "^0.14.2",
+		"chai": "^4.2.0",
+		"chai-as-promised": "^7.1.1",
+		"chai-spies": "^1.0.0",
+		"dompurify": "^3.0.6",
+		"esbuild": "^0.23.0",
+		"esbuild-copy-static-files": "^0.1.0",
+		"eslint": "^8.1.0",
+		"eslint-plugin-header": "^3.1.1",
+		"eslint-plugin-import": "^2.25.2",
+		"eslint-plugin-no-secrets": "^0.8.9",
+		"eslint-plugin-prettier": "^4.0.0",
+		"fs-extra": "^9.0.1",
+		"lint-staged": "^11.2.6",
+		"lodash": "^4.17.21",
+		"mermaid": "^10.9.0",
+		"mocha": "^10.0.0",
+		"mocha-multi-reporters": "^1.5.1",
+		"mock-fs": "^5.2.0",
+		"nyc": "^15.1.0",
+		"prettier": "^2.4.1",
+		"react": "^17.0.2",
+		"react-dom": "^17.0.2",
+		"react-intl": "^5.13.5",
+		"react-router-dom": "^5.2.0",
+		"reflect-metadata": "^0.1.13",
+		"rimraf": "^3.0.2",
+		"sass": "^1.77.6",
+		"sinon": "^9.2.2",
+		"svgtofont": "^3.23.1",
+		"ts-loader": "^8.0.3",
+		"ts-node": "^9.1.1",
+		"ts-sinon": "^2.0.2",
+		"typemoq": "^1.3.1",
+		"typescript": "4.3.2",
+		"uuid": "^8.3.2",
+		"vite": "^5.3.3",
+		"vite-plugin-svgr": "^4.2.0"
+	},
+	"dependencies": {
+		"@azure/arm-resources-subscriptions": "^2.1.0",
+		"@azure/identity": "^4.1.0",
+		"@azure/ms-rest-azure-env": "^2.0.0",
+		"@azure/msal-node": "^2.6.6",
+		"@microsoft/dev-tunnels-connections": "1.1.9",
+		"@microsoft/dev-tunnels-contracts": "1.1.9",
+		"@microsoft/dev-tunnels-management": "1.1.9",
+		"@microsoft/dev-tunnels-ssh": "3.11.36",
+		"@microsoft/teamsfx-api": "workspace:*",
+		"@microsoft/teamsfx-core": "workspace:*",
+		"@microsoft/tiktokenizer": "^1.0.4",
+		"@microsoft/tsdoc": "^0.14.2",
+		"@microsoft/vscode-ui": "workspace:*",
+		"@npmcli/package-json": "^1.0.1",
+		"@vscode/extension-telemetry": "^0.6.2",
+		"@vscode/webview-ui-toolkit": "^1.2.2",
+		"async-mutex": "^0.3.1",
+		"axios": "^1.6.8",
+		"dotenv": "^8.2.0",
+		"dree": "^4.7.0",
+		"express": "^4.19.2",
+		"fuse.js": "^6.6.2",
+		"glob": "^10",
+		"jscodeshift": "^0.14.0",
+		"jsonc-parser": "^3.0.0",
+		"log4js": "^6.4.0",
+		"node-rsa": "^1.1.1",
+		"office-addin-manifest": "^1.13.1",
+		"query-string": "6.14.1",
+		"react-collapsible": "^2.10.0",
+		"react-copy-to-clipboard": "^5.1.0",
+		"react-syntax-highlighter": "^15.5.0",
+		"semver": "^7.5.2",
+		"string-similarity": "^4.0.4",
+		"tmp": "^0.2.1",
+		"validator": "^13.7.0",
+		"vscode-tas-client": "^0.1.75"
+	},
+	"extensionDependencies": [
+		"redhat.vscode-yaml"
+	],
+	"gitHead": "7d60c0765c0ea8c023a26c10d1c93001c597afbb",
+	"publishConfig": {
+		"access": "public"
+	},
+	"lint-staged": {
+		"*.{js,jsx,css,ts,tsx}": [
+			"npx eslint --cache --fix --quiet"
+		],
+		"*.json": [
+			"npx prettier --cache --write --ignore-unknown"
+		]
+	},
+	"__metadata": {
+		"id": "392d41b4-7df5-437b-9040-9632577a672f",
+		"publisherId": "e3c289db-0715-45e7-94ad-71c2cd459a8a",
+		"publisherDisplayName": "Microsoft",
+		"targetPlatform": "undefined",
+		"isApplicationScoped": false,
+		"isPreReleaseVersion": true,
+		"hasPreReleaseVersion": true,
+		"installedTimestamp": 1723717223609,
+		"pinned": false,
+		"preRelease": true,
+		"source": "gallery"
+	}
+}

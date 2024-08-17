@@ -1,0 +1,85 @@
+{
+	"name": "spfx-snippets",
+	"displayName": "SPFx Snippets",
+	"description": "SharePoint Framework Snippets by Elio Struyf",
+	"version": "1.12.0",
+	"icon": "assets/spfx-snippets.png",
+	"publisher": "eliostruyf",
+	"engines": {
+		"vscode": "^1.19.0"
+	},
+	"categories": [
+		"Snippets"
+	],
+	"keywords": [
+		"SharePoint",
+		"SPFx",
+		"TypeScript",
+		"React",
+		"Framework"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/estruyf/vscode-spfx-snippets"
+	},
+	"sponsor": {
+		"url": "https://github.com/sponsors/estruyf"
+	},
+	"contributes": {
+		"snippets": [
+			{
+				"language": "typescriptreact",
+				"path": "./snippets/react.json"
+			},
+			{
+				"language": "typescriptreact",
+				"path": "./snippets/common-react-ts.json"
+			},
+			{
+				"language": "typescript",
+				"path": "./snippets/common-react-ts.json"
+			},
+			{
+				"language": "typescript",
+				"path": "./snippets/typescript.json"
+			},
+			{
+				"language": "javascript",
+				"path": "./snippets/javascript.json"
+			},
+			{
+				"language": "scss",
+				"path": "./snippets/sass.json"
+			},
+			{
+				"language": "scss",
+				"path": "./snippets/fabric-colors.json"
+			},
+			{
+				"language": "scss",
+				"path": "./snippets/fabric-fonts.json"
+			},
+			{
+				"language": "scss",
+				"path": "./snippets/fabric-grid.json"
+			},
+			{
+				"language": "json",
+				"path": "./snippets/json.json"
+			}
+		]
+	},
+	"__metadata": {
+		"id": "caf5b951-352d-4030-aee0-9880380c894b",
+		"publisherId": "ce311c06-a2b7-469e-a0dd-319e3a3d9d25",
+		"publisherDisplayName": "Elio Struyf",
+		"targetPlatform": "undefined",
+		"isApplicationScoped": false,
+		"updated": true,
+		"isPreReleaseVersion": false,
+		"installedTimestamp": 1710754200379,
+		"pinned": false,
+		"preRelease": false
+	}
+}

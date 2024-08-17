@@ -1,0 +1,80 @@
+{
+  "name": "@internal/server-pattern-matcher",
+  "private": true,
+  "description": "Pattern Matcher Server",
+  "version": "2.0.0",
+  "author": "Jason Dent",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/streetsidesoftware/vscode-spell-checker"
+  },
+  "type": "commonjs",
+  "bin": {
+    "build": "./build.mjs"
+  },
+  "main": "dist/main.cjs",
+  "typings": "dist/main.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/main.cjs",
+      "require": "./dist/main.cjs"
+    },
+    "./api": {
+      "import": "./dist/api.cjs",
+      "require": "./dist/api.cjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "*.d.cts": [
+        "dist/*.d.cts"
+      ],
+      "api": [
+        "dist/api.d.cts"
+      ],
+      "dist/api.d.cts": [
+        "dist/api.d.cts"
+      ],
+      "*": [
+        "dist/*.d.cts"
+      ]
+    }
+  },
+  "devDependencies": {
+    "ts-loader": "^9.4.4",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@cspell/cspell-types": "^7.3.5",
+    "@internal/common-utils": "*",
+    "cspell-lib": "^7.3.5",
+    "regexp-worker": "^2.0.2",
+    "vscode-languageserver-textdocument": "^1.0.8",
+    "vscode-languageserver": "^8.1.0",
+    "vscode-uri": "^3.0.7"
+  },
+  "scripts": {
+    "build": "yarn run build:esbuild && yarn run build:api && yarn run build:tsc",
+    "build-production": "yarn run clean-build-production",
+    "build:production": "yarn run build:esbuild --production && yarn run build:api",
+    "build:esbuild": "node ./build.mjs",
+    "build:api": "yarn build:api.d.ts && yarn build:api.d.cts",
+    "build:api.d.ts": "tsc -p tsconfig.api.json",
+    "build:api.d.cts": "rollup -c rollup.config.mjs",
+    "build:tsc": "tsc -p tsconfig.test.json",
+    "clean-build-production": "yarn run clean && yarn run build:production",
+    "clean-build": "yarn run clean && yarn run build",
+    "clean": "shx rm -rf dist temp out coverage",
+    "test-watch": "vitest",
+    "test": "vitest run",
+    "watch": "concurrently yarn:watch:esbuild yarn:watch:api yarn:watch:tsc",
+    "watch:esbuild": "yarn build:esbuild --watch",
+    "watch:api": "yarn build:api --watch",
+    "watch:tsc": "yarn build:tsc --watch"
+  },
+  "engines": {
+    "node": ">16.0.0"
+  }
+}

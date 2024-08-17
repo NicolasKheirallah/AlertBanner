@@ -1,0 +1,17 @@
+{
+  "previewer.title": "Preview {0}",
+  "codeLens.displayText": "Preview Adaptive Card",
+  "command.createDataFile.dataFileAlreadyExits": "An adaptive card data file {0} already exists!",
+  "command.createDataFile.success": "Successfully created an empty data file \"{0}\" for card template \"{1}\"! Click button below to learn more about Adaptive Card Template Language.",
+  "message.activate": "Adaptive Card Previewer extension is now active!",
+  "message.cardNotFound": "No adaptive card content found in the active editor. Please open an Adaptive Card JSON file first.",
+  "message.invalidCardContent": "Invalid adaptive card content found in the active editor. Please check the JSON content.",
+  "message.templateNotFound": "No template file found for data file: {0}",
+  "message.noActiveEditor": "No active editor or active editor is not a JSON file.",
+  "validation.cardFeatureNotSupported": "{0} is not supported yet in Adaptive Card Previewer, you can debug in Teams to try it.",
+  "renderer.typeahead.NoResultsMessage": "No results",
+  "renderer.textInput.passwordInputHidePasswordAriaLabel": "Hide password",
+  "renderer.textInput.passwordInputRevealPasswordAriaLabel": "Reveal password",
+  "renderer.choiceSet.selectMultipleOptions": "Select multiple options",
+  "renderer.choiceSet.selectAnOption": "Select an option"
+}

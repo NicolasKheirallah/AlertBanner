@@ -1,0 +1,189 @@
+{
+  "spfx-spget-import": {
+    "prefix": "spfx-spget-import",
+    "body": [
+      "import { SPHttpClient, SPHttpClientResponse } from \"@microsoft/sp-http\";"
+    ],
+    "description": "Adds SPHttpClient required import statement."
+  },
+  "SPHttpClient get": {
+    "prefix": "spfx-sp-get",
+    "body": [
+      "this.context.spHttpClient.get(\"${1:https://contoso.sharepoint.com/_api/web/lists}\", SPHttpClient.configurations.v1)",
+      ".then((data: SPHttpClientResponse) => data.json())",
+      ".then((data: ${2:any}) => {",
+      "  ${3:}",
+      "});"
+    ],
+    "description": "Adds SPHttpClient get request."
+  },
+  "HttpClient get": {
+    "prefix": "spfx-http-get",
+    "body": [
+      "this.context.httpClient.get(\"${1:https://your-web-api}\", HttpClient.configurations.v1)",
+      ".then((data: HttpClientResponse) => data.json())",
+      ".then((data: ${2:any}) => {",
+      "  ${3:}",
+      "});"
+    ],
+    "description": "Adds HttpClient get request."
+  },
+  "MSGraphClient get": {
+    "prefix": "spfx-graph-get",
+    "body": [
+      "const graphClient: MSGraphClient = this.props.context.serviceScope.consume(",
+      "  MSGraphClient.serviceKey",
+      ");",
+      "",
+      "graphClient.api(\"me\").version(\"v1.0\").select(\"displayName,mail,userPrincipalName\").get((err, res) => {",
+      "  if (err) {",
+      "    console.error(err);",
+      "    return;",
+      "  }",
+      "",
+      "  ${1:}",
+      "});"
+    ],
+    "description": "Adds code for the MSGraphClient get call."
+  },
+  "AadClient get": {
+    "prefix": "spfx-aad-get",
+    "body": [
+      "const aadClient: AadHttpClient = new AadHttpClient(",
+      "  this.props.context.serviceScope,",
+      "  \"https://graph.microsoft.com\"",
+      ");",
+      "",
+      "aadClient.get(`${1:https://graph.microsoft.com/v1.0/me}`, AadHttpClient.configurations.v1)",
+      ".then((response: HttpClientResponse) => {",
+      "  return response.json();",
+      "})",
+      ".then((data: any) => {",
+      "  ${2:}",
+      "});"
+    ],
+    "description": "Adds code for the AadHttpClient get call."
+  },
+  "React useContext": {
+    "prefix": "spfx-context",
+    "body": [
+      "import * as React from 'react';",
+      "",
+      "interface I${1:Custom}ProviderProps { }",
+      "",
+      "const ${1:Custom}Context = React.createContext<I${1:Custom}ProviderProps | undefined>(undefined);",
+      "",
+      "const ${1:Custom}Provider: React.FunctionComponent<I${1:Custom}ProviderProps> = ({ children }: React.PropsWithChildren<I${1:Custom}ProviderProps>) => {",
+      "  return (",
+      "    <${1:Custom}Context.Provider",
+      "      value={{}}",
+      "    >",
+      "      {children}",
+      "    </${1:Custom}Context.Provider>",
+      "  )",
+      "};",
+      "",
+      "const use${1:Custom}Context = (): I${1:Custom}ProviderProps => {",
+      "  const loadFunc = React.useContext(${1:Custom}Context);",
+      "",
+      "  if (loadFunc === undefined) {",
+      "    throw new Error('use${1:Custom}Context must be used within the ${1:Custom}Provider');",
+      "  }",
+      "",
+      "  return loadFunc;",
+      "};",
+      "",
+      "${1:Custom}Context.displayName = '${1:Custom}Context';",
+      "${1:Custom}Provider.displayName = '${1:Custom}Provider';",
+      "",
+      "export { ${1:Custom}Provider, use${1:Custom}Context };"
+    ],
+    "description": "Blueprint to create a useContext React hook that lets you read and subscribe to context from your component."
+  },
+  "Custom Hook": {
+    "prefix": "spfx-hook",
+    "body": [
+      "import { useState, useEffect } from 'react';",
+      "",
+      "export default function ${1:useCustom}(options?: any) {",
+      "  const [value, setValue] = useState('');",
+      "",
+      "  useEffect(() => {",
+      "    async function fetchData() {",
+      "      setValue('');",
+      "    }",
+      "",
+      "    fetchData();",
+      "  }, [options]);",
+      "",
+      "  return {",
+      "    value",
+      "  };",
+      "}"
+    ],
+    "description": "Blueprint to create a custom React hook"
+  },
+  "React usePrevious hook": {
+    "prefix": "spfx-hook-prev",
+    "description": "Add code for adding an `usePrevious` hook.",
+    "body": [
+      "import { useEffect, useRef } from 'react';",
+      "",
+      "export function usePrevious<T>(value: T): T | undefined {",
+      "  const ref = useRef<T>();",
+      "",
+      "  useEffect(() => {",
+      "    ref.current = value;",
+      "  }, [value]);",
+      "",
+      "  return ref.current;",
+      "}"
+    ]
+  },
+  "React useAsync hook": {
+    "prefix": "spfx-hook-async",
+    "description": "Add code for adding an `useAsync` hook.",
+    "body": [
+      "import { useState, useEffect, useCallback } from 'react';",
+      "",
+      "/**",
+      " * ${1:Async function description}",
+      " * @param asyncFuncRef The reference to the async function to call",
+      " * @param callOnInit Call the function when the hook gets initiated. Default: true.",
+      " * @param isFetch Specifies if the function performs a fetch call. The JSON response will automatically be fetched.",
+      " */",
+      "export function useAsync<T>(asyncFuncRef: () => Promise<T>, callOnInit: boolean, isFetch: boolean = false) {",
+      "  const [ loading, setLoading ] = useState<boolean>(false);",
+      "  const [ value, setValue ] = useState<T | null>(null);",
+      "  const [ error, setError ] = useState<Error | null>(null);",
+      "",
+      "  const asyncFuncCall = useCallback(async () => {",
+      "    setLoading(true);",
+      "    setValue(null);",
+      "    setError(null);",
+      "",
+      "    try {",
+      "      const data: any = await asyncFuncRef();",
+      "      if (isFetch) {",
+      "        setValue(await data.json());",
+      "      } else {",
+      "        setValue(data)",
+      "      }",
+      "      setLoading(false);",
+      "    } catch (e) {",
+      "      setError(e);",
+      "      setLoading(false);",
+      "    }",
+      "  }, [asyncFuncRef]);",
+      "",
+      "  useEffect(() => {",
+      "    if (callOnInit) {",
+      "      asyncFuncCall();",
+      "    }",
+      "  }, [asyncFuncCall, callOnInit, isFetch]);",
+      "",
+      "  return { asyncFuncCall, loading, value, error };",
+      "}"
+    ]
+  }
+}

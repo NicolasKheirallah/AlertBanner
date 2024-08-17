@@ -1,0 +1,260 @@
+@import "~office-ui-fabric-react/dist/sass/References.scss";
+
+$breakpoint-tablet: 991px;
+$breakpoint-mobile: 600px;
+$alert-padding: 10px;
+$alert-padding-mobile: 8px;
+$alert-font-size: 1.5rem;
+$alert-font-size-mobile: 1.2rem;
+$icon-size: 2.3rem;
+$icon-size-mobile: 2rem;
+$icon-color: #ffffff;
+$close-icon-color: #ffffff !important;
+
+.alertItem {
+  font-size: $alert-font-size;
+
+  .container {
+    padding: $alert-padding 40px $alert-padding 45px;
+    display: flex;
+    align-items: center;
+    transition: padding 0.3s ease;
+
+    @media (max-width: $breakpoint-tablet) {
+      padding: $alert-padding 15px;
+      flex-direction: column; // Stack items vertically on smaller screens
+      align-items: flex-start;
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      padding: $alert-padding-mobile 10px;
+    }
+  }
+
+  .stack {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    flex-wrap: nowrap; // Ensure all items stay on the same row
+    overflow: hidden;
+  }
+
+  .stackMessage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-grow: 2; // Grow more relative to other elements
+    padding: 0 10px;
+    min-width: 0; // Prevents the flex item from overflowing
+
+    @media (max-width: $breakpoint-mobile) {
+      padding: 0 8px;
+    }
+  }
+
+  .stackLink {
+    padding: 0;
+    flex-grow: 0;
+    flex-shrink: 1; // Allow shrinking to prevent overflow
+    overflow: hidden;
+    display: inline-block;
+
+    @media (max-width: $breakpoint-mobile) {
+      display: block;
+      width: 100%;
+    }
+  }
+
+  .stackIcon {
+    min-width: 35px;
+    flex-grow: 0; // Prevent growing
+    flex-shrink: 0; // Prevent shrinking
+    align-self: flex-start;
+
+    @media (max-width: $breakpoint-mobile) {
+      min-width: 30px;
+    }
+  }
+
+  .alertIcon {
+    font-size: $icon-size;
+    padding-top: 10px;
+    color: $icon-color;
+    flex-grow: 0; // Prevent growing
+    flex-shrink: 0; // Prevent shrinking
+    transition: font-size 0.3s ease;
+
+    @media (max-width: $breakpoint-mobile) {
+      font-size: $icon-size-mobile;
+    }
+  }
+
+  .alertTitle {
+    font-weight: bolder;
+    white-space: nowrap;
+    line-height: 18px;
+    letter-spacing: -0.04px;
+    padding: 0;
+    margin-right: 10px; // Add spacing between title and description
+    flex-grow: 0; // Prevent growing
+    flex-shrink: 0; // Prevent shrinking
+    transition: font-size 0.3s ease;
+
+    @media (max-width: $breakpoint-mobile) {
+      font-size: $alert-font-size-mobile;
+    }
+  }
+
+  .alertDescription {
+    // overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 18px;
+    letter-spacing: -0.04px;
+    padding: 0;
+    flex-grow: 1; // Allow the description to take up the remaining space
+    min-width: 0; // Allow the flex item to shrink
+    display: flex;
+    align-items: center;
+    transition: font-size 0.3s ease;
+
+    @media (max-width: $breakpoint-mobile) {
+      font-size: $alert-font-size-mobile;
+    }
+
+    div img {
+      display: none;
+    }
+  }
+
+  .alertDescriptionExp {
+    height: auto;
+    line-height: 18px;
+    letter-spacing: -0.04px;
+
+    img {
+      max-width: 250px !important;
+      height: auto !important;
+      white-space: pre;
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      font-size: $alert-font-size-mobile;
+    }
+  }
+
+  .alertLink {
+    padding: 6px 10px;
+    text-align: right;
+    white-space: nowrap;
+    display: inline-block;
+    flex-shrink: 1; // Allow shrinking to fit content
+
+    a {
+      color: $icon-color;
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: -0.04px;
+      transition: font-size 0.3s ease;
+
+      div img {
+        width: 2%;
+        height: auto;
+        max-width: 20%;
+      }
+
+      @media (max-width: $breakpoint-mobile) {
+        font-size: $alert-font-size-mobile;
+      }
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      text-align: left;
+      padding: 10px 0;
+    }
+  }
+
+  .alertClose {
+    padding: 0;
+    flex-grow: 0; // Prevent growing
+    flex-shrink: 0; // Prevent shrinking
+
+    > button:hover {
+      background-color: transparent;
+    }
+
+    i {
+      color: $close-icon-color;
+    }
+  }
+
+  .actionable {
+    background: #f1c40f;
+    color: #323130;
+
+    .alertIcon {
+      color: $icon-color;
+    }
+
+    .alertLink a {
+      color: #323130;
+    }
+  }
+
+  .info,
+  .Interruption,
+  .maintenance,
+  .warning {
+    color: $icon-color;
+
+    .alertClose i {
+      color: $close-icon-color;
+    }
+
+    &.info {
+      background: #389899;
+    }
+
+    &.Interruption {
+      background: #c54644;
+    }
+
+    &.maintenance {
+      background: #afd6d6;
+    }
+
+    &.warning {
+      background: #f1c40f;
+    }
+  }
+
+  @media only screen and (max-width: $breakpoint-mobile) {
+    font-size: $alert-font-size-mobile;
+
+    .alertLink {
+      display: inline-block;
+      width: 100%;
+      margin-top: 0.75rem;
+    }
+
+    .alertIcon {
+      font-size: $icon-size-mobile;
+    }
+
+    .alertDescription {
+      font-size: $alert-font-size-mobile;
+    }
+  }
+
+  @media only screen and (max-width: $breakpoint-tablet) {
+    .hideInMobile {
+      display: none;
+    }
+  }
+
+  @media only screen and (min-width: 992px) { // Corrected to 992px
+    .hideInDesktop {
+      display: none;
+    }
+  }
+}

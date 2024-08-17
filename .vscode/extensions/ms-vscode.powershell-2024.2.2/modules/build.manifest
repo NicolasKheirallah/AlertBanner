@@ -1,0 +1,1821 @@
+{
+    "Files":  [
+                  {
+                      "Paths":  [
+                                    "build.manifest"
+                                ],
+                      "Source":  "build.manifest",
+                      "Hash":  ""
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.14393.0_7.0.0_x64_3.1.2_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.14393.0_7.0.0_x64_3.1.2_core.json",
+                      "Hash":  "00D4FA18798DA98B27A047F9CF629C71185E51E37EC627872450D4D2F7C67D87"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Threading.Tasks.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Threading.Tasks.dll",
+                      "Hash":  "0110616DFE870B8BCF25DF8F6CE38EF5AAC39E728DDAA3420EA199F5A7E80A16"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Runtime.CompilerServices.Unsafe.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Runtime.CompilerServices.Unsafe.dll",
+                      "Hash":  "01748200F2400C742AA689F1F5101BD6298EFDFD92C00C18F4FA473847235BA9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework.json",
+                      "Hash":  "01C0D51BEB49979D55F52E0DD58CB06BAFD8D0553E197B65D4B17955CE97270D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Logging.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Logging.dll",
+                      "Hash":  "021A2B6A89E79D82A2B8552909FBAB810E79220EB4666BEDE74D34C3D466726F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/manifest.spdx.json.sha256"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/manifest.spdx.json.sha256",
+                      "Hash":  "021FE5F764CD0F4418835A6DE6F615D91045C46BD1EB3318736E11AA98E65A32"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Reflection.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Reflection.Primitives.dll",
+                      "Hash":  "0383DC02FDF0B5D4612D8CAAAD13D594CAC1609C8240B73DFD6EA5803F5E17EA"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Serilog.Sinks.Async.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Serilog.Sinks.Async.dll",
+                      "Hash":  "03A60A1B7D8972388EB5E8EAA8E62037D15AAD9620E27BB1144B17EC89B603E7"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Threading.Timer.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Threading.Timer.dll",
+                      "Hash":  "04B9235F64C9C846F8A767230714895DA87C7AE2CD0105E9D14835AE46F0FED8"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/ScriptAnalyzer.types.ps1xml"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/ScriptAnalyzer.types.ps1xml",
+                      "Hash":  "04C358BB5D36031638C44AAE3691A4628E17022FD8841AB4452E7E04A5D74D46"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Threading.Tasks.Extensions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Threading.Tasks.Extensions.dll",
+                      "Hash":  "09901F63EBC4B8F0897B0128FB230C146529AEE5C5CC90D7A7872E66A976BB5F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.xml"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.xml",
+                      "Hash":  "09C51294738426BB2373C0E336C11BCBA328D8656CAF387889B673150551E94C"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Text.Encoding.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Text.Encoding.dll",
+                      "Hash":  "0AB1F7F87B7C2AFCA57D394E4F4E262C82BA3209CB0A750CD66401FB33F21ECA"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/ConvertTo-ScriptExtent.md"
+                                ],
+                      "Source":  "docs/ConvertTo-ScriptExtent.md",
+                      "Hash":  "0B4517F3AD398B2CFB03CD41AE13ABE0BDD38B0ED9675011B6B253CDE730A098"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Private/BuiltInCommands.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Private/BuiltInCommands.ps1",
+                      "Hash":  "0CBF82273F75030473C3867EB1A92CF43A1E845BA36099C5DACAFBE35681159D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/_manifest/spdx_2.2/bsi.json"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/_manifest/spdx_2.2/bsi.json",
+                      "Hash":  "0D10875C962E305902CB7BE147AF0707B3AC6FFCA658C2B3177DB829108CC503"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.ComponentModel.TypeConverter.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.ComponentModel.TypeConverter.dll",
+                      "Hash":  "0DBB92ECD5DFA7FC258BC6DEED4CECF1B37F895457FD06976496926ABDB317BB"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/PSReadLine.format.ps1xml"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/PSReadLine.format.ps1xml",
+                      "Hash":  "0DD3C2B622528939A17A7AB80B18C48C4963C66099D4E06D51EEE5C0C0B781CA"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.IsolatedStorage.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.IsolatedStorage.dll",
+                      "Hash":  "0E80A2E256D16E487BC847D1857ED7CD088F176254BA2A385D675338B836B0FC"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/Microsoft.PowerShell.PSReadLine2.dll"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/Microsoft.PowerShell.PSReadLine2.dll",
+                      "Hash":  "0FD6EDBCE1ED513772EB116BAA4B70F021D3EB0088E7324CB605F8BF15700708"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.14393.0_5.1.14393.2791_x64_4.0.30319.42000_framework.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.14393.0_5.1.14393.2791_x64_4.0.30319.42000_framework.json",
+                      "Hash":  "10CABB80EC1E5567A96D50F053854C833B7B9701B01FFC1E4700DC115FA2BA4A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Memory.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Memory.dll",
+                      "Hash":  "11590D8BB3B12F29F4202B3EF8593229A5CD6DEBB61E76CBA9AC5493A82EE382"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.pdb"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.pdb",
+                      "Hash":  "135094910D1FD8944F55CF010CE6319657BE9A0F31204768765F9CD078A4BDA8"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/manifest.spdx.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/manifest.spdx.json",
+                      "Hash":  "15197CFA0C25EBBB4433F0DB5853CD9C86134D3418AF589B09E1ECE72567E0BE"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.Numerics.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.Numerics.dll",
+                      "Hash":  "16E7EFD6C19B2E3E516AE1BC7B3175D0E22F1AD357701F229E353DA348EEE182"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/PSReadLine.psm1"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/PSReadLine.psm1",
+                      "Hash":  "1721619D738C59E2DE7F3A6DBBC2479D02DD81322D481022EB1BA1B473F026AE"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Security.SecureString.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Security.SecureString.dll",
+                      "Hash":  "18032D190D0D599823E59C8DD8B588909BEF8888B8BF304723A138B61F1B911F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.CompilerServices.VisualC.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.CompilerServices.VisualC.dll",
+                      "Hash":  "18A610B8BAD43CF784CDE4D4902A238F2281C2A677DAAE790CAB55F6DA915979"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-4_x64_10.0.18362.0_6.2.4_x64_4.0.30319.42000_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-4_x64_10.0.18362.0_6.2.4_x64_4.0.30319.42000_core.json",
+                      "Hash":  "196BEB5415DFB8B63E3E3678268F2990E2239401A98B86D89800749504B69B66"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.WebSockets.Client.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.WebSockets.Client.dll",
+                      "Hash":  "19766A20B62B038ABC3E863F2D6E7B55FABEE4D9CBCAD3EB1D7BD3EBFE8D023A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Nerdbank.Streams.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Nerdbank.Streams.dll",
+                      "Hash":  "1BC9F04C7478EEE36027FDF621EB9BE9AAA3714CBEEA09AA4ABE560900A5C4EF"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Data.Common.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Data.Common.dll",
+                      "Hash":  "1C7BFF6F16BB618648E699B723AEAFE511515CD6AAD699C25FAAE2A507E22811"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/Microsoft.PowerShell.EditorServices.Hosting.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/Microsoft.PowerShell.EditorServices.Hosting.dll",
+                      "Hash":  "1D9F02AB6B48553922373454BDE521865492E8BAAA89AD7A76AEDF6C6D31EF50"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Encoding.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Encoding.dll",
+                      "Hash":  "1F5C1ABE1B2720680170388569354D8CDA9D558B53AFF7CAF175CE0F7E3733E5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Xml.XmlSerializer.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Xml.XmlSerializer.dll",
+                      "Hash":  "21493F7F615A099E795F7FAE7ECCE6082414D1D427790BDF4B103623A3AB34EB"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Out-CurrentFile.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Out-CurrentFile.ps1",
+                      "Hash":  "21CAF0E9015E2562F21B474F49E8A0DD5FD0B5C28CDB1F6BFC8C111BC6D17462"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.ComponentModel.EventBasedAsync.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.ComponentModel.EventBasedAsync.dll",
+                      "Hash":  "22108E32E0B6E42F5F52A4CB17B9B6FA3DFD547ECD9EEF9C67226DBEC54D23E5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.NameResolution.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.NameResolution.dll",
+                      "Hash":  "222BD77C5692C2961E8C3638F6511D6F7CBEB9E0977E2D5C3BCA6739A5311F37"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Numerics.Vectors.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Numerics.Vectors.dll",
+                      "Hash":  "2324EE5A35674269225E2AA20957CE8830DBCA0CFFB918BD593F7A3222DEE480"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Find-Ast.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Find-Ast.ps1",
+                      "Hash":  "24263C2555CADE9AC4E2866143E0F636BDC7B26039476F4C9D0E77BE880624E7"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Xml.XPath.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Xml.XPath.dll",
+                      "Hash":  "24DAA1FAEE0478BA58FEBE8EE789EB88BE0A14D350B57AD8B10690C55976B2E1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/License.txt"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/License.txt",
+                      "Hash":  "25C2FDFCDC653F65629233F5EF217A83287733D3C0299C207B0BCA865508C463"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Tools.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Tools.dll",
+                      "Hash":  "260C6250EF9B57DCA99B4CECC533F9A34857B5A32B5351202F776163841200AA"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Drawing.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Drawing.Primitives.dll",
+                      "Hash":  "2805A18724A24034AD6ACB315DAC516E479CECC5F3753204052657E560932D5D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Process.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Process.dll",
+                      "Hash":  "28B165CDDB82A2507114394AE398995EF8A50C549214F8678AA66054F6927754"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Newtonsoft.Json.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Newtonsoft.Json.dll",
+                      "Hash":  "2CCA5B59033D49F7ABC97F69010EC0B51218B0ED2651999E3329FE8BDB7B5FD8"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/ConvertTo-ScriptExtent.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/ConvertTo-ScriptExtent.ps1",
+                      "Hash":  "2E0E38662BD60E25985EB8E4831FC2A6000B18E39699027AE0EDA231DBCF8415"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.NetworkInformation.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.NetworkInformation.dll",
+                      "Hash":  "2E2D28A0802D8C8C08C0D422F48733AD8BF1DFAE75F5682A4A3DF8898E7E819F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv7/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv7/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll",
+                      "Hash":  "2FF7700AE17757CC40C2D10B43718AD6BD2B1DA1092F1F2EE1DC497A6CB04318"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Linq.Parallel.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Linq.Parallel.dll",
+                      "Hash":  "30A49D16436E3A05569C99A0C2D21755C2FA323C5B925F9F21C10287CC97D9C9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/en-US/PowerShellEditorServices.Commands-help.xml"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/en-US/PowerShellEditorServices.Commands-help.xml",
+                      "Hash":  "3158645D1676ACC855497BC74BA0F032B3CD79A92B84B96942B3EF9DC040E0C6"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Bcl.AsyncInterfaces.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Bcl.AsyncInterfaces.dll",
+                      "Hash":  "33E3C58D46C76D5535D7C24085957B7CCB7CE3815707300955A6309ECC2E81D1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Win32.Registry.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Win32.Registry.dll",
+                      "Hash":  "340933AD6701077AE9B8035E4671803D86074AB32F2DE8165ACFDB954BD260F6"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Threading.Tasks.Parallel.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Threading.Tasks.Parallel.dll",
+                      "Hash":  "3468E0C875DB94A8F45D56AB76BBCC677B942CA51A23649BA3C5AD1B20E391F1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Linq.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Linq.dll",
+                      "Hash":  "349C7FBE9AE2B78C2F90239BDDFCEA5B16A0FAAC1FE83553A816C50C3E9089B1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/CodeFormatting.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/CodeFormatting.psd1",
+                      "Hash":  "360791F50C74F0BCAC11E7A48EA6927C15569B0EE1F639FFDCDCA789F2AFC821"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/CmdletInterface.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/CmdletInterface.ps1",
+                      "Hash":  "364B719F7145F37ECA8967E9276B69EC40BB8AC7BFB2C0A85AF3550E75B728B9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.InteropServices.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.InteropServices.dll",
+                      "Hash":  "383A1F9DAC655C6805C24D4A03BC5FBEB9ABD1536DE5510F5756259EEFCB4871"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Threading.Channels.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Threading.Channels.dll",
+                      "Hash":  "3987CD57F3CE09667C5C68802B768B68EBDE4174E2AD7B878B7257E083EF9D77"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSGetModuleInfo.xml"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSGetModuleInfo.xml",
+                      "Hash":  "3A21358DE9AD79172A52D5F53FDB43383DACE88149852C2B53256648EE660656"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/manifest.cat"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/manifest.cat",
+                      "Hash":  "3BAA38C12817AC1303453C283829DCC306C17FFA6DFC69ED247B3EB54B18AB03"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.X509Certificates.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.X509Certificates.dll",
+                      "Hash":  "3C8630ACB43C12A6A317227FF2922056ECD991FE945464FDF7EA81F1293A479F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Reflection.Extensions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Reflection.Extensions.dll",
+                      "Hash":  "3D2551D6458B84566025FDDFE5DAD479CAB5785428EFD6814860D36AD1811C9A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Threading.ThreadPool.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Threading.ThreadPool.dll",
+                      "Hash":  "3D9EBC81B1BD3234666C8CE403A5F17A726867C68FFA5DE4EC8EE92599335658"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv4/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv4/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll",
+                      "Hash":  "435B4701D185FCE9ABEAB4CD087EC6CE340F45CB30B4A79B1E6E1CA67B68818E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/PSReadLine.psd1"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/PSReadLine.psd1",
+                      "Hash":  "44CD134789A7C9FE5F28A2AF14C8E0CD61FF906514E352F825CE3DD4492DD817"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSScriptAnalyzer.psm1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSScriptAnalyzer.psm1",
+                      "Hash":  "45482BCB2E39969075A71665AC0863EBB25FC93E8EC8D88696032F59C40999C6"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-linux-arm.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-linux-arm.json",
+                      "Hash":  "4AC89539CA47EAE3EB1D95547EFC59894A8A6E062F86D52840DA35EDF189131B"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.LanguageServer.Shared.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.LanguageServer.Shared.dll",
+                      "Hash":  "4BA5BBCC340E9EB8F1652C67CE87608E139C8CE20EFA1CEF0CF2D911FDDBFB58"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Serilog.Extensions.Logging.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Serilog.Extensions.Logging.dll",
+                      "Hash":  "4BB98B15A60EE54DB569024107E75E62C79D304A1A4D9532AC3B5A8DB1650DC3"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.LanguageServer.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.LanguageServer.dll",
+                      "Hash":  "4C7850D2F97CB9D160D236CEEBF392980C33C4B59105D0A19D361A750B73FE0E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Clear-Host.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Clear-Host.ps1",
+                      "Hash":  "4C84048995E5784B7657937A2FA502DBCBEECC5FD400C76C04DD48922B00E828"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/CodeFormattingOTBS.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/CodeFormattingOTBS.psd1",
+                      "Hash":  "4CF28E6A53BAE5062011011EB0B23AB5D453211C2F7471648494B8BD4FDE05C1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.Ping.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.Ping.dll",
+                      "Hash":  "4D97E8481B9A27042BB903245625735D82FF627C66797DE619303C1E705D0D6A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Threading.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Threading.dll",
+                      "Hash":  "4DC8D588EC63641C28422D648E8DE5E2C030EB7AFEC2071A99DD3BD9A204557F"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Register-EditorCommand.md"
+                                ],
+                      "Source":  "docs/Register-EditorCommand.md",
+                      "Hash":  "4E5A2AA36962AC09BE58D173079C5E8B584B8BA33435788BDEC75D82B4BCC65B"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Xml.XDocument.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Xml.XDocument.dll",
+                      "Hash":  "4F6A14E4BA2A2B26B8B8433D5F82F75A96AF5A4F036D9447373B07271493917B"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.dll",
+                      "Hash":  "50AD612D4CF6113DE26B2870DA099C4817F59E64A2DA98F05803B4A2E2304919"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Collections.NonGeneric.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Collections.NonGeneric.dll",
+                      "Hash":  "529943C0CDF24F57E94BF03FAC5F40B94A638625027A02DF79E1E8CB5D9BC696"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv7/Pluralize.NET.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv7/Pluralize.NET.dll",
+                      "Hash":  "532FD8EB3496BE379C12DA0C67F5082F1B7AE31A070126E034367A213CFA14DE"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Xml.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Xml.dll",
+                      "Hash":  "557858E44A51A74646AD07A85CBA56AF1DA13AD26AC2F74EE5D8C3E8A171C221"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Debug.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Debug.dll",
+                      "Hash":  "55A30D92D163CF1807BEA6DC13B4C13E70AEBBB034DC77EAEF4F4394730DCD8E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Csp.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Csp.dll",
+                      "Hash":  "566775F5502C3C1FA70ACADE145293DF5D02C1A9F031820D429605E9B4584B44"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Configuration.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Configuration.dll",
+                      "Hash":  "567CCE7F8EB0CF3BB445BA455AF1FDB9C4E0AFBB6E10BBE8C3930682295182D1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Globalization.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Globalization.dll",
+                      "Hash":  "56BD0C02C734ABF4D7FD1EF2E8B6A9E4BF5E4BAB4E606CD1023D63B02852FA61"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Primitives.dll",
+                      "Hash":  "575E26A455892F1FD77B730E6928F70B760E76094AFE5BCB677D854DAF869AC5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.CSharp.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.CSharp.dll",
+                      "Hash":  "5ABAA4603EA3D53E73AD5E151B9637F094DB58CEAE39F15C91219622B337E919"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/_manifest/spdx_2.2/manifest.cat"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/_manifest/spdx_2.2/manifest.cat",
+                      "Hash":  "5B4A9E4EAA54650931C080DAD2C3E14676EB123E98B0E7B253BF3104BFD7ED50"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.Primitives.dll",
+                      "Hash":  "5C84DD40D67C0E59906511D2B09DA8E28C454B5979EB5FDE74213F9D4BDBC564"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.ComponentModel.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.ComponentModel.dll",
+                      "Hash":  "5E61D755616CB10524F5F31E9B70C65A7FFF8E30E25CE711AC8B354D657AB479"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/Microsoft.Win32.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/Microsoft.Win32.Primitives.dll",
+                      "Hash":  "5EAA2E82A26B0B302280D08F54DC9DA25165DD0E286BE52440A271285D63F695"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Join-ScriptExtent.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Join-ScriptExtent.ps1",
+                      "Hash":  "5F3AC92DD393BDCE1CBBA959B3C98D1112FFF4889896D364788F1BD5A5054DAD"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Xml.ReaderWriter.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Xml.ReaderWriter.dll",
+                      "Hash":  "5F560E1DD529BB2529D7052E04008449F58D0439C2BB43437D7B5D39F84F949F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/PowerShellEditorServices.Commands.psm1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/PowerShellEditorServices.Commands.psm1",
+                      "Hash":  "607C3F1AE1F3E5B4E63AE3D6571FA053009ADC642B13858BC2AA7F4174C63277"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/desktop-3.0-windows.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/desktop-3.0-windows.json",
+                      "Hash":  "60AAE851911741248D3414925CBAF4C59E8743EFAF5A5005ED129DB257DC4C4F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_6.2.9200.0_3.0_x64_4.0.30319.42000_framework.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_6.2.9200.0_3.0_x64_4.0.30319.42000_framework.json",
+                      "Hash":  "60C3F51E87D332989CF0082DD8B785FA412F8B1CD488F7C8417560022E0BCC28"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll",
+                      "Hash":  "613644D83146CBE4223034EAA551C76886FA3AE4154F7E7970D33F746F7427E7"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Resources.ResourceManager.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Resources.ResourceManager.dll",
+                      "Hash":  "62DCE4679E33C079E11F41B096BC803B30B1D963A1EA79EFA84187CEBBC06AFE"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Reflection.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Reflection.dll",
+                      "Hash":  "63AAF632EE7F3BC852C4D71C742CF1D26F18F784F6C89113E056B2599BA8F514"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.TextWriterTraceListener.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.TextWriterTraceListener.dll",
+                      "Hash":  "63EAB38EE9F4DCD686C8E6A4F01E1E2A9BB91E52B20AB4DDE0C28061E9261860"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-4_x64_10.0.18362.0_7.0.0_x64_3.1.2_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-4_x64_10.0.18362.0_7.0.0_x64_3.1.2_core.json",
+                      "Hash":  "66A64CCEE6B4BCB3B68842843693849D2BEB88CD1DDDE525A1C4F0132F1609BF"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.Sockets.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.Sockets.dll",
+                      "Hash":  "694F4C61B6BAE0AEFAC07A1E861C12C03CB6002F30091E4C8B05BB9C8CCF0D3D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.WebHeaderCollection.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.WebHeaderCollection.dll",
+                      "Hash":  "69B48FF8E6F40B84CDDDB95BCDBB34E1184A2E29CB4CCC0FC9F1A2493648EE37"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.DebugAdapter.Shared.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.DebugAdapter.Shared.dll",
+                      "Hash":  "6CB5DED8D515752CDE077D11296B8470EC629C635D974BDAE2F70CE7D98FDB9E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Primitives.dll",
+                      "Hash":  "6D492E7919789C7AB3D4AFB5D2E5841CC0E2F28B07BF561BD1FCF8945E2170B3"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.LanguageProtocol.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.LanguageProtocol.dll",
+                      "Hash":  "6D498830987B7B608D55C5A0F86D34E47D6C1BC0F2731A9B628C00F867D1CE09"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Unregister-EditorCommand.md"
+                                ],
+                      "Source":  "docs/Unregister-EditorCommand.md",
+                      "Hash":  "6E898CC6476F11EC9EF0969E5346EEF8792F5503B82845D9A150CCB57A0BB08A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-macos.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-macos.json",
+                      "Hash":  "70703E205682F5D216320143ED50F9ACC9CF4D3655240435FCD109AC504A3B05"
+                  },
+                  {
+                      "Paths":  [
+                                    "_manifest/spdx_2.2/manifest.spdx.json.sha256"
+                                ],
+                      "Source":  "_manifest/spdx_2.2/manifest.spdx.json.sha256",
+                      "Hash":  "707BA58E00D975B80AF02FF68B21A3E6F285006E3CC6ADDE6D2BFC518C06240A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Linq.Queryable.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Linq.Queryable.dll",
+                      "Hash":  "719AC73BB261E0A13574F5A198126CCF40352264958DEFB555280D005134C704"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv3/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv3/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll",
+                      "Hash":  "71AFF7F91CDFB76867A6F4452B2A83C71B6980A0540E06957E873B0FCCF28BF5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Serilog.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Serilog.dll",
+                      "Hash":  "71D02644D869978C3C400231BC0EDD7FFA854AFEEC52E447088EEFD022D1700A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.xml"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.xml",
+                      "Hash":  "727F648B86BF02955B2D14E404ED4B10C49B9FD46B64C148B750556271431708"
+                  },
+                  {
+                      "Paths":  [
+                                    "_manifest/spdx_2.2/bsi.json"
+                                ],
+                      "Source":  "_manifest/spdx_2.2/bsi.json",
+                      "Hash":  "734A6079546022EEEB48BFFF816C33C786326CC43FF791FAFF08E613A883A236"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Get-Token.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Get-Token.ps1",
+                      "Hash":  "7418892C4284286932299F3493936CCE01286C618BA98DFDD7BA012958C9D061"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/net6plus/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+                      "Hash":  "750C43928EA79AA55DFC03CB3ED79FBEB4AF099AD4CAB45AD812C31ED2F1FCC8"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Options.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Options.dll",
+                      "Hash":  "770979DDFC9FCFA01B9D0019B536BD26946A30DC36C3152ACE6F1B97529E2126"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.Compression.ZipFile.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.Compression.ZipFile.dll",
+                      "Hash":  "7720EE13405EA8A3C204703A181E67DC6D66835E9DF263C09D04D8B48B41EB26"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/PSGetModuleInfo.xml"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/PSGetModuleInfo.xml",
+                      "Hash":  "781DEFB7355CB443328DBFA388D34848F38D03AA0863DF1F3769E49F8E36719E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Security.Principal.Windows.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Security.Principal.Windows.dll",
+                      "Hash":  "7828DFD952A9FD49404477BAFF714849177D9F18C0654ADAFADBDCAFB4B21F47"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/ScriptFunctions.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/ScriptFunctions.psd1",
+                      "Hash":  "79656D1B700C49E4BD887A36C9F2FE15C9622042E96F908DC31209D02E6E18C1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.deps.json"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.deps.json",
+                      "Hash":  "7A76A696155AA30BA2F3AC1E1443D07A82064090EAE10AD46E3A9A08A437B4D1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.Handles.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.Handles.dll",
+                      "Hash":  "7A81D2A001B543B2A55C9AFFC845A5DF7EDAB1FD308C6979BBD982B1B826B57C"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/_manifest/spdx_2.2/manifest.spdx.json.sha256"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/_manifest/spdx_2.2/manifest.spdx.json.sha256",
+                      "Hash":  "7B1E9A564DD29EFB3C63AC011ABBB41205D2E7BD57606CD101869194D9E087FE"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.FileVersionInfo.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.FileVersionInfo.dll",
+                      "Hash":  "7C25A74772E135257235640A0264DDC05235E14F3627896CFE735E9955155F83"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/Changes.txt"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/Changes.txt",
+                      "Hash":  "7CA6BD5F5CC5F19D9B753890DDF05AA566DF0B6A92281448F05D0674C1ED77CD"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.DependencyInjection.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.DependencyInjection.dll",
+                      "Hash":  "7CAE1005B8A336F34F2858E89AFB1DC6CE071D9AB12AE399A14330BCD1896C03"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.17763.0_6.2.4_x64_4.0.30319.42000_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.17763.0_6.2.4_x64_4.0.30319.42000_core.json",
+                      "Hash":  "7FA1BBBC38A59984F9BB661DD653F64F6116B6661A4EFCD70E9DD051C7576F84"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.Pipes.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.Pipes.dll",
+                      "Hash":  "80A229B2917FC3A5D941FF9745A6BE0065028AFDF9509300410D2721C71F1198"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.IO.Pipes.AccessControl.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.IO.Pipes.AccessControl.dll",
+                      "Hash":  "81159CD829EE484C2BCD4A40EB6A52E87440D9ADE87BA7386B46363849CEA406"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/bsi.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/_manifest/spdx_2.2/bsi.json",
+                      "Hash":  "813885D2B858B62067B212A496372461645872B1D9E01052E4CF7C0FFB4E2CC2"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/PowerShellEditorServices.Commands.types.ps1xml"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/PowerShellEditorServices.Commands.types.ps1xml",
+                      "Hash":  "81B374B5DD85C11688839B1C5AF8385D07AF00121DC44D961E7D5213050F3E98"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.MemoryMappedFiles.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.MemoryMappedFiles.dll",
+                      "Hash":  "81B6527AC2D18782AC24AE463C11DD1D70AB1BC89F626B7347A592229B371A1D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Microsoft.PowerShell.CrossCompatibility.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Microsoft.PowerShell.CrossCompatibility.dll",
+                      "Hash":  "81D081325E7C00B6F070A0A76F81460AD43998D496DE5A6DA09720B56B609969"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Test-ScriptExtent.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Test-ScriptExtent.ps1",
+                      "Hash":  "825EA017C6E0C3D25BA8D05EF4FB59787CA61CDDE5D7B8744332072E00E39C76"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Security.Claims.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Security.Claims.dll",
+                      "Hash":  "8270D1248950EE8AEE5C2AC2E321DF07E65C7A94004AE03C857DEACD231A5542"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.dll",
+                      "Hash":  "82EFFD7D7F47D8B43CF07BE46A3DD5CA22E13C9839F1A50801F8B56E5AB037D0"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/CmdletDesign.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/CmdletDesign.psd1",
+                      "Hash":  "8319CE02C6F513568DF096847AE0FC66E3727BB81CBA8975E1846ADF3E88B245"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Get-Token.md"
+                                ],
+                      "Source":  "docs/Get-Token.md",
+                      "Hash":  "83EA27CBA822BBF3283550AB626FEF00AB9ED32FFC3FF61CCF1E99FB44CB7DC5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.VisualStudio.Validation.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.VisualStudio.Validation.dll",
+                      "Hash":  "83EE28811E6815914191DB0C1D65278F62A20995786BB1D416F48E8A3E290274"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.ComponentModel.Annotations.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.ComponentModel.Annotations.dll",
+                      "Hash":  "855CC7C851AB16FDBF8745ABCE78F1B76053ED3C2CD885EDCCD52FF4455D063F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.UnmanagedMemoryStream.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.UnmanagedMemoryStream.dll",
+                      "Hash":  "86F1F12E47F260985B08BB966598123578EB5E48BEF9BB086F04E16E9D53BB32"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.ObjectModel.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.ObjectModel.dll",
+                      "Hash":  "870EE1141CB61ABFCE44507E39BFDD734F2335E34D89ECFFFB13838195A6B936"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/ubuntu_x64_18.04_6.2.4_x64_4.0.30319.42000_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/ubuntu_x64_18.04_6.2.4_x64_4.0.30319.42000_core.json",
+                      "Hash":  "878362300DF6712CB3CBB98DD369331D54D0B5E07092DCA7D14C71DD9AAB4F04"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/MediatR.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/MediatR.dll",
+                      "Hash":  "8928BDE44E4D47B52FB5252C1B6F78DF48D4A6D40E50E36542374539A4C4082A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Xml.XmlDocument.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Xml.XmlDocument.dll",
+                      "Hash":  "8957F0BCEA6AB8A011A53AE62466505199F11A228F87F3809931D974F87078CE"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.InteropServices.RuntimeInformation.dll",
+                                    "PSReadLine/2.4.0/System.Runtime.InteropServices.RuntimeInformation.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.InteropServices.RuntimeInformation.dll",
+                      "Hash":  "8BB9D52BA5C67F05C8F632DEB1E7E98A909318B10E1388B47E919515FDD42CBF"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSScriptAnalyzer.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSScriptAnalyzer.psd1",
+                      "Hash":  "8BC3B228EB66D055F595532505D970ABA315A72417E8AC7D360BF63AE0D2B01A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/netstandard.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/netstandard.dll",
+                      "Hash":  "8BE4A2270F8B2BEA40F33F79869FDCCA34E07BB764E63B81DED49D90D2B720DD"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/PSGallery.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/PSGallery.psd1",
+                      "Hash":  "90170E65595B5AA91B18D17B26CBE4D75F2FC6ECFADE50FF972BE18F70A4652E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Start-EditorServices.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Start-EditorServices.ps1",
+                      "Hash":  "924063E5FBB3A5147F7190E53B9D8AA26DDE4DF144E90DD2E3B51E0EA58C22E3"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Security.AccessControl.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Security.AccessControl.dll",
+                      "Hash":  "93084849C17A21F641C13C9F17545CFE18C1EC097561F3F0EBBBE26F358BA120"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Collections.Specialized.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Collections.Specialized.dll",
+                      "Hash":  "938DA38561DA54793944E95E94B6E11CF83AACD667487297D428FBCE1C06DC9C"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Algorithms.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Algorithms.dll",
+                      "Hash":  "967DDDBFE7F1CEB933B5875D65C59CDB835BB063F287A361E8B35DD814A9B14D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.DriveInfo.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.DriveInfo.dll",
+                      "Hash":  "984575C44CAB17D46587AF6CC8C22C409B79BEC280FD771E6AF93A0A0C20E5B0"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.VisualStudio.Threading.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.VisualStudio.Threading.dll",
+                      "Hash":  "9979EFF28B594FC14DF1AF4CE6F8EA7719242C9C17068D076319B9FE83B7ABC0"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.WebSockets.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.WebSockets.dll",
+                      "Hash":  "99920CE34A01A0C07EFD86D6E134BB401993515D001B7567A4116AD222993A63"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.dll",
+                      "Hash":  "9A4595DBB128E2D8F373B3AC45478E7131F4D181B50EC821EC8CB88BD46BD5B8"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.Primitives.dll",
+                      "Hash":  "9A8BA725F8E953C933285065228A9409036F9137D03016B127CCEA8A19452466"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-48_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-48_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework.json",
+                      "Hash":  "9A99CCC7D25A974190E5352E0F773E24039D2FE831307D666A7502310D7C0907"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Contracts.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Contracts.dll",
+                      "Hash":  "9C4AE61E0E8365762EFE3D34C5595029F2C12E0079E6070720E2CEF0882C84E5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv3/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv3/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll",
+                      "Hash":  "9D0CE29EA88E1C1949B4E138D72B2446EC750BB47F390F0A433BCF76E00E5A3F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Threading.Thread.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Threading.Thread.dll",
+                      "Hash":  "9D4FAEA9892D4ECFABF61986687FC6CB30F5F51A6B62819B9571FF58E04C4DD5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.AppContext.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.AppContext.dll",
+                      "Hash":  "9DC115AC4AADD6A94D87C7A8A3F61803CC25A3D73501D7534867DF6B0D8A0D39"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Join-ScriptExtent.md"
+                                ],
+                      "Source":  "docs/Join-ScriptExtent.md",
+                      "Hash":  "9E80B5D308C184D2493314FD70227352EDCF399016EAD7AB066FB319675F0F18"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/en-US/Strings.psd1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/en-US/Strings.psd1",
+                      "Hash":  "A2E585EBB4E7655A083F46CEF11CF652C90C9C47112400C09A1D0793D63D7072"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Options.ConfigurationExtensions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Options.ConfigurationExtensions.dll",
+                      "Hash":  "A4244CBD8E903A2A5C2C43F01B48C355818C6183EA8EFBBBD9C3C5B72E8364A1"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-linux.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-linux.json",
+                      "Hash":  "A43E4B44E055410DD18742A281A704945AA1F39519B19C344D7CD78F4A4757B5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/en-US/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll-Help.xml"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/en-US/Microsoft.Windows.PowerShell.ScriptAnalyzer.dll-Help.xml",
+                      "Hash":  "A484400641CB18D05269E8BDAF4CBB16E842E55B6DE6625B613C60FAC4BC8346"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv4/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv4/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll",
+                      "Hash":  "A4A61163CBC7C5D33097B113B96C4E0AB81179EA2387CB848F0810FF7948E387"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/ConvertFrom-ScriptExtent.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/ConvertFrom-ScriptExtent.ps1",
+                      "Hash":  "A6F91A1352DDBA9556E970307360B51CCECABB225F9C9044B29ED55B8F0828ED"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.dll",
+                      "Hash":  "A96D2342E11B32F6405056AE73C9A1857E8CF6EF202A52AE785502825C022432"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Collections.Immutable.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Collections.Immutable.dll",
+                      "Hash":  "A99911373EB198DBB32D0CF8246E398AC89E8FBFB29023AB6EC8D1017BBD7063"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Diagnostics.DiagnosticSource.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Diagnostics.DiagnosticSource.dll",
+                      "Hash":  "ABC69603FC8DDAB9E90EB5317170242EF1F57D575690F82DA691A2B34FC46EAC"
+                  },
+                  {
+                      "Paths":  [
+                                    "_manifest/spdx_2.2/manifest.spdx.json"
+                                ],
+                      "Source":  "_manifest/spdx_2.2/manifest.spdx.json",
+                      "Hash":  "AC896E46D9570FD66520746BE9A909020CDCD3AED0DAA24DA24BA3F111CEE271"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Set-ScriptExtent.md"
+                                ],
+                      "Source":  "docs/Set-ScriptExtent.md",
+                      "Hash":  "AFEAB7C564B32C84F5F8712CC27620B4A97151FD4917CE47F485639E13899B15"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Xml.XPath.XDocument.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Xml.XPath.XDocument.dll",
+                      "Hash":  "B33D08149A756A401628D11BFDDFEEACA1F03C0578395BB061DAE44F8A12CE5D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.FileSystemGlobbing.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.FileSystemGlobbing.dll",
+                      "Hash":  "B3955C3868EC13984625C9D13D0F2DC9F78915E9FADC4E6F5E709D415E497497"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Console.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Console.dll",
+                      "Hash":  "B537313413F80105F143CC144FEEAE2AC93F44747727DE309A71D57D2650034A"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Globalization.Calendars.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Globalization.Calendars.dll",
+                      "Hash":  "B56FFB65B842DAAE13F3020B0B04646DB92F89801D2A2F89087D145A996D43F7"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.DebugAdapter.Server.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.DebugAdapter.Server.dll",
+                      "Hash":  "B59F2A22C41756ADCBB06604FBD411B33517D46EE0C784C33C25299B353E1E5B"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/PowerShellEditorServices.Commands.psd1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/PowerShellEditorServices.Commands.psd1",
+                      "Hash":  "B5D15EBF88238D3ADE85327C3BF4036C1DE7AFA63B991DE4A5470D6AB6A40085"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.Http.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.Http.dll",
+                      "Hash":  "B5D20736F84F335EF4C918A5BA41C3A0D7189397C71B166CCC6C342427A94ECE"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Import-EditorCommand.md"
+                                ],
+                      "Source":  "docs/Import-EditorCommand.md",
+                      "Hash":  "B69D24A98A7F1FEE114C594AE0A8B2343CA8E4434071FEBC64BD523E29B35687"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Security.Cryptography.Primitives.dll",
+                      "Hash":  "B755D0B55A465D07C9DD3FC11822487D1E649B684AEF91A4CE9B935B416A01B9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/desktop-5.1.14393.206-windows.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/desktop-5.1.14393.206-windows.json",
+                      "Hash":  "B829FF1493CADD5284C5BC326487107A0617B0B8C3799C5B8DBFCBB78AC8F652"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Tracing.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.Tracing.dll",
+                      "Hash":  "B84B93BE455CC7D14EC0C88CE08DAFAC7B6AAC2E549C969E7126EB48C31F8B1C"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.17763.0_7.0.0_x64_3.1.2_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.17763.0_7.0.0_x64_3.1.2_core.json",
+                      "Hash":  "BAB82F4BC80C15BF3F2A2EF967C7244AAE24ACF9984B7910A3D95C0291A62B75"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/NOTICE.txt"
+                                ],
+                      "Source":  "PowerShellEditorServices/NOTICE.txt",
+                      "Hash":  "BCB23D734787052EBC3C878D0260A527172CD338F71140A34A8D440F3B875FB3"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.IO.Pipelines.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.IO.Pipelines.dll",
+                      "Hash":  "BE5E8B18AE7F87903492ADAB8388E6704BF74CFE046F9206C487053FFC30B7C8"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/ConvertFrom-ScriptExtent.md"
+                                ],
+                      "Source":  "docs/ConvertFrom-ScriptExtent.md",
+                      "Hash":  "BF335FD1712ACDBF9A54DFA9875BFFA9F62A90AE494B12863C11A0D81F2A32C0"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Out-CurrentFile.md"
+                                ],
+                      "Source":  "docs/Out-CurrentFile.md",
+                      "Hash":  "BF88EB89DA1E8AD1F96E4E1055AF1094406FA3E0EA8BF250093F84F87CCA1C91"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Linq.Expressions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Linq.Expressions.dll",
+                      "Hash":  "BF97F67165231C2A42B95F11D80337B082E2B2BE54351DA44C8A10C06194B369"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.ComponentModel.Primitives.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.ComponentModel.Primitives.dll",
+                      "Hash":  "BFCD867F71C887429DFE008D7EC5D1853D15B3932D4CE8991694293477B5BE37"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Configuration.Binder.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Configuration.Binder.dll",
+                      "Hash":  "C0D2A11B73AFC7C8EAC5BB1CCF60002E5B132DF23A18BD9DC8385EEB7992B283"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.dll",
+                      "Hash":  "C191A43029EDD4EB8EEE003356F1FE79AA45071C25433A7A3589590E9089EED9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/ScriptAnalyzer.format.ps1xml"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/ScriptAnalyzer.format.ps1xml",
+                      "Hash":  "C1D75F0948E74D3F730C6F193166D4971A4B741E8F0E52D7A5B4DE66A7367D38"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Collections.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Collections.dll",
+                      "Hash":  "C2250E9E51B44D8AB8C5B892592766925F6580EE00B95026621D0AFB037C2707"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/PowerShellEditorServices.psd1"
+                                ],
+                      "Source":  "PowerShellEditorServices/PowerShellEditorServices.psd1",
+                      "Hash":  "C297E909FFD7B5841E1FF4722BA88FA58F9DEF0E70FC35EB8BE0FFFD94C35FEC"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Reactive.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Reactive.dll",
+                      "Hash":  "C2FA426C083DEBA00689CEA424ECD12E6B43866C8E69D8BC3C57D06CE856CDBE"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/SamplePSReadLineProfile.ps1"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/SamplePSReadLineProfile.ps1",
+                      "Hash":  "C33E0E1D2F7B354D71774EB0D1DF3E57CB72288440179A749DE362851CA83256"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Formatters.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Formatters.dll",
+                      "Hash":  "C343F7BF08A4C97A90BA607A492C721533333173FA63F65F6E5DE9CEEE65FC16"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Test-ScriptExtent.md"
+                                ],
+                      "Source":  "docs/Test-ScriptExtent.md",
+                      "Hash":  "C3E7BA32023E381B51BC575E300DDAE5940B74BE041EBCD5A6097FE8F7DCFFA7"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/Microsoft.PowerShell.EditorServices.Hosting.xml"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/Microsoft.PowerShell.EditorServices.Hosting.xml",
+                      "Hash":  "C58876AF1EB66FE0B367DC490D3A594D0B2A3106B6C3AB6558647968BC29CCD0"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Import-EditorCommand.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Import-EditorCommand.ps1",
+                      "Hash":  "C5A1B7442096529B7BEAB5C0A834577602C9D22663A3B46F61D8371190F33337"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Serilog.Sinks.File.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Serilog.Sinks.File.dll",
+                      "Hash":  "C5BF4FC1E693FF21AD41138E0D8A4EB0CB8E2C549619E19DDBA0357FC919A974"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Buffers.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Buffers.dll",
+                      "Hash":  "C65FFF603B283DC966D1A8B730C11D5E5E750E8021BD24640612F6CC3F2C6FB7"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Globalization.Extensions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Globalization.Extensions.dll",
+                      "Hash":  "C7E91BD148ED22EE1FF8EBD3E58B199A30AF90AA37499BCF8DA34409672F2ED9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.TraceSource.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.TraceSource.dll",
+                      "Hash":  "C81A57D0634C462A6CF49844059E9B170F650CCDF0789519FFD4AE7D28E2718D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.DebugAdapter.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.DebugAdapter.dll",
+                      "Hash":  "C94FC48BE1FF3BFF10CF6D9BC5FFE46F79D2A80C58F03DEF1FA86B28252E0BA4"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Text.RegularExpressions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Text.RegularExpressions.dll",
+                      "Hash":  "C98A52BD017DF01AEA7B955E6F219537D391A62C2C2B976684DA282F9CD7CACF"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.pdb"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.PowerShell.EditorServices.pdb",
+                      "Hash":  "C9A5147979C7F083B9567B2367B582297C0CCC803AC50534F26CF588ECA242ED"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.Watcher.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.FileSystem.Watcher.dll",
+                      "Hash":  "C9E2562F1A1B86ACDB6957CF916ACED9C4F8B71EBB16DFA0050252146205AD37"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Diagnostics.StackTrace.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Diagnostics.StackTrace.dll",
+                      "Hash":  "CAE99F910874288AFBF810968D13B79D755CD4B2006609EC036EA4934181CBA5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Text.Encoding.Extensions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Text.Encoding.Extensions.dll",
+                      "Hash":  "CBE29672CD2B6A0EA97B55F3844FBEDE3E591996F39C3AA1F829F2FA50551FA9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Collections.Concurrent.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Collections.Concurrent.dll",
+                      "Hash":  "CC62F3B867D50083C2932061F20662C698D2E1A741C4D2F9DF1FD2D435E3EF3C"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/ubuntu_x64_18.04_7.0.0_x64_3.1.2_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/ubuntu_x64_18.04_7.0.0_x64_3.1.2_core.json",
+                      "Hash":  "CDB761D8E75BE72B78157BABD233487A79BF689B0B926BA6AE46F5AEF3DC2A94"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.Security.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.Security.dll",
+                      "Hash":  "D0D90152136A0ACF340FB345098F2E5C718BB13F3B5A809D7BE4D9948B8574D4"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/desktop-4.0-windows.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/desktop-4.0-windows.json",
+                      "Hash":  "D11970A52C011335E3F93DEA7F3DA887428CAF1F12807A803EC65A8068B77BA8"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/_manifest/spdx_2.2/manifest.spdx.json"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/_manifest/spdx_2.2/manifest.spdx.json",
+                      "Hash":  "D227623328F53FBF77034385237773EB8C7096798006914AEC6DDE45F86A540E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv3/Microsoft.PowerShell.CrossCompatibility.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv3/Microsoft.PowerShell.CrossCompatibility.dll",
+                      "Hash":  "D52BE2FE5B930A86C7EE56B621AE1B4038404550E1CD0414CB0B142C63B21E2D"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/CodeFormattingStroustrup.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/CodeFormattingStroustrup.psd1",
+                      "Hash":  "D549177E97D7F4A58D1BEA063CD34B85CA4241F2CF7834A5615949B99227D782"
+                  },
+                  {
+                      "Paths":  [
+                                    "_manifest/spdx_2.2/manifest.cat"
+                                ],
+                      "Source":  "_manifest/spdx_2.2/manifest.cat",
+                      "Hash":  "D701DA4E637EDB19B819AFE5E1023A1DD1B96EE560A5E31AA1BB5F1C1721401F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.14393.0_6.2.4_x64_4.0.30319.42000_core.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_10.0.14393.0_6.2.4_x64_4.0.30319.42000_core.json",
+                      "Hash":  "D889900200C1BED3F098991CCEF0C84D48226FDB5BE722C1018102819A1A38AD"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.IO.Compression.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.IO.Compression.dll",
+                      "Hash":  "DA18D61BB6B7D35C56CB4F392FAE0844CCA73F72A043A08994BECCB531FF3B77"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Resources.Writer.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Resources.Writer.dll",
+                      "Hash":  "DAAABD07F1B94BE19D72913360286E469F454886850AFCC603506EAAB03150E4"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/net462/Microsoft.PowerShell.PSReadLine.Polyfiller.dll"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/net462/Microsoft.PowerShell.PSReadLine.Polyfiller.dll",
+                      "Hash":  "DF70CC1420A2D05FE4D1A0E9F24C807F938F64146CC9F672116288BE1AC697F4"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv7/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv7/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll",
+                      "Hash":  "DF7A29D58805296A0633F0D6053BDD30DDAEDC3188295C11591B537AD55EE21E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/desktop-2.0-windows.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/desktop-2.0-windows.json",
+                      "Hash":  "E0DD156000B822FF10A9347EF3BA6A17C00C2136811ACEA01EF47D6DD1C092A7"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/PowerShellEditorServices.Commands.md"
+                                ],
+                      "Source":  "docs/PowerShellEditorServices.Commands.md",
+                      "Hash":  "E1B7A534EFFFEDA50F3505857185608D4AADFA40FBCBE2E6C65D66C531EFC644"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Resources.Reader.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Resources.Reader.dll",
+                      "Hash":  "E3036362506D96C9C00ED6393A2AFCACD9F2E71CD2A35C1D638A61E85D2FB040"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-windows.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/core-6.1.0-windows.json",
+                      "Hash":  "E35C5AB33003A8A4FBBD5AFF0F659A920743080F9337C90819D4001C7928720E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/InvokePesterStub.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/InvokePesterStub.ps1",
+                      "Hash":  "E4379764761262614FAFFB638F1861B8877E7405213EA28FE13F15FBE55A2EDF"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.ValueTuple.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.ValueTuple.dll",
+                      "Hash":  "E4774AEAD2793F440E0CED6C097048423D118E0B6ED238C6FE5B456ACB07817F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/ScriptSecurity.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/ScriptSecurity.psd1",
+                      "Hash":  "E479C22FB6435E913596D8904D3AFD6DA5670279D2F671C9D2CF348E1115CE6C"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Configuration.Abstractions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Configuration.Abstractions.dll",
+                      "Hash":  "E4EB5EB7E28A5548CD904FE1A9C3569ADEF91F52B654DB8A3C56A0A5177A09EB"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules.dll",
+                      "Hash":  "E7766B4C1B719A784CCDDF30D43045E01C1BA730E2E065794F137023069B6CAB"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Logging.Abstractions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.Logging.Abstractions.dll",
+                      "Hash":  "E899E37DFC2DD433807C205E764C32EA34BB95DA083E189D7615947DD16C51E8"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Json.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.Serialization.Json.dll",
+                      "Hash":  "E8D531F0AAA674F794B7F43EC76E4E32AD93F3C136020CF4B6E3433832F9C0DF"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.JsonRpc.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/OmniSharp.Extensions.JsonRpc.dll",
+                      "Hash":  "E9C66B5F7E75C0E4B80F807332B82DAF999B7072BD7F822E216B3FDA9F7D09B7"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv4/Microsoft.PowerShell.CrossCompatibility.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv4/Microsoft.PowerShell.CrossCompatibility.dll",
+                      "Hash":  "ED4CF998F28606EA078839A2F9E06C61D72F9F883E0495EEE78A9E7B03E218E6"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/Microsoft.Extensions.DependencyInjection.Abstractions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+                      "Hash":  "EEB588C0E926BDD8EF5A55BF6B57796B892009EB72B68312A8C9357369C40746"
+                  },
+                  {
+                      "Paths":  [
+                                    "docs/Find-Ast.md"
+                                ],
+                      "Source":  "docs/Find-Ast.md",
+                      "Hash":  "F159A66B86EEC2815997D23180A6DEEFFC9A2162ED72701195548B232120FF1F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Threading.Overlapped.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Threading.Overlapped.dll",
+                      "Hash":  "F17FF442B77A6CFE9C118D2F8FAE1AB6C814A0D4F35C5844996BE84F3FCC8592"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSReadLine/2.4.0/Microsoft.PowerShell.Pager.dll"
+                                ],
+                      "Source":  "PSReadLine/2.4.0/Microsoft.PowerShell.Pager.dll",
+                      "Hash":  "F1997D21F6833CF88E8BB39EBCFE3C9F9D7E107A8A5E21434FFA6AC94F876A48"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Newtonsoft.Json.dll",
+                                    "PSScriptAnalyzer/1.22.0/PSv3/Newtonsoft.Json.dll",
+                                    "PSScriptAnalyzer/1.22.0/PSv4/Newtonsoft.Json.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Newtonsoft.Json.dll",
+                      "Hash":  "F2E03EC16C94CC0940EAF57A88CB5375EF9290CB60FF8D67E946AAE513044BD3"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Net.Requests.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Net.Requests.dll",
+                      "Hash":  "F2E74A3EC2DC753C9A48FA9A677775F949EB1E02FC1BB8BF38C39E8D2AB147EB"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.deps.json"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Core/Microsoft.PowerShell.EditorServices.Hosting.deps.json",
+                      "Hash":  "F37CC5CD4CE60D3FF293163CC972B815A85D480FECB2D5B48C5B2D97BA26ADE5"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Common/System.Security.Principal.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Common/System.Security.Principal.dll",
+                      "Hash":  "F42E10B651127869B31A12FFCC6ABF8DF550E292B14047B3D1B5C6FF63F80D71"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/PSv7/Microsoft.PowerShell.CrossCompatibility.dll"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/PSv7/Microsoft.PowerShell.CrossCompatibility.dll",
+                      "Hash":  "F4C1DD38FC3C61CF684CE036F2789DB3947DA693B5E5DFC2D7A7AE0F42B73575"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Dynamic.Runtime.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Dynamic.Runtime.dll",
+                      "Hash":  "F600ACC811720183C639CEBE5618BAF9C8135B85B9CBDC0758BC9B2DCC6DD7A9"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/Microsoft.PowerShell.EditorServices.Hosting.pdb"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/Microsoft.PowerShell.EditorServices.Hosting.pdb",
+                      "Hash":  "F602645B3BFBE74C66C3FE8E004E967C8770BAFB56B51D0F1E697B23AEF43D0E"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/Commands/Public/Set-ScriptExtent.ps1"
+                                ],
+                      "Source":  "PowerShellEditorServices/Commands/Public/Set-ScriptExtent.ps1",
+                      "Hash":  "F806B0010184CA8265779CCD50FEB0E529A62D29DB7662AF5B860171F50DFF41"
+                  },
+                  {
+                      "Paths":  [
+                                    "PowerShellEditorServices/bin/Desktop/System.Runtime.Extensions.dll"
+                                ],
+                      "Source":  "PowerShellEditorServices/bin/Desktop/System.Runtime.Extensions.dll",
+                      "Hash":  "F9FEB277F86241F55425182A26DECF50A210675D4F040EC542AF3FB3DD287DE6"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_6.3.9600.0_4.0_x64_4.0.30319.42000_framework.json"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/compatibility_profiles/win-8_x64_6.3.9600.0_4.0_x64_4.0.30319.42000_framework.json",
+                      "Hash":  "FC584750C710ACF52D21EAF09B19EF52D54F87C95A67CB6C55FDD46746584153"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/ScriptingStyle.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/ScriptingStyle.psd1",
+                      "Hash":  "FCF64CE6B1EE2AAC1B88FF416D32BB3BF45F737E41A92884DAD4B6CA0D85E73F"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/CodeFormattingAllman.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/CodeFormattingAllman.psd1",
+                      "Hash":  "FD4B56BBEF5B313888CEE9D73FC82E0F2220AF532B3154D605B3C742A49ED736"
+                  },
+                  {
+                      "Paths":  [
+                                    "PSScriptAnalyzer/1.22.0/Settings/DSC.psd1"
+                                ],
+                      "Source":  "PSScriptAnalyzer/1.22.0/Settings/DSC.psd1",
+                      "Hash":  "FF57C872E770A8518880739D5A3E10D2E9E26E20B82C46684088C9B9B018C0D0"
+                  }
+              ],
+    "HashType":  "SHA256Hash"
+}
