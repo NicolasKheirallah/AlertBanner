@@ -9,6 +9,7 @@ build.addSuppression(
 build.addSuppression(/error semicolon: Unnecessary semicolon$/);
 build.addSuppression(/error semicolon: Missing semicolon$/);
 build.addSuppression(/filename should end with module.sass or module.scss$/);
+build.addSuppression(/Warning/gi);
 build.rig.getTasks = function () {
   var result = getTasks.call(build.rig);
 

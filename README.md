@@ -6,10 +6,7 @@ The Alert Header SPFx Extension is a custom SharePoint Framework (SPFx) extensio
 
 This project is inspired by the work of Thomas Daly but has been significantly rewritten and updated to leverage the Microsoft Graph API for enhanced functionality. Special thanks to Thomas Daly for the original concept.
 
-![Adding to Site](https://github.com/tom-daly/spfx-side-navigation)
-
-
-![Alert Header Example](path-to-image.png)
+![Thomas Daly Blog](https://github.com/tom-daly/spfx-side-navigation)
 
 ## Used SharePoint Framework Version
 
@@ -25,6 +22,7 @@ This project is inspired by the work of Thomas Daly but has been significantly r
 ## Prerequisites
 
 - Node.js (v18.x or later)
+- React 17
 - SPFX (v1.19.x or later)
 - A SharePoint Online site collection
 - Appropriate permissions to access and configure the tenant App Catalog
@@ -33,7 +31,7 @@ This project is inspired by the work of Thomas Daly but has been significantly r
 
 | Solution       | Author(s)                                               |
 | -------------- | ------------------------------------------------------- |
-| alert-header   | [Nicolas Kheirallah](https://twitter.com/yourhandle), Your Company |
+| alert-header   | [Nicolas Kheirallah](https://twitter.com/yourhandle) |
 
 ## Version history
 
@@ -54,7 +52,8 @@ This project is inspired by the work of Thomas Daly but has been significantly r
 - Navigate to the solution folder.
 - In the command line, run:
   - **npm install**
-  - **gulp serve**
+  - **./buildProject.cmd**
+  - **Deploy to app catalog**
 
 > Additional steps may be required depending on your environment configuration.
 
