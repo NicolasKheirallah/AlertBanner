@@ -4,7 +4,7 @@
 
 The Alert Header SPFx Extension is a custom SharePoint Framework (SPFx) extension that displays alert notifications in the header of Modern SharePoint sites. Alerts are retrieved from a SharePoint list using the Microsoft Graph API, providing users with important updates and information seamlessly integrated with Microsoft 365 services.
 
-![screenshot](https://github.com/NicolasKheirallah/AlertHeader/Screenshot/Screenshot2024-08-17170932.png)
+![screenshot](https://github.com/NicolasKheirallah/AlertHeader/blob/main/Screenshot/Screenshot2024-08-17170932.png)
 
 
 This project is inspired by the work of Thomas Daly but has been significantly rewritten and updated to leverage the Microsoft Graph API for enhanced functionality. Special thanks to Thomas Daly for the original concept!
