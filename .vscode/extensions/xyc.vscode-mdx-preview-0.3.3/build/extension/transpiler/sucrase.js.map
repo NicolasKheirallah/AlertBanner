@@ -1,1 +1,0 @@
-{"version":3,"file":"sucrase.js","sourceRoot":"","sources":["../../../packages/extension/transpiler/sucrase.ts"],"names":[],"mappings":";;AAAA,qCAAwD;AAE3C,QAAA,SAAS,GAAG,CAAC,IAAY,EAAE,EAAE;IACxC,OAAO,mBAAgB,CAAC,IAAI,EAAE,EAAE,UAAU,EAAE,CAAC,KAAK,EAAE,YAAY,EAAE,SAAS,CAAC,EAAE,CAAC,CAAC;AAClF,CAAC,CAAC"}
