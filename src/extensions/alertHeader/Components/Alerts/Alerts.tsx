@@ -18,20 +18,40 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
 
   public async componentDidMount(): Promise<void> {
     try {
+      const newAlerts = await this.fetchAlerts();
       const cachedAlerts = this._getFromLocalStorage(this._cacheKey);
-      const alerts = cachedAlerts ?? await this.fetchAlerts();
 
-      if (!cachedAlerts) {
-        this._saveToLocalStorage(this._cacheKey, alerts);
+      // Check if new alerts are different from cached alerts
+      const alertsAreDifferent = this._areAlertsDifferent(newAlerts, cachedAlerts);
+
+      if (alertsAreDifferent) {
+        this._saveToLocalStorage(this._cacheKey, newAlerts);
       }
 
+      const alertsToShow = alertsAreDifferent ? newAlerts : cachedAlerts || [];
       const closedAlerts = this._getClosedAlerts();
-      const filteredAlerts = alerts.filter((alert) => !closedAlerts.includes(alert.Id));
+      const filteredAlerts = alertsToShow.filter(alert => !closedAlerts.includes(alert.Id));
 
       this.setState({ alerts: filteredAlerts });
     } catch (error) {
       console.error('Error initializing alerts:', error);
     }
+  }
+  private _areAlertsDifferent(newAlerts: IAlertItem[], cachedAlerts: IAlertItem[] | null): boolean {
+    if (!cachedAlerts) return true;
+    if (newAlerts.length !== cachedAlerts.length) return true;
+
+    for (let i = 0; i < newAlerts.length; i++) {
+      if (newAlerts[i].Id !== cachedAlerts[i].Id ||
+          newAlerts[i].title !== cachedAlerts[i].title ||
+          newAlerts[i].description !== cachedAlerts[i].description ||
+          newAlerts[i].AlertType !== cachedAlerts[i].AlertType ||
+          newAlerts[i].link.Url !== cachedAlerts[i].link.Url) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private async fetchAlerts(): Promise<IAlertItem[]> {
