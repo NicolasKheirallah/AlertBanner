@@ -9,7 +9,7 @@ The Alert Header SPFx Extension is a custom SharePoint Framework (SPFx) extensio
 
 This project is inspired by the work of Thomas Daly but has been significantly rewritten and updated to leverage the Microsoft Graph API for enhanced functionality. Special thanks to Thomas Daly for the original concept!
 
-[Thomas Daly Blog](https://github.com/tom-daly/spfx-side-navigation)
+[Thomas Daly Blog](https://github.com/tom-daly/alerts-header)
 
 
 ## Goal of this project
