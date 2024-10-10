@@ -5,14 +5,14 @@
     "alert-header-application-customizer": {
       "components": [
         {
-          "entrypoint": "./lib/extensions/alertHeader/AlertHeaderApplicationCustomizer.js",
-          "manifest": "./src/extensions/alertHeader/AlertHeaderApplicationCustomizer.manifest.json"
+          "entrypoint": "./lib/extensions/alertbanner/AlertHeaderApplicationCustomizer.js",
+          "manifest": "./src/extensions/alertbanner/AlertHeaderApplicationCustomizer.manifest.json"
         }
       ]
     }
   },
   "externals": {},
   "localizedResources": {
-    "AlertHeaderApplicationCustomizerStrings": "lib/extensions/alertHeader/loc/{locale}.js"
+    "AlertHeaderApplicationCustomizerStrings": "lib/extensions/alertbanner/loc/{locale}.js"
   }
 }
