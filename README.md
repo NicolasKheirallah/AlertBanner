@@ -1,4 +1,3 @@
-```markdown
 # Alert Header SPFx Extension
 
 ## Summary
