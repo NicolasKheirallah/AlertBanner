@@ -1,14 +1,14 @@
-# Alert Header SPFx Extension
+# Alert Banner SPFx Extension
 
 ## Summary
 
-The **Alert Header SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display alert notifications prominently in the header of Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
+The **Alert Banner SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display alert notifications prominently in the Banner of Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
 
 ![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Screenshot/Screenshot2024-08-17170932.png)
 
 This project draws inspiration from the work of Thomas Daly. Special thanks to Thomas Daly for the original concept!
 
-[Thomas Daly alert header](https://github.com/tom-daly/alerts-header)
+[Thomas Daly alert banner](https://github.com/tom-daly/alerts-banner)
 
 ## Goal of this Project
 
@@ -39,7 +39,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 | Solution     | Author(s)                                         |
 | ------------ | ------------------------------------------------- |
-| alert-header | [Nicolas Kheirallah](https://github.com/nicolasKheirallah) |
+| alert-banner | [Nicolas Kheirallah](https://github.com/nicolasKheirallah) |
 
 ## Version History
 
@@ -71,7 +71,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 This SPFx extension offers the following capabilities:
 
 - **Fetch Alerts**: Retrieves alerts from a designated SharePoint list using the Microsoft Graph API.
-- **Display Alerts**: Show alerts prominently in the header of Modern SharePoint pages.
+- **Display Alerts**: Show alerts prominently in the banner of Modern SharePoint pages.
 - **Dynamic Alert Type Configuration**: Configure alert types dynamically using a JSON property, allowing easy customization and scalability.
 - **User Interaction Handling**: Allows users to dismiss alerts, with the option to prevent dismissed alerts from reappearing.
 - **Performance Optimization**: Utilizes local storage for caching alerts, improving performance.
@@ -147,6 +147,6 @@ This extension showcases:
 
 - **Integration of the Microsoft Graph API** within SPFx extensions for efficient data retrieval.
 - **Dynamic Configuration Management**: Utilizing JSON properties to configure alert types, enhancing flexibility and maintainability.
-- **Customizing the Header Section** of Modern SharePoint pages to provide a consistent and visible alerting mechanism.
+- **Customizing the banner Section** of Modern SharePoint pages to provide a consistent and visible alerting mechanism.
 - **Efficient State Management and Caching** using local and session storage to optimize performance and reduce redundant data fetching.
 - **Responsive Design and User Interaction Handling** to ensure alerts are accessible and user-friendly across various devices and screen sizes.
