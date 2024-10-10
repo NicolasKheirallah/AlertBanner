@@ -1,20 +1,21 @@
+```markdown
 # Alert Header SPFx Extension
 
 ## Summary
 
-The Alert Header SPFx Extension is a custom SharePoint Framework (SPFx) extension that displays alert notifications in the header of Modern SharePoint sites. Alerts are retrieved from a SharePoint list using the Microsoft Graph API, providing users with important updates and information seamlessly integrated with Microsoft 365 services.
+The **Alert Header SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display alert notifications prominently in the header of Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
 
 ![screenshot](https://github.com/NicolasKheirallah/AlertHeader/blob/main/Screenshot/Screenshot2024-08-17170932.png)
 
-This project is inspired by the work of Thomas Daly but has been significantly rewritten and updated to leverage the Microsoft Graph API for enhanced functionality. Special thanks to Thomas Daly for the original concept!
+This project draws inspiration from the work of Thomas Daly. Special thanks to Thomas Daly for the original concept!
 
 [Thomas Daly Blog](https://github.com/tom-daly/alerts-header)
 
-## Goal of this project
+## Goal of this Project
 
-As a alert banner is often requested by organization such as IT but isn't readily available, I wanted to create one that could be used by any organization!
+Alert banners are frequently requested by organizations such as IT departments but are not readily available out-of-the-box. This extension aims to provide a flexible and reusable alert system that any organization can deploy with ease.
 
-I also rarely get to code these days so I wanted to freshen up my knowledge
+Additionally, this project serves as an opportunity to refresh and enhance coding skills within the SPFx ecosystem.
 
 ## Used SharePoint Framework Version
 
@@ -31,7 +32,7 @@ I also rarely get to code these days so I wanted to freshen up my knowledge
 
 - Node.js (v18.x or later)
 - React 17
-- SPFX (v1.19.x or later)
+- SPFx (v1.19.x or later)
 - A SharePoint Online site collection
 - Appropriate permissions to access and configure the tenant App Catalog
 
@@ -39,12 +40,13 @@ I also rarely get to code these days so I wanted to freshen up my knowledge
 
 | Solution     | Author(s)                                         |
 | ------------ | ------------------------------------------------- |
-| alert-header | [Nicolas Kheirallah](https://twitter.com/yourhandle) |
+| alert-header | [Nicolas Kheirallah](https://github.com/nicolasKheirallah) |
 
-## Version history
+## Version History
 
 | Version | Date            | Comments                                        |
 | ------- | --------------- | ----------------------------------------------- |
+| 1.2     | October 11, 2024| Added dynamic alerttypes, added support for homesite, hubsite and local site |
 | 1.1     | August 17, 2024 | Added caching and session management for alerts |
 | 1.0     | July 15, 2024   | Initial release                                 |
 
@@ -71,6 +73,7 @@ This SPFx extension offers the following capabilities:
 
 - **Fetch Alerts**: Retrieves alerts from a designated SharePoint list using the Microsoft Graph API.
 - **Display Alerts**: Show alerts prominently in the header of Modern SharePoint pages.
+- **Dynamic Alert Type Configuration**: Configure alert types dynamically using a JSON property, allowing easy customization and scalability.
 - **User Interaction Handling**: Allows users to dismiss alerts, with the option to prevent dismissed alerts from reappearing.
 - **Performance Optimization**: Utilizes local storage for caching alerts, improving performance.
 
@@ -92,6 +95,45 @@ This SPFx extension offers the following capabilities:
 - **AlertType**: The type of alert, such as Info, Warning, Maintenance, or Interruption.
 - **Link**: Optional URL for additional information or related content.
 
+### Dynamic Alert Type Configuration:
+
+Alert types can now be customized dynamically using a JSON configuration property. This allows administrators to add, modify, or remove alert types without altering the codebase. The JSON structure defines the appearance and behavior of each alert type, including icons, colors, and additional styles.
+
+**Example JSON Structure:**
+
+```json
+[
+    {
+       "name":"Info",
+       "iconName":"Info12",
+       "backgroundColor":"#389899",
+       "textColor":"#ffffff",
+       "additionalStyles":""
+    },
+    {
+       "name":"Warning",
+       "iconName":"ShieldAlert",
+       "backgroundColor":"#f1c40f",
+       "textColor":"#ffffff",
+       "additionalStyles":""
+    },
+    {
+       "name":"Maintenance",
+       "iconName":"CRMServices",
+       "backgroundColor":"#afd6d6",
+       "textColor":"#ffffff",
+       "additionalStyles":""
+    },
+    {
+       "name":"Interruption",
+       "iconName":"IncidentTriangle",
+       "backgroundColor":"#c54644",
+       "textColor":"#ffffff",
+       "additionalStyles":""
+    }
+ ]
+```
+
 ## References
 
 - [Getting started with SharePoint Framework](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/set-up-your-developer-tenant)
@@ -104,9 +146,8 @@ This SPFx extension offers the following capabilities:
 
 This extension showcases:
 
-- Integration of the Microsoft Graph API within SPFx extensions.
-- Customizing the header section of Modern SharePoint pages.
-- Efficient state management and caching using local and session storage.
-- Responsive design and handling of user interactions within SPFx extensions.
-
-> Contributions and suggestions to enhance this solution are highly encouraged. Share your feedback via GitHub or through the [Microsoft 365 Patterns and Practices](https://aka.ms/m365pnp) program.
+- **Integration of the Microsoft Graph API** within SPFx extensions for efficient data retrieval.
+- **Dynamic Configuration Management**: Utilizing JSON properties to configure alert types, enhancing flexibility and maintainability.
+- **Customizing the Header Section** of Modern SharePoint pages to provide a consistent and visible alerting mechanism.
+- **Efficient State Management and Caching** using local and session storage to optimize performance and reduce redundant data fetching.
+- **Responsive Design and User Interaction Handling** to ensure alerts are accessible and user-friendly across various devices and screen sizes.
