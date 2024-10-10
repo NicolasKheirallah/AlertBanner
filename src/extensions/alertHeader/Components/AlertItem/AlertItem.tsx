@@ -1,26 +1,18 @@
+// AlertItem.tsx
+
 import * as React from "react";
-import {
-  IconButton,
-  ResponsiveMode,
-} from "office-ui-fabric-react";
 import { Icon } from "office-ui-fabric-react/lib/Icon";
-import { css } from "@uifabric/utilities/lib/css";
-import { AlertType, IAlertItem } from "../Alerts/IAlerts.types";
+import { IAlertItem, IAlertType } from "../Alerts/IAlerts.types";
 import styles from "./AlertItem.module.scss";
 
 export interface IAlertItemProps {
   item: IAlertItem;
   remove: (id: number) => void;
-  responsiveMode?: ResponsiveMode;
+  alertType: IAlertType;
 }
 
-const AlertItem: React.FC<IAlertItemProps> = ({
-  item,
-  remove,
-  responsiveMode,
-}) => {
+const AlertItem: React.FC<IAlertItemProps> = ({ item, remove, alertType }) => {
   const [expanded, setExpanded] = React.useState(false);
-  const nodeRef = React.useRef<HTMLDivElement | null>(null);
   const ariaControlsId = `alert-description-${item.Id}`;
 
   const toggleExpanded = () => {
@@ -31,22 +23,11 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     remove(item.Id);
   };
 
-  React.useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (
-        nodeRef.current &&
-        !nodeRef.current.contains(event.target as Node)
-      ) {
-        setExpanded(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, []);
-
-  const { style: alertStyle, icon } = alertTypeMapping[item.AlertType];
+  const containerStyle: React.CSSProperties = {
+    backgroundColor: alertType.backgroundColor,
+    color: alertType.textColor,
+    ...parseAdditionalStyles(alertType.additionalStyles),
+  };
 
   const descriptionClassName = expanded
     ? styles.alertDescriptionExp
@@ -65,18 +46,16 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   };
 
   return (
-    <div className={styles.alertItem} ref={nodeRef}>
-      <div className={css(styles.container, alertStyle)}>
+    <div className={styles.alertItem}>
+      <div className={styles.container} style={containerStyle}>
         {/* Icon Section */}
         <div className={styles.iconSection}>
-          <Icon iconName={icon} className={styles.alertIcon} />
+          <Icon iconName={alertType.iconName} className={styles.alertIcon} />
         </div>
 
         {/* Text Section */}
         <div className={styles.textSection}>
-          {item.title && (
-            <div className={styles.alertTitle}>{item.title}</div>
-          )}
+          {item.title && <div className={styles.alertTitle}>{item.title}</div>}
           {item.description && (
             <div
               className={descriptionClassName}
@@ -88,39 +67,44 @@ const AlertItem: React.FC<IAlertItemProps> = ({
 
         {/* Action Section */}
         <div className={styles.actionSection}>
-          {/* Render link if expanded */}
-          {renderLink()}
-          <IconButton
+        {renderLink()}
+          <Icon
+            iconName={expanded ? "ChevronUp" : "ChevronDown"}
+            className={styles.toggleButton}
             onClick={toggleExpanded}
             aria-expanded={expanded}
             aria-controls={ariaControlsId}
             aria-label={expanded ? "Collapse Alert" : "Expand Alert"}
-            className={styles.toggleButton}
-          >
-            <Icon iconName={expanded ? "ChevronUp" : "ChevronDown"} />
-          </IconButton>
-          <IconButton
+          />
+          <Icon
+            iconName="ChromeClose"
+            className={styles.closeButton}
             onClick={handleRemove}
             aria-label="Close Alert"
-            className={styles.closeButton}
-          >
-            <Icon iconName="ChromeClose" />
-          </IconButton>
+          />
         </div>
       </div>
     </div>
   );
 };
 
-// Mapping of alert types to corresponding styles and icons
-const alertTypeMapping: Record<AlertType, { style: string; icon: string }> = {
-  [AlertType.Interruption]: {
-    style: styles.interruption,
-    icon: "IncidentTriangle",
-  },
-  [AlertType.Warning]: { style: styles.warning, icon: "ShieldAlert" },
-  [AlertType.Maintenance]: { style: styles.maintenance, icon: "CRMServices" },
-  [AlertType.Info]: { style: styles.info, icon: "Info12" },
+// Helper function to parse additional styles
+const parseAdditionalStyles = (
+  stylesString?: string
+): React.CSSProperties => {
+  if (!stylesString) return {};
+  const stylesArray = stylesString.split(";").filter((s) => s.trim() !== "");
+  const styles: Record<string, string | number> = {}; // Define as Record to allow dynamic keys
+  stylesArray.forEach((style) => {
+    const [key, value] = style.split(":");
+    if (key && value) {
+      const camelCaseKey = key
+        .trim()
+        .replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+      styles[camelCaseKey] = isNaN(Number(value.trim())) ? value.trim() : Number(value.trim());
+    }
+  });
+  return styles as React.CSSProperties; // Cast to CSSProperties
 };
 
 export default AlertItem;

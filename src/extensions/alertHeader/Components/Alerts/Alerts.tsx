@@ -1,63 +1,75 @@
 // Alerts.tsx
 
-import * as React from 'react';
-import styles from './Alerts.module.scss';
-import { IAlertProps, IAlertState, IAlertItem, AlertType } from './IAlerts.types';
-import AlertItem from '../AlertItem/AlertItem';
+import * as React from "react";
+import styles from "./Alerts.module.scss";
+import { IAlertsProps, IAlertsState, IAlertItem, IAlertType } from "./IAlerts.types";
+import AlertItem from "../AlertItem/AlertItem";
 
-class Alerts extends React.Component<IAlertProps, IAlertState> {
+class Alerts extends React.Component<IAlertsProps, IAlertsState> {
   public static readonly LIST_TITLE = "Alerts";
 
-  public state: IAlertState = {
+  public state: IAlertsState = {
     alerts: [],
+    alertTypes: {},
   };
 
   public async componentDidMount(): Promise<void> {
     try {
+      // Load alert types from props
+      const alertTypes = this._loadAlertTypesFromProps();
+      this.setState({ alertTypes });
+
       const allAlerts: IAlertItem[] = [];
 
       // Fetch alerts from site IDs if provided
       if (this.props.siteIds && this.props.siteIds.length > 0) {
         for (const siteId of this.props.siteIds) {
-          const siteAlerts = await this.fetchAlerts(siteId);
+          const siteAlerts = await this._fetchAlerts(siteId);
           allAlerts.push(...siteAlerts);
         }
       }
 
-      // Fetch remote alerts if specified
-      if (this.props.showRemoteAlerts && this.props.remoteAlertsSource) {
-        const remoteAlerts = await this.fetchRemoteAlerts(this.props.remoteAlertsSource);
-        allAlerts.push(...remoteAlerts);
-      }
-
       // If no alerts were fetched, handle accordingly
       if (allAlerts.length === 0) {
-        console.warn('No alerts fetched from any source.');
-        // Optionally, you can set an empty alerts array or handle as needed
+        console.warn("No alerts fetched from any source.");
       }
 
-      // Proceed with the rest of your logic (caching, filtering, updating state)
+      // Proceed with caching, filtering, and updating state
       const uniqueAlerts = this._removeDuplicateAlerts(allAlerts);
 
-      const cachedAlerts = this._getFromLocalStorage('AllAlerts');
+      const cachedAlerts = this._getFromLocalStorage("AllAlerts");
 
       const alertsAreDifferent = this._areAlertsDifferent(uniqueAlerts, cachedAlerts);
 
       if (alertsAreDifferent) {
-        this._saveToLocalStorage('AllAlerts', uniqueAlerts);
+        this._saveToLocalStorage("AllAlerts", uniqueAlerts);
       }
 
       const alertsToShow = alertsAreDifferent ? uniqueAlerts : cachedAlerts || [];
       const closedAlerts = this._getClosedAlerts();
-      const filteredAlerts = alertsToShow.filter(alert => !closedAlerts.includes(alert.Id));
+      const filteredAlerts = alertsToShow.filter((alert) => !closedAlerts.includes(alert.Id));
 
       this.setState({ alerts: filteredAlerts });
     } catch (error) {
-      console.error('Error initializing alerts:', error);
+      console.error("Error initializing alerts:", error);
     }
   }
 
-  private async fetchAlerts(siteId: string): Promise<IAlertItem[]> {
+  private _loadAlertTypesFromProps(): { [key: string]: IAlertType } {
+    try {
+      const alertTypesData: IAlertType[] = JSON.parse(this.props.alertTypesJson);
+      const alertTypes: { [key: string]: IAlertType } = {};
+      alertTypesData.forEach((type) => {
+        alertTypes[type.name] = type;
+      });
+      return alertTypes;
+    } catch (error) {
+      console.error("Error parsing alert types JSON:", error);
+      return {};
+    }
+  }
+
+  private async _fetchAlerts(siteId: string): Promise<IAlertItem[]> {
     const dateTimeNow = new Date().toISOString();
     const filterQuery = `fields/StartDateTime le '${dateTimeNow}' and fields/EndDateTime ge '${dateTimeNow}'`;
 
@@ -65,16 +77,16 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
       const response = await this.props.graphClient
         .api(`/sites/${siteId}/lists/${Alerts.LIST_TITLE}/items`)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .expand('fields($select=Title,AlertType,Description,Link,StartDateTime,EndDateTime)')
+        .expand("fields($select=Title,AlertType,Description,Link,StartDateTime,EndDateTime)")
         .filter(filterQuery)
-        .orderby('fields/StartDateTime desc')
+        .orderby("fields/StartDateTime desc")
         .get();
 
       return response.value.map((item: any) => ({
         Id: parseInt(item.id, 10),
         title: item.fields.Title,
         description: item.fields.Description,
-        AlertType: item.fields.AlertType as AlertType,
+        AlertType: item.fields.AlertType,
         link: item.fields.Link,
       }));
     } catch (error) {
@@ -83,28 +95,9 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
     }
   }
 
-  private async fetchRemoteAlerts(sourceUrl: string): Promise<IAlertItem[]> {
-    try {
-      const response = await fetch(sourceUrl);
-      const data = await response.json();
-      // Transform data into IAlertItem[]
-      const alerts: IAlertItem[] = data.map((item: any) => ({
-        Id: item.Id,
-        title: item.Title,
-        description: item.Description,
-        AlertType: item.AlertType as AlertType,
-        link: item.Link,
-      }));
-      return alerts;
-    } catch (error) {
-      console.error('Error fetching remote alerts:', error);
-      return [];
-    }
-  }
-
   private _removeDuplicateAlerts(alerts: IAlertItem[]): IAlertItem[] {
     const seenIds = new Set<number>();
-    return alerts.filter(alert => {
+    return alerts.filter((alert) => {
       if (seenIds.has(alert.Id)) {
         return false;
       } else {
@@ -145,15 +138,15 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
   };
 
   private _getClosedAlerts(): number[] {
-    const stored = this._getFromSessionStorage('ClosedAlerts');
-    return Array.isArray(stored) ? stored : []; // Ensure the result is always an array
+    const stored = this._getFromSessionStorage("ClosedAlerts");
+    return Array.isArray(stored) ? stored : [];
   }
 
   private _addClosedAlert(id: number): void {
     const closedAlerts = this._getClosedAlerts();
     if (!closedAlerts.includes(id)) {
       closedAlerts.push(id);
-      this._saveToSessionStorage('ClosedAlerts', closedAlerts);
+      this._saveToSessionStorage("ClosedAlerts", closedAlerts);
     }
   }
 
@@ -162,7 +155,7 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
       const data = localStorage.getItem(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      console.error('Error accessing localStorage:', error);
+      console.error("Error accessing localStorage:", error);
       return null;
     }
   }
@@ -171,7 +164,7 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
     try {
       localStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
-      console.error('Error saving to localStorage:', error);
+      console.error("Error saving to localStorage:", error);
     }
   }
 
@@ -180,7 +173,7 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
       const data = sessionStorage.getItem(key);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error accessing sessionStorage:', error);
+      console.error("Error accessing sessionStorage:", error);
       return [];
     }
   }
@@ -189,25 +182,40 @@ class Alerts extends React.Component<IAlertProps, IAlertState> {
     try {
       sessionStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
-      console.error('Error saving to sessionStorage:', error);
+      console.error("Error saving to sessionStorage:", error);
     }
   }
 
-  public render(): React.ReactElement<IAlertProps> {
+  public render(): React.ReactElement<IAlertsProps> {
+    const { alertTypes } = this.state;
+
     return (
       <div className={styles.alerts}>
         <div className={styles.container}>
-          {this.state.alerts.map((alert) => (
-            <AlertItem
-              key={alert.Id}
-              item={alert}
-              remove={this._removeAlert}
-            />
-          ))}
+          {this.state.alerts.map((alert) => {
+            const alertType = alertTypes[alert.AlertType] || defaultAlertType;
+            return (
+              <AlertItem
+                key={alert.Id}
+                item={alert}
+                remove={this._removeAlert}
+                alertType={alertType}
+              />
+            );
+          })}
         </div>
       </div>
     );
   }
 }
+
+// Define a default alert type in case an alert type is missing
+const defaultAlertType: IAlertType = {
+  name: "Default",
+  iconName: "Info",
+  backgroundColor: "#ffffff",
+  textColor: "#000000",
+  additionalStyles: "",
+};
 
 export default Alerts;

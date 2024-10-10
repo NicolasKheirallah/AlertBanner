@@ -6,13 +6,12 @@ The Alert Header SPFx Extension is a custom SharePoint Framework (SPFx) extensio
 
 ![screenshot](https://github.com/NicolasKheirallah/AlertHeader/blob/main/Screenshot/Screenshot2024-08-17170932.png)
 
-
 This project is inspired by the work of Thomas Daly but has been significantly rewritten and updated to leverage the Microsoft Graph API for enhanced functionality. Special thanks to Thomas Daly for the original concept!
 
 [Thomas Daly Blog](https://github.com/tom-daly/alerts-header)
 
-
 ## Goal of this project
+
 As a alert banner is often requested by organization such as IT but isn't readily available, I wanted to create one that could be used by any organization!
 
 I also rarely get to code these days so I wanted to freshen up my knowledge
@@ -38,16 +37,16 @@ I also rarely get to code these days so I wanted to freshen up my knowledge
 
 ## Solution
 
-| Solution       | Author(s)                                               |
-| -------------- | ------------------------------------------------------- |
-| alert-header   | [Nicolas Kheirallah](https://twitter.com/yourhandle) |
+| Solution     | Author(s)                                         |
+| ------------ | ------------------------------------------------- |
+| alert-header | [Nicolas Kheirallah](https://twitter.com/yourhandle) |
 
 ## Version history
 
-| Version | Date            | Comments                                             |
-| ------- | --------------- | --------------------------------------------------- |
-| 1.1     | August 17, 2024 | Added caching and session management for alerts      |
-| 1.0     | July 15, 2024   | Initial release                                      |
+| Version | Date            | Comments                                        |
+| ------- | --------------- | ----------------------------------------------- |
+| 1.1     | August 17, 2024 | Added caching and session management for alerts |
+| 1.0     | July 15, 2024   | Initial release                                 |
 
 ## Disclaimer
 
@@ -77,14 +76,13 @@ This SPFx extension offers the following capabilities:
 
 ## TODO
 
-- **Multi-Site Support**: Extend support for Root, Local, and Hub sites.
+- ~~**Multi-Site Support**: Extend support for Root, Local, and Hub sites. ~~(Done)
 - **Enhanced Design**: Improve design aesthetics and CSS customization options.
 - **Advanced Sorting**: Implement sorting of alerts based on priority and date.
 
 ## Managing Alerts
 
 - **Global Alerts**: Deployed across all sites, fetching alerts from the root site where the extension is installed.
-
 - **Local Alerts**: After the extension is added to a site collection, a new list titled "Alerts" is automatically created in the Site Contents. To create a new alert, simply add a new item to this list.
 
 ### Alert List Configuration:
