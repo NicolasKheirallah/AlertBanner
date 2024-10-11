@@ -2,7 +2,7 @@
 
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 
-export interface IAlertsHeaderApplicationCustomizerProperties {
+export interface IAlertsBannerApplicationCustomizerProperties {
   alertTypesJson: string; // Property to hold the alert types JSON
 }
 
@@ -36,6 +36,6 @@ export interface IAlertType {
   additionalStyles?: string;
 }
 
-export interface IAlertsHeaderApplicationCustomizerProperties {
+export interface IAlertsBannerApplicationCustomizerProperties {
   alertTypesJson: string; // Property to hold the alert types JSON
 }

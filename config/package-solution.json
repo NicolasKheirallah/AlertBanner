@@ -3,7 +3,7 @@
     "solution": {
         "name": "alert-banner-client-side-solution",
         "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
-        "version": "1.1.0.156",
+        "version": "1.1.0.162",
         "includeClientSideAssets": true,
         "skipFeatureDeployment": true,
         "isDomainIsolated": false,
@@ -33,7 +33,7 @@
         },
         "features": [
             {
-                "title": "Alerts header",
+                "title": "Alerts banner",
                 "description": "Deploys a custom action with ClientSideComponentId association",
                 "id": "811e2b52-af7a-41b7-b492-6f893b097fb6",
                 "version": "1.0.0.0",
@@ -51,6 +51,6 @@
         ]
     },
     "paths": {
-        "zippedPackage": "solution/alert-header.sppkg"
+        "zippedPackage": "solution/alert-banner.sppkg"
     }
 }

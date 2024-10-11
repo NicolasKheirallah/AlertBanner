@@ -1,4 +1,4 @@
-// AlertHeaderApplicationCustomizer.ts
+// AlertBannerApplicationCustomizer.ts
 
 import * as React from "react";
 import * as ReactDOM from "react-dom";
@@ -9,9 +9,9 @@ import {
   PlaceholderName,
 } from "@microsoft/sp-application-base";
 import Alerts from "./Components/Alerts/Alerts";
-import { IAlertsHeaderApplicationCustomizerProperties, IAlertsProps } from "./Components/Alerts/IAlerts.types";
+import { IAlertsBannerApplicationCustomizerProperties, IAlertsProps } from "./Components/Alerts/IAlerts.types";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
-export default class AlertsHeaderApplicationCustomizer extends BaseApplicationCustomizer<IAlertsHeaderApplicationCustomizerProperties> {
+export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
   private _topPlaceholderContent: PlaceholderContent | undefined;
 
   @override
