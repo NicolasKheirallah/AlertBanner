@@ -3,7 +3,7 @@
     "solution": {
         "name": "alert-banner-client-side-solution",
         "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
-        "version": "1.1.0.162",
+        "version": "1.1.0.237",
         "includeClientSideAssets": true,
         "skipFeatureDeployment": true,
         "isDomainIsolated": false,
@@ -11,6 +11,22 @@
             {
                 "resource": "Microsoft Graph",
                 "scope": "Sites.Read.All"
+            },
+            {
+                "resource": "Microsoft Graph",
+                "scope": "User.Read"
+            },
+            {
+                "resource": "Microsoft Graph",
+                "scope": "Mail.Send"
+            },
+            {
+                "resource": "Microsoft Graph",
+                "scope": "GroupMember.Read.All"
+            },
+            {
+                "resource": "Microsoft Graph",
+                "scope": "Directory.Read.All"
             }
         ],
         "developer": {
@@ -22,10 +38,10 @@
         },
         "metadata": {
             "shortDescription": {
-                "default": "alertbanner description"
+                "default": "Enhanced alert banner with priority, notifications, targeting and multi-language support"
             },
             "longDescription": {
-                "default": "alertbanner description"
+                "default": "A customizable alert banner that displays organization-wide messages with priority levels, user targeting, rich media content, notifications, and multi-language support."
             },
             "screenshotPaths": [],
             "videoUrl": "",
