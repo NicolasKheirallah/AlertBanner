@@ -9,7 +9,7 @@ import {
 import { IAlertsBannerApplicationCustomizerProperties } from "./Components/Alerts/IAlerts";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { AlertsProvider } from "./Components/Context/AlertsContext";
-import AlertsWithContext from "./Components/Alerts/AlertsWithContext";
+import Alerts from "./Components/Alerts/Alerts";
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
   private _topPlaceholderContent: PlaceholderContent | undefined;
@@ -202,7 +202,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
 
         // Create the AlertsContext provider
         const alertsComponent = React.createElement(
-          AlertsWithContext,
+          Alerts,
           {
             siteIds: siteIds,
             graphClient: msGraphClient,
