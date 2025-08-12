@@ -1,12 +1,6 @@
 import * as React from "react";
 import {
   Button,
-  Dialog,
-  DialogSurface,
-  DialogBody,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Text,
   tokens,
 } from "@fluentui/react-components";
@@ -41,52 +35,9 @@ const PRIORITY_COLORS = {
   low: '#107c10'
 } as const;
 
-const SHAREPOINT_COLORS = {
-  white: '#ffffff',
-  borderDark: '#a19f9d',
-  darkText: '#323130'
-};
 
-const DIALOG_STYLES: { [key: string]: React.CSSProperties } = {
-  surface: {
-    width: '80vw',
-    maxWidth: '800px',
-    maxHeight: '90vh',
-    padding: '0',
-    borderRadius: tokens.borderRadiusLarge,
-    border: `1px solid ${tokens.colorNeutralStroke1}`,
-    boxShadow: tokens.shadow64,
-    overflow: 'hidden'
-  },
-  closeButton: {
-    position: 'absolute',
-    top: tokens.spacingVerticalM,
-    right: tokens.spacingHorizontalM,
-    zIndex: 1
-  },
-  header: {
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`
-  },
-  title: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
-    fontSize: tokens.fontSizeHero800,
-    fontWeight: tokens.fontWeightSemibold
-  },
-  content: {
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
-    overflowY: 'auto'
-  },
-  footer: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: tokens.spacingHorizontalS,
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
-    borderTop: `1px solid ${tokens.colorNeutralStroke1}`
-  }
-};
+
+
 
 // ===== UTILITY FUNCTIONS =====
 const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
@@ -279,21 +230,14 @@ const AlertItem: React.FC<IAlertItemProps> = ({
 }) => {
   // Component state
   const [expanded, setExpanded] = React.useState(false);
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
 
   // Accessibility IDs
   const ariaControlsId = `alert-description-${item.Id}`;
-  const dialogTitleId = `dialog-title-${item.Id}`;
-  const dialogContentId = `dialog-content-${item.Id}`;
-
-
 
 
   // Event handlers
   const handlers = React.useMemo(() => ({
     toggleExpanded: () => setExpanded(prev => !prev),
-    openDialog: () => setIsDialogOpen(true),
-    closeDialog: () => setIsDialogOpen(false),
     remove: () => remove(item.Id),
     hideForever: () => hideForever(item.Id),
     stopPropagation: (e: React.MouseEvent) => e.stopPropagation(),
@@ -391,14 +335,14 @@ const AlertItem: React.FC<IAlertItemProps> = ({
       <div
         className={containerClassNames}
         style={containerStyle}
-        onClick={handlers.openDialog}
+        onClick={handlers.toggleExpanded}
         role="button"
         tabIndex={0}
-        aria-expanded={isDialogOpen}
+        aria-expanded={expanded}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            handlers.openDialog();
+            handlers.toggleExpanded();
           }
         }}
       >
@@ -432,6 +376,14 @@ const AlertItem: React.FC<IAlertItemProps> = ({
           )}
           {expanded && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
+              <DescriptionContent description={item.description} />
+              
+              {item.richMedia && richMediaEnabled && (
+                <div style={{ marginTop: '16px' }}>
+                  <RichMediaAlert media={item.richMedia} expanded={true} />
+                </div>
+              )}
+              
               {item.link && (
                 <div onClick={handlers.stopPropagation}>
                   <AlertLinkButton 
@@ -494,88 +446,6 @@ const AlertItem: React.FC<IAlertItemProps> = ({
           />
         </div>
       </div>
-      <Dialog 
-        open={isDialogOpen} 
-        onOpenChange={(event, data) => !data.open && handlers.closeDialog()}
-        modalType="modal"
-      >
-        <DialogSurface style={DIALOG_STYLES.surface}>
-          {/* Close button positioned absolutely in top-right corner */}
-          <Button
-            appearance="transparent"
-            icon={<Dismiss24Regular />}
-            onClick={handlers.closeDialog}
-            aria-label="Close dialog"
-            size="small"
-            style={DIALOG_STYLES.closeButton}
-          />
-          
-          <DialogBody style={{ padding: '0', border: 'none', outline: 'none' }}>
-            <div style={DIALOG_STYLES.header}>
-              <DialogTitle 
-                  id={dialogTitleId}
-                  as="div"
-                  style={{ 
-                  ...DIALOG_STYLES.title,
-                  color: PRIORITY_COLORS[item.priority]
-                }}
-                >
-                {getPriorityIcon(item.priority)}
-                {item.title}
-              </DialogTitle>
-            </div>
-            
-            <DialogContent id={dialogContentId} style={DIALOG_STYLES.content}>
-              <DescriptionContent description={item.description} />
-              
-              {item.richMedia && richMediaEnabled && (
-                <div style={{ marginTop: '16px' }}>
-                  <RichMediaAlert media={item.richMedia} expanded={true} />
-                </div>
-              )}
-              
-              {item.link && (
-                <div style={{ marginTop: '16px' }}>
-                  <AlertLinkButton link={item.link} isDialog={true} />
-                </div>
-              )}
-            </DialogContent>
-            
-            <DialogActions style={DIALOG_STYLES.footer}>
-              {item.quickActions?.map((action, index) => {
-                if (action.actionType === "dismiss") return null;
-                return (
-                  <Button
-                    key={`dialog-action-${index}`}
-                    appearance="primary"
-                    onClick={() => {
-                      handleQuickAction(action);
-                      handlers.closeDialog();
-                    }}
-                    style={{
-                      backgroundColor: PRIORITY_COLORS[item.priority],
-                      borderColor: PRIORITY_COLORS[item.priority]
-                    }}
-                  >
-                    {action.label}
-                  </Button>
-                );
-              })}
-              <Button 
-                appearance="secondary" 
-                onClick={handlers.closeDialog}
-                style={{
-                  backgroundColor: SHAREPOINT_COLORS.white,
-                  border: `1px solid ${SHAREPOINT_COLORS.borderDark}`,
-                  color: SHAREPOINT_COLORS.darkText
-                }}
-              >
-                Close
-              </Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>
     </div>
   );
 };
