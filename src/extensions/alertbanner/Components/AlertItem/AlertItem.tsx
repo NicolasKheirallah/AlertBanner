@@ -397,8 +397,6 @@ const AlertItem: React.FC<IAlertItemProps> = ({
           )}
           {expanded && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
-              <DescriptionContent description={item.description} />
-              
               {item.richMedia && richMediaEnabled && (
                 <div style={{ marginTop: '16px' }}>
                   <RichMediaAlert media={item.richMedia} expanded={true} />
