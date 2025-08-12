@@ -5,9 +5,7 @@ import {
   ChevronLeft24Regular,
   ChevronRight24Regular,
   EyeOff24Regular,
-  Link24Regular,
-  ChevronUp24Regular,
-  ChevronDown24Regular
+  Link24Regular
 } from "@fluentui/react-icons";
 import { IAlertItem } from "../Alerts/IAlerts";
 import styles from "./AlertItem.module.scss";
@@ -81,14 +79,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           <div className={styles.divider} />
         </>
       )}
-      <Button
-        appearance="transparent"
-        icon={expanded ? <ChevronUp24Regular /> : <ChevronDown24Regular />}
-        onClick={toggleExpanded}
-        aria-expanded={expanded}
-        aria-label={expanded ? "Collapse Alert" : "Expand Alert"}
-        size="small"
-      />
+      
       <Button
         appearance="transparent"
         icon={<Dismiss24Regular />}

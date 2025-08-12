@@ -3,7 +3,6 @@ import { tokens, Button } from "@fluentui/react-components"; // Keep tokens for 
 import { Link24Regular } from "@fluentui/react-icons";
 import { IAlertItem, IQuickAction } from "../Alerts/IAlerts";
 import RichMediaAlert from "../Services/RichMediaAlert";
-import styles from "./AlertItem.module.scss";
 import DescriptionContent from "./DescriptionContent"; // Import DescriptionContent
 
 
@@ -47,18 +46,6 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, richMedia
 
   return (
     <>
-      {item.description && (
-        <div className={expanded ? styles.alertDescriptionExp : styles.alertDescription} id={`alert-description-${item.Id}`}>
-          {expanded ? (
-            <DescriptionContent description={item.description} />
-          ) : (
-            <div
-              className={styles.truncatedHtml}
-              dangerouslySetInnerHTML={{ __html: item.description }}
-            />
-          )}
-        </div>
-      )}
       {item.richMedia && richMediaEnabled && (
         <div onClick={stopPropagation}>
           <RichMediaAlert media={item.richMedia} expanded={expanded} />

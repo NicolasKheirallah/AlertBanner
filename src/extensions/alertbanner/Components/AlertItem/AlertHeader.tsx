@@ -4,6 +4,7 @@ import { ChevronDown24Regular, ChevronUp24Regular } from "@fluentui/react-icons"
 import { IAlertItem } from "../Alerts/IAlerts";
 import { getPriorityIcon } from "./utils"; // getPriorityIcon is exported from utils.tsx
 import styles from "./AlertItem.module.scss";
+import DescriptionContent from "./DescriptionContent";
 
 interface IAlertHeaderProps {
   item: IAlertItem;
@@ -25,6 +26,18 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
           <Text className={styles.alertTitle} size={500} weight="semibold">
             {item.title}
           </Text>
+        )}
+        {item.description && (
+          <div className={expanded ? styles.alertDescriptionExp : styles.alertDescription} id={ariaControlsId}>
+            {expanded ? (
+              <DescriptionContent description={item.description} />
+            ) : (
+              <div
+                className={styles.truncatedHtml}
+                dangerouslySetInnerHTML={{ __html: item.description }}
+              />
+            )}
+          </div>
         )}
       </div>
       <div className={styles.actionSection}>

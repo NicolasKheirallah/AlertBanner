@@ -149,46 +149,42 @@ const AlertItem: React.FC<IAlertItemProps> = ({
 
   return (
     <div className={styles.alertItem}>
-      <div
-        className={containerClassNames}
-        style={containerStyle}
-        onClick={handlers.toggleExpanded}
-        role="button"
-        tabIndex={0}
-        aria-expanded={expanded}
-        onKeyDown={(e) => {
+      <div className={containerClassNames} style={containerStyle}>
+        <div className={styles.headerRow} onClick={handlers.toggleExpanded} role="button" tabIndex={0} aria-expanded={expanded} onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             handlers.toggleExpanded();
           }
-        }}
-      >
-        <AlertHeader
-          item={item}
-          expanded={expanded}
-          toggleExpanded={handlers.toggleExpanded}
-          ariaControlsId={ariaControlsId}
-        />
-        <AlertContent
-          item={item}
-          richMediaEnabled={richMediaEnabled}
-          expanded={expanded}
-          stopPropagation={handlers.stopPropagation}
-          handleQuickAction={handleQuickAction}
-        />
-        <AlertActions
-          item={item}
-          isCarousel={isCarousel}
-          currentIndex={currentIndex}
-          totalAlerts={totalAlerts}
-          onNext={onNext}
-          onPrevious={onPrevious}
-          expanded={expanded}
-          toggleExpanded={handlers.toggleExpanded}
-          remove={handlers.remove}
-          hideForever={handlers.hideForever}
-          stopPropagation={handlers.stopPropagation}
-        />
+        }}>
+          <AlertHeader
+            item={item}
+            expanded={expanded}
+            toggleExpanded={handlers.toggleExpanded}
+            ariaControlsId={ariaControlsId}
+          />
+          <AlertActions
+            item={item}
+            isCarousel={isCarousel}
+            currentIndex={currentIndex}
+            totalAlerts={totalAlerts}
+            onNext={onNext}
+            onPrevious={onPrevious}
+            expanded={expanded}
+            toggleExpanded={handlers.toggleExpanded}
+            remove={handlers.remove}
+            hideForever={handlers.hideForever}
+            stopPropagation={handlers.stopPropagation}
+          />
+        </div>
+        {expanded && (
+          <AlertContent
+            item={item}
+            richMediaEnabled={richMediaEnabled}
+            expanded={expanded}
+            stopPropagation={handlers.stopPropagation}
+            handleQuickAction={handleQuickAction}
+          />
+        )}
       </div>
     </div>
   );

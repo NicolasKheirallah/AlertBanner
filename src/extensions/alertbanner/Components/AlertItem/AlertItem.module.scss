@@ -95,6 +95,13 @@
 }
 
 // Core layout styles used by the component
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  justify-content: space-between;
+}
+
 .container {
   display: flex;
   align-items: flex-start;
