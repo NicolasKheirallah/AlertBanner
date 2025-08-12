@@ -98,6 +98,22 @@ interface IDescriptionContentProps {
 }
 
 const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ description }) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const TRUNCATE_LENGTH = 200; // Character limit for truncation
+
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  let displayedDescription = description;
+  let showReadMoreButton = false;
+
+  // Only truncate if it's not HTML and it's longer than the limit
+  if (!/<[a-z][\s\S]*>/i.test(description) && description.length > TRUNCATE_LENGTH && !isExpanded) {
+    displayedDescription = description.substring(0, TRUNCATE_LENGTH) + "...";
+    showReadMoreButton = true;
+  }
+
   // If description contains HTML tags, render it directly
   if (/<[a-z][\s\S]*>/i.test(description)) {
     return (
@@ -108,7 +124,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
     );
   }
 
-  const paragraphs = description.split("\n\n");
+  const paragraphs = displayedDescription.split("\n\n");
   const containerStyle = {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -169,6 +185,16 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
         // Simple paragraph
         return <Text key={`para-${index}`}>{paragraph}</Text>;
       })}
+      {(showReadMoreButton || (description.length > TRUNCATE_LENGTH && isExpanded)) && (
+        <Button
+          appearance="transparent"
+          size="small"
+          onClick={toggleExpanded}
+          style={{ alignSelf: 'flex-start', marginTop: tokens.spacingVerticalS }}
+        >
+          {isExpanded ? "Show Less" : "Read More"}
+        </Button>
+      )}
     </div>
   );
 });
