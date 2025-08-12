@@ -33,8 +33,89 @@ import RichMediaAlert from "../Services/RichMediaAlert";
 import styles from "./AlertItem.module.scss";
 import richMediaStyles from "../Services/RichMediaAlert.module.scss";
 
-// Utility functions
-const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
+// ===== CONSTANTS =====
+const SHAREPOINT_FONTS = '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
+const PRIORITY_COLORS = {
+  critical: '#d13438',
+  high: '#f7630c',
+  medium: '#0078d4',
+  low: '#107c10'
+} as const;
+const SHAREPOINT_COLORS = {
+  white: '#ffffff',
+  lightGray: '#f3f2f1',
+  borderGray: '#edebe9',
+  textGray: '#605e5c',
+  darkText: '#323130',
+  borderDark: '#8a8886'
+} as const;
+const DIALOG_STYLES = {
+  surface: {
+    maxWidth: '630px',
+    minWidth: '340px',
+    backgroundColor: SHAREPOINT_COLORS.white,
+    border: 'none',
+    borderRadius: '2px',
+    boxShadow: '0 6.4px 14.4px 0 rgba(0, 0, 0, 0.132), 0 1.2px 3.6px 0 rgba(0, 0, 0, 0.108)',
+    outline: 'none',
+    position: 'relative' as const
+  },
+  closeButton: {
+    position: 'absolute' as const,
+    top: '12px',
+    right: '12px',
+    zIndex: 1,
+    color: SHAREPOINT_COLORS.textGray,
+    minWidth: '32px',
+    minHeight: '32px'
+  },
+  header: {
+    backgroundColor: SHAREPOINT_COLORS.white,
+    borderBottom: `1px solid ${SHAREPOINT_COLORS.borderGray}`,
+    padding: '20px 48px 20px 24px',
+    display: 'flex',
+    alignItems: 'center',
+    minHeight: '60px'
+  },
+  title: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    fontSize: '20px',
+    fontWeight: '600',
+    fontFamily: SHAREPOINT_FONTS,
+    margin: '0',
+    padding: '0',
+    border: 'none',
+    outline: 'none',
+    lineHeight: '28px',
+    width: '100%'
+  },
+  content: {
+    padding: '20px 24px',
+    backgroundColor: SHAREPOINT_COLORS.white,
+    color: SHAREPOINT_COLORS.darkText,
+    fontSize: '14px',
+    lineHeight: '20px',
+    maxHeight: '60vh',
+    overflow: 'auto',
+    border: 'none',
+    outline: 'none',
+    fontFamily: SHAREPOINT_FONTS
+  },
+  footer: {
+    backgroundColor: SHAREPOINT_COLORS.lightGray,
+    borderTop: `1px solid ${SHAREPOINT_COLORS.borderGray}`,
+    padding: '16px 24px',
+    justifyContent: 'flex-end',
+    gap: '8px',
+    border: 'none',
+    outline: 'none'
+  }
+} as const;
+
+// ===== UTILITY FUNCTIONS =====
+const parseAdditionalStyles = React.useCallback((stylesString?: string): React.CSSProperties => {
   if (!stylesString) return {};
   
   const styleObj: Record<string, string | number> = {};
@@ -50,38 +131,29 @@ const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
   });
   
   return styleObj as React.CSSProperties;
-};
+}, []);
 
-const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
-  const iconProps = { style: { width: 20, height: 20 } };
+const getPriorityIcon = React.memo(({ priority }: { priority: AlertPriority }): React.ReactElement => {
+  const iconStyle = { width: 20, height: 20, color: PRIORITY_COLORS[priority] || PRIORITY_COLORS.low };
   
   switch (priority) {
     case "critical":
-      return <ErrorCircle24Regular {...iconProps} style={{ ...iconProps.style, color: '#d13438' }} />;
+      return <ErrorCircle24Regular style={iconStyle} />;
     case "high":
-      return <Warning24Regular {...iconProps} style={{ ...iconProps.style, color: '#f7630c' }} />;
+      return <Warning24Regular style={iconStyle} />;
     case "medium":
-      return <Info24Regular {...iconProps} style={{ ...iconProps.style, color: '#0078d4' }} />;
+      return <Info24Regular style={iconStyle} />;
     case "low":
     default:
-      return <CheckmarkCircle24Regular {...iconProps} style={{ ...iconProps.style, color: '#107c10' }} />;
+      return <CheckmarkCircle24Regular style={iconStyle} />;
   }
+});
+
+const getPriorityColor = (priority: AlertPriority): string => {
+  return PRIORITY_COLORS[priority] || PRIORITY_COLORS.low;
 };
 
-const getPriorityTitleColor = (priority: AlertPriority): string => {
-  switch (priority) {
-    case "critical":
-      return '#d13438';
-    case "high":
-      return '#f7630c';
-    case "medium":
-      return '#0078d4';
-    case "low":
-    default:
-      return '#107c10';
-  }
-};
-
+// ===== INTERFACES =====
 export interface IAlertItemProps {
   item: IAlertItem;
   remove: (id: number) => void;
@@ -95,6 +167,7 @@ export interface IAlertItemProps {
   onNext?: () => void;
   onPrevious?: () => void;
 }
+
 
 // Sub-components
 interface IDescriptionContentProps {
@@ -359,7 +432,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
       >
         <div className={styles.iconSection}>
           <div className={styles.alertIcon}>
-            {getPriorityIcon(item.priority)}
+            {getPriorityIcon({ priority: item.priority })}
           </div>
         </div>
         <div className={styles.textSection}>
@@ -454,93 +527,33 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         onOpenChange={(event, data) => !data.open && handlers.closeDialog()}
         modalType="modal"
       >
-        <DialogSurface 
-          style={{
-            maxWidth: '630px',
-            minWidth: '340px',
-            backgroundColor: '#ffffff',
-            border: 'none',
-            borderRadius: '2px',
-            boxShadow: '0 6.4px 14.4px 0 rgba(0, 0, 0, 0.132), 0 1.2px 3.6px 0 rgba(0, 0, 0, 0.108)',
-            outline: 'none'
-          }}
-        >
+        <DialogSurface style={DIALOG_STYLES.surface}>
+          {/* Close button positioned absolutely in top-right corner */}
+          <Button
+            appearance="transparent"
+            icon={<Dismiss24Regular />}
+            onClick={handlers.closeDialog}
+            aria-label="Close dialog"
+            size="small"
+            style={DIALOG_STYLES.closeButton}
+          />
+          
           <DialogBody style={{ padding: '0', border: 'none', outline: 'none' }}>
-            <div 
-              style={{
-                backgroundColor: '#ffffff',
-                borderBottom: '1px solid #edebe9',
-                padding: '20px 24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                minHeight: '60px'
-              }}
-            >
+            <div style={DIALOG_STYLES.header}>
               <DialogTitle 
                 id={dialogTitleId}
                 as="div"
                 style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px',
-                  color: getPriorityTitleColor(item.priority),
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif',
-                  margin: '0',
-                  padding: '0',
-                  border: 'none',
-                  outline: 'none',
-                  flex: 1,
-                  lineHeight: '28px'
+                  ...DIALOG_STYLES.title,
+                  color: getPriorityColor(item.priority)
                 }}
               >
-                {getPriorityIcon(item.priority)}
+{getPriorityIcon({ priority: item.priority })}
                 {item.title}
               </DialogTitle>
-              <button
-                onClick={handlers.closeDialog}
-                aria-label="Close dialog"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  padding: '8px',
-                  margin: '0',
-                  borderRadius: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#605e5c',
-                  fontSize: '16px',
-                  minWidth: '32px',
-                  minHeight: '32px',
-                  transition: 'background-color 0.1s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f2f1'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <Dismiss24Regular style={{ width: '16px', height: '16px' }} />
-              </button>
             </div>
             
-            <DialogContent 
-              id={dialogContentId}
-              style={{
-                padding: '20px 24px',
-                backgroundColor: '#ffffff',
-                color: '#323130',
-                fontSize: '14px',
-                lineHeight: '20px',
-                maxHeight: '60vh',
-                overflow: 'auto',
-                border: 'none',
-                outline: 'none',
-                fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif'
-              }}
-            >
+            <DialogContent id={dialogContentId} style={DIALOG_STYLES.content}>
               <DescriptionContent description={item.description} />
               
               {item.richMedia && richMediaEnabled && (
@@ -556,17 +569,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
               )}
             </DialogContent>
             
-            <DialogActions 
-              style={{
-                backgroundColor: '#f3f2f1',
-                borderTop: '1px solid #edebe9',
-                padding: '16px 24px',
-                justifyContent: 'flex-end',
-                gap: '8px',
-                border: 'none',
-                outline: 'none'
-              }}
-            >
+            <DialogActions style={DIALOG_STYLES.footer}>
               {item.quickActions?.map((action, index) => {
                 if (action.actionType === "dismiss") return null;
                 return (
@@ -578,8 +581,8 @@ const AlertItem: React.FC<IAlertItemProps> = ({
                       handlers.closeDialog();
                     }}
                     style={{
-                      backgroundColor: getPriorityTitleColor(item.priority),
-                      borderColor: getPriorityTitleColor(item.priority)
+                      backgroundColor: getPriorityColor(item.priority),
+                      borderColor: getPriorityColor(item.priority)
                     }}
                   >
                     {action.label}
@@ -590,9 +593,9 @@ const AlertItem: React.FC<IAlertItemProps> = ({
                 appearance="secondary" 
                 onClick={handlers.closeDialog}
                 style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #8a8886',
-                  color: '#323130'
+                  backgroundColor: SHAREPOINT_COLORS.white,
+                  border: `1px solid ${SHAREPOINT_COLORS.borderDark}`,
+                  color: SHAREPOINT_COLORS.darkText
                 }}
               >
                 Close
