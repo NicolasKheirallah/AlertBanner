@@ -29,10 +29,10 @@ import richMediaStyles from "../Services/RichMediaAlert.module.scss";
 
 // ===== CONSTANTS =====
 const PRIORITY_COLORS = {
-  critical: '#d13438',
-  high: '#f7630c',
-  medium: '#0078d4',
-  low: '#107c10'
+  critical: { start: '#C0392B', end: '#E74C3C' }, // Dark Red to Brighter Red
+  high: { start: '#D35400', end: '#F39C12' },     // Dark Orange to Golden Orange
+  medium: { start: '#2980B9', end: '#3498DB' },    // Dark Blue to Sky Blue
+  low: { start: '#27AE60', end: '#2ECC71' }      // Forest Green to Emerald Green
 } as const;
 
 
@@ -59,7 +59,8 @@ const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
 };
 
 const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
-  const iconStyle = { width: 20, height: 20, color: PRIORITY_COLORS[priority] || PRIORITY_COLORS.low };
+  const iconColor = PRIORITY_COLORS[priority]?.start || PRIORITY_COLORS.low.start; // Use the start color for the icon
+  const iconStyle = { width: 20, height: 20, color: iconColor };
   
   switch (priority) {
     case "critical":
@@ -289,6 +290,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
 
   const containerStyle = React.useMemo<React.CSSProperties>(() => ({
     ...baseContainerStyle,
+    background: `linear-gradient(to right, ${PRIORITY_COLORS[item.priority].start}, ${PRIORITY_COLORS[item.priority].end})`,
     ...parseAdditionalStyles(priorityStyle),
     ...(item.priority === "critical" && {
       border: '2px solid #E81123',
