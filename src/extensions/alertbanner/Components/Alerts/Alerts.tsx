@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Spinner, SpinnerSize,MessageBar, MessageBarType } from "@fluentui/react";
+import { Spinner, MessageBar, MessageBarBody, MessageBarTitle, tokens } from "@fluentui/react-components";
+
 import styles from "./Alerts.module.scss";
 import { 
   IAlertsProps, 
@@ -30,7 +31,8 @@ class Alerts extends React.Component<IAlertsProps, IAlertsState> {
       hasError: false,
       errorMessage: undefined,
       userDismissedAlerts: [],
-      userHiddenAlerts: []
+      userHiddenAlerts: [],
+      currentIndex: 0
     };
 
     // Initialize services
@@ -168,7 +170,6 @@ class Alerts extends React.Component<IAlertsProps, IAlertsState> {
     }
   }
 
-// Update these methods in your existing Alerts.tsx file
 
 private async _fetchAlerts(siteId: string): Promise<IAlertItem[]> {
   const dateTimeNow = new Date().toISOString();
@@ -191,7 +192,6 @@ private async _fetchAlerts(siteId: string): Promise<IAlertItem[]> {
   }
 }
 
-// Map SharePoint list item to our alert model
 private _mapSharePointItemToAlert(item: any): IAlertItem {
   const createdBy = item.fields.CreatedBy ? 
     item.fields.CreatedBy.LookupValue || "Unknown" : 
@@ -255,7 +255,6 @@ private _mapSharePointItemToAlert(item: any): IAlertItem {
   };
 }
 
-// Helper method to create targeting rules from SharePoint People fields
 private _createTargetingRulesFromPeopleFields(
   targetUsers: any,
   targetGroups: any,
@@ -293,7 +292,6 @@ private _createTargetingRulesFromPeopleFields(
   return [rule];
 }
 
-// Helper to map SharePoint Person field data to our IPersonField interface
 private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
   // Try to handle both classic Person field format and Graph-like format
   
@@ -402,10 +400,31 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
     );
   }
 
+  // Carousel navigation methods
+  private _goToNext = (): void => {
+    this.setState((prevState) => ({
+      currentIndex: (prevState.currentIndex + 1) % prevState.alerts.length
+    }));
+  };
+
+  private _goToPrevious = (): void => {
+    this.setState((prevState) => ({
+      currentIndex: prevState.currentIndex === 0 ? prevState.alerts.length - 1 : prevState.currentIndex - 1
+    }));
+  };
+
   private _removeAlert = (id: number): void => {
     this.setState((prevState) => {
       const updatedAlerts = prevState.alerts.filter((alert) => alert.Id !== id);
       const updatedDismissedAlerts = [...prevState.userDismissedAlerts, id];
+      
+      // Adjust current index if needed
+      let newCurrentIndex = prevState.currentIndex;
+      if (newCurrentIndex >= updatedAlerts.length && updatedAlerts.length > 0) {
+        newCurrentIndex = updatedAlerts.length - 1;
+      } else if (updatedAlerts.length === 0) {
+        newCurrentIndex = 0;
+      }
       
       // Add to user's dismissed alerts
       if (this.props.userTargetingEnabled) {
@@ -414,7 +433,8 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
       
       return { 
         alerts: updatedAlerts,
-        userDismissedAlerts: updatedDismissedAlerts
+        userDismissedAlerts: updatedDismissedAlerts,
+        currentIndex: newCurrentIndex
       };
     });
   };
@@ -424,6 +444,14 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
       const updatedAlerts = prevState.alerts.filter((alert) => alert.Id !== id);
       const updatedHiddenAlerts = [...prevState.userHiddenAlerts, id];
       
+      // Adjust current index if needed
+      let newCurrentIndex = prevState.currentIndex;
+      if (newCurrentIndex >= updatedAlerts.length && updatedAlerts.length > 0) {
+        newCurrentIndex = updatedAlerts.length - 1;
+      } else if (updatedAlerts.length === 0) {
+        newCurrentIndex = 0;
+      }
+      
       // Add to user's hidden alerts
       if (this.props.userTargetingEnabled) {
         this.userTargetingService.addUserHiddenAlert(id);
@@ -431,7 +459,8 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
       
       return { 
         alerts: updatedAlerts,
-        userHiddenAlerts: updatedHiddenAlerts
+        userHiddenAlerts: updatedHiddenAlerts,
+        currentIndex: newCurrentIndex
       };
     });
   };
@@ -460,9 +489,24 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
     // Render loading spinner
     if (isLoading) {
       return (
-        <div className={styles.alerts}>
-          <div className={styles.loadingContainer}>
-            <Spinner size={SpinnerSize.medium} label="Loading alerts..." />
+        <div style={{
+          width: '100%',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: tokens.spacingVerticalM,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: tokens.spacingVerticalM,
+        }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: tokens.spacingVerticalXXL,
+            gap: tokens.spacingVerticalM,
+          }}>
+            <Spinner size="medium" label="Loading alerts..." />
           </div>
         </div>
       );
@@ -471,13 +515,20 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
     // Render error message
     if (hasError) {
       return (
-        <div className={styles.alerts}>
-          <MessageBar
-            messageBarType={MessageBarType.error}
-            isMultiline={false}
-            dismissButtonAriaLabel="Close"
-          >
-            {errorMessage || "An error occurred while loading alerts."}
+        <div style={{
+          width: '100%',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: tokens.spacingVerticalM,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: tokens.spacingVerticalM,
+        }}>
+          <MessageBar intent="error">
+            <MessageBarBody>
+              <MessageBarTitle>Unable to Load Alerts</MessageBarTitle>
+              {errorMessage || "An error occurred while loading alerts. Please try refreshing the page."}
+            </MessageBarBody>
           </MessageBar>
         </div>
       );
@@ -489,28 +540,22 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
     return (
       <div className={styles.alerts}>
         {hasAlerts ? (
-          <div className={styles.container}>
-            {this.state.alerts.map((alert) => {
-              const alertType = alertTypes[alert.AlertType] || defaultAlertType;
-              return (
-                <AlertItem
-                  key={alert.Id}
-                  item={alert}
-                  remove={this._removeAlert}
-                  hideForever={this._hideAlertForever}
-                  alertType={alertType}
-                  richMediaEnabled={this.props.richMediaEnabled}
-                />
-              );
-            })}
+          <div className={styles.carousel}>
+            <AlertItem
+              key={this.state.alerts[this.state.currentIndex].Id}
+              item={this.state.alerts[this.state.currentIndex]}
+              remove={this._removeAlert}
+              hideForever={this._hideAlertForever}
+              alertType={alertTypes[this.state.alerts[this.state.currentIndex].AlertType] || defaultAlertType}
+              richMediaEnabled={this.props.richMediaEnabled}
+              isCarousel={true}
+              currentIndex={this.state.currentIndex + 1}
+              totalAlerts={this.state.alerts.length}
+              onNext={this._goToNext}
+              onPrevious={this._goToPrevious}
+            />
           </div>
-        ) : (
-          <div className={styles.noAlerts}>
-            <MessageBar messageBarType={MessageBarType.info}>
-              No alerts to display.
-            </MessageBar>
-          </div>
-        )}
+        ) : null}
       </div>
     );
   }

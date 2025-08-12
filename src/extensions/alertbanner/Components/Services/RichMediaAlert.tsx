@@ -1,6 +1,6 @@
 import * as React from "react";
 import { IAlertRichMedia } from "../Alerts/IAlerts";
-import { Text } from "@fluentui/react";
+// Text import removed as it's no longer used
 import { marked } from "marked";
 import styles from "./RichMediaAlert.module.scss";
 
@@ -45,7 +45,7 @@ const RichMediaAlert: React.FC<IRichMediaAlertProps> = ({ media, expanded }) => 
       case "html":
         return (
           <div className={styles.htmlContainer}>
-            <Text
+            <div
               dangerouslySetInnerHTML={{ __html: media.content }}
             />
           </div>
@@ -57,7 +57,7 @@ const RichMediaAlert: React.FC<IRichMediaAlertProps> = ({ media, expanded }) => 
 
         return (
           <div className={styles.markdownContainer}>
-            <Text
+            <div
               dangerouslySetInnerHTML={{ __html: htmlContent }}
             />
           </div>

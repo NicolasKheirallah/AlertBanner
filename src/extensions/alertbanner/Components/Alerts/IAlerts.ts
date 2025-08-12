@@ -60,6 +60,7 @@ export interface IAlertsState {
   errorMessage?: string;
   userDismissedAlerts: number[];
   userHiddenAlerts: number[];
+  currentIndex: number;
 }
 
 export interface IUser {
