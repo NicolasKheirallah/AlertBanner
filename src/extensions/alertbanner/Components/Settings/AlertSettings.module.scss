@@ -1,0 +1,88 @@
+// Settings panel styles for the Alert Banner
+
+.settingsButton {
+  position: fixed !important;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  
+  // Ensure button is always visible in edit mode
+  &:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+  }
+}
+
+.settingsDialog {
+  // Additional dialog styling if needed
+  .fui-DialogSurface {
+    min-width: 600px;
+    max-width: 800px;
+    max-height: 90vh;
+  }
+}
+
+.settingsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 8px;
+  
+  // Custom scrollbar for better UX
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+}
+
+.featureSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.configSection {
+  .configTextarea {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    border-radius: 6px;
+    
+    &:focus {
+      outline: 2px solid #0078d4;
+      outline-offset: -2px;
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .settingsContent {
+    &::-webkit-scrollbar-track {
+      background: #333;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #666;
+      
+      &:hover {
+        background: #888;
+      }
+    }
+  }
+}

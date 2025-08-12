@@ -139,6 +139,32 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     }
   }
 
+  private _handleSettingsChange = (settings: {
+    alertTypesJson: string;
+    userTargetingEnabled: boolean;
+    notificationsEnabled: boolean;
+    richMediaEnabled: boolean;
+  }): void => {
+    // Update the custom properties
+    this._customProperties = {
+      ...this._customProperties,
+      alertTypesJson: settings.alertTypesJson,
+      userTargetingEnabled: settings.userTargetingEnabled,
+      notificationsEnabled: settings.notificationsEnabled,
+      richMediaEnabled: settings.richMediaEnabled
+    };
+    
+    // Note: In a real implementation, you might want to:
+    // 1. Save these settings to SharePoint property bag or tenant properties
+    // 2. Show a notification that settings were saved
+    // 3. Optionally refresh the component to show updated settings
+    
+    console.log('Alert settings updated:', settings);
+    
+    // Re-render the component with new settings
+    this._renderAlertsComponent();
+  };
+
   private async _renderAlertsComponent(): Promise<void> {
     try {
       if (
@@ -206,10 +232,12 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           {
             siteIds: siteIds,
             graphClient: msGraphClient,
+            context: this.context,
             alertTypesJson: alertTypesJsonString,
             userTargetingEnabled: this._customProperties.userTargetingEnabled,
             notificationsEnabled: this._customProperties.notificationsEnabled,
-            richMediaEnabled: this._customProperties.richMediaEnabled
+            richMediaEnabled: this._customProperties.richMediaEnabled,
+            onSettingsChange: this._handleSettingsChange
           }
         );
 

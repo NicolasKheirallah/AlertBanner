@@ -10,7 +10,6 @@ import styles from "./AlertItem.module.scss";
 import AlertHeader from "./AlertHeader";
 import AlertContent from "./AlertContent";
 import AlertActions from "./AlertActions";
-import { PRIORITY_COLORS } from "./utils"; // Import from utils.tsx
 
 
 
@@ -125,11 +124,9 @@ const AlertItem: React.FC<IAlertItemProps> = ({
 
   const containerStyle = React.useMemo<React.CSSProperties>(() => ({
     ...baseContainerStyle,
-    background: `linear-gradient(to right, ${PRIORITY_COLORS[item.priority].start}, ${PRIORITY_COLORS[item.priority].end})`,
     ...parseAdditionalStyles(priorityStyle),
     ...(item.priority === "critical" && {
-      border: '2px solid #E81123',
-      boxShadow: '0 0 10px rgba(232, 17, 35, 0.5)'
+      boxShadow: '0 4px 12px rgba(232, 17, 35, 0.15)'
     })
   }), [baseContainerStyle, priorityStyle, item.priority]);
 
@@ -150,12 +147,19 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   return (
     <div className={styles.alertItem}>
       <div className={containerClassNames} style={containerStyle}>
-        <div className={styles.headerRow} onClick={handlers.toggleExpanded} role="button" tabIndex={0} aria-expanded={expanded} onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handlers.toggleExpanded();
-          }
-        }}>
+        <div 
+          className={styles.headerRow} 
+          onClick={handlers.toggleExpanded} 
+          role="button" 
+          tabIndex={0} 
+          aria-expanded={expanded} 
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handlers.toggleExpanded();
+            }
+          }}
+        >
           <AlertHeader
             item={item}
             expanded={expanded}
@@ -176,15 +180,13 @@ const AlertItem: React.FC<IAlertItemProps> = ({
             stopPropagation={handlers.stopPropagation}
           />
         </div>
-        {expanded && (
-          <AlertContent
-            item={item}
-            richMediaEnabled={richMediaEnabled}
-            expanded={expanded}
-            stopPropagation={handlers.stopPropagation}
-            handleQuickAction={handleQuickAction}
-          />
-        )}
+        <AlertContent
+          item={item}
+          richMediaEnabled={richMediaEnabled}
+          expanded={expanded}
+          stopPropagation={handlers.stopPropagation}
+          handleQuickAction={handleQuickAction}
+        />
       </div>
     </div>
   );

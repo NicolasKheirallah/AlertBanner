@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Spinner, MessageBar, MessageBarBody, MessageBarTitle, tokens } from "@fluentui/react-components";
+import { MessageBar, MessageBarBody, MessageBarTitle, tokens } from "@fluentui/react-components";
 
 import styles from "./Alerts.module.scss";
 import { 
@@ -14,12 +14,15 @@ import {
 import AlertItem from "../AlertItem/AlertItem";
 import NotificationService from "../Services/NotificationService";
 import UserTargetingService from "../Services/UserTargetingService";
+import UserFriendlyAlertSettings, { ISettingsData } from "../Settings/UserFriendlyAlertSettings";
+import { EditModeDetector } from "../Utils/EditModeDetector";
 
 class Alerts extends React.Component<IAlertsProps, IAlertsState> {
   public static readonly LIST_TITLE = "Alerts";
   
   private notificationService: NotificationService;
   private userTargetingService: UserTargetingService;
+  private editModeCleanup?: () => void;
 
   constructor(props: IAlertsProps) {
     super(props);
@@ -32,7 +35,8 @@ class Alerts extends React.Component<IAlertsProps, IAlertsState> {
       errorMessage: undefined,
       userDismissedAlerts: [],
       userHiddenAlerts: [],
-      currentIndex: 0
+      currentIndex: 0,
+      isInEditMode: false
     };
 
     // Initialize services
@@ -42,6 +46,13 @@ class Alerts extends React.Component<IAlertsProps, IAlertsState> {
 
   public async componentDidMount(): Promise<void> {
     try {
+      // Initialize edit mode detection
+      this.setState({ isInEditMode: EditModeDetector.isPageInEditMode() });
+      
+      this.editModeCleanup = EditModeDetector.onEditModeChange((isEditMode) => {
+        this.setState({ isInEditMode: isEditMode });
+      });
+
       // Initialize user targeting service first
       if (this.props.userTargetingEnabled) {
         await this.userTargetingService.initialize();
@@ -69,6 +80,35 @@ class Alerts extends React.Component<IAlertsProps, IAlertsState> {
       });
     }
   }
+
+  public componentWillUnmount(): void {
+    // Clean up edit mode detection
+    if (this.editModeCleanup) {
+      this.editModeCleanup();
+    }
+  }
+
+  private _handleSettingsChange = (settings: ISettingsData): void => {
+    if (this.props.onSettingsChange) {
+      this.props.onSettingsChange(settings);
+    }
+    
+    // Reload alert types if they changed
+    if (settings.alertTypesJson !== this.props.alertTypesJson) {
+      try {
+        const alertTypes = JSON.parse(settings.alertTypesJson);
+        const processedAlertTypes: { [key: string]: IAlertType } = {};
+        
+        alertTypes.forEach((alertType: IAlertType) => {
+          processedAlertTypes[alertType.name] = alertType;
+        });
+        
+        this.setState({ alertTypes: processedAlertTypes });
+      } catch (error) {
+        console.error('Failed to parse updated alert types:', error);
+      }
+    }
+  };
 
   private async _fetchAndProcessAlerts(): Promise<void> {
     try {
@@ -483,33 +523,12 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
     }
   }
 
-  public render(): React.ReactElement<IAlertsProps> {
+  public render(): React.ReactElement<IAlertsProps> | null {
     const { alertTypes, isLoading, hasError, errorMessage } = this.state;
     
-    // Render loading spinner
+    // Hide loading - let alerts load silently in background
     if (isLoading) {
-      return (
-        <div style={{
-          width: '100%',
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: tokens.spacingVerticalM,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: tokens.spacingVerticalM,
-        }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: tokens.spacingVerticalXXL,
-            gap: tokens.spacingVerticalM,
-          }}>
-            <Spinner size="medium" label="Loading alerts..." />
-          </div>
-        </div>
-      );
+      return null;
     }
 
     // Render error message
@@ -537,25 +556,59 @@ private _mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
     // Check if we have alerts to show
     const hasAlerts = this.state.alerts.length > 0;
 
+    // Always render settings if in edit mode, regardless of alerts
+    const showSettings = this.state.isInEditMode;
+
+    // Return settings only if in edit mode but no alerts
+    if (!hasAlerts && showSettings) {
+      return (
+        <UserFriendlyAlertSettings
+          isInEditMode={this.state.isInEditMode}
+          alertTypesJson={this.props.alertTypesJson}
+          userTargetingEnabled={this.props.userTargetingEnabled || false}
+          notificationsEnabled={this.props.notificationsEnabled || false}
+          richMediaEnabled={this.props.richMediaEnabled || false}
+          graphClient={this.props.graphClient}
+          context={this.props.context}
+          onSettingsChange={this._handleSettingsChange}
+        />
+      );
+    }
+
+    // Return null if no alerts and not in edit mode - completely hide the component
+    if (!hasAlerts) {
+      return null;
+    }
+
     return (
       <div className={styles.alerts}>
-        {hasAlerts ? (
-          <div className={styles.carousel}>
-            <AlertItem
-              key={this.state.alerts[this.state.currentIndex].Id}
-              item={this.state.alerts[this.state.currentIndex]}
-              remove={this._removeAlert}
-              hideForever={this._hideAlertForever}
-              alertType={alertTypes[this.state.alerts[this.state.currentIndex].AlertType] || defaultAlertType}
-              richMediaEnabled={this.props.richMediaEnabled}
-              isCarousel={true}
-              currentIndex={this.state.currentIndex + 1}
-              totalAlerts={this.state.alerts.length}
-              onNext={this._goToNext}
-              onPrevious={this._goToPrevious}
-            />
-          </div>
-        ) : null}
+        <div className={styles.carousel}>
+          <AlertItem
+            key={this.state.alerts[this.state.currentIndex].Id}
+            item={this.state.alerts[this.state.currentIndex]}
+            remove={this._removeAlert}
+            hideForever={this._hideAlertForever}
+            alertType={alertTypes[this.state.alerts[this.state.currentIndex].AlertType] || defaultAlertType}
+            richMediaEnabled={this.props.richMediaEnabled}
+            isCarousel={true}
+            currentIndex={this.state.currentIndex + 1}
+            totalAlerts={this.state.alerts.length}
+            onNext={this._goToNext}
+            onPrevious={this._goToPrevious}
+          />
+        </div>
+        {showSettings && (
+          <UserFriendlyAlertSettings
+            isInEditMode={this.state.isInEditMode}
+            alertTypesJson={this.props.alertTypesJson}
+            userTargetingEnabled={this.props.userTargetingEnabled || false}
+            notificationsEnabled={this.props.notificationsEnabled || false}
+            richMediaEnabled={this.props.richMediaEnabled || false}
+            graphClient={this.props.graphClient}
+            context={this.props.context}
+            onSettingsChange={this._handleSettingsChange}
+          />
+        )}
       </div>
     );
   }

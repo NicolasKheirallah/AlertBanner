@@ -46,7 +46,8 @@
 // Container styles
 .alerts {
   width: 100%;
-  min-height: 60px;
+  margin: 0;
+  padding: 0;
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
 }
 
@@ -62,6 +63,7 @@
   position: relative;
   width: 100%;
   margin: 0;
+  padding: 0;
 }
 
 .loadingContainer {

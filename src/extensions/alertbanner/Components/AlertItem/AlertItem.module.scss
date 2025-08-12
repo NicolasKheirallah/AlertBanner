@@ -46,10 +46,32 @@
   animation: criticalAttention 3s ease-in-out infinite;
 }
 
+// Global icon fixes for Fluent UI v9
+:global(svg) {
+  display: inline-block !important;
+  vertical-align: middle;
+}
+
+// Ensure all Fluent UI icons are visible
+:global([data-icon-name]) {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+// Fix for Fluent UI React Components buttons
+:global(.fui-Button) {
+  svg {
+    display: inline-block !important;
+    width: 1em;
+    height: 1em;
+  }
+}
+
 // Fallback styles for legacy support
 .alertItem {
   width: 100%;
-  margin-bottom: 16px;
+  margin: 0;
   
   // Ensure proper stacking context
   position: relative;
@@ -100,21 +122,29 @@
   align-items: flex-start;
   width: 100%;
   justify-content: space-between;
+  min-height: 44px;
 }
 
 .container {
   display: flex;
-  align-items: flex-start;
-  padding: 16px 20px;
-  border-radius: 6px;
-  margin-bottom: 8px;
+  flex-direction: column;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 0;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.1, 0.9, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   color: #323130;
+  position: relative;
+  overflow: hidden;
   
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 }
 
@@ -122,60 +152,84 @@
   cursor: pointer;
 }
 
-// Fluent UI v9 priority styling - white background with accent colors
+// Modern priority styling with improved visual hierarchy
 .critical {
-  background: #ffffff;
-  border: 1px solid #ebe3e3;
+  background: linear-gradient(135deg, #ffffff 0%, #fef9f9 100%);
+  border: 1px solid #f3d6d8;
   border-left: 4px solid #d13438;
   
   .alertTitle {
     color: #d13438;
+    font-weight: 600;
   }
   
   .priorityIndicator {
     background-color: #d13438;
   }
+  
+  &:hover {
+    border-color: #e8bec0;
+    box-shadow: 0 4px 16px rgba(209, 52, 56, 0.12);
+  }
 }
 
 .high {
-  background: #ffffff;
-  border: 1px solid #ebe3e3;
+  background: linear-gradient(135deg, #ffffff 0%, #fffaf7 100%);
+  border: 1px solid #f7e6d3;
   border-left: 4px solid #f7630c;
   
   .alertTitle {
     color: #f7630c;
+    font-weight: 600;
   }
   
   .priorityIndicator {
     background-color: #f7630c;
   }
+  
+  &:hover {
+    border-color: #f2d4b8;
+    box-shadow: 0 4px 16px rgba(247, 99, 12, 0.12);
+  }
 }
 
 .medium {
-  background: #ffffff;
-  border: 1px solid #ebe3e3;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fcff 100%);
+  border: 1px solid #d1e7f0;
   border-left: 4px solid #0078d4;
   
   .alertTitle {
     color: #0078d4;
+    font-weight: 600;
   }
   
   .priorityIndicator {
     background-color: #0078d4;
   }
+  
+  &:hover {
+    border-color: #b8d4e6;
+    box-shadow: 0 4px 16px rgba(0, 120, 212, 0.12);
+  }
 }
 
 .low {
-  background: #ffffff;
-  border: 1px solid #ebe3e3;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fcf9 100%);
+  border: 1px solid #d3e7d3;
   border-left: 4px solid #107c10;
   
   .alertTitle {
     color: #107c10;
+    font-weight: 600;
   }
   
   .priorityIndicator {
     background-color: #107c10;
+  }
+  
+  &:hover {
+    border-color: #b8d4b8;
+    box-shadow: 0 4px 16px rgba(16, 124, 16, 0.12);
   }
 }
 
@@ -188,18 +242,27 @@
 // Layout sections
 .iconSection {
   flex-shrink: 0;
-  margin-right: 12px;
+  margin-right: 16px;
   display: flex;
-  align-items: flex-start;
-  padding-top: 2px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
 }
 
 .alertIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  
+  // Ensure Fluent UI icons render
+  svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+  }
 }
 
 .textSection {
@@ -208,10 +271,11 @@
 }
 
 .alertTitle {
-  margin: 0 0 4px 0;
+  margin: 0 0 6px 0;
   font-weight: 600;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 16px;
+  line-height: 22px;
+  letter-spacing: -0.01em;
 }
 
 .truncatedHtml {
@@ -220,22 +284,46 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  line-height: 1.4;
+  color: rgba(50, 49, 48, 0.8);
+  font-size: 14px;
 }
 
 .alertDescription {
-  margin: 8px 0;
-}
-
-.alertDescriptionExp {
-  margin: 8px 0;
+  margin: 4px 0 0 0;
+  max-width: 100%;
 }
 
 .actionSection {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: 12px;
+  gap: 8px;
+  margin-left: 16px;
+  
+  // Ensure button icons are visible
+  :global(.fui-Button__icon) {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    
+    svg {
+      width: 20px;
+      height: 20px;
+      display: block !important;
+    }
+  }
+  
+  // Alternative selector for Fluent UI v9 buttons
+  :global([data-testid]) svg,
+  :global(.fui-Button) svg {
+    width: 20px;
+    height: 20px;
+    display: block !important;
+  }
 }
 
 .carouselCounter {

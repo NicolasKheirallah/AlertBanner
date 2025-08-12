@@ -1,0 +1,431 @@
+// SharePoint Rich Text Editor Styles
+
+.field {
+  margin-bottom: 20px;
+  font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #323130;
+  margin-bottom: 5px;
+  line-height: 18px;
+}
+
+.required {
+  color: #a80000;
+  margin-left: 3px;
+}
+
+.description {
+  font-size: 12px;
+  color: #605e5c;
+  margin-bottom: 5px;
+  line-height: 16px;
+}
+
+.error {
+  font-size: 12px;
+  color: #a80000;
+  margin-top: 5px;
+  line-height: 16px;
+}
+
+.helpText {
+  font-size: 11px;
+  color: #8a8886;
+  margin-top: 4px;
+  line-height: 14px;
+  font-style: italic;
+}
+
+// Editor container
+.editorContainer {
+  border: 1px solid #8a8886;
+  border-radius: 2px;
+  background: #ffffff;
+  position: relative;
+  transition: border-color 0.1s ease-out;
+  
+  &:focus-within {
+    border-color: #0078d4;
+    box-shadow: inset 0 0 0 1px #0078d4;
+  }
+  
+  &:hover:not(:focus-within) {
+    border-color: #323130;
+  }
+}
+
+.editorError {
+  border-color: #a80000;
+  
+  &:focus-within {
+    border-color: #a80000;
+    box-shadow: inset 0 0 0 1px #a80000;
+  }
+}
+
+// Toolbar
+.toolbar {
+  background: #f8f9fa;
+  border-bottom: 1px solid #edebe9;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  
+  &:not(:last-child)::after {
+    content: '';
+    width: 1px;
+    height: 20px;
+    background: #c8c6c4;
+    margin: 0 8px;
+  }
+}
+
+.toolbarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: #605e5c;
+  cursor: pointer;
+  transition: all 0.1s ease-out;
+  
+  &:hover:not(:disabled) {
+    background: #edebe9;
+    color: #323130;
+  }
+  
+  &:active:not(:disabled) {
+    background: #e1dfdd;
+  }
+  
+  &:focus {
+    outline: 2px solid #0078d4;
+    outline-offset: -2px;
+  }
+  
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Editor content area
+.editor {
+  min-height: 120px;
+  max-height: 400px;
+  padding: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #323130;
+  line-height: 1.4;
+  overflow-y: auto;
+  word-wrap: break-word;
+  
+  &:focus {
+    outline: none;
+  }
+  
+  &[contenteditable="true"]:empty::before {
+    content: attr(data-placeholder);
+    color: #605e5c;
+    font-style: italic;
+    pointer-events: none;
+  }
+  
+  // Rich text content styling
+  h1, h2, h3, h4, h5, h6 {
+    margin: 16px 0 8px 0;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+  
+  h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 18px; }
+  h4 { font-size: 16px; }
+  h5 { font-size: 14px; }
+  h6 { font-size: 12px; }
+  
+  p {
+    margin: 8px 0;
+  }
+  
+  ul, ol {
+    margin: 8px 0;
+    padding-left: 24px;
+    
+    li {
+      margin: 4px 0;
+    }
+  }
+  
+  blockquote {
+    margin: 16px 0;
+    padding-left: 16px;
+    border-left: 4px solid #0078d4;
+    font-style: italic;
+    color: #605e5c;
+  }
+  
+  pre {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+  
+  code {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 2px;
+    padding: 2px 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+  }
+  
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  
+  a {
+    color: #0078d4;
+    text-decoration: underline;
+    
+    &:hover {
+      color: #106ebe;
+      text-decoration: none;
+    }
+    
+    &:visited {
+      color: #5c2e91;
+    }
+  }
+  
+  strong, b {
+    font-weight: 600;
+  }
+  
+  em, i {
+    font-style: italic;
+  }
+  
+  u {
+    text-decoration: underline;
+  }
+  
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    
+    th, td {
+      border: 1px solid #c8c6c4;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    
+    th {
+      background: #f3f2f1;
+      font-weight: 600;
+    }
+  }
+  
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  hr {
+    border: none;
+    border-top: 1px solid #c8c6c4;
+    margin: 20px 0;
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .label {
+    color: #ffffff;
+  }
+  
+  .description {
+    color: #c8c6c4;
+  }
+  
+  .helpText {
+    color: #8a8886;
+  }
+  
+  .editorContainer {
+    background: #3b3a39;
+    border-color: #605e5c;
+    
+    &:focus-within {
+      border-color: #0078d4;
+      box-shadow: inset 0 0 0 1px #0078d4;
+    }
+    
+    &:hover:not(:focus-within) {
+      border-color: #a19f9d;
+    }
+  }
+  
+  .toolbar {
+    background: #484644;
+    border-bottom-color: #605e5c;
+  }
+  
+  .toolbarButton {
+    color: #c8c6c4;
+    
+    &:hover:not(:disabled) {
+      background: #605e5c;
+      color: #ffffff;
+    }
+    
+    &:active:not(:disabled) {
+      background: #8a8886;
+    }
+  }
+  
+  .editor {
+    color: #ffffff;
+    background: #3b3a39;
+    
+    &[contenteditable="true"]:empty::before {
+      color: #8a8886;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      color: #ffffff;
+    }
+    
+    blockquote {
+      color: #c8c6c4;
+    }
+    
+    pre {
+      background: #484644;
+      border-color: #605e5c;
+      color: #ffffff;
+    }
+    
+    code {
+      background: #484644;
+      border-color: #605e5c;
+      color: #ffffff;
+    }
+    
+    th {
+      background: #484644;
+      color: #ffffff;
+    }
+    
+    th, td {
+      border-color: #605e5c;
+      color: #ffffff;
+    }
+    
+    hr {
+      border-top-color: #605e5c;
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .toolbar {
+    padding: 6px 8px;
+  }
+  
+  .toolbarButton {
+    width: 28px;
+    height: 28px;
+    
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+  
+  .editor {
+    padding: 10px;
+    font-size: 16px; // Prevent zoom on iOS
+  }
+  
+  .toolbarGroup {
+    &:not(:last-child)::after {
+      margin: 0 6px;
+    }
+  }
+}
+
+// High contrast mode
+@media (prefers-contrast: high) {
+  .editorContainer,
+  .toolbar {
+    border-width: 2px;
+  }
+  
+  .toolbarButton {
+    border-width: 1px;
+    border-color: transparent;
+    
+    &:hover:not(:disabled),
+    &:focus {
+      border-color: currentColor;
+    }
+  }
+}
+
+// Print styles
+@media print {
+  .toolbar {
+    display: none;
+  }
+  
+  .helpText {
+    display: none;
+  }
+  
+  .editorContainer {
+    border: none;
+    box-shadow: none;
+  }
+  
+  .editor {
+    padding: 0;
+    max-height: none;
+  }
+}

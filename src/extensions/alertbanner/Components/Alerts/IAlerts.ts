@@ -1,4 +1,5 @@
 import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 
 export enum AlertPriority {
   Low = "low",
@@ -46,10 +47,17 @@ export interface IAlertsBannerApplicationCustomizerProperties {
 export interface IAlertsProps {
   siteIds?: string[];
   graphClient: MSGraphClientV3;
+  context: ApplicationCustomizerContext;
   alertTypesJson: string; // Property to receive the alert types JSON
   userTargetingEnabled?: boolean;
   notificationsEnabled?: boolean;
   richMediaEnabled?: boolean;
+  onSettingsChange?: (settings: {
+    alertTypesJson: string;
+    userTargetingEnabled: boolean;
+    notificationsEnabled: boolean;
+    richMediaEnabled: boolean;
+  }) => void;
 }
 
 export interface IAlertsState {
@@ -61,6 +69,7 @@ export interface IAlertsState {
   userDismissedAlerts: number[];
   userHiddenAlerts: number[];
   currentIndex: number;
+  isInEditMode: boolean;
 }
 
 export interface IUser {

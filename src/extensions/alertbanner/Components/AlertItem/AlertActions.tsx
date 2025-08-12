@@ -41,7 +41,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
     <div className={styles.actionSection} onClick={stopPropagation}>
       {item.link && (
         <Button
-          appearance="transparent"
+          appearance="subtle"
           icon={<Link24Regular />}
           onClick={(e) => {
             stopPropagation(e);
@@ -51,14 +51,12 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           }}
           aria-label={item.link.Description || "Open link"}
           size="small"
-        >
-          {item.link.Description}
-        </Button>
+        />
       )}
       {isCarousel && totalAlerts > 1 && (
         <>
           <Button
-            appearance="transparent"
+            appearance="subtle"
             icon={<ChevronLeft24Regular />}
             onClick={onPrevious}
             aria-label="Previous Alert"
@@ -70,7 +68,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
             </Text>
           </div>
           <Button
-            appearance="transparent"
+            appearance="subtle"
             icon={<ChevronRight24Regular />}
             onClick={onNext}
             aria-label="Next Alert"
@@ -81,18 +79,20 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
       )}
       
       <Button
-        appearance="transparent"
+        appearance="subtle"
         icon={<Dismiss24Regular />}
         onClick={() => remove(item.Id)}
         aria-label="Dismiss Alert"
         size="small"
+        title="Dismiss"
       />
       <Button
-        appearance="transparent"
+        appearance="subtle"
         icon={<EyeOff24Regular />}
         onClick={() => hideForever(item.Id)}
         aria-label="Hide Alert Forever"
         size="small"
+        title="Hide Forever"
       />
     </div>
   );

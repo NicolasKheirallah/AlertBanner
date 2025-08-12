@@ -4,7 +4,6 @@ import { ChevronDown24Regular, ChevronUp24Regular } from "@fluentui/react-icons"
 import { IAlertItem } from "../Alerts/IAlerts";
 import { getPriorityIcon } from "./utils"; // getPriorityIcon is exported from utils.tsx
 import styles from "./AlertItem.module.scss";
-import DescriptionContent from "./DescriptionContent";
 
 interface IAlertHeaderProps {
   item: IAlertItem;
@@ -17,7 +16,7 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
   return (
     <>
       <div className={styles.iconSection}>
-        <div className={styles.alertIcon}>
+        <div className={styles.alertIcon} title={`Priority: ${item.priority}`}>
           {getPriorityIcon(item.priority)}
         </div>
       </div>
@@ -27,22 +26,18 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
             {item.title}
           </Text>
         )}
-        {item.description && (
-          <div className={expanded ? styles.alertDescriptionExp : styles.alertDescription} id={ariaControlsId}>
-            {expanded ? (
-              <DescriptionContent description={item.description} />
-            ) : (
-              <div
-                className={styles.truncatedHtml}
-                dangerouslySetInnerHTML={{ __html: item.description }}
-              />
-            )}
+        {!expanded && item.description && (
+          <div className={styles.alertDescription} id={ariaControlsId}>
+            <div
+              className={styles.truncatedHtml}
+              dangerouslySetInnerHTML={{ __html: item.description }}
+            />
           </div>
         )}
       </div>
       <div className={styles.actionSection}>
         <Button
-          appearance="transparent"
+          appearance="subtle"
           icon={expanded ? <ChevronUp24Regular /> : <ChevronDown24Regular />}
           onClick={toggleExpanded}
           aria-expanded={expanded}

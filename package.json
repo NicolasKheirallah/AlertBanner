@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@fluentui/react-components": "^9.68.3",
-    "@fluentui/react-icons": "^2.0.258",
+    "@fluentui/react-icons": "^2.0.307",
     "@microsoft/decorators": "1.21.1",
     "@microsoft/mgt": "^4.6.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",

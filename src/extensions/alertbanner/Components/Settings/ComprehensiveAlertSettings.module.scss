@@ -1,0 +1,381 @@
+// Comprehensive Alert Settings Styles
+
+.settingsButton {
+  position: fixed !important;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  
+  &:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+  }
+}
+
+.settingsContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif;
+}
+
+// Tab Navigation
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #edebe9;
+  margin-bottom: 0;
+  background-color: #faf9f8;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 400;
+  padding: 12px 20px;
+  color: #605e5c;
+  transition: all 0.1s ease-out;
+  font-family: inherit;
+  
+  &:hover {
+    color: #323130;
+    background-color: #f3f2f1;
+  }
+  
+  &:focus {
+    outline: 2px solid #0078d4;
+    outline-offset: -2px;
+  }
+}
+
+.activeTab {
+  border-bottom-color: #0078d4;
+  color: #0078d4;
+  font-weight: 600;
+  background-color: #ffffff;
+  
+  &:hover {
+    color: #0078d4;
+    background-color: #ffffff;
+  }
+}
+
+// Tab Content
+.tabContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 0;
+  
+  // Custom scrollbar
+  &::-webkit-scrollbar {
+    width: 12px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f3f2f1;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c8c6c4;
+    border-radius: 6px;
+    border: 3px solid #f3f2f1;
+    
+    &:hover {
+      background: #a19f9d;
+    }
+  }
+}
+
+.tabHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #323130;
+  }
+}
+
+// Form Layout
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #edebe9;
+}
+
+// Info Box
+.infoBox {
+  background-color: #f3f2f1;
+  border: 1px solid #edebe9;
+  border-radius: 2px;
+  padding: 16px;
+  margin-bottom: 20px;
+  
+  h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #323130;
+  }
+  
+  p {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    color: #605e5c;
+    line-height: 18px;
+  }
+  
+  ul {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 13px;
+    color: #605e5c;
+    
+    li {
+      margin-bottom: 4px;
+      
+      strong {
+        color: #323130;
+      }
+    }
+  }
+}
+
+// JSON Editor
+.jsonEditor {
+  textarea {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    border: 1px solid #3c3c3c !important;
+    
+    &:focus {
+      border-color: #0078d4 !important;
+      box-shadow: inset 0 0 0 1px #0078d4 !important;
+    }
+  }
+}
+
+// Alert Types List
+.alertTypesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alertTypeItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid #edebe9;
+  border-radius: 2px;
+  background-color: #ffffff;
+  
+  &:hover {
+    background-color: #faf9f8;
+  }
+}
+
+.alertTypePreview {
+  padding: 6px 12px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 80px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.alertTypeInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  
+  strong {
+    font-size: 14px;
+    color: #323130;
+  }
+  
+  span {
+    font-size: 12px;
+    color: #605e5c;
+  }
+}
+
+// Dialog Footer
+.dialogFooter {
+  display: flex;
+  gap: 8px;
+}
+
+// Dark Mode Support
+@media (prefers-color-scheme: dark) {
+  .tabs {
+    background-color: #3b3a39;
+  }
+  
+  .tab {
+    color: #c8c6c4;
+    
+    &:hover {
+      color: #ffffff;
+      background-color: #484644;
+    }
+  }
+  
+  .activeTab {
+    color: #0078d4;
+    background-color: #323130;
+    
+    &:hover {
+      color: #0078d4;
+      background-color: #323130;
+    }
+  }
+  
+  .tabHeader h3 {
+    color: #ffffff;
+  }
+  
+  .infoBox {
+    background-color: #3b3a39;
+    border-color: #484644;
+    
+    h4 {
+      color: #ffffff;
+    }
+    
+    p {
+      color: #c8c6c4;
+    }
+    
+    ul {
+      color: #c8c6c4;
+      
+      li strong {
+        color: #ffffff;
+      }
+    }
+  }
+  
+  .alertTypeItem {
+    background-color: #323130;
+    border-color: #484644;
+    
+    &:hover {
+      background-color: #3b3a39;
+    }
+  }
+  
+  .alertTypeInfo {
+    strong {
+      color: #ffffff;
+    }
+    
+    span {
+      color: #c8c6c4;
+    }
+  }
+  
+  .tabContent {
+    &::-webkit-scrollbar-track {
+      background: #3b3a39;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #605e5c;
+      border-color: #3b3a39;
+      
+      &:hover {
+        background: #8a8886;
+      }
+    }
+  }
+  
+  .jsonEditor textarea {
+    background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    border-color: #484644 !important;
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .tabHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .alertTypeItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    
+    .alertTypePreview {
+      align-self: stretch;
+      text-align: center;
+    }
+  }
+  
+  .formActions {
+    flex-direction: column;
+    
+    button {
+      width: 100%;
+    }
+  }
+  
+  .dialogFooter {
+    flex-direction: column;
+    
+    button {
+      width: 100%;
+    }
+  }
+}
+
+// High Contrast Support
+@media (prefers-contrast: high) {
+  .tabs {
+    border-bottom-width: 2px;
+  }
+  
+  .tab {
+    border-bottom-width: 3px;
+  }
+  
+  .infoBox,
+  .alertTypeItem {
+    border-width: 2px;
+  }
+  
+  .alertTypePreview {
+    border-width: 2px;
+  }
+}

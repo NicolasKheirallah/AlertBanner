@@ -15,18 +15,34 @@ export const PRIORITY_COLORS = {
 } as const;
 
 export const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
-  const iconColor = PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS]?.start || PRIORITY_COLORS.low.start; // Use the start color for the icon
-  const iconStyle = { width: 20, height: 20, color: iconColor };
+  const getIconColor = (priority: AlertPriority): string => {
+    switch (priority) {
+      case "critical": return "#d13438";
+      case "high": return "#f7630c";
+      case "medium": return "#0078d4";
+      case "low": return "#107c10";
+      default: return "#107c10";
+    }
+  };
+  
+  const iconColor = getIconColor(priority);
+  
+  const commonProps = {
+    style: { color: iconColor },
+    width: "20px",
+    height: "20px",
+    fill: "currentColor"
+  };
   
   switch (priority) {
     case "critical":
-      return <ErrorCircle24Regular style={iconStyle} />;
+      return <ErrorCircle24Regular {...commonProps} />;
     case "high":
-      return <Warning24Regular style={iconStyle} />;
+      return <Warning24Regular {...commonProps} />;
     case "medium":
-      return <Info24Regular style={iconStyle} />;
+      return <Info24Regular {...commonProps} />;
     case "low":
     default:
-      return <CheckmarkCircle24Regular style={iconStyle} />;
+      return <CheckmarkCircle24Regular {...commonProps} />;
   }
 };
