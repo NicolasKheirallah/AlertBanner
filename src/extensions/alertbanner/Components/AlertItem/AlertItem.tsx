@@ -194,48 +194,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   );
 });
 
-interface IAlertLinkProps {
-  link?: {
-    Url: string;
-    Description: string;
-  };
-  isDialog?: boolean;
-  onClick?: (e: React.MouseEvent) => void;
-}
 
-const AlertLinkButton: React.FC<IAlertLinkProps> = React.memo(({ link, isDialog = false, onClick }) => {
-  if (!link) return null;
-
-  const buttonStyle: React.CSSProperties = isDialog 
-    ? {
-        backgroundColor: '#0078d4',
-        border: '1px solid #0078d4',
-        color: '#ffffff',
-        borderRadius: '2px',
-        padding: '6px 16px',
-        fontSize: '14px'
-      }
-    : {
-        padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}`,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: tokens.borderRadiusMedium,
-      };
-
-  return (
-    <Button
-      icon={<Link24Regular />}
-      as="a"
-      href={link.Url}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={onClick}
-      appearance={isDialog ? "primary" : "secondary"}
-      style={buttonStyle}
-    >
-      {link.Description}
-    </Button>
-  );
-});
 
 const AlertItem: React.FC<IAlertItemProps> = ({
   item,
@@ -402,20 +361,27 @@ const AlertItem: React.FC<IAlertItemProps> = ({
                   <RichMediaAlert media={item.richMedia} expanded={true} />
                 </div>
               )}
-              
-              {item.link && (
-                <div onClick={handlers.stopPropagation}>
-                  <AlertLinkButton 
-                    link={item.link} 
-                    onClick={handlers.stopPropagation}
-                  />
-                </div>
-              )}
               {renderQuickActions()}
             </div>
           )}
         </div>
         <div className={styles.actionSection} onClick={handlers.stopPropagation}>
+          {item.link && (
+            <Button
+              appearance="transparent"
+              icon={<Link24Regular />}
+              onClick={(e) => {
+                handlers.stopPropagation(e);
+                if (item.link?.Url) {
+                  window.open(item.link.Url, "_blank", "noopener,noreferrer");
+                }
+              }}
+              aria-label={item.link.Description || "Open link"}
+              size="small"
+            >
+              {item.link.Description}
+            </Button>
+          )}
           {isCarousel && totalAlerts > 1 && (
             <>
               <Button
