@@ -4,7 +4,7 @@ import { Link24Regular } from "@fluentui/react-icons";
 import { IAlertItem, IQuickAction } from "../Alerts/IAlerts";
 import RichMediaAlert from "../Services/RichMediaAlert";
 
-import DescriptionContent from "./DescriptionContent"; // Import DescriptionContent from its new file
+
 
 
 interface IAlertContentProps {

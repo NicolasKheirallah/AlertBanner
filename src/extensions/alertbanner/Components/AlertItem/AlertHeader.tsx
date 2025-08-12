@@ -4,7 +4,6 @@ import { ChevronDown24Regular, ChevronUp24Regular } from "@fluentui/react-icons"
 import { IAlertItem } from "../Alerts/IAlerts";
 import { getPriorityIcon } from "./utils"; // getPriorityIcon is exported from utils.tsx
 import styles from "./AlertItem.module.scss";
-// DescriptionContent is not rendered directly in AlertHeader, it's in AlertContent
 
 interface IAlertHeaderProps {
   item: IAlertItem;
@@ -27,7 +26,6 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
             {item.title}
           </Text>
         )}
-        {/* Description is handled by AlertContent, not AlertHeader */}
       </div>
       <div className={styles.actionSection}>
         <Button
