@@ -125,14 +125,9 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   }
 
   const paragraphs = displayedDescription.split("\n\n");
-  const containerStyle = {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: tokens.spacingVerticalM
-  };
 
   return (
-    <div className={richMediaStyles.markdownContainer} style={containerStyle}>
+    <div className={richMediaStyles.markdownContainer}>
       {paragraphs.map((paragraph, index) => {
         // Handle lists
         if (paragraph.includes("\n- ") || paragraph.includes("\n* ")) {
