@@ -45,6 +45,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 | Version | Date            | Comments                                        |
 | ------- | --------------- | ----------------------------------------------- |
+| 1.5     | August 12, 2025 | Removed dialog, integrated content directly into banner, added "Read More" functionality |
 | 1.4     | March 5, 2025  | Enhanced UI with modern dialog and improved link styling |
 | 1.3     | March 3, 2025   | Added alert prioritization, user targeting, notifications, rich media support |
 | 1.2     | October 11, 2024| Added dynamic alerttypes, added support for homesite, hubsite and local site |
@@ -73,7 +74,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 This SPFx extension offers the following capabilities:
 
 - **Fetch Alerts**: Retrieves alerts from a designated SharePoint list using the Microsoft Graph API.
-- **Display Alerts**: Show alerts prominently in the banner of Modern SharePoint pages.
+- **Display Alerts**: Show alerts prominently in the banner of Modern SharePoint pages, with detailed content displayed directly within the expanded banner.
 - **Dynamic Alert Type Configuration**: Configure alert types dynamically using a JSON property, allowing easy customization and scalability.
 - **User Interaction Handling**: Allows users to dismiss alerts, with the option to prevent dismissed alerts from reappearing.
 - **Performance Optimization**: Utilizes local storage for caching alerts, improving performance.
@@ -83,8 +84,7 @@ This SPFx extension offers the following capabilities:
 - **Notification System**: Send browser and email notifications for important alerts.
 - **Rich Media Support**: Include images, videos, HTML, and markdown content in alerts.
 - **Quick Actions**: Add interactive buttons to alerts for direct user engagement.
-- **Modern Dialog Interface**: Enhanced dialog experience with FluentUI components and improved usability.
-- **Clickable Alerts**: Click anywhere on an alert to open a detailed dialog view.
+- **Read More Functionality**: Automatically truncates long alert descriptions and provides a "Read More" button to expand the full content directly within the banner.
 - **Stylized Action Links**: Buttons-styled links for better visibility and user interaction.
 
 ## Managing Alerts
@@ -120,19 +120,14 @@ When creating the "Alerts" list in SharePoint, you should configure the followin
 ### User Interface Components
 
 #### Alert Card
-- **Clickable Interface**: The entire alert card is clickable, opening a detailed dialog view.
+- **Clickable Interface**: The entire alert card is clickable, expanding and collapsing the banner to show/hide detailed content.
 - **Visual Priority Indicators**: Color-coded borders and backgrounds based on alert priority.
 - **Collapsible Content**: Toggle between condensed and expanded views.
 - **Quick Action Buttons**: Customizable action buttons for direct user engagement.
 
-#### Dialog
-- **Enhanced Viewing Experience**: Modern FluentUI dialog for detailed alert content.
-- **Rich Content Support**: Properly formatted HTML, Markdown, and rich media content.
-- **Action Links**: Button-styled links with icons for better usability.
-- **Focus Management**: Improved keyboard navigation and screen reader support.
+
 
 #### Action Links
-- **Context-Aware Styling**: Different styling in alerts vs. dialogs.
 - **Icon Integration**: Link icon for visual clarity.
 - **Button-Like Appearance**: Enhanced clickability compared to traditional text links.
 - **Responsive Design**: Adapts to different screen sizes.
@@ -265,7 +260,7 @@ The Alert Banner is optimized for performance:
 
 - **Efficient Rendering**: Uses React memo and callback optimizations to reduce render cycles.
 - **Caching Strategy**: Implements local and session storage for efficient alert management.
-- **Lazy Loading**: Dialog content is loaded only when needed.
+
 - **Component Splitting**: Modular design allows for better code splitting.
 - **CSS Optimization**: Carefully organized SCSS with variables for minimal CSS output.
 
@@ -290,7 +285,7 @@ This extension showcases:
 
 - **Integration of the Microsoft Graph API** within SPFx extensions for efficient data retrieval.
 - **Dynamic Configuration Management**: Utilizing JSON properties to configure alert types, enhancing flexibility and maintainability.
-- **Customizing the banner Section** of Modern SharePoint pages to provide a consistent and visible alerting mechanism.
+- **Direct content display within the banner** of Modern SharePoint pages to provide a consistent and visible alerting mechanism.
 - **Efficient State Management and Caching** using local and session storage to optimize performance and reduce redundant data fetching.
 - **Responsive Design and User Interaction Handling** to ensure alerts are accessible and user-friendly across various devices and screen sizes.
 - **Advanced User Targeting** based on user properties and group membership.
