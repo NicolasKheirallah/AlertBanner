@@ -34,85 +34,59 @@ import styles from "./AlertItem.module.scss";
 import richMediaStyles from "../Services/RichMediaAlert.module.scss";
 
 // ===== CONSTANTS =====
-const SHAREPOINT_FONTS = '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif';
 const PRIORITY_COLORS = {
   critical: '#d13438',
   high: '#f7630c',
   medium: '#0078d4',
   low: '#107c10'
 } as const;
+
 const SHAREPOINT_COLORS = {
   white: '#ffffff',
-  lightGray: '#f3f2f1',
-  borderGray: '#edebe9',
-  textGray: '#605e5c',
-  darkText: '#323130',
-  borderDark: '#8a8886'
-} as const;
-const DIALOG_STYLES = {
+  borderDark: '#a19f9d',
+  darkText: '#323130'
+};
+
+const DIALOG_STYLES: { [key: string]: React.CSSProperties } = {
   surface: {
-    maxWidth: '630px',
-    minWidth: '340px',
-    backgroundColor: SHAREPOINT_COLORS.white,
-    border: 'none',
-    borderRadius: '2px',
-    boxShadow: '0 6.4px 14.4px 0 rgba(0, 0, 0, 0.132), 0 1.2px 3.6px 0 rgba(0, 0, 0, 0.108)',
-    outline: 'none',
-    position: 'relative' as const
+    width: '80vw',
+    maxWidth: '800px',
+    maxHeight: '90vh',
+    padding: '0',
+    borderRadius: tokens.borderRadiusLarge,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    boxShadow: tokens.shadow64,
+    overflow: 'hidden'
   },
   closeButton: {
-    position: 'absolute' as const,
-    top: '12px',
-    right: '12px',
-    zIndex: 1,
-    color: SHAREPOINT_COLORS.textGray,
-    minWidth: '32px',
-    minHeight: '32px'
+    position: 'absolute',
+    top: tokens.spacingVerticalM,
+    right: tokens.spacingHorizontalM,
+    zIndex: 1
   },
   header: {
-    backgroundColor: SHAREPOINT_COLORS.white,
-    borderBottom: `1px solid ${SHAREPOINT_COLORS.borderGray}`,
-    padding: '20px 48px 20px 24px',
-    display: 'flex',
-    alignItems: 'center',
-    minHeight: '60px'
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`
   },
   title: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    fontSize: '20px',
-    fontWeight: '600',
-    fontFamily: SHAREPOINT_FONTS,
-    margin: '0',
-    padding: '0',
-    border: 'none',
-    outline: 'none',
-    lineHeight: '28px',
-    width: '100%'
+    gap: tokens.spacingHorizontalS,
+    fontSize: tokens.fontSizeHero800,
+    fontWeight: tokens.fontWeightSemibold
   },
   content: {
-    padding: '20px 24px',
-    backgroundColor: SHAREPOINT_COLORS.white,
-    color: SHAREPOINT_COLORS.darkText,
-    fontSize: '14px',
-    lineHeight: '20px',
-    maxHeight: '60vh',
-    overflow: 'auto',
-    border: 'none',
-    outline: 'none',
-    fontFamily: SHAREPOINT_FONTS
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
+    overflowY: 'auto'
   },
   footer: {
-    backgroundColor: SHAREPOINT_COLORS.lightGray,
-    borderTop: `1px solid ${SHAREPOINT_COLORS.borderGray}`,
-    padding: '16px 24px',
+    display: 'flex',
     justifyContent: 'flex-end',
-    gap: '8px',
-    border: 'none',
-    outline: 'none'
+    gap: tokens.spacingHorizontalS,
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
+    borderTop: `1px solid ${tokens.colorNeutralStroke1}`
   }
-} as const;
+};
 
 // ===== UTILITY FUNCTIONS =====
 const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
@@ -149,9 +123,7 @@ const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
   }
 };
 
-const getPriorityColor = (priority: AlertPriority): string => {
-  return PRIORITY_COLORS[priority] || PRIORITY_COLORS.low;
-};
+
 
 // ===== INTERFACES =====
 export interface IAlertItemProps {
@@ -220,7 +192,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
 
         // Handle bold text
         if (paragraph.includes("**") || paragraph.includes("__")) {
-          const parts = paragraph.split(/(\*\*.*?\*\*|__.*?__)/g);
+          const parts = paragraph.split(/(\**.*?\**|__.*?__)/g);
           return (
             <Text key={`para-${index}`}>
               {parts.map((part, partIndex) => {
@@ -541,13 +513,13 @@ const AlertItem: React.FC<IAlertItemProps> = ({
           <DialogBody style={{ padding: '0', border: 'none', outline: 'none' }}>
             <div style={DIALOG_STYLES.header}>
               <DialogTitle 
-                id={dialogTitleId}
-                as="div"
-                style={{ 
+                  id={dialogTitleId}
+                  as="div"
+                  style={{ 
                   ...DIALOG_STYLES.title,
-                  color: getPriorityColor(item.priority)
+                  color: PRIORITY_COLORS[item.priority]
                 }}
-              >
+                >
                 {getPriorityIcon(item.priority)}
                 {item.title}
               </DialogTitle>
@@ -581,8 +553,8 @@ const AlertItem: React.FC<IAlertItemProps> = ({
                       handlers.closeDialog();
                     }}
                     style={{
-                      backgroundColor: getPriorityColor(item.priority),
-                      borderColor: getPriorityColor(item.priority)
+                      backgroundColor: PRIORITY_COLORS[item.priority],
+                      borderColor: PRIORITY_COLORS[item.priority]
                     }}
                   >
                     {action.label}

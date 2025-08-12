@@ -31,7 +31,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 - Node.js (v18.x or later)
 - React 17
-- SPFx (v1.19.x or later)
+- SPFx (v1.21.1 or later)
 - A SharePoint Online site collection
 - Appropriate permissions to access and configure the tenant App Catalog
 
