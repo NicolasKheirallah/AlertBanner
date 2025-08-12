@@ -115,7 +115,7 @@ const DIALOG_STYLES = {
 } as const;
 
 // ===== UTILITY FUNCTIONS =====
-const parseAdditionalStyles = React.useCallback((stylesString?: string): React.CSSProperties => {
+const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
   if (!stylesString) return {};
   
   const styleObj: Record<string, string | number> = {};
@@ -131,9 +131,9 @@ const parseAdditionalStyles = React.useCallback((stylesString?: string): React.C
   });
   
   return styleObj as React.CSSProperties;
-}, []);
+};
 
-const getPriorityIcon = React.memo(({ priority }: { priority: AlertPriority }): React.ReactElement => {
+const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
   const iconStyle = { width: 20, height: 20, color: PRIORITY_COLORS[priority] || PRIORITY_COLORS.low };
   
   switch (priority) {
@@ -147,7 +147,7 @@ const getPriorityIcon = React.memo(({ priority }: { priority: AlertPriority }): 
     default:
       return <CheckmarkCircle24Regular style={iconStyle} />;
   }
-});
+};
 
 const getPriorityColor = (priority: AlertPriority): string => {
   return PRIORITY_COLORS[priority] || PRIORITY_COLORS.low;
@@ -432,7 +432,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
       >
         <div className={styles.iconSection}>
           <div className={styles.alertIcon}>
-            {getPriorityIcon({ priority: item.priority })}
+            {getPriorityIcon(item.priority)}
           </div>
         </div>
         <div className={styles.textSection}>
@@ -548,7 +548,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
                   color: getPriorityColor(item.priority)
                 }}
               >
-{getPriorityIcon({ priority: item.priority })}
+                {getPriorityIcon(item.priority)}
                 {item.title}
               </DialogTitle>
             </div>
