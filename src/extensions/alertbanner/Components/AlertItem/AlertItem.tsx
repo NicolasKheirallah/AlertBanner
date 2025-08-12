@@ -1,45 +1,22 @@
 import * as React from "react";
 import {
-  Button,
-  Text,
-  tokens,
-} from "@fluentui/react-components";
-import {
-  Dismiss24Regular,
-  ChevronDown24Regular,
-  ChevronUp24Regular,
-  EyeOff24Regular,
-  Link24Regular,
-  Info24Regular,
-  Warning24Regular,
-  ErrorCircle24Regular,
-  CheckmarkCircle24Regular,
-  ChevronLeft24Regular,
-  ChevronRight24Regular
-} from "@fluentui/react-icons";
-import {
   IAlertItem,
   IAlertType,
-  AlertPriority,
   IQuickAction
 } from "../Alerts/IAlerts";
-import RichMediaAlert from "../Services/RichMediaAlert";
 import styles from "./AlertItem.module.scss";
-import richMediaStyles from "../Services/RichMediaAlert.module.scss";
 
-// ===== CONSTANTS =====
-const PRIORITY_COLORS = {
-  critical: { start: '#C0392B', end: '#E74C3C' }, // Dark Red to Brighter Red
-  high: { start: '#D35400', end: '#F39C12' },     // Dark Orange to Golden Orange
-  medium: { start: '#2980B9', end: '#3498DB' },    // Dark Blue to Sky Blue
-  low: { start: '#27AE60', end: '#2ECC71' }      // Forest Green to Emerald Green
-} as const;
-
-
+// Import new components
+import AlertHeader from "./AlertHeader";
+import AlertContent from "./AlertContent";
+import AlertActions from "./AlertActions";
+import { PRIORITY_COLORS } from "./utils"; // Import from utils.tsx
 
 
 
 // ===== UTILITY FUNCTIONS =====
+
+
 const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
   if (!stylesString) return {};
   
@@ -56,23 +33,6 @@ const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
   });
   
   return styleObj as React.CSSProperties;
-};
-
-const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
-  const iconColor = PRIORITY_COLORS[priority]?.start || PRIORITY_COLORS.low.start; // Use the start color for the icon
-  const iconStyle = { width: 20, height: 20, color: iconColor };
-  
-  switch (priority) {
-    case "critical":
-      return <ErrorCircle24Regular style={iconStyle} />;
-    case "high":
-      return <Warning24Regular style={iconStyle} />;
-    case "medium":
-      return <Info24Regular style={iconStyle} />;
-    case "low":
-    default:
-      return <CheckmarkCircle24Regular style={iconStyle} />;
-  }
 };
 
 
@@ -93,107 +53,7 @@ export interface IAlertItemProps {
 }
 
 
-// Sub-components
-interface IDescriptionContentProps {
-  description: string;
-}
 
-const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ description }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  const TRUNCATE_LENGTH = 200; // Character limit for truncation
-
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
-
-  let displayedDescription = description;
-  let showReadMoreButton = false;
-
-  // Only truncate if it's not HTML and it's longer than the limit
-  if (!/<[a-z][\s\S]*>/i.test(description) && description.length > TRUNCATE_LENGTH && !isExpanded) {
-    displayedDescription = description.substring(0, TRUNCATE_LENGTH) + "...";
-    showReadMoreButton = true;
-  }
-
-  // If description contains HTML tags, render it directly
-  if (/<[a-z][\s\S]*>/i.test(description)) {
-    return (
-      <div
-        className={richMediaStyles.markdownContainer}
-        dangerouslySetInnerHTML={{ __html: description }}
-      />
-    );
-  }
-
-  const paragraphs = displayedDescription.split("\n\n");
-
-  return (
-    <div className={richMediaStyles.markdownContainer}>
-      {paragraphs.map((paragraph, index) => {
-        // Handle lists
-        if (paragraph.includes("\n- ") || paragraph.includes("\n* ")) {
-          const [listTitle, ...listItems] = paragraph.split(/\n[-*]\s+/);
-          return (
-            <div key={`para-${index}`} style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS }}>
-              {listTitle.trim() && <Text>{listTitle.trim()}</Text>}
-              {listItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
-                  {listItems.map((listItem, itemIndex) => (
-                    <div
-                      key={`list-item-${itemIndex}`}
-                      style={{ display: 'flex', gap: tokens.spacingHorizontalS, alignItems: 'flex-start' }}
-                    >
-                      <Text>•</Text>
-                      <Text>{listItem.trim()}</Text>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        }
-
-        // Handle bold text
-        if (paragraph.includes("**") || paragraph.includes("__")) {
-          const parts = paragraph.split(/(\**.*?\**|__.*?__)/g);
-          return (
-            <Text key={`para-${index}`}>
-              {parts.map((part, partIndex) => {
-                const isBold = (part.startsWith("**") && part.endsWith("**")) ||
-                              (part.startsWith("__") && part.endsWith("__"));
-                
-                if (isBold) {
-                  return (
-                    <span
-                      key={`part-${partIndex}`}
-                      style={{ fontWeight: tokens.fontWeightSemibold }}
-                    >
-                      {part.slice(2, -2)}
-                    </span>
-                  );
-                }
-                return part;
-              })}
-            </Text>
-          );
-        }
-
-        // Simple paragraph
-        return <Text key={`para-${index}`}>{paragraph}</Text>;
-      })}
-      {(showReadMoreButton || (description.length > TRUNCATE_LENGTH && isExpanded)) && (
-        <Button
-          appearance="transparent"
-          size="small"
-          onClick={toggleExpanded}
-          style={{ alignSelf: 'flex-start', marginTop: tokens.spacingVerticalS }}
-        >
-          {isExpanded ? "Show Less" : "Read More"}
-        </Button>
-      )}
-    </div>
-  );
-});
 
 
 
@@ -219,10 +79,10 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   // Event handlers
   const handlers = React.useMemo(() => ({
     toggleExpanded: () => setExpanded(prev => !prev),
-    remove: () => remove(item.Id),
-    hideForever: () => hideForever(item.Id),
+    remove: (id: number) => remove(id),
+    hideForever: (id: number) => hideForever(id),
     stopPropagation: (e: React.MouseEvent) => e.stopPropagation(),
-  }), [item.Id, remove, hideForever]);
+  }), [remove, hideForever]);
 
   const handleQuickAction = React.useCallback((action: IQuickAction) => {
     switch (action.actionType) {
@@ -232,11 +92,11 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         }
         break;
       case "dismiss":
-        handlers.remove();
+        handlers.remove(item.Id); // Use handlers.remove with item.Id
         break;
       case "acknowledge":
         console.log(`Alert ${item.Id} acknowledged`);
-        handlers.remove();
+        handlers.remove(item.Id); // Use handlers.remove with item.Id
         break;
       case "custom":
         if (action.callback && typeof (window as any)[action.callback] === "function") {
@@ -246,32 +106,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     }
   }, [handlers.remove, item]);
 
-  const renderQuickActions = React.useCallback(() => {
-    if (!item.quickActions?.length) return null;
-    return (
-      <div
-        style={{ display: 'flex', flexWrap: 'wrap', gap: tokens.spacingHorizontalS }}
-        onClick={handlers.stopPropagation}
-      >
-        {item.quickActions.map((action, index) => {
-          return (
-            <Button
-              key={`${item.Id}-action-${index}`}
-              appearance="outline"
-              size="small"
-              icon={<Link24Regular />}
-              onClick={(e) => {
-                handlers.stopPropagation(e);
-                handleQuickAction(action);
-              }}
-                  >
-              {action.label}
-            </Button>
-          );
-        })}
-      </div>
-    );
-  }, [item.quickActions, handlers.stopPropagation, handleQuickAction, item.Id]);
+  
 
 
   const baseContainerStyle = React.useMemo<React.CSSProperties>(() => ({
@@ -308,7 +143,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     item.isPinned ? styles.pinned : ''
   ].filter(Boolean).join(' ');
 
-  const descriptionClassName = expanded ? styles.alertDescriptionExp : styles.alertDescription;
+  
 
   // Use native Fluent UI v9 dialog styling - no custom overrides needed
 
@@ -328,110 +163,32 @@ const AlertItem: React.FC<IAlertItemProps> = ({
           }
         }}
       >
-        <div className={styles.iconSection}>
-          <div className={styles.alertIcon}>
-            {getPriorityIcon(item.priority)}
-          </div>
-        </div>
-        <div className={styles.textSection}>
-          {item.title && (
-            <Text className={styles.alertTitle} size={500} weight="semibold">
-              {item.title}
-            </Text>
-          )}
-          {item.description && (
-            <div className={descriptionClassName} id={ariaControlsId}>
-              {expanded ? (
-                <DescriptionContent description={item.description} />
-              ) : (
-                <div
-                  className={styles.truncatedHtml}
-                  dangerouslySetInnerHTML={{ __html: item.description }}
-                />
-              )}
-            </div>
-          )}
-          {item.richMedia && richMediaEnabled && (
-            <div onClick={handlers.stopPropagation}>
-              <RichMediaAlert media={item.richMedia} expanded={expanded} />
-            </div>
-          )}
-          {expanded && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
-              {item.richMedia && richMediaEnabled && (
-                <div style={{ marginTop: '16px' }}>
-                  <RichMediaAlert media={item.richMedia} expanded={true} />
-                </div>
-              )}
-              {renderQuickActions()}
-            </div>
-          )}
-        </div>
-        <div className={styles.actionSection} onClick={handlers.stopPropagation}>
-          {item.link && (
-            <Button
-              appearance="transparent"
-              icon={<Link24Regular />}
-              onClick={(e) => {
-                handlers.stopPropagation(e);
-                if (item.link?.Url) {
-                  window.open(item.link.Url, "_blank", "noopener,noreferrer");
-                }
-              }}
-              aria-label={item.link.Description || "Open link"}
-              size="small"
-            >
-              {item.link.Description}
-            </Button>
-          )}
-          {isCarousel && totalAlerts > 1 && (
-            <>
-              <Button
-                appearance="transparent"
-                icon={<ChevronLeft24Regular />}
-                onClick={onPrevious}
-                aria-label="Previous Alert"
-                size="small"
-              />
-              <div className={styles.carouselCounter}>
-                <Text size={200} weight="medium" style={{ color: tokens.colorNeutralForeground2 }}>
-                  {currentIndex} of {totalAlerts}
-                </Text>
-              </div>
-              <Button
-                appearance="transparent"
-                icon={<ChevronRight24Regular />}
-                onClick={onNext}
-                aria-label="Next Alert"
-                size="small"
-              />
-              <div className={styles.divider} />
-            </>
-          )}
-          <Button
-            appearance="transparent"
-            icon={expanded ? <ChevronUp24Regular /> : <ChevronDown24Regular />}
-            onClick={handlers.toggleExpanded}
-            aria-expanded={expanded}
-            aria-controls={ariaControlsId}
-            aria-label={expanded ? "Collapse Alert" : "Expand Alert"}
-            size="small"
-          />
-          <Button
-            appearance="transparent"
-            icon={<Dismiss24Regular />}
-            onClick={handlers.remove}
-            aria-label="Dismiss Alert"
-            size="small"
-          />
-          <Button
-            appearance="transparent"
-            icon={<EyeOff24Regular />}
-            onClick={handlers.hideForever}
-            aria-label="Hide Alert Forever"
-            size="small"
-          />
-        </div>
+        <AlertHeader
+          item={item}
+          expanded={expanded}
+          toggleExpanded={handlers.toggleExpanded}
+          ariaControlsId={ariaControlsId}
+        />
+        <AlertContent
+          item={item}
+          richMediaEnabled={richMediaEnabled}
+          expanded={expanded}
+          stopPropagation={handlers.stopPropagation}
+          handleQuickAction={handleQuickAction}
+        />
+        <AlertActions
+          item={item}
+          isCarousel={isCarousel}
+          currentIndex={currentIndex}
+          totalAlerts={totalAlerts}
+          onNext={onNext}
+          onPrevious={onPrevious}
+          expanded={expanded}
+          toggleExpanded={handlers.toggleExpanded}
+          remove={handlers.remove}
+          hideForever={handlers.hideForever}
+          stopPropagation={handlers.stopPropagation}
+        />
       </div>
     </div>
   );
