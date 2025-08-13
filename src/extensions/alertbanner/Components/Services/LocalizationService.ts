@@ -298,33 +298,11 @@ export class LocalizationService {
   }
 
   private async loadLanguageStrings(languageCode: string): Promise<void> {
-    try {
-      // First try to load from SPFx built-in localization system
-      await this.loadSPFxStrings(languageCode);
-    } catch (error) {
-      console.warn(`Failed to load SPFx strings for ${languageCode}:`, error);
-      // Fallback to static strings
-      this._strings = this.getStaticStrings(languageCode);
-    }
+    // Use static strings directly - more reliable than dynamic imports
+    this._strings = this.getStaticStrings(languageCode);
+    console.debug(`Loaded static strings for ${languageCode}`);
   }
 
-  private async loadSPFxStrings(languageCode: string): Promise<void> {
-    try {
-      // Try direct require for SPFx localization files
-      const stringsModule = await import(`../../../loc/${languageCode}.js`);
-      
-      if (stringsModule && (stringsModule.default || stringsModule)) {
-        // The module should export the strings object
-        const strings = stringsModule.default || stringsModule;
-        this._strings = strings as ILocalizationStrings;
-      } else {
-        throw new Error(`No strings module found for ${languageCode}`);
-      }
-    } catch (error) {
-      console.warn(`Failed to load SPFx strings for ${languageCode}`, error);
-      throw error;
-    }
-  }
 
   private getStaticStrings(languageCode: string): ILocalizationStrings {
     // Use comprehensive static strings with fallback

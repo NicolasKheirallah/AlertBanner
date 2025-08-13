@@ -82,7 +82,7 @@ export interface IAlertListItem {
 export class SharePointAlertService {
   private graphClient: MSGraphClientV3;
   private context: ApplicationCustomizerContext;
-  private alertsListName = 'AlertBannerAlerts';
+  private alertsListName = 'Alerts';
   private alertTypesListName = 'AlertBannerTypes';
 
   constructor(graphClient: MSGraphClientV3, context: ApplicationCustomizerContext) {
@@ -441,7 +441,10 @@ export class SharePointAlertService {
           },
           {
             name: 'SortOrder',
-            number: { decimalPlaces: 0 }
+            number: { 
+              decimalPlaces: 0,
+              defaultValue: '0'
+            }
           }
         ]
       };
@@ -629,6 +632,13 @@ export class SharePointAlertService {
   public async getAlertTypes(): Promise<IAlertType[]> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
+
+      // Try to ensure the alert types list exists
+      try {
+        await this.ensureAlertTypesList(siteId);
+      } catch (ensureError) {
+        console.warn('Could not ensure alert types list exists:', ensureError);
+      }
 
       const response = await this.graphClient
         .api(`/sites/${siteId}/lists/${this.alertTypesListName}/items`)

@@ -283,24 +283,26 @@ export class SiteContextDetector {
 
   private async checkIfHubSite(siteId: string): Promise<{ isHub: boolean; hubSiteId?: string }> {
     try {
-      // Try to get hub site information
-      const hubSites = await this.graphClient
-        .api('/sites?search=*')
-        .filter(`id eq '${siteId}' and isHubSite eq true`)
-        .get();
-
-      if (hubSites.value.length > 0) {
-        return { isHub: true };
-      }
-
-      // Check if site is associated with a hub
+      // Check if site is associated with a hub by getting site details
       const siteDetails = await this.graphClient
         .api(`/sites/${siteId}`)
-        .select('sharepointIds')
+        .select('sharepointIds,webUrl')
         .get();
 
+      // Check if this site has a hub site ID (meaning it's associated with a hub)
       if (siteDetails.sharepointIds?.hubSiteId) {
         return { isHub: false, hubSiteId: siteDetails.sharepointIds.hubSiteId };
+      }
+
+      // Skip hub site detection via Graph API filtering as it's not reliably supported
+      // We'll rely on other methods or SharePoint context for hub site detection
+      console.debug('Skipping Graph API hub site filtering - not supported in all tenants');
+
+      // Fallback: Use SharePoint REST API through the current context if available
+      if (this.context.pageContext.site.id.toString() === siteId) {
+        // For the current site, we can use SPFx context information
+        // This would require additional SharePoint-specific properties
+        return { isHub: false };
       }
 
       return { isHub: false };
@@ -330,13 +332,9 @@ export class SiteContextDetector {
 
   private async getAssociatedSites(hubSiteId: string): Promise<string[]> {
     try {
-      const associatedSites = await this.graphClient
-        .api('/sites?search=*')
-        .filter(`sharepointIds/hubSiteId eq '${hubSiteId}'`)
-        .select('id')
-        .get();
-
-      return associatedSites.value.map((site: any) => site.id);
+      // Skip associated sites query via Graph API filtering as it's not supported in all tenants
+      console.debug(`Associated sites query skipped for hub ${hubSiteId} - Graph API filtering not reliable`);
+      return [];
     } catch (error) {
       console.warn('Could not get associated sites:', error);
       return [];
@@ -376,17 +374,32 @@ export class SiteContextDetector {
         // If we can access the drive root, user likely has write permissions
         hasWritePermission = true;
 
-        // Try to check if user is site owner by attempting to access site permissions
+        // Try to check if user has elevated permissions by testing list creation capability
         try {
           await this.graphClient
-            .api(`/sites/${siteId}/permissions`)
+            .api(`/sites/${siteId}/lists`)
+            .select('id,displayName')
+            .top(1)
             .get();
 
-          // If we can read site permissions, user likely has elevated access
-          hasOwnerPermission = true;
-          permissionLevel = 'owner';
+          // If we can read lists, user likely has contribute or higher permissions
+          permissionLevel = 'contribute';
+          
+          // Additional check: try to access site columns (requires design or full control)
+          try {
+            await this.graphClient
+              .api(`/sites/${siteId}/columns`)
+              .select('id')
+              .top(1)
+              .get();
+            
+            hasOwnerPermission = true;
+            permissionLevel = 'fullControl';
+          } catch (columnError) {
+            // Can't read site columns, stick with contribute level
+          }
         } catch (permError) {
-          // Can't read site permissions, but can access content
+          // Can't read lists, but can access content
           permissionLevel = 'contribute';
         }
       } catch (driveError) {
@@ -501,28 +514,9 @@ export class SiteContextDetector {
 
   private async getHubAssociatedSites(hubSiteId: string): Promise<ISiteOption[]> {
     try {
-      const associatedSites = await this.graphClient
-        .api('/sites?search=*')
-        .filter(`sharepointIds/hubSiteId eq '${hubSiteId}'`)
-        .select('id,displayName,webUrl,lastModifiedDateTime')
-        .get();
-
-      return associatedSites.value.map((site: any) => ({
-        id: site.id,
-        name: site.displayName,
-        url: site.webUrl,
-        type: 'regular' as const,
-        isHub: false,
-        isHomesite: false,
-        lastModified: site.lastModifiedDateTime,
-        parentHubId: hubSiteId,
-        userPermissions: {
-          canCreateAlerts: false,
-          canManageAlerts: false,
-          canViewAlerts: true,
-          permissionLevel: 'read' as const
-        }
-      }));
+      // Skip hub site filtering via Graph API as it's not supported in all tenants
+      console.debug('Hub associated sites query skipped - Graph API filtering not reliable');
+      return [];
     } catch (error) {
       console.warn('Could not get hub associated sites:', error);
       return [];

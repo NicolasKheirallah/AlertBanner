@@ -23,7 +23,7 @@ export class SiteContextService {
   private _homeSiteInfo: ISiteInfo | null = null;
   private _hubSiteInfo: ISiteInfo | null = null;
   private _currentSiteInfo: ISiteInfo | null = null;
-  private readonly alertsListName = 'AlertBannerAlerts';
+  private readonly alertsListName = 'Alerts';
 
   public static getInstance(
     context?: ApplicationCustomizerContext,
