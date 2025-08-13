@@ -16,6 +16,12 @@ import {
   Divider
 } from "@fluentui/react-components";
 import { Settings24Regular, Dismiss24Regular } from "@fluentui/react-icons";
+import { useLocalization } from "../Hooks/useLocalization";
+import LanguageSelector from "../UI/LanguageSelector";
+import ListManagement from "../UI/ListManagement";
+import { SiteContextService } from "../Services/SiteContextService";
+import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertSettings.module.scss";
 
 export interface IAlertSettingsProps {
@@ -24,6 +30,8 @@ export interface IAlertSettingsProps {
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
   richMediaEnabled: boolean;
+  context?: ApplicationCustomizerContext;
+  graphClient?: MSGraphClientV3;
   onSettingsChange: (settings: ISettingsData) => void;
 }
 
@@ -40,16 +48,20 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
   userTargetingEnabled,
   notificationsEnabled,
   richMediaEnabled,
+  context,
+  graphClient,
   onSettingsChange
 }) => {
+  const { getString } = useLocalization();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [siteContextService, setSiteContextService] = React.useState<SiteContextService | null>(null);
   const [settings, setSettings] = React.useState<ISettingsData>({
     alertTypesJson,
     userTargetingEnabled,
     notificationsEnabled,
     richMediaEnabled
   });
-  
+
   const [alertTypesText, setAlertTypesText] = React.useState(() => {
     try {
       return JSON.stringify(JSON.parse(alertTypesJson), null, 2);
@@ -57,6 +69,18 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
       return alertTypesJson;
     }
   });
+
+  // Initialize site context service when dialog opens
+  React.useEffect(() => {
+    if (isOpen && context && graphClient && !siteContextService) {
+      const service = SiteContextService.getInstance(context, graphClient);
+      service.initialize().then(() => {
+        setSiteContextService(service);
+      }).catch(error => {
+        console.error('Failed to initialize site context service:', error);
+      });
+    }
+  }, [isOpen, context, graphClient, siteContextService]);
 
   // Don't render anything if not in edit mode
   if (!isInEditMode) {
@@ -74,7 +98,7 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
       onSettingsChange(updatedSettings);
       setIsOpen(false);
     } catch (error) {
-      alert('Invalid JSON format in Alert Types configuration. Please check your syntax.');
+      alert(getString('InvalidJSONError'));
     }
   };
 
@@ -103,8 +127,8 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
           appearance="subtle"
           icon={<Settings24Regular />}
           onClick={() => setIsOpen(true)}
-          aria-label="Alert Settings"
-          title="Configure Alert Banner Settings"
+          aria-label={getString('AlertSettings')}
+          title={getString('ConfigureAlertBannerSettings')}
           className={styles.settingsButton}
           style={{
             backgroundColor: tokens.colorNeutralBackground1,
@@ -120,25 +144,31 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
               <DialogTrigger action="close">
                 <Button
                   appearance="subtle"
-                  aria-label="close"
+                  aria-label={getString('Close')}
                   icon={<Dismiss24Regular />}
                 />
               </DialogTrigger>
             }
           >
-            Alert Banner Settings
+            {getString('AlertSettingsTitle')}
           </DialogTitle>
           <DialogContent className={styles.settingsContent}
           >
             <Text>
-              Configure the alert banner settings. These changes will be applied site-wide.
+              {getString('AlertSettingsDescription')}
             </Text>
 
             <Divider />
 
-            <Field label="Features">
+            <Field label={getString('Language')}>
+              <LanguageSelector />
+            </Field>
+
+            <Divider />
+
+            <Field label={getString('Features')}>
               <div className={styles.featureSection}>
-                <Field label="Enable User Targeting">
+                <Field label={getString('EnableUserTargeting')}>
                   <Switch
                     checked={settings.userTargetingEnabled}
                     onChange={(_, data) =>
@@ -146,11 +176,11 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
                     }
                   />
                   <Text size={200}>
-                    Allow alerts to target specific users or groups
+                    {getString('EnableUserTargetingDescription')}
                   </Text>
                 </Field>
 
-                <Field label="Enable Notifications">
+                <Field label={getString('EnableNotifications')}>
                   <Switch
                     checked={settings.notificationsEnabled}
                     onChange={(_, data) =>
@@ -158,11 +188,11 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
                     }
                   />
                   <Text size={200}>
-                    Send browser notifications for critical alerts
+                    {getString('EnableNotificationsDescription')}
                   </Text>
                 </Field>
 
-                <Field label="Enable Rich Media">
+                <Field label={getString('EnableRichMedia')}>
                   <Switch
                     checked={settings.richMediaEnabled}
                     onChange={(_, data) =>
@@ -170,7 +200,7 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
                     }
                   />
                   <Text size={200}>
-                    Support images, videos, and rich content in alerts
+                    {getString('EnableRichMediaDescription')}
                   </Text>
                 </Field>
               </div>
@@ -178,30 +208,46 @@ const AlertSettings: React.FC<IAlertSettingsProps> = ({
 
             <Divider />
 
-            <Field label="Alert Types Configuration">
+            <Field label={getString('AlertTypesConfiguration')}>
               <Text size={200} style={{ marginBottom: tokens.spacingVerticalS }}>
-                Configure the available alert types (JSON format):
+                {getString('AlertTypesConfigurationDescription')}
               </Text>
               <Textarea
                 value={alertTypesText}
                 onChange={(_, data) => setAlertTypesText(data.value)}
                 rows={15}
                 className={styles.configTextarea}
-                placeholder="Enter alert types JSON configuration..."
+                placeholder={getString('AlertTypesPlaceholder')}
               />
               <Text size={100} style={{ color: tokens.colorNeutralForeground3 }}>
-                Each alert type should have: name, iconName, backgroundColor, textColor, additionalStyles, and priorityStyles
+                {getString('AlertTypesHelpText')}
               </Text>
             </Field>
+
+            {siteContextService && (
+              <>
+                <Divider />
+                <Text weight="semibold" size={300}>
+                  {getString('AlertListsManagement') || 'Alert Lists Management'}
+                </Text>
+                <ListManagement 
+                  siteContextService={siteContextService}
+                  onListCreated={() => {
+                    // Refresh the site context when a list is created
+                    siteContextService.refresh();
+                  }}
+                />
+              </>
+            )}
           </DialogContent>
           <DialogActions>
             <DialogTrigger disableButtonEnhancement>
               <Button appearance="secondary" onClick={handleCancel}>
-                Cancel
+                {getString('Cancel')}
               </Button>
             </DialogTrigger>
             <Button appearance="primary" onClick={handleSave}>
-              Save Settings
+              {getString('SaveSettings')}
             </Button>
           </DialogActions>
         </DialogBody>

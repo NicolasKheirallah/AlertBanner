@@ -20,9 +20,9 @@ const RichMediaAlert: React.FC<IRichMediaAlertProps> = ({ media, expanded }) => 
       case "image":
         return (
           <div className={styles.imageContainer}>
-            <img 
-              src={media.content} 
-              alt={media.altText || "Alert image"} 
+            <img
+              src={media.content}
+              alt={media.altText || "Alert image"}
               className={styles.alertImage}
             />
           </div>
@@ -31,8 +31,8 @@ const RichMediaAlert: React.FC<IRichMediaAlertProps> = ({ media, expanded }) => 
       case "video":
         return (
           <div className={styles.videoContainer}>
-            <video 
-              controls 
+            <video
+              controls
               className={styles.alertVideo}
               aria-label={media.altText || "Alert video"}
             >

@@ -1,0 +1,179 @@
+.listManagement {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+
+  .sitesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+
+    .siteCard {
+      border: 1px solid var(--colorNeutralStroke2);
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-color: var(--colorNeutralStroke1);
+        box-shadow: var(--shadow4);
+      }
+
+      .siteHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 8px;
+      }
+
+      .siteStatus {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+
+        .statusInfo {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          .statusIndicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+        }
+
+        .listInfo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+      }
+    }
+  }
+
+  .hierarchyInfo {
+    margin-top: 16px;
+    border: 1px solid var(--colorNeutralStroke2);
+    background: var(--colorNeutralBackground2);
+
+    .hierarchyDescription {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .hierarchyList {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+
+        .hierarchyItem {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px;
+          border-left: 3px solid var(--colorBrandStroke1);
+          background: var(--colorNeutralBackground1);
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .listManagement {
+    padding: 8px;
+
+    .sitesGrid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+
+      .siteCard {
+        .siteHeader {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+        }
+
+        .siteStatus {
+          padding: 12px;
+        }
+      }
+    }
+
+    .hierarchyInfo {
+      .hierarchyDescription {
+        padding: 12px;
+
+        .hierarchyList {
+          .hierarchyItem {
+            padding: 6px;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .listManagement {
+    .sitesGrid {
+      .siteCard {
+        background: var(--colorNeutralBackground2);
+
+        &:hover {
+          background: var(--colorNeutralBackground1Hover);
+        }
+      }
+    }
+
+    .hierarchyInfo {
+      background: var(--colorNeutralBackground3);
+
+      .hierarchyDescription {
+        .hierarchyList {
+          .hierarchyItem {
+            background: var(--colorNeutralBackground2);
+          }
+        }
+      }
+    }
+  }
+}
+
+// High contrast mode
+@media (prefers-contrast: high) {
+  .listManagement {
+    .sitesGrid {
+      .siteCard {
+        border: 2px solid var(--colorNeutralStroke1);
+
+        &:hover,
+        &:focus-within {
+          border-color: var(--colorBrandStroke1);
+          outline: 2px solid var(--colorStrokeFocus2);
+        }
+      }
+    }
+
+    .hierarchyInfo {
+      border: 2px solid var(--colorNeutralStroke1);
+
+      .hierarchyDescription {
+        .hierarchyList {
+          .hierarchyItem {
+            border: 1px solid var(--colorNeutralStroke1);
+            border-left: 4px solid var(--colorBrandStroke1);
+          }
+        }
+      }
+    }
+  }
+}

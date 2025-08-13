@@ -34,7 +34,7 @@ export class StorageService {
         timestamp: Date.now(),
         expiration: options?.expirationTime || this.defaultExpirationTime
       };
-      
+
       localStorage.setItem(fullKey, JSON.stringify(storageData));
     } catch (error) {
       console.error(`Error saving to localStorage (${key}):`, error);
@@ -45,17 +45,17 @@ export class StorageService {
     try {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       const data = localStorage.getItem(fullKey);
-      
+
       if (!data) return null;
-      
+
       const parsedData = JSON.parse(data);
-      
+
       // Check if data has expired
       if (this.isDataExpired(parsedData)) {
         this.removeFromLocalStorage(key, options);
         return null;
       }
-      
+
       return parsedData.data as T;
     } catch (error) {
       console.error(`Error reading from localStorage (${key}):`, error);
@@ -80,7 +80,7 @@ export class StorageService {
         data,
         timestamp: Date.now()
       };
-      
+
       sessionStorage.setItem(fullKey, JSON.stringify(storageData));
     } catch (error) {
       console.error(`Error saving to sessionStorage (${key}):`, error);
@@ -91,9 +91,9 @@ export class StorageService {
     try {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       const data = sessionStorage.getItem(fullKey);
-      
+
       if (!data) return null;
-      
+
       const parsedData = JSON.parse(data);
       return parsedData.data as T;
     } catch (error) {
@@ -129,8 +129,8 @@ export class StorageService {
   }
 
   public getDismissedAlerts(): number[] {
-    return this.getFromSessionStorage<number[]>("DismissedAlerts", { 
-      userSpecific: true 
+    return this.getFromSessionStorage<number[]>("DismissedAlerts", {
+      userSpecific: true
     }) || [];
   }
 
@@ -141,8 +141,8 @@ export class StorageService {
   }
 
   public getHiddenAlerts(): number[] {
-    return this.getFromLocalStorage<number[]>("HiddenAlerts", { 
-      userSpecific: true 
+    return this.getFromLocalStorage<number[]>("HiddenAlerts", {
+      userSpecific: true
     }) || [];
   }
 
@@ -161,10 +161,10 @@ export class StorageService {
 
   private isDataExpired(storageData: any): boolean {
     if (!storageData.timestamp || !storageData.expiration) return false;
-    
+
     const now = Date.now();
     const expirationTime = storageData.timestamp + storageData.expiration;
-    
+
     return now > expirationTime;
   }
 }

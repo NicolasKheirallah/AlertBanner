@@ -77,19 +77,19 @@ export class SiteContextDetector {
 
       // Check if this is a hub site
       const hubInfo = await this.checkIfHubSite(siteId);
-      
+
       // Check if this is the organization's home site
       const isHomesite = await this.checkIfHomesite(siteUrl, tenantUrl);
-      
+
       // Get associated sites if this is a hub
       const associatedSites = hubInfo.isHub ? await this.getAssociatedSites(siteId) : [];
-      
+
       // Detect site type
       const siteType = this.determineSiteType(siteDetails, hubInfo.isHub, isHomesite);
-      
+
       // Check user permissions
       const userPermissions = await this.getUserPermissions(siteId);
-      
+
       // Check if this is the root site
       const isRootSite = this.isRootSiteCollection(siteUrl);
 
@@ -111,7 +111,7 @@ export class SiteContextDetector {
       return this.currentSiteContext;
     } catch (error) {
       console.error('Failed to get site context:', error);
-      
+
       // Return basic context as fallback
       return {
         siteId: this.context.pageContext.site.id.toString(),
@@ -144,17 +144,17 @@ export class SiteContextDetector {
 
       // Get user's followed sites
       const followedSites = await this.getFollowedSites();
-      
+
       // Get hub associated sites if current site is a hub
-      const hubSites = currentContext.isHubSite ? 
+      const hubSites = currentContext.isHubSite ?
         await this.getHubAssociatedSites(currentContext.siteId) : [];
-      
+
       // Get recently visited sites
       const recentSites = await this.getRecentSites();
-      
+
       // Combine and deduplicate sites
       const allSites = new Map<string, ISiteOption>();
-      
+
       [...followedSites, ...hubSites, ...recentSites].forEach(site => {
         if (!allSites.has(site.id)) {
           allSites.set(site.id, site);
@@ -205,9 +205,9 @@ export class SiteContextDetector {
           .api(`/sites/${siteId}`)
           .select('id,displayName,webUrl')
           .get();
-          
+
         const permissions = await this.getUserPermissions(siteId);
-        
+
         return {
           siteId,
           siteName: site.displayName,
@@ -315,7 +315,7 @@ export class SiteContextDetector {
       // Check if URL pattern suggests this is the homesite
       const url = new URL(siteUrl);
       const isRootSite = url.pathname === '/' || url.pathname === '';
-      
+
       if (isRootSite) {
         // Additional verification could be done here
         return true;
@@ -346,12 +346,12 @@ export class SiteContextDetector {
   private determineSiteType(siteDetails: any, isHub: boolean, isHomesite: boolean): 'regular' | 'hub' | 'homesite' | 'team' | 'communication' {
     if (isHomesite) return 'homesite';
     if (isHub) return 'hub';
-    
+
     // Try to determine if it's a Teams site or Communication site
     if (siteDetails.webUrl?.includes('/teams/')) {
       return 'team';
     }
-    
+
     if (siteDetails.description?.toLowerCase().includes('communication')) {
       return 'communication';
     }
@@ -375,13 +375,13 @@ export class SiteContextDetector {
 
         // If we can access the drive root, user likely has write permissions
         hasWritePermission = true;
-        
+
         // Try to check if user is site owner by attempting to access site permissions
         try {
           await this.graphClient
             .api(`/sites/${siteId}/permissions`)
             .get();
-          
+
           // If we can read site permissions, user likely has elevated access
           hasOwnerPermission = true;
           permissionLevel = 'owner';
@@ -397,14 +397,14 @@ export class SiteContextDetector {
             .api(`/sites/${siteId}`)
             .select('id,displayName')
             .get();
-          
+
           // Try to access lists to determine write permissions
           try {
             await this.graphClient
               .api(`/sites/${siteId}/lists`)
               .top(1)
               .get();
-            
+
             hasWritePermission = true;
             permissionLevel = 'contribute';
           } catch (listError) {
@@ -440,7 +440,7 @@ export class SiteContextDetector {
       };
     } catch (error) {
       console.warn(`Could not get user permissions for site ${siteId}:`, error);
-      
+
       // For the current site, assume user has permissions since they're viewing it
       const currentSiteId = this.context.pageContext.site.id.toString();
       if (siteId === currentSiteId) {
@@ -451,7 +451,7 @@ export class SiteContextDetector {
           permissionLevel: 'contribute'
         };
       }
-      
+
       return {
         canCreateAlerts: false,
         canManageAlerts: false,
@@ -565,9 +565,9 @@ export class SiteContextDetector {
   private async getHomesite(): Promise<ISiteOption | null> {
     try {
       // Try to get the organization's home site
-      const tenantUrl = this.currentSiteContext?.tenantUrl || 
+      const tenantUrl = this.currentSiteContext?.tenantUrl ||
         `https://${new URL(this.context.pageContext.web.absoluteUrl).hostname}`;
-      
+
       const homeSite = await this.graphClient
         .api(`/sites/${tenantUrl}:/`)
         .select('id,displayName,webUrl')

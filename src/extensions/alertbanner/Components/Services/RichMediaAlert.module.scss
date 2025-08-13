@@ -11,12 +11,12 @@ $breakpoint-mobile: 576px;
   max-width: 100%;
   overflow: hidden;
   margin: 5px 0;
-  
+
   .alertImage {
     max-width: 100%;
     height: auto;
     border-radius: 4px;
-    
+
     @media (max-width: $breakpoint-mobile) {
       max-height: 200px;
       object-fit: cover;
@@ -27,11 +27,11 @@ $breakpoint-mobile: 576px;
 .videoContainer {
   max-width: 100%;
   margin: 5px 0;
-  
+
   .alertVideo {
     max-width: 100%;
     border-radius: 4px;
-    
+
     @media (max-width: $breakpoint-mobile) {
       max-height: 200px;
     }
@@ -49,29 +49,30 @@ $breakpoint-mobile: 576px;
   color: #323130;
   font-size: 14px;
   line-height: 20px;
-  
+
   a {
     color: #0078d4;
     text-decoration: underline;
-    
+
     &:hover {
       color: #106ebe;
       text-decoration: underline;
     }
   }
-  
+
   table {
     border-collapse: collapse;
     width: 100%;
     margin: 12px 0;
-    
-    th, td {
+
+    th,
+    td {
       border: 1px solid #edebe9;
       padding: 8px 12px;
       color: #323130;
       font-size: 14px;
     }
-    
+
     th {
       background-color: #f3f2f1;
       font-weight: 600;
@@ -90,40 +91,59 @@ $breakpoint-mobile: 576px;
   color: #323130;
   font-size: 14px;
   line-height: 20px;
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     margin-top: 0.8em;
     margin-bottom: 0.4em;
     color: #323130;
     font-weight: 600;
   }
-  
-  h1 { font-size: 20px; }
-  h2 { font-size: 18px; }
-  h3 { font-size: 16px; }
-  h4, h5, h6 { font-size: 14px; }
-  
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+
+  h3 {
+    font-size: 16px;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-size: 14px;
+  }
+
   p {
     margin: 0.5em 0;
     color: #323130;
   }
-  
+
   a {
     color: #0078d4;
     text-decoration: underline;
-    
+
     &:hover {
       color: #106ebe;
       text-decoration: underline;
     }
   }
-  
-  ul, ol {
+
+  ul,
+  ol {
     margin: 0.5em 0;
     padding-left: 20px;
     color: #323130;
   }
-  
+
   code {
     background-color: #f3f2f1;
     color: #605e5c;
@@ -132,7 +152,7 @@ $breakpoint-mobile: 576px;
     font-family: 'Courier New', Courier, monospace;
     font-size: 13px;
   }
-  
+
   pre {
     background-color: #f3f2f1;
     color: #605e5c;
@@ -140,14 +160,14 @@ $breakpoint-mobile: 576px;
     border-radius: 2px;
     overflow-x: auto;
     border: 1px solid #edebe9;
-    
+
     code {
       background-color: transparent;
       padding: 0;
       border: none;
     }
   }
-  
+
   blockquote {
     border-left: 4px solid #0078d4;
     margin: 0.8em 0;
@@ -162,10 +182,12 @@ $breakpoint-mobile: 576px;
 
 /* RTL Support */
 [dir="rtl"] {
-  .htmlContainer, .markdownContainer {
+
+  .htmlContainer,
+  .markdownContainer {
     direction: rtl;
     text-align: right;
-    
+
     blockquote {
       border-left: none;
       border-right: 4px solid #0078d4;
@@ -173,8 +195,9 @@ $breakpoint-mobile: 576px;
       padding-right: 12px;
       border-radius: 2px 0 0 2px;
     }
-    
-    ul, ol {
+
+    ul,
+    ol {
       padding-left: 0;
       padding-right: 20px;
     }

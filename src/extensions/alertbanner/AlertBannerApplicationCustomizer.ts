@@ -9,6 +9,8 @@ import {
 import { IAlertsBannerApplicationCustomizerProperties } from "./Components/Alerts/IAlerts";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { AlertsProvider } from "./Components/Context/AlertsContext";
+import { LocalizationService } from "./Components/Services/LocalizationService";
+import { LocalizationProvider } from "./Components/Hooks/useLocalization";
 import Alerts from "./Components/Alerts/Alerts";
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
@@ -17,6 +19,10 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
 
   @override
   public async onInit(): Promise<void> {
+    // Initialize localization service
+    const localizationService = LocalizationService.getInstance(this.context);
+    await localizationService.initialize(this.context);
+
     // Initialize default configuration
     this._initializeDefaultProperties();
 
@@ -241,10 +247,10 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           }
         );
 
-        // Wrap with the AlertsProvider
+        // Wrap with the LocalizationProvider and AlertsProvider
         const alertsApp = React.createElement(
-          AlertsProvider, 
-          { children: alertsComponent }
+          LocalizationProvider,
+          { children: React.createElement(AlertsProvider, { children: alertsComponent }) }
         );
 
         // Render with error handling

@@ -80,13 +80,13 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
       <label className={styles.label}>
         {label}
       </label>
-      
+
       {description && (
         <div className={styles.description}>
           {description}
         </div>
       )}
-      
+
       <div className={styles.colorPickerContainer}>
         <button
           type="button"
@@ -100,7 +100,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
             <span className={styles.colorValue}>{value}</span>
           </div>
         </button>
-        
+
         {isOpen && (
           <div className={styles.colorDropdown}>
             <div className={styles.presetColors}>
@@ -119,7 +119,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
                 ))}
               </div>
             </div>
-            
+
             <div className={styles.customColor}>
               <h4>Custom Color</h4>
               <div className={styles.customColorInputs}>

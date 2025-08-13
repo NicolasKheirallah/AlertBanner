@@ -19,6 +19,12 @@ export interface IAlertItem {
   scheduledStart?: string;
   scheduledEnd?: string;
   metadata?: any;
+  // Store the original SharePoint list item for multi-language access
+  _originalListItem?: IAlertListItem;
+}
+
+export interface IMultiLanguageContent {
+  [languageCode: string]: string;
 }
 
 export interface IAlertListItem {
@@ -40,6 +46,37 @@ export interface IAlertListItem {
   ScheduledStart?: string;
   ScheduledEnd?: string;
   Metadata?: string;
+
+  // Multi-language content fields
+  Title_EN?: string;
+  Title_FR?: string;
+  Title_DE?: string;
+  Title_ES?: string;
+  Title_SV?: string;
+  Title_FI?: string;
+  Title_DA?: string;
+  Title_NO?: string;
+
+  Description_EN?: string;
+  Description_FR?: string;
+  Description_DE?: string;
+  Description_ES?: string;
+  Description_SV?: string;
+  Description_FI?: string;
+  Description_DA?: string;
+  Description_NO?: string;
+
+  LinkDescription_EN?: string;
+  LinkDescription_FR?: string;
+  LinkDescription_DE?: string;
+  LinkDescription_ES?: string;
+  LinkDescription_SV?: string;
+  LinkDescription_FI?: string;
+  LinkDescription_DA?: string;
+  LinkDescription_NO?: string;
+
+  // Dynamic language support - for additional languages
+  [key: string]: any;
 }
 
 export class SharePointAlertService {
@@ -59,22 +96,45 @@ export class SharePointAlertService {
   public async initializeLists(): Promise<void> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
+
+      // Check if alerts list exists or can be created
+      let alertsListCreated = false;
+      let typesListCreated = false;
       
-      // Check if alerts list exists
-      const alertsListCreated = await this.ensureAlertsList(siteId);
-      const typesListCreated = await this.ensureAlertTypesList(siteId);
-      
-      // Lists created successfully
-      if (alertsListCreated) {
-        console.log('Alert Banner alerts list created successfully');
+      try {
+        alertsListCreated = await this.ensureAlertsList(siteId);
+        if (alertsListCreated) {
+          console.log('Alert Banner alerts list created successfully');
+        } else {
+          console.log('Alert Banner alerts list already exists');
+        }
+      } catch (alertsError) {
+        if (alertsError.message?.includes('PERMISSION_DENIED')) {
+          console.warn('Cannot create alerts list due to insufficient permissions. Alert functionality may be limited.');
+          // Don't throw here, continue with types list
+        } else {
+          throw alertsError;
+        }
       }
-      
-      if (typesListCreated) {
-        console.log('Alert Banner types list created successfully');
+
+      try {
+        typesListCreated = await this.ensureAlertTypesList(siteId);
+        if (typesListCreated) {
+          console.log('Alert Banner types list created successfully');
+        } else {
+          console.log('Alert Banner types list already exists');
+        }
+      } catch (typesError) {
+        if (typesError.message?.includes('PERMISSION_DENIED')) {
+          console.warn('Cannot create alert types list due to insufficient permissions. Default alert types will be used.');
+          // Don't throw here, app can still function with default types
+        } else {
+          throw typesError;
+        }
       }
     } catch (error) {
       // Enhanced error handling for common permission issues
-      if (error.message?.includes('Access denied') || error.message?.includes('403')) {
+      if (error.message?.includes('PERMISSION_DENIED')) {
         console.warn('SharePoint list creation failed due to insufficient permissions.');
         throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
       } else if (error.message?.includes('404') || error.message?.includes('not found')) {
@@ -98,9 +158,30 @@ export class SharePointAlertService {
         .get();
       return false; // List already exists
     } catch (error) {
+      // Check if it's a permission error or list doesn't exist
+      if (error.message?.includes('Access denied') || error.message?.includes('403')) {
+        console.warn(`Cannot access or create alerts list due to insufficient permissions.`);
+        throw new Error('PERMISSION_DENIED: User lacks permissions to access or create SharePoint lists.');
+      }
+
+      // Check if user has permission to create lists before attempting
+      try {
+        // Test permissions by trying to get all lists
+        await this.graphClient
+          .api(`/sites/${siteId}/lists`)
+          .select('id')
+          .top(1)
+          .get();
+      } catch (permissionError) {
+        if (permissionError.message?.includes('Access denied') || permissionError.message?.includes('403')) {
+          console.warn('User lacks permissions to create SharePoint lists.');
+          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
+        }
+      }
+
       // List doesn't exist, create it
       console.log('Creating alerts list...');
-      
+
       const listDefinition = {
         displayName: this.alertsListName,
         description: 'Stores alert banner notifications',
@@ -162,15 +243,122 @@ export class SharePointAlertService {
           {
             name: 'Metadata',
             text: { allowMultipleLines: true }
+          },
+          // Multi-language Title fields
+          {
+            name: 'Title_EN',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'Title_FR',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'Title_DE',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'Title_ES',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'Title_SV',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'Title_FI',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'Title_DA',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'Title_NO',
+            text: { maxLength: 255 }
+          },
+          // Multi-language Description fields
+          {
+            name: 'Description_EN',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          {
+            name: 'Description_FR',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          {
+            name: 'Description_DE',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          {
+            name: 'Description_ES',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          {
+            name: 'Description_SV',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          {
+            name: 'Description_FI',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          {
+            name: 'Description_DA',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          {
+            name: 'Description_NO',
+            text: { allowMultipleLines: true, appendChangesToExistingText: false }
+          },
+          // Multi-language LinkDescription fields
+          {
+            name: 'LinkDescription_EN',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'LinkDescription_FR',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'LinkDescription_DE',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'LinkDescription_ES',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'LinkDescription_SV',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'LinkDescription_FI',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'LinkDescription_DA',
+            text: { maxLength: 255 }
+          },
+          {
+            name: 'LinkDescription_NO',
+            text: { maxLength: 255 }
           }
         ]
       };
 
-      await this.graphClient
-        .api(`/sites/${siteId}/lists`)
-        .post(listDefinition);
-      
-      return true; // List was created
+      try {
+        await this.graphClient
+          .api(`/sites/${siteId}/lists`)
+          .post(listDefinition);
+
+        return true; // List was created
+      } catch (createError) {
+        if (createError.message?.includes('Access denied') || createError.message?.includes('403')) {
+          console.warn('User lacks permissions to create SharePoint lists.');
+          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
+        }
+        throw createError;
+      }
     }
   }
 
@@ -185,9 +373,30 @@ export class SharePointAlertService {
         .get();
       return false; // List already exists
     } catch (error) {
+      // Check if it's a permission error or list doesn't exist
+      if (error.message?.includes('Access denied') || error.message?.includes('403')) {
+        console.warn(`Cannot access or create alert types list due to insufficient permissions.`);
+        throw new Error('PERMISSION_DENIED: User lacks permissions to access or create SharePoint lists.');
+      }
+
+      // Check if user has permission to create lists before attempting
+      try {
+        // Test permissions by trying to get all lists
+        await this.graphClient
+          .api(`/sites/${siteId}/lists`)
+          .select('id')
+          .top(1)
+          .get();
+      } catch (permissionError) {
+        if (permissionError.message?.includes('Access denied') || permissionError.message?.includes('403')) {
+          console.warn('User lacks permissions to create SharePoint lists.');
+          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
+        }
+      }
+
       // List doesn't exist, create it
       console.log('Creating alert types list...');
-      
+
       const listDefinition = {
         displayName: this.alertTypesListName,
         description: 'Stores alert banner type definitions',
@@ -220,11 +429,19 @@ export class SharePointAlertService {
         ]
       };
 
-      await this.graphClient
-        .api(`/sites/${siteId}/lists`)
-        .post(listDefinition);
-      
-      return true; // List was created
+      try {
+        await this.graphClient
+          .api(`/sites/${siteId}/lists`)
+          .post(listDefinition);
+
+        return true; // List was created
+      } catch (createError) {
+        if (createError.message?.includes('Access denied') || createError.message?.includes('403')) {
+          console.warn('User lacks permissions to create SharePoint lists.');
+          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
+        }
+        throw createError;
+      }
     }
   }
 
@@ -233,8 +450,21 @@ export class SharePointAlertService {
    */
   public async getAlerts(siteIds?: string[]): Promise<IAlertItem[]> {
     try {
-      const currentSiteId = this.context.pageContext.site.id.toString();
-      const sitesToQuery = siteIds || [currentSiteId];
+      let sitesToQuery = siteIds;
+      
+      // If no specific sites provided, use hierarchical sites from SiteContextService
+      if (!sitesToQuery) {
+        try {
+          // Import dynamically to avoid circular dependency
+          const { SiteContextService } = await import('./SiteContextService');
+          const siteContextService = SiteContextService.getInstance(this.context, this.graphClient);
+          await siteContextService.initialize();
+          sitesToQuery = siteContextService.getAlertSourceSites();
+        } catch (error) {
+          console.warn('Failed to get hierarchical sites, falling back to current site:', error);
+          sitesToQuery = [this.context.pageContext.site.id.toString()];
+        }
+      }
       const allAlerts: IAlertItem[] = [];
 
       // Query alerts from each site
@@ -275,7 +505,7 @@ export class SharePointAlertService {
   public async createAlert(alert: Omit<IAlertItem, 'id' | 'createdDate' | 'createdBy' | 'status'>): Promise<IAlertItem> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
-      
+
       const listItem = {
         fields: {
           Title: alert.title,
@@ -317,7 +547,7 @@ export class SharePointAlertService {
   public async updateAlert(alertId: string, updates: Partial<IAlertItem>): Promise<IAlertItem> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
-      
+
       const listItem = {
         fields: {
           ...(updates.title && { Title: updates.title }),
@@ -358,7 +588,7 @@ export class SharePointAlertService {
   public async deleteAlert(alertId: string): Promise<void> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
-      
+
       await this.graphClient
         .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${alertId}`)
         .delete();
@@ -382,7 +612,7 @@ export class SharePointAlertService {
   public async getAlertTypes(): Promise<IAlertType[]> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
-      
+
       const response = await this.graphClient
         .api(`/sites/${siteId}/lists/${this.alertTypesListName}/items`)
         .expand('fields')
@@ -402,7 +632,7 @@ export class SharePointAlertService {
   public async saveAlertTypes(alertTypes: IAlertType[]): Promise<void> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
-      
+
       // Clear existing items
       const existingItems = await this.graphClient
         .api(`/sites/${siteId}/lists/${this.alertTypesListName}/items`)
@@ -454,6 +684,62 @@ export class SharePointAlertService {
    */
   private mapSharePointItemToAlert(item: any): IAlertItem {
     const fields = item.fields;
+    
+    // Create the original list item for multi-language support
+    const originalListItem: IAlertListItem = {
+      Id: parseInt(item.id.toString()),
+      Title: fields.Title || '',
+      Description: fields.Description || '',
+      AlertType: fields.AlertType || '',
+      Priority: fields.Priority || AlertPriority.Medium,
+      IsPinned: fields.IsPinned || false,
+      NotificationType: fields.NotificationType || NotificationType.None,
+      LinkUrl: fields.LinkUrl || '',
+      LinkDescription: fields.LinkDescription || '',
+      TargetSites: fields.TargetSites || '',
+      Status: fields.Status || 'Active',
+      Created: fields.Created || item.createdDateTime,
+      Author: {
+        Title: item.createdBy?.user?.displayName || item.author?.Title || 'Unknown'
+      },
+      ScheduledStart: fields.ScheduledStart || undefined,
+      ScheduledEnd: fields.ScheduledEnd || undefined,
+      Metadata: fields.Metadata || undefined,
+      
+      // Add all multi-language fields
+      Title_EN: fields.Title_EN || '',
+      Title_FR: fields.Title_FR || '',
+      Title_DE: fields.Title_DE || '',
+      Title_ES: fields.Title_ES || '',
+      Title_SV: fields.Title_SV || '',
+      Title_FI: fields.Title_FI || '',
+      Title_DA: fields.Title_DA || '',
+      Title_NO: fields.Title_NO || '',
+      
+      Description_EN: fields.Description_EN || '',
+      Description_FR: fields.Description_FR || '',
+      Description_DE: fields.Description_DE || '',
+      Description_ES: fields.Description_ES || '',
+      Description_SV: fields.Description_SV || '',
+      Description_FI: fields.Description_FI || '',
+      Description_DA: fields.Description_DA || '',
+      Description_NO: fields.Description_NO || '',
+      
+      LinkDescription_EN: fields.LinkDescription_EN || '',
+      LinkDescription_FR: fields.LinkDescription_FR || '',
+      LinkDescription_DE: fields.LinkDescription_DE || '',
+      LinkDescription_ES: fields.LinkDescription_ES || '',
+      LinkDescription_SV: fields.LinkDescription_SV || '',
+      LinkDescription_FI: fields.LinkDescription_FI || '',
+      LinkDescription_DA: fields.LinkDescription_DA || '',
+      LinkDescription_NO: fields.LinkDescription_NO || '',
+      
+      // Include any additional dynamic language fields
+      ...Object.keys(fields)
+        .filter(key => key.match(/^(Title|Description|LinkDescription)_[A-Z]{2}$/))
+        .reduce((acc, key) => ({ ...acc, [key]: fields[key] }), {})
+    };
+
     return {
       id: item.id.toString(),
       title: fields.Title || '',
@@ -470,7 +756,8 @@ export class SharePointAlertService {
       createdBy: item.createdBy?.user?.displayName || item.author?.Title || 'Unknown',
       scheduledStart: fields.ScheduledStart || undefined,
       scheduledEnd: fields.ScheduledEnd || undefined,
-      metadata: fields.Metadata ? JSON.parse(fields.Metadata) : undefined
+      metadata: fields.Metadata ? JSON.parse(fields.Metadata) : undefined,
+      _originalListItem: originalListItem
     };
   }
 
@@ -555,21 +842,21 @@ export class SharePointAlertService {
   public async getActiveAlerts(siteIds?: string[]): Promise<IAlertItem[]> {
     const allAlerts = await this.getAlerts(siteIds);
     const now = new Date();
-    
+
     return allAlerts.filter(alert => {
       // Check if alert is scheduled and within active period
       if (alert.scheduledStart && new Date(alert.scheduledStart) > now) {
         return false; // Not yet active
       }
-      
+
       if (alert.scheduledEnd && new Date(alert.scheduledEnd) < now) {
         return false; // Already expired
       }
-      
-      return alert.status === 'Active' || 
-             (alert.status === 'Scheduled' && 
-              alert.scheduledStart && 
-              new Date(alert.scheduledStart) <= now);
+
+      return alert.status === 'Active' ||
+        (alert.status === 'Scheduled' &&
+          alert.scheduledStart &&
+          new Date(alert.scheduledStart) <= now);
     });
   }
 
@@ -585,13 +872,13 @@ export class SharePointAlertService {
 
       for (const alert of allAlerts) {
         let newStatus = alert.status;
-        
+
         if (alert.scheduledEnd && new Date(alert.scheduledEnd) < now && alert.status !== 'Expired') {
           newStatus = 'Expired';
         } else if (alert.scheduledStart && new Date(alert.scheduledStart) <= now && alert.status === 'Scheduled') {
           newStatus = 'Active';
         }
-        
+
         if (newStatus !== alert.status) {
           updatesNeeded.push({ id: alert.id, status: newStatus });
         }
@@ -603,6 +890,216 @@ export class SharePointAlertService {
       }
     } catch (error) {
       console.error('Failed to update alert statuses:', error);
+    }
+  }
+
+  /**
+   * Get localized content for a specific field and language
+   */
+  public getLocalizedField(item: IAlertListItem, fieldName: string, languageCode: string): string {
+    // Convert language code to uppercase format for field names (e.g., 'en-us' -> 'EN')
+    const languageSuffix = languageCode.split('-')[0].toUpperCase();
+    const localizedFieldName = `${fieldName}_${languageSuffix}`;
+
+    // Try localized field first, then fall back to English, then original field
+    return item[localizedFieldName] || 
+           item[`${fieldName}_EN`] || 
+           item[fieldName] || 
+           '';
+  }
+
+  /**
+   * Get all available languages for multi-language content
+   */
+  public getAvailableContentLanguages(item: IAlertListItem): string[] {
+    const languages: string[] = [];
+    const fieldPrefixes = ['Title_', 'Description_', 'LinkDescription_'];
+    
+    // Check which language fields have content
+    Object.keys(item).forEach(key => {
+      fieldPrefixes.forEach(prefix => {
+        if (key.startsWith(prefix)) {
+          const languageCode = key.substring(prefix.length).toLowerCase();
+          const fullLanguageCode = this.mapLanguageCodeToFull(languageCode);
+          if (item[key] && !languages.includes(fullLanguageCode)) {
+            languages.push(fullLanguageCode);
+          }
+        }
+      });
+    });
+
+    return languages;
+  }
+
+  /**
+   * Map short language codes to full codes (e.g., 'EN' -> 'en-us')
+   */
+  private mapLanguageCodeToFull(shortCode: string): string {
+    const languageMap: { [key: string]: string } = {
+      'EN': 'en-us',
+      'FR': 'fr-fr',
+      'DE': 'de-de',
+      'ES': 'es-es',
+      'SV': 'sv-se',
+      'FI': 'fi-fi',
+      'DA': 'da-dk',
+      'NO': 'nb-no'
+    };
+
+    return languageMap[shortCode.toUpperCase()] || shortCode.toLowerCase();
+  }
+
+  /**
+   * Create or update list columns for additional languages dynamically
+   */
+  public async addLanguageColumns(languageCode: string): Promise<void> {
+    try {
+      const siteId = this.context.pageContext.site.id.toString();
+      const languageSuffix = languageCode.split('-')[0].toUpperCase();
+
+      const columnsToAdd = [
+        {
+          name: `Title_${languageSuffix}`,
+          text: { maxLength: 255 }
+        },
+        {
+          name: `Description_${languageSuffix}`,
+          text: { allowMultipleLines: true, appendChangesToExistingText: false }
+        },
+        {
+          name: `LinkDescription_${languageSuffix}`,
+          text: { maxLength: 255 }
+        }
+      ];
+
+      for (const column of columnsToAdd) {
+        try {
+          await this.graphClient
+            .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+            .post(column);
+          
+          console.log(`Added column ${column.name} for language ${languageCode}`);
+        } catch (error) {
+          if (error.message?.includes('already exists')) {
+            console.log(`Column ${column.name} already exists`);
+          } else {
+            console.warn(`Failed to add column ${column.name}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to add language columns for ${languageCode}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get localized content from an alert item
+   */
+  public getLocalizedAlertContent(alertItem: IAlertItem, languageCode: string): {
+    title: string;
+    description: string;
+    linkDescription: string;
+  } {
+    if (!alertItem._originalListItem) {
+      // Fallback to default fields if no original list item
+      return {
+        title: alertItem.title,
+        description: alertItem.description,
+        linkDescription: alertItem.linkDescription || ''
+      };
+    }
+
+    return {
+      title: this.getLocalizedField(alertItem._originalListItem, 'Title', languageCode),
+      description: this.getLocalizedField(alertItem._originalListItem, 'Description', languageCode),
+      linkDescription: this.getLocalizedField(alertItem._originalListItem, 'LinkDescription', languageCode)
+    };
+  }
+
+  /**
+   * Check if alert has content in specific language
+   */
+  public alertHasLanguageContent(alertItem: IAlertItem, languageCode: string): boolean {
+    if (!alertItem._originalListItem) return false;
+
+    const content = this.getLocalizedAlertContent(alertItem, languageCode);
+    return !!(content.title || content.description || content.linkDescription);
+  }
+
+  /**
+   * Get all languages that have content for a specific alert
+   */
+  public getAlertContentLanguages(alertItem: IAlertItem): string[] {
+    if (!alertItem._originalListItem) return [];
+    
+    return this.getAvailableContentLanguages(alertItem._originalListItem);
+  }
+
+  /**
+   * Update multi-language content for an alert
+   */
+  public async updateAlertMultiLanguageContent(
+    alertId: string, 
+    multiLanguageContent: { [languageCode: string]: { title?: string; description?: string; linkDescription?: string } }
+  ): Promise<void> {
+    try {
+      const siteId = this.context.pageContext.site.id.toString();
+      const updateFields: any = {};
+
+      // Convert multi-language content to SharePoint field format
+      Object.entries(multiLanguageContent).forEach(([languageCode, content]) => {
+        const languageSuffix = languageCode.split('-')[0].toUpperCase();
+        
+        if (content.title !== undefined) {
+          updateFields[`Title_${languageSuffix}`] = content.title;
+        }
+        if (content.description !== undefined) {
+          updateFields[`Description_${languageSuffix}`] = content.description;
+        }
+        if (content.linkDescription !== undefined) {
+          updateFields[`LinkDescription_${languageSuffix}`] = content.linkDescription;
+        }
+      });
+
+      await this.graphClient
+        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${alertId}/fields`)
+        .patch(updateFields);
+
+      console.log(`Updated multi-language content for alert ${alertId}`);
+    } catch (error) {
+      console.error('Failed to update multi-language content:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get supported language codes that have columns in the list
+   */
+  public async getSupportedLanguageColumns(): Promise<string[]> {
+    try {
+      const siteId = this.context.pageContext.site.id.toString();
+      const response = await this.graphClient
+        .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+        .select('name')
+        .get();
+
+      const columns: any[] = response.value;
+      const languageCodes = new Set<string>();
+
+      columns.forEach(column => {
+        const match = column.name.match(/^(Title|Description|LinkDescription)_([A-Z]{2})$/);
+        if (match) {
+          const languageCode = this.mapLanguageCodeToFull(match[2]);
+          languageCodes.add(languageCode);
+        }
+      });
+
+      return Array.from(languageCodes);
+    } catch (error) {
+      console.error('Failed to get supported language columns:', error);
+      // Return default supported languages
+      return ['en-us', 'fr-fr', 'de-de', 'es-es', 'sv-se', 'fi-fi', 'da-dk', 'nb-no'];
     }
   }
 }

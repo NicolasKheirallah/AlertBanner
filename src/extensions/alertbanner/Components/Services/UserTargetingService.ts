@@ -26,7 +26,7 @@ export class UserTargetingService {
     try {
       // Get current user information
       const userResponse = await this.graphClient.api('/me').select('id,displayName,mail,jobTitle,department,userPrincipalName').get();
-      
+
       this.currentUser = {
         id: userResponse.id,
         displayName: userResponse.displayName,
@@ -38,7 +38,7 @@ export class UserTargetingService {
 
       // Get user group memberships
       const groupsResponse = await this.graphClient.api('/me/memberOf').select('id,displayName').get();
-      
+
       if (groupsResponse && groupsResponse.value) {
         this.userGroups = groupsResponse.value.map((group: any) => group.displayName);
         this.userGroupIds = groupsResponse.value.map((group: any) => group.id);
@@ -80,12 +80,12 @@ export class UserTargetingService {
     // Check if we have the new targeting structure with People fields
     if (rule.targetUsers || rule.targetGroups) {
       return this.evaluatePeopleFieldTargeting(rule);
-    } 
+    }
     // Fallback to legacy targeting for backward compatibility
     else if (rule.audiences) {
       return this.evaluateLegacyTargeting(rule);
     }
-    
+
     // If no targeting criteria provided at all, return false
     return false;
   }
@@ -93,23 +93,23 @@ export class UserTargetingService {
   // New method to handle SharePoint People field targeting
   private evaluatePeopleFieldTargeting(rule: ITargetingRule): boolean {
     if (!this.currentUser) return false;
-    
+
     // User targeting: Check if current user is in target users
-    const userMatch = rule.targetUsers?.some(person => 
+    const userMatch = rule.targetUsers?.some(person =>
       this.isCurrentUser(person)
     ) || false;
-    
+
     // Group targeting: Check if current user belongs to any of the target groups
-    const groupMatch = rule.targetGroups?.some(group => 
+    const groupMatch = rule.targetGroups?.some(group =>
       this.isUserInGroup(group)
     ) || false;
-    
+
     // Apply the operation logic
     switch (rule.operation) {
       case "anyOf":
         // Show if user matches or is in any target group
         return userMatch || groupMatch;
-      
+
       case "allOf":
         // For allOf with both user and group targeting, require both to match
         if (rule.targetUsers && rule.targetGroups) {
@@ -117,11 +117,11 @@ export class UserTargetingService {
         }
         // If only one type of targeting is specified, return its result
         return rule.targetUsers ? userMatch : groupMatch;
-      
+
       case "noneOf":
         // Show if user doesn't match and is not in any target group
         return !userMatch && !groupMatch;
-      
+
       default:
         return false;
     }
@@ -141,20 +141,20 @@ export class UserTargetingService {
       .map(prop => prop.toLowerCase());
 
     // Ensure rule.audiences is an array before mapping
-    const targetAudiences = Array.isArray(rule.audiences) 
+    const targetAudiences = Array.isArray(rule.audiences)
       ? rule.audiences.map(audience => typeof audience === 'string' ? audience.toLowerCase() : '')
       : [];
 
     switch (rule.operation) {
       case "anyOf":
         return targetAudiences.some(audience => userProperties.includes(audience));
-      
+
       case "allOf":
         return targetAudiences.every(audience => userProperties.includes(audience));
-      
+
       case "noneOf":
         return !targetAudiences.some(audience => userProperties.includes(audience));
-      
+
       default:
         return false;
     }
@@ -169,7 +169,7 @@ export class UserTargetingService {
       // Match by ID
       person.id === this.currentUser.id ||
       // Match by email (ensure both exist before comparing)
-      (person.email && this.currentUser.email && 
+      (person.email && this.currentUser.email &&
         person.email.toLowerCase() === this.currentUser.email.toLowerCase()) ||
       // Match by login name (ensure it exists before using includes)
       (typeof person.loginName === 'string' && person.loginName.includes(this.currentUser.id))
@@ -182,20 +182,20 @@ export class UserTargetingService {
     if (group.isGroup !== true) {
       return false;
     }
-    
+
     if (!this.userGroupIds.length) {
       return false;
     }
-    
+
     // Try to match by ID (most reliable)
     if (this.userGroupIds.includes(group.id)) {
       return true;
     }
-    
+
     // Fallback to match by display name (less reliable but added for robustness)
-    return this.userGroups.some(userGroup => 
-      typeof userGroup === 'string' && 
-      typeof group.displayName === 'string' && 
+    return this.userGroups.some(userGroup =>
+      typeof userGroup === 'string' &&
+      typeof group.displayName === 'string' &&
       userGroup.toLowerCase() === group.displayName.toLowerCase()
     );
   }
@@ -223,7 +223,7 @@ export class UserTargetingService {
 
       const key = `DismissedAlerts_${this.currentUser.id}`;
       const dismissedAlerts = this.getUserDismissedAlerts();
-      
+
       if (!dismissedAlerts.includes(alertId)) {
         dismissedAlerts.push(alertId);
         sessionStorage.setItem(key, JSON.stringify(dismissedAlerts));
@@ -252,7 +252,7 @@ export class UserTargetingService {
 
       const key = `HiddenAlerts_${this.currentUser.id}`;
       const hiddenAlerts = this.getUserHiddenAlerts();
-      
+
       if (!hiddenAlerts.includes(alertId)) {
         hiddenAlerts.push(alertId);
         localStorage.setItem(key, JSON.stringify(hiddenAlerts));

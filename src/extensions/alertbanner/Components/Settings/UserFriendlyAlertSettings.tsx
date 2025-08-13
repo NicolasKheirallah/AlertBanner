@@ -85,23 +85,23 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
   const [showTemplates, setShowTemplates] = React.useState(true);
   const [isCreatingType, setIsCreatingType] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(true);
-  
+
   // Site context and targeting
   const [siteDetector] = React.useState(() => new SiteContextDetector(graphClient, context));
   const [currentSiteContext, setCurrentSiteContext] = React.useState<ISiteContext | null>(null);
   const [creationProgress, setCreationProgress] = React.useState<ISiteValidationResult[]>([]);
   const [isCreatingAlert, setIsCreatingAlert] = React.useState(false);
-  
+
   // SharePoint service
   const [alertService] = React.useState(() => new SharePointAlertService(graphClient, context));
-  
+
   // Alert management state
   const [existingAlerts, setExistingAlerts] = React.useState<IAlertItem[]>([]);
   const [isLoadingAlerts, setIsLoadingAlerts] = React.useState(false);
   const [selectedAlerts, setSelectedAlerts] = React.useState<string[]>([]);
   const [editingAlert, setEditingAlert] = React.useState<IEditingAlert | null>(null);
   const [isEditingAlert, setIsEditingAlert] = React.useState(false);
-  
+
   // Settings state
   const [settings, setSettings] = React.useState<ISettingsData>({
     alertTypesJson,
@@ -109,7 +109,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     notificationsEnabled,
     richMediaEnabled
   });
-  
+
   // Alert types state
   const [alertTypes, setAlertTypes] = React.useState<IAlertType[]>(() => {
     try {
@@ -118,7 +118,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       return [];
     }
   });
-  
+
   // Load alert types from SharePoint on init
   React.useEffect(() => {
     if (isInEditMode) {
@@ -131,7 +131,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       });
     }
   }, [isInEditMode, alertService]);
-  
+
   // New alert state
   const [newAlert, setNewAlert] = React.useState<INewAlert>({
     title: "",
@@ -146,10 +146,10 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     scheduledStart: undefined,
     scheduledEnd: undefined
   });
-  
+
   // Form validation
   const [errors, setErrors] = React.useState<IFormErrors>({});
-  
+
   // New alert type state with better defaults
   const [newAlertType, setNewAlertType] = React.useState<IAlertType>({
     name: "",
@@ -213,7 +213,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
   // Validation functions
   const validateAlert = (): boolean => {
     const newErrors: IFormErrors = {};
-    
+
     if (!newAlert.title.trim()) {
       newErrors.title = "Alert title is required";
     } else if (newAlert.title.length < 3) {
@@ -221,35 +221,35 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     } else if (newAlert.title.length > 100) {
       newErrors.title = "Title must be less than 100 characters";
     }
-    
+
     if (!newAlert.description.trim()) {
       newErrors.description = "Alert description is required";
     } else if (newAlert.description.replace(/<[^>]*>/g, '').length < 10) {
       newErrors.description = "Description must be at least 10 characters (excluding HTML tags)";
     }
-    
+
     if (!newAlert.AlertType) {
       newErrors.AlertType = "Please select an alert type";
     }
-    
+
     if (newAlert.targetSites.length === 0) {
       newErrors.targetSites = "Please select at least one site for alert distribution";
     }
-    
+
     if (newAlert.linkUrl && !isValidUrl(newAlert.linkUrl)) {
       newErrors.linkUrl = "Please enter a valid URL";
     }
-    
+
     if (newAlert.linkUrl && !newAlert.linkDescription.trim()) {
       newErrors.linkDescription = "Link description is required when URL is provided";
     }
-    
+
     if (newAlert.scheduledStart && newAlert.scheduledEnd) {
       if (newAlert.scheduledEnd <= newAlert.scheduledStart) {
         newErrors.scheduledEnd = "End date must be after start date";
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -286,14 +286,14 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     try {
       // Save alert types to SharePoint
       await alertService.saveAlertTypes(alertTypes);
-      
+
       const updatedSettings = {
         ...settings,
         alertTypesJson: JSON.stringify(alertTypes, null, 2)
       };
       onSettingsChange(updatedSettings);
       setIsOpen(false);
-      
+
       // Show success message
       const successElement = document.createElement('div');
       successElement.style.cssText = `
@@ -311,7 +311,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       `;
       successElement.textContent = '✅ Settings saved successfully!';
       document.body.appendChild(successElement);
-      
+
       setTimeout(() => {
         if (document.body.contains(successElement)) {
           document.body.removeChild(successElement);
@@ -319,7 +319,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       }, 3000);
     } catch (error) {
       console.error('Failed to save settings:', error);
-      
+
       // Still save to local settings even if SharePoint fails
       const updatedSettings = {
         ...settings,
@@ -327,12 +327,12 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       };
       onSettingsChange(updatedSettings);
       setIsOpen(false);
-      
+
       // Show appropriate warning message based on error type
       const warningElement = document.createElement('div');
       let message = '';
       let backgroundColor = '#8a6914';
-      
+
       if (error.message?.includes('PERMISSION_DENIED')) {
         message = '⚠️ Settings saved locally only - SharePoint permissions required for persistent storage';
       } else if (error.message?.includes('LISTS_NOT_FOUND')) {
@@ -340,7 +340,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       } else {
         message = '⚠️ Settings saved locally only - SharePoint integration unavailable';
       }
-      
+
       warningElement.style.cssText = `
         position: fixed;
         top: 20px;
@@ -358,7 +358,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       `;
       warningElement.textContent = message;
       document.body.appendChild(warningElement);
-      
+
       setTimeout(() => {
         if (document.body.contains(warningElement)) {
           document.body.removeChild(warningElement);
@@ -382,7 +382,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
 
       // Filter sites where user can create alerts
       const validSites = siteValidations.filter(s => s.canCreateAlerts);
-      
+
       if (validSites.length === 0) {
         throw new Error("You don't have permission to create alerts on any of the selected sites.");
       }
@@ -409,10 +409,10 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
 
       // Create the alert in SharePoint
       const createdAlert = await alertService.createAlert(alertItem);
-      
+
       // Add to local state
       setExistingAlerts(prev => [createdAlert, ...prev]);
-      
+
       // Show success message
       const alertElement = document.createElement('div');
       alertElement.style.cssText = `
@@ -431,16 +431,16 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       `;
       alertElement.textContent = `✅ Alert created successfully!`;
       document.body.appendChild(alertElement);
-      
+
       setTimeout(() => {
         if (document.body.contains(alertElement)) {
           document.body.removeChild(alertElement);
         }
       }, 3000);
-      
+
       // Reset form
       resetForm();
-      
+
     } catch (error) {
       console.error("Error creating alert:", error);
       const alertElement = document.createElement('div');
@@ -459,7 +459,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       `;
       alertElement.textContent = `❌ Failed to create alert: ${error.message}`;
       document.body.appendChild(alertElement);
-      
+
       setTimeout(() => {
         if (document.body.contains(alertElement)) {
           document.body.removeChild(alertElement);
@@ -497,7 +497,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
 
     const updatedTypes = [...alertTypes, { ...newAlertType, name: newAlertType.name.trim() }];
     setAlertTypes(updatedTypes);
-    
+
     // Reset form
     setNewAlertType({
       name: "",
@@ -513,7 +513,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       }
     });
     setIsCreatingType(false);
-    
+
     // Show success message
     const successElement = document.createElement('div');
     successElement.style.cssText = `
@@ -531,7 +531,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     `;
     successElement.textContent = "✅ Alert type created successfully!";
     document.body.appendChild(successElement);
-    
+
     setTimeout(() => {
       if (document.body.contains(successElement)) {
         document.body.removeChild(successElement);
@@ -544,7 +544,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     if (confirm(`Are you sure you want to delete the "${typeToDelete.name}" alert type? This action cannot be undone.`)) {
       const updatedTypes = alertTypes.filter((_, i) => i !== index);
       setAlertTypes(updatedTypes);
-      
+
       // If the deleted type was selected in the new alert, clear it
       if (newAlert.AlertType === typeToDelete.name) {
         setNewAlert(prev => ({ ...prev, AlertType: "" }));
@@ -569,15 +569,15 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
   const handleDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
     e.preventDefault();
     const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
+
     if (dragIndex === dropIndex) return;
 
     const newTypes = [...alertTypes];
     const [draggedItem] = newTypes.splice(dragIndex, 1);
     newTypes.splice(dropIndex, 0, draggedItem);
-    
+
     setAlertTypes(newTypes);
-    
+
     // Show success message
     const successElement = document.createElement('div');
     successElement.style.cssText = `
@@ -595,7 +595,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     `;
     successElement.textContent = '✅ Alert types reordered successfully!';
     document.body.appendChild(successElement);
-    
+
     setTimeout(() => {
       if (document.body.contains(successElement)) {
         document.body.removeChild(successElement);
@@ -609,16 +609,16 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     try {
       // Initialize SharePoint lists if needed
       await alertService.initializeLists();
-      
+
       // Load alerts from SharePoint
       const alerts = await alertService.getAlerts();
       setExistingAlerts(alerts);
-      
+
       // If no alerts were loaded and SharePoint integration is working, 
       // show a helpful message about sample data being created
       if (alerts.length === 0) {
         console.log('No alerts found. Sample alerts should have been created during initialization.');
-        
+
         // Try loading again after a brief delay to account for list creation timing
         setTimeout(async () => {
           try {
@@ -633,15 +633,15 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       }
     } catch (error) {
       console.error('Failed to load alerts:', error);
-      
+
       // Set empty alerts list when SharePoint integration fails
       setExistingAlerts([]);
-      
+
       // Show appropriate error message based on error type
       const errorElement = document.createElement('div');
       let message = '';
       let backgroundColor = '#d13438';
-      
+
       if (error.message?.includes('PERMISSION_DENIED')) {
         backgroundColor = '#8a6914';
         message = `
@@ -660,7 +660,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
           Unable to connect to SharePoint. Please check your permissions and try again.
         `;
       }
-      
+
       errorElement.style.cssText = `
         position: fixed;
         top: 20px;
@@ -678,7 +678,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       `;
       errorElement.innerHTML = message;
       document.body.appendChild(errorElement);
-      
+
       setTimeout(() => {
         if (document.body.contains(errorElement)) {
           document.body.removeChild(errorElement);
@@ -694,11 +694,11 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       try {
         // Delete from SharePoint
         await alertService.deleteAlert(alertId);
-        
+
         // Update local state
         setExistingAlerts(prev => prev.filter(alert => alert.id !== alertId));
         setSelectedAlerts(prev => prev.filter(id => id !== alertId));
-        
+
         // Show success message
         const successElement = document.createElement('div');
         successElement.style.cssText = `
@@ -716,7 +716,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         `;
         successElement.textContent = '✅ Alert deleted successfully!';
         document.body.appendChild(successElement);
-        
+
         setTimeout(() => {
           if (document.body.contains(successElement)) {
             document.body.removeChild(successElement);
@@ -724,7 +724,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         }, 3000);
       } catch (error) {
         console.error('Failed to delete alert:', error);
-        
+
         // Show error message
         const errorElement = document.createElement('div');
         errorElement.style.cssText = `
@@ -742,7 +742,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         `;
         errorElement.textContent = '❌ Failed to delete alert';
         document.body.appendChild(errorElement);
-        
+
         setTimeout(() => {
           if (document.body.contains(errorElement)) {
             document.body.removeChild(errorElement);
@@ -754,16 +754,16 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
 
   const handleBulkDelete = async () => {
     if (selectedAlerts.length === 0) return;
-    
+
     if (confirm(`Are you sure you want to delete ${selectedAlerts.length} alert(s)? This action cannot be undone.`)) {
       try {
         // Delete from SharePoint
         await alertService.deleteAlerts(selectedAlerts);
-        
+
         // Update local state
         setExistingAlerts(prev => prev.filter(alert => !selectedAlerts.includes(alert.id)));
         setSelectedAlerts([]);
-        
+
         // Show success message
         const successElement = document.createElement('div');
         successElement.style.cssText = `
@@ -781,7 +781,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         `;
         successElement.textContent = `✅ ${selectedAlerts.length} alert(s) deleted successfully!`;
         document.body.appendChild(successElement);
-        
+
         setTimeout(() => {
           if (document.body.contains(successElement)) {
             document.body.removeChild(successElement);
@@ -789,7 +789,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         }, 3000);
       } catch (error) {
         console.error('Failed to delete alerts:', error);
-        
+
         // Show error message
         const errorElement = document.createElement('div');
         errorElement.style.cssText = `
@@ -807,7 +807,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         `;
         errorElement.textContent = '❌ Failed to delete some alerts';
         document.body.appendChild(errorElement);
-        
+
         setTimeout(() => {
           if (document.body.contains(errorElement)) {
             document.body.removeChild(errorElement);
@@ -836,15 +836,15 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         scheduledStart: editingAlert.scheduledStart?.toISOString(),
         scheduledEnd: editingAlert.scheduledEnd?.toISOString()
       });
-      
+
       // Update local state
-      setExistingAlerts(prev => prev.map(alert => 
+      setExistingAlerts(prev => prev.map(alert =>
         alert.id === editingAlert.id ? updatedAlert : alert
       ));
-      
+
       setIsEditingAlert(false);
       setEditingAlert(null);
-      
+
       // Show success message
       const successElement = document.createElement('div');
       successElement.style.cssText = `
@@ -862,7 +862,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       `;
       successElement.textContent = '✅ Alert updated successfully!';
       document.body.appendChild(successElement);
-      
+
       setTimeout(() => {
         if (document.body.contains(successElement)) {
           document.body.removeChild(successElement);
@@ -870,7 +870,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       }, 3000);
     } catch (error) {
       console.error('Failed to update alert:', error);
-      
+
       // Show error message
       const errorElement = document.createElement('div');
       errorElement.style.cssText = `
@@ -888,7 +888,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       `;
       errorElement.textContent = '❌ Failed to update alert';
       document.body.appendChild(errorElement);
-      
+
       setTimeout(() => {
         if (document.body.contains(errorElement)) {
           document.body.removeChild(errorElement);
@@ -921,7 +921,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
             onSelectTemplate={handleTemplateSelect}
             className={styles.templates}
           />
-          
+
           <div className={styles.templateActions}>
             <SharePointButton
               variant="secondary"
@@ -950,7 +950,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                   error={errors.title}
                   description="This will be the main heading of your alert (3-100 characters)"
                 />
-                
+
                 <SharePointRichTextEditor
                   label="Alert Description"
                   value={newAlert.description}
@@ -981,7 +981,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                     error={errors.AlertType}
                     description="Determines the visual appearance of the alert"
                   />
-                  
+
                   <SharePointSelect
                     label="Priority Level"
                     value={newAlert.priority}
@@ -1040,7 +1040,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                       error={errors.scheduledStart}
                       description="When should this alert become visible? Leave empty for immediate."
                     />
-                    
+
                     <SharePointInput
                       label="End Date & Time"
                       value={newAlert.scheduledEnd ? newAlert.scheduledEnd.toISOString().slice(0, 16) : ""}
@@ -1090,7 +1090,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                     error={errors.linkUrl}
                     description="Optional action link for more information"
                   />
-                  
+
                   <SharePointInput
                     label="Link Text"
                     value={newAlert.linkDescription}
@@ -1141,7 +1141,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                       {showPreview ? "Hide Preview" : "Show Preview"}
                     </SharePointButton>
                   </div>
-                  
+
                   <AlertPreview
                     title={newAlert.title || "Alert Title"}
                     description={newAlert.description || "Alert description will appear here..."}
@@ -1203,7 +1203,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
           {existingAlerts.map((alert) => {
             const alertType = alertTypes.find(type => type.name === alert.AlertType);
             const isSelected = selectedAlerts.includes(alert.id);
-            
+
             return (
               <div key={alert.id} className={`${styles.alertCard} ${isSelected ? styles.selected : ''}`}>
                 <div className={styles.alertCardHeader}>
@@ -1238,20 +1238,19 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                       {alert.AlertType}
                     </div>
                   )}
-                  
+
                   <h4 className={styles.alertCardTitle}>{alert.title}</h4>
-                  <div className={styles.alertCardDescription} 
-                       dangerouslySetInnerHTML={{ __html: alert.description }} />
-                  
+                  <div className={styles.alertCardDescription}
+                    dangerouslySetInnerHTML={{ __html: alert.description }} />
+
                   <div className={styles.alertMetadata}>
                     <div className={styles.metadataRow}>
                       <span className={styles.metadataLabel}>Priority:</span>
-                      <span className={`${styles.priorityBadge} ${
-                        alert.priority.toLowerCase() === 'critical' ? styles.critical :
-                        alert.priority.toLowerCase() === 'high' ? styles.high :
-                        alert.priority.toLowerCase() === 'medium' ? styles.medium :
-                        styles.low
-                      }`}>
+                      <span className={`${styles.priorityBadge} ${alert.priority.toLowerCase() === 'critical' ? styles.critical :
+                          alert.priority.toLowerCase() === 'high' ? styles.high :
+                            alert.priority.toLowerCase() === 'medium' ? styles.medium :
+                              styles.low
+                        }`}>
                         {alert.priority.toUpperCase()}
                       </span>
                     </div>
@@ -1330,7 +1329,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                     placeholder="Enter a clear, concise title"
                     required
                   />
-                  
+
                   <SharePointRichTextEditor
                     label="Alert Description"
                     value={editingAlert.description}
@@ -1351,7 +1350,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                       placeholder="Choose alert style"
                       required
                     />
-                    
+
                     <SharePointSelect
                       label="Priority Level"
                       value={editingAlert.priority}
@@ -1385,7 +1384,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                       }}
                       type="datetime-local"
                     />
-                    
+
                     <SharePointInput
                       label="End Date & Time"
                       value={editingAlert.scheduledEnd ? editingAlert.scheduledEnd.toISOString().slice(0, 16) : ""}
@@ -1452,7 +1451,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                 required
                 description="A unique name for this alert type"
               />
-              
+
               <div className={styles.colorRow}>
                 <ColorPicker
                   label="Background Color"
@@ -1460,7 +1459,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                   onChange={(color) => setNewAlertType(prev => ({ ...prev, backgroundColor: color }))}
                   description="Main background color for alerts of this type"
                 />
-                
+
                 <ColorPicker
                   label="Text Color"
                   value={newAlertType.textColor}
@@ -1503,7 +1502,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                 </SharePointButton>
               </div>
             </div>
-            
+
             <div className={styles.typePreviewColumn}>
               <AlertPreview
                 title="Sample Alert Title"
@@ -1523,8 +1522,8 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         </div>
         <div className={styles.existingTypes}>
           {alertTypes.map((type, index) => (
-            <div 
-              key={type.name} 
+            <div
+              key={type.name}
               className={styles.alertTypeCard}
               draggable
               onDragStart={(e) => handleDragStart(e, index)}
@@ -1536,7 +1535,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                 <span className={styles.dragIcon}>⋮⋮</span>
                 <span className={styles.orderNumber}>#{index + 1}</span>
               </div>
-              
+
               <div className={styles.typePreview}>
                 <AlertPreview
                   title={`Sample ${type.name} Alert`}
@@ -1546,7 +1545,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
                   isPinned={false}
                 />
               </div>
-              
+
               <div className={styles.typeActions}>
                 <SharePointButton
                   variant="danger"
@@ -1558,7 +1557,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
               </div>
             </div>
           ))}
-          
+
           {alertTypes.length === 0 && (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>🎨</div>
@@ -1581,14 +1580,14 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
             onChange={(checked) => setSettings(prev => ({ ...prev, userTargetingEnabled: checked }))}
             description="Allow alerts to target specific users or groups based on SharePoint profiles and security groups"
           />
-          
+
           <SharePointToggle
             label="Enable Browser Notifications"
             checked={settings.notificationsEnabled}
             onChange={(checked) => setSettings(prev => ({ ...prev, notificationsEnabled: checked }))}
             description="Send native browser notifications for critical and high-priority alerts to ensure visibility"
           />
-          
+
           <SharePointToggle
             label="Enable Rich Media Support"
             checked={settings.richMediaEnabled}
@@ -1650,7 +1649,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       >
         Settings
       </SharePointButton>
-      
+
       <SharePointDialog
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
@@ -1661,28 +1660,28 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       >
         <div className={styles.settingsContainer}>
           <div className={styles.tabs}>
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "create" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("create")}
             >
               <span className={styles.tabIcon}>➕</span>
               Create Alert
             </button>
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "manage" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("manage")}
             >
               <span className={styles.tabIcon}>📋</span>
               Manage Alerts
             </button>
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "types" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("types")}
             >
               <span className={styles.tabIcon}>🎨</span>
               Alert Types
             </button>
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "settings" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("settings")}
             >
@@ -1690,7 +1689,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
               Settings
             </button>
           </div>
-          
+
           {activeTab === "create" && renderCreateAlert()}
           {activeTab === "manage" && renderManageAlerts()}
           {activeTab === "types" && renderAlertTypes()}

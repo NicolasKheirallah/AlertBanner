@@ -1,5 +1,5 @@
 import * as React from "react";
-import { 
+import {
   Settings24Regular,
   Warning24Regular,
   Sparkle24Regular,
@@ -206,7 +206,7 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
   const filteredTemplates = ALERT_TEMPLATES.filter(template => {
     const matchesCategory = selectedCategory === "all" || template.category === selectedCategory;
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchTerm.toLowerCase());
+      template.description.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 

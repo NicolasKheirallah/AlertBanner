@@ -40,7 +40,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     const getLuminance = (color: string): number => {
       // Convert color to RGB values
       let r: number, g: number, b: number;
-      
+
       if (color.startsWith('#')) {
         // Hex color
         const hex = color.replace('#', '');
@@ -61,18 +61,18 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
         // For other colors, use a conservative approach
         return 0.5; // Assume medium luminance
       }
-      
+
       // Calculate relative luminance using WCAG formula
       const toLinear = (val: number) => {
         val = val / 255;
         return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
       };
-      
+
       return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
     };
-    
+
     const bgLuminance = getLuminance(bgColor);
-    
+
     // If background is light (luminance > 0.5), use dark text
     // If background is dark (luminance <= 0.5), use light text
     if (bgLuminance > 0.5) {
@@ -81,7 +81,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
       // Check if the original text color would have good contrast
       const textLuminance = getLuminance(alertType.textColor);
       const contrast = (Math.max(bgLuminance, textLuminance) + 0.05) / (Math.min(bgLuminance, textLuminance) + 0.05);
-      
+
       // If contrast is good (4.5:1 or better), use original color
       if (contrast >= 4.5) {
         return alertType.textColor;
@@ -110,8 +110,8 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
         <h4>Live Preview</h4>
         <span className={styles.previewNote}>This is how your alert will appear</span>
       </div>
-      
-      <div 
+
+      <div
         className={`${styles.alertPreview} ${getPriorityClass(priority)} ${isPinned ? styles.pinned : ''}`}
         style={containerStyle}
       >
@@ -121,7 +121,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
               {getPriorityIcon(priority)}
             </div>
           </div>
-          
+
           <div className={styles.textSection}>
             {title && (
               <div className={styles.alertTitle} style={textStyle}>
@@ -129,13 +129,13 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
                 {isPinned && <span className={styles.pinnedBadge} style={textStyle}>📌 PINNED</span>}
               </div>
             )}
-            
+
             {description && (
               <div className={styles.alertDescription} style={textStyle}>
                 <div dangerouslySetInnerHTML={{ __html: description || 'Alert description will appear here...' }} />
               </div>
             )}
-            
+
             {linkUrl && linkDescription && (
               <div className={styles.alertLink}>
                 <a href={linkUrl} target="_blank" rel="noopener noreferrer" style={textStyle}>
@@ -144,7 +144,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
               </div>
             )}
           </div>
-          
+
           <div className={styles.actionSection}>
             <button className={styles.expandButton} type="button">
               ⌄
@@ -155,7 +155,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
           </div>
         </div>
       </div>
-      
+
       <div className={styles.previewInfo}>
         <div className={styles.infoGrid}>
           <div className={styles.infoItem}>

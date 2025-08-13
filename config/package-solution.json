@@ -3,7 +3,7 @@
     "solution": {
         "name": "alert-banner-client-side-solution",
         "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
-        "version": "1.1.0.460",
+        "version": "2.0.0.1",
         "includeClientSideAssets": true,
         "skipFeatureDeployment": true,
         "isDomainIsolated": false,
@@ -38,10 +38,10 @@
         },
         "metadata": {
             "shortDescription": {
-                "default": "Enhanced alert banner with priority, notifications, targeting and multi-language support"
+                "default": "Hierarchical alert banner with Home/Hub/Site distribution, automatic list management, and multi-language content creation"
             },
             "longDescription": {
-                "default": "A customizable alert banner that displays organization-wide messages with priority levels, user targeting, rich media content, notifications, and multi-language support."
+                "default": "A sophisticated alert banner with hierarchical site distribution (Home/Hub/Site), automatic list detection and creation, multi-language content management, user targeting, rich media support, and comprehensive site context awareness."
             },
             "screenshotPaths": [],
             "videoUrl": "",

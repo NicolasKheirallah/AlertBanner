@@ -55,7 +55,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
   const [activeTab, setActiveTab] = React.useState<"settings" | "alerts" | "types">("settings");
   const [isCreatingAlert, setIsCreatingAlert] = React.useState(false);
   const [isCreatingType, setIsCreatingType] = React.useState(false);
-  
+
   // Settings state
   const [settings, setSettings] = React.useState<ISettingsData>({
     alertTypesJson,
@@ -63,7 +63,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
     notificationsEnabled,
     richMediaEnabled
   });
-  
+
   // Alert types state
   const [alertTypes, setAlertTypes] = React.useState<IAlertType[]>(() => {
     try {
@@ -72,7 +72,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
       return [];
     }
   });
-  
+
   // New alert state
   const [newAlert, setNewAlert] = React.useState<INewAlert>({
     title: "",
@@ -84,7 +84,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
     linkUrl: "",
     linkDescription: ""
   });
-  
+
   // New alert type state
   const [newAlertType, setNewAlertType] = React.useState<IAlertType>({
     name: "",
@@ -165,7 +165,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
       // For now, we'll just show a success message
       console.log("Creating alert:", alertItem);
       alert("Alert created successfully! (In a real implementation, this would save to SharePoint)");
-      
+
       // Reset form
       setNewAlert({
         title: "",
@@ -178,7 +178,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
         linkDescription: ""
       });
       setIsCreatingAlert(false);
-      
+
     } catch (error) {
       console.error("Error creating alert:", error);
       alert("Failed to create alert. Please try again.");
@@ -193,7 +193,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
 
     const updatedTypes = [...alertTypes, { ...newAlertType, name: newAlertType.name.trim() }];
     setAlertTypes(updatedTypes);
-    
+
     // Reset form
     setNewAlertType({
       name: "",
@@ -227,14 +227,14 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
           onChange={(checked) => setSettings(prev => ({ ...prev, userTargetingEnabled: checked }))}
           description="Allow alerts to target specific users or groups based on SharePoint profiles"
         />
-        
+
         <SharePointToggle
           label="Enable Browser Notifications"
           checked={settings.notificationsEnabled}
           onChange={(checked) => setSettings(prev => ({ ...prev, notificationsEnabled: checked }))}
           description="Send browser notifications for critical and high-priority alerts"
         />
-        
+
         <SharePointToggle
           label="Enable Rich Media Support"
           checked={settings.richMediaEnabled}
@@ -248,7 +248,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
           <h4>Alert Types JSON Configuration</h4>
           <p>Advanced users can modify the alert types directly in JSON format. This allows for complete customization of colors, styles, and priority configurations.</p>
         </div>
-        
+
         <SharePointTextArea
           label="Alert Types Configuration"
           value={JSON.stringify(alertTypes, null, 2)}
@@ -291,7 +291,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
               placeholder="Enter alert title"
               required
             />
-            
+
             <SharePointSelect
               label="Alert Type"
               value={newAlert.AlertType}
@@ -300,14 +300,14 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
               placeholder="Select alert type"
               required
             />
-            
+
             <SharePointSelect
               label="Priority"
               value={newAlert.priority}
               onChange={(value) => setNewAlert(prev => ({ ...prev, priority: value as AlertPriority }))}
               options={priorityOptions}
             />
-            
+
             <SharePointSelect
               label="Notification Type"
               value={newAlert.notificationType}
@@ -333,7 +333,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
               placeholder="https://example.com"
               type="url"
             />
-            
+
             <SharePointInput
               label="Link Description"
               value={newAlert.linkDescription}
@@ -370,8 +370,8 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
 
       <div className={styles.infoBox}>
         <h4>Alert Management</h4>
-        <p>Create alerts that will appear in the banner for all users (or targeted users if targeting is enabled). 
-           Alerts support rich content, links, priority levels, and various notification options.</p>
+        <p>Create alerts that will appear in the banner for all users (or targeted users if targeting is enabled).
+          Alerts support rich content, links, priority levels, and various notification options.</p>
         <ul>
           <li><strong>Critical:</strong> Red styling, optional notifications</li>
           <li><strong>High:</strong> Orange styling, recommended for important updates</li>
@@ -405,14 +405,14 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
               placeholder="e.g., Maintenance, Emergency, Update"
               required
             />
-            
+
             <SharePointInput
               label="Icon Name"
               value={newAlertType.iconName}
               onChange={(value) => setNewAlertType(prev => ({ ...prev, iconName: value }))}
               placeholder="Info, Warning, Error, etc."
             />
-            
+
             <SharePointInput
               label="Background Color"
               value={newAlertType.backgroundColor}
@@ -420,7 +420,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
               placeholder="#0078d4"
               type="text"
             />
-            
+
             <SharePointInput
               label="Text Color"
               value={newAlertType.textColor}
@@ -504,7 +504,7 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
       >
         Settings
       </SharePointButton>
-      
+
       <SharePointDialog
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
@@ -515,26 +515,26 @@ const ComprehensiveAlertSettings: React.FC<IComprehensiveAlertSettingsProps> = (
       >
         <div className={styles.settingsContainer}>
           <div className={styles.tabs}>
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "settings" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("settings")}
             >
               Settings
             </button>
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "alerts" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("alerts")}
             >
               Create Alerts
             </button>
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "types" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("types")}
             >
               Alert Types
             </button>
           </div>
-          
+
           {activeTab === "settings" && renderSettings()}
           {activeTab === "alerts" && renderAlerts()}
           {activeTab === "types" && renderAlertTypes()}
