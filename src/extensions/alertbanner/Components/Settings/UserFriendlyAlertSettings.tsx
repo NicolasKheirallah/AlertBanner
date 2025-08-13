@@ -19,6 +19,7 @@ import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import SharePointRichTextEditor from "../UI/SharePointRichTextEditor";
 import SiteSelector from "../UI/SiteSelector";
 import { SiteContextDetector, ISiteContext, ISiteValidationResult } from "../Utils/SiteContextDetector";
+import { SharePointAlertService, IAlertItem } from "../Services/SharePointAlertService";
 import styles from "./UserFriendlyAlertSettings.module.scss";
 
 export interface IUserFriendlyAlertSettingsProps {
@@ -49,7 +50,6 @@ interface INewAlert {
   linkUrl: string;
   linkDescription: string;
   targetSites: string[];
-  includeSubsites: boolean;
   scheduledStart?: Date;
   scheduledEnd?: Date;
 }
@@ -65,6 +65,11 @@ interface IFormErrors {
   scheduledEnd?: string;
 }
 
+interface IEditingAlert extends Omit<IAlertItem, 'scheduledStart' | 'scheduledEnd'> {
+  scheduledStart?: Date;
+  scheduledEnd?: Date;
+}
+
 const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
   isInEditMode,
   alertTypesJson,
@@ -76,7 +81,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
   onSettingsChange
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<"create" | "types" | "settings">("create");
+  const [activeTab, setActiveTab] = React.useState<"create" | "manage" | "types" | "settings">("create");
   const [showTemplates, setShowTemplates] = React.useState(true);
   const [isCreatingType, setIsCreatingType] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(true);
@@ -86,6 +91,16 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
   const [currentSiteContext, setCurrentSiteContext] = React.useState<ISiteContext | null>(null);
   const [creationProgress, setCreationProgress] = React.useState<ISiteValidationResult[]>([]);
   const [isCreatingAlert, setIsCreatingAlert] = React.useState(false);
+  
+  // SharePoint service
+  const [alertService] = React.useState(() => new SharePointAlertService(graphClient, context));
+  
+  // Alert management state
+  const [existingAlerts, setExistingAlerts] = React.useState<IAlertItem[]>([]);
+  const [isLoadingAlerts, setIsLoadingAlerts] = React.useState(false);
+  const [selectedAlerts, setSelectedAlerts] = React.useState<string[]>([]);
+  const [editingAlert, setEditingAlert] = React.useState<IEditingAlert | null>(null);
+  const [isEditingAlert, setIsEditingAlert] = React.useState(false);
   
   // Settings state
   const [settings, setSettings] = React.useState<ISettingsData>({
@@ -104,6 +119,19 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     }
   });
   
+  // Load alert types from SharePoint on init
+  React.useEffect(() => {
+    if (isInEditMode) {
+      alertService.getAlertTypes().then(types => {
+        if (types.length > 0) {
+          setAlertTypes(types);
+        }
+      }).catch(error => {
+        console.warn('Using default alert types:', error);
+      });
+    }
+  }, [isInEditMode, alertService]);
+  
   // New alert state
   const [newAlert, setNewAlert] = React.useState<INewAlert>({
     title: "",
@@ -115,7 +143,6 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     linkUrl: "",
     linkDescription: "",
     targetSites: [],
-    includeSubsites: false,
     scheduledStart: undefined,
     scheduledEnd: undefined
   });
@@ -248,7 +275,6 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       linkDescription: template.template.linkDescription || "",
       // Keep existing targeting settings
       targetSites: prev.targetSites.length > 0 ? prev.targetSites : (currentSiteContext ? [currentSiteContext.siteId] : []),
-      includeSubsites: prev.includeSubsites,
       scheduledStart: prev.scheduledStart,
       scheduledEnd: prev.scheduledEnd
     }));
@@ -256,13 +282,89 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     setErrors({});
   };
 
-  const handleSaveSettings = () => {
-    const updatedSettings = {
-      ...settings,
-      alertTypesJson: JSON.stringify(alertTypes, null, 2)
-    };
-    onSettingsChange(updatedSettings);
-    setIsOpen(false);
+  const handleSaveSettings = async () => {
+    try {
+      // Save alert types to SharePoint
+      await alertService.saveAlertTypes(alertTypes);
+      
+      const updatedSettings = {
+        ...settings,
+        alertTypesJson: JSON.stringify(alertTypes, null, 2)
+      };
+      onSettingsChange(updatedSettings);
+      setIsOpen(false);
+      
+      // Show success message
+      const successElement = document.createElement('div');
+      successElement.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #107c10;
+        color: white;
+        padding: 16px 20px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001;
+        font-family: Segoe UI;
+        font-size: 14px;
+      `;
+      successElement.textContent = '✅ Settings saved successfully!';
+      document.body.appendChild(successElement);
+      
+      setTimeout(() => {
+        if (document.body.contains(successElement)) {
+          document.body.removeChild(successElement);
+        }
+      }, 3000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      
+      // Still save to local settings even if SharePoint fails
+      const updatedSettings = {
+        ...settings,
+        alertTypesJson: JSON.stringify(alertTypes, null, 2)
+      };
+      onSettingsChange(updatedSettings);
+      setIsOpen(false);
+      
+      // Show appropriate warning message based on error type
+      const warningElement = document.createElement('div');
+      let message = '';
+      let backgroundColor = '#8a6914';
+      
+      if (error.message?.includes('PERMISSION_DENIED')) {
+        message = '⚠️ Settings saved locally only - SharePoint permissions required for persistent storage';
+      } else if (error.message?.includes('LISTS_NOT_FOUND')) {
+        message = '⚠️ Settings saved locally only - SharePoint lists not available';
+      } else {
+        message = '⚠️ Settings saved locally only - SharePoint integration unavailable';
+      }
+      
+      warningElement.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${backgroundColor};
+        color: white;
+        padding: 16px 20px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001;
+        font-family: Segoe UI;
+        font-size: 14px;
+        max-width: 320px;
+        line-height: 1.4;
+      `;
+      warningElement.textContent = message;
+      document.body.appendChild(warningElement);
+      
+      setTimeout(() => {
+        if (document.body.contains(warningElement)) {
+          document.body.removeChild(warningElement);
+        }
+      }, 8000);
+    }
   };
 
   const handleCreateAlert = async () => {
@@ -285,72 +387,39 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         throw new Error("You don't have permission to create alerts on any of the selected sites.");
       }
 
-      // Create alert on each valid site
-      const createPromises = validSites.map(async (siteValidation) => {
-        try {
-          const alertItem = {
-            title: newAlert.title.trim(),
-            description: newAlert.description.trim(),
-            AlertType: newAlert.AlertType,
-            priority: newAlert.priority,
-            isPinned: newAlert.isPinned,
-            notificationType: newAlert.notificationType,
-            ...(newAlert.linkUrl && newAlert.linkDescription && {
-              link: {
-                Url: newAlert.linkUrl.trim(),
-                Description: newAlert.linkDescription.trim()
-              }
-            }),
-            createdDate: newAlert.scheduledStart?.toISOString() || new Date().toISOString(),
-            createdBy: context.pageContext.user.displayName || "Alert Settings",
-            // Additional metadata for multi-site deployment
-            metadata: {
-              sourceSiteId: currentSiteContext?.siteId,
-              sourceSiteName: currentSiteContext?.siteName,
-              endDate: newAlert.scheduledEnd?.toISOString(),
-              deploymentTargets: newAlert.targetSites
-            }
-          };
-
-          // Here you would actually create the alert in SharePoint
-          // For now, we'll simulate the creation
-          console.log('Creating alert item:', alertItem);
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-          
-          return {
-            siteId: siteValidation.siteId,
-            success: true,
-            siteName: siteValidation.siteName
-          };
-        } catch (error) {
-          return {
-            siteId: siteValidation.siteId,
-            success: false,
-            siteName: siteValidation.siteName,
-            error: error.message
-          };
+      // Create alert using SharePoint service
+      const alertItem = {
+        title: newAlert.title.trim(),
+        description: newAlert.description.trim(),
+        AlertType: newAlert.AlertType,
+        priority: newAlert.priority,
+        isPinned: newAlert.isPinned,
+        notificationType: newAlert.notificationType,
+        linkUrl: newAlert.linkUrl?.trim(),
+        linkDescription: newAlert.linkDescription?.trim(),
+        targetSites: newAlert.targetSites,
+        scheduledStart: newAlert.scheduledStart?.toISOString(),
+        scheduledEnd: newAlert.scheduledEnd?.toISOString(),
+        metadata: {
+          sourceSiteId: currentSiteContext?.siteId,
+          sourceSiteName: currentSiteContext?.siteName,
+          deploymentTargets: newAlert.targetSites
         }
-      });
+      };
 
-      const results = await Promise.allSettled(createPromises);
-      const finalResults = results.map(result => 
-        result.status === 'fulfilled' ? result.value : {
-          siteId: '',
-          success: false,
-          siteName: 'Unknown',
-          error: 'Creation failed'
-        }
-      );
-
-      const successCount = finalResults.filter(r => r.success).length;
+      // Create the alert in SharePoint
+      const createdAlert = await alertService.createAlert(alertItem);
       
-      // Show comprehensive results
+      // Add to local state
+      setExistingAlerts(prev => [createdAlert, ...prev]);
+      
+      // Show success message
       const alertElement = document.createElement('div');
       alertElement.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: ${successCount > 0 ? '#107c10' : '#d13438'};
+        background: #107c10;
         color: white;
         padding: 16px 20px;
         border-radius: 4px;
@@ -360,27 +429,17 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         font-size: 14px;
         max-width: 300px;
       `;
-      
-      if (successCount === finalResults.length) {
-        alertElement.textContent = `✅ Alert created successfully on ${successCount} site${successCount !== 1 ? 's' : ''}!`;
-      } else if (successCount > 0) {
-        alertElement.textContent = `⚠️ Alert created on ${successCount} of ${finalResults.length} sites. Check details for failed sites.`;
-      } else {
-        alertElement.textContent = `❌ Failed to create alert on any sites. Please check your permissions.`;
-      }
-      
+      alertElement.textContent = `✅ Alert created successfully!`;
       document.body.appendChild(alertElement);
       
       setTimeout(() => {
         if (document.body.contains(alertElement)) {
           document.body.removeChild(alertElement);
         }
-      }, 5000);
+      }, 3000);
       
-      // Reset form if all succeeded
-      if (successCount === finalResults.length) {
-        resetForm();
-      }
+      // Reset form
+      resetForm();
       
     } catch (error) {
       console.error("Error creating alert:", error);
@@ -398,7 +457,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
         font-family: Segoe UI;
         font-size: 14px;
       `;
-      alertElement.textContent = `❌ ${error.message}`;
+      alertElement.textContent = `❌ Failed to create alert: ${error.message}`;
       document.body.appendChild(alertElement);
       
       setTimeout(() => {
@@ -422,7 +481,6 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       linkUrl: "",
       linkDescription: "",
       targetSites: currentSiteContext ? [currentSiteContext.siteId] : [],
-      includeSubsites: false,
       scheduledStart: undefined,
       scheduledEnd: undefined
     });
@@ -493,6 +551,363 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       }
     }
   };
+
+  // Drag and drop functionality for alert types
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+    e.currentTarget.style.opacity = '1';
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    
+    if (dragIndex === dropIndex) return;
+
+    const newTypes = [...alertTypes];
+    const [draggedItem] = newTypes.splice(dragIndex, 1);
+    newTypes.splice(dropIndex, 0, draggedItem);
+    
+    setAlertTypes(newTypes);
+    
+    // Show success message
+    const successElement = document.createElement('div');
+    successElement.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #107c10;
+      color: white;
+      padding: 16px 20px;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 10001;
+      font-family: Segoe UI;
+      font-size: 14px;
+    `;
+    successElement.textContent = '✅ Alert types reordered successfully!';
+    document.body.appendChild(successElement);
+    
+    setTimeout(() => {
+      if (document.body.contains(successElement)) {
+        document.body.removeChild(successElement);
+      }
+    }, 2000);
+  };
+
+  // Load existing alerts
+  const loadExistingAlerts = async () => {
+    setIsLoadingAlerts(true);
+    try {
+      // Initialize SharePoint lists if needed
+      await alertService.initializeLists();
+      
+      // Load alerts from SharePoint
+      const alerts = await alertService.getAlerts();
+      setExistingAlerts(alerts);
+      
+      // If no alerts were loaded and SharePoint integration is working, 
+      // show a helpful message about sample data being created
+      if (alerts.length === 0) {
+        console.log('No alerts found. Sample alerts should have been created during initialization.');
+        
+        // Try loading again after a brief delay to account for list creation timing
+        setTimeout(async () => {
+          try {
+            const retryAlerts = await alertService.getAlerts();
+            if (retryAlerts.length > 0) {
+              setExistingAlerts(retryAlerts);
+            }
+          } catch (retryError) {
+            console.warn('Retry loading alerts failed:', retryError);
+          }
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Failed to load alerts:', error);
+      
+      // Set empty alerts list when SharePoint integration fails
+      setExistingAlerts([]);
+      
+      // Show appropriate error message based on error type
+      const errorElement = document.createElement('div');
+      let message = '';
+      let backgroundColor = '#d13438';
+      
+      if (error.message?.includes('PERMISSION_DENIED')) {
+        backgroundColor = '#8a6914';
+        message = `
+          <strong>⚠️ Limited Permissions</strong><br>
+          You don't have permission to create SharePoint lists. Please contact your administrator to set up the required lists.
+        `;
+      } else if (error.message?.includes('LISTS_NOT_FOUND')) {
+        backgroundColor = '#8a6914';
+        message = `
+          <strong>⚠️ Lists Not Found</strong><br>
+          SharePoint lists don't exist and cannot be created. Please contact your administrator to set up the Alert Banner lists.
+        `;
+      } else {
+        message = `
+          <strong>❌ SharePoint Error</strong><br>
+          Unable to connect to SharePoint. Please check your permissions and try again.
+        `;
+      }
+      
+      errorElement.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${backgroundColor};
+        color: white;
+        padding: 16px 20px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001;
+        font-family: Segoe UI;
+        font-size: 14px;
+        max-width: 320px;
+        line-height: 1.4;
+      `;
+      errorElement.innerHTML = message;
+      document.body.appendChild(errorElement);
+      
+      setTimeout(() => {
+        if (document.body.contains(errorElement)) {
+          document.body.removeChild(errorElement);
+        }
+      }, 8000);
+    } finally {
+      setIsLoadingAlerts(false);
+    }
+  };
+
+  const handleDeleteAlert = async (alertId: string) => {
+    if (confirm('Are you sure you want to delete this alert? This action cannot be undone.')) {
+      try {
+        // Delete from SharePoint
+        await alertService.deleteAlert(alertId);
+        
+        // Update local state
+        setExistingAlerts(prev => prev.filter(alert => alert.id !== alertId));
+        setSelectedAlerts(prev => prev.filter(id => id !== alertId));
+        
+        // Show success message
+        const successElement = document.createElement('div');
+        successElement.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #107c10;
+          color: white;
+          padding: 16px 20px;
+          border-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          z-index: 10001;
+          font-family: Segoe UI;
+          font-size: 14px;
+        `;
+        successElement.textContent = '✅ Alert deleted successfully!';
+        document.body.appendChild(successElement);
+        
+        setTimeout(() => {
+          if (document.body.contains(successElement)) {
+            document.body.removeChild(successElement);
+          }
+        }, 3000);
+      } catch (error) {
+        console.error('Failed to delete alert:', error);
+        
+        // Show error message
+        const errorElement = document.createElement('div');
+        errorElement.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #d13438;
+          color: white;
+          padding: 16px 20px;
+          border-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          z-index: 10001;
+          font-family: Segoe UI;
+          font-size: 14px;
+        `;
+        errorElement.textContent = '❌ Failed to delete alert';
+        document.body.appendChild(errorElement);
+        
+        setTimeout(() => {
+          if (document.body.contains(errorElement)) {
+            document.body.removeChild(errorElement);
+          }
+        }, 3000);
+      }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedAlerts.length === 0) return;
+    
+    if (confirm(`Are you sure you want to delete ${selectedAlerts.length} alert(s)? This action cannot be undone.`)) {
+      try {
+        // Delete from SharePoint
+        await alertService.deleteAlerts(selectedAlerts);
+        
+        // Update local state
+        setExistingAlerts(prev => prev.filter(alert => !selectedAlerts.includes(alert.id)));
+        setSelectedAlerts([]);
+        
+        // Show success message
+        const successElement = document.createElement('div');
+        successElement.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #107c10;
+          color: white;
+          padding: 16px 20px;
+          border-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          z-index: 10001;
+          font-family: Segoe UI;
+          font-size: 14px;
+        `;
+        successElement.textContent = `✅ ${selectedAlerts.length} alert(s) deleted successfully!`;
+        document.body.appendChild(successElement);
+        
+        setTimeout(() => {
+          if (document.body.contains(successElement)) {
+            document.body.removeChild(successElement);
+          }
+        }, 3000);
+      } catch (error) {
+        console.error('Failed to delete alerts:', error);
+        
+        // Show error message
+        const errorElement = document.createElement('div');
+        errorElement.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #d13438;
+          color: white;
+          padding: 16px 20px;
+          border-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          z-index: 10001;
+          font-family: Segoe UI;
+          font-size: 14px;
+        `;
+        errorElement.textContent = '❌ Failed to delete some alerts';
+        document.body.appendChild(errorElement);
+        
+        setTimeout(() => {
+          if (document.body.contains(errorElement)) {
+            document.body.removeChild(errorElement);
+          }
+        }, 3000);
+      }
+    }
+  };
+
+  const handleEditAlert = (alert: IAlertItem) => {
+    setEditingAlert({
+      ...alert,
+      scheduledStart: alert.scheduledStart ? new Date(alert.scheduledStart) : undefined,
+      scheduledEnd: alert.scheduledEnd ? new Date(alert.scheduledEnd) : undefined
+    });
+    setIsEditingAlert(true);
+  };
+
+  const handleSaveEditedAlert = async () => {
+    if (!editingAlert) return;
+
+    try {
+      // Update in SharePoint
+      const updatedAlert = await alertService.updateAlert(editingAlert.id, {
+        ...editingAlert,
+        scheduledStart: editingAlert.scheduledStart?.toISOString(),
+        scheduledEnd: editingAlert.scheduledEnd?.toISOString()
+      });
+      
+      // Update local state
+      setExistingAlerts(prev => prev.map(alert => 
+        alert.id === editingAlert.id ? updatedAlert : alert
+      ));
+      
+      setIsEditingAlert(false);
+      setEditingAlert(null);
+      
+      // Show success message
+      const successElement = document.createElement('div');
+      successElement.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #107c10;
+        color: white;
+        padding: 16px 20px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001;
+        font-family: Segoe UI;
+        font-size: 14px;
+      `;
+      successElement.textContent = '✅ Alert updated successfully!';
+      document.body.appendChild(successElement);
+      
+      setTimeout(() => {
+        if (document.body.contains(successElement)) {
+          document.body.removeChild(successElement);
+        }
+      }, 3000);
+    } catch (error) {
+      console.error('Failed to update alert:', error);
+      
+      // Show error message
+      const errorElement = document.createElement('div');
+      errorElement.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #d13438;
+        color: white;
+        padding: 16px 20px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001;
+        font-family: Segoe UI;
+        font-size: 14px;
+      `;
+      errorElement.textContent = '❌ Failed to update alert';
+      document.body.appendChild(errorElement);
+      
+      setTimeout(() => {
+        if (document.body.contains(errorElement)) {
+          document.body.removeChild(errorElement);
+        }
+      }, 3000);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingAlert(false);
+    setEditingAlert(null);
+  };
+
+  // Load alerts when management tab is opened
+  React.useEffect(() => {
+    if (activeTab === 'manage' && existingAlerts.length === 0 && !isLoadingAlerts) {
+      loadExistingAlerts();
+    }
+  }, [activeTab]);
 
   const getSelectedAlertType = (): IAlertType | undefined => {
     return alertTypes.find(type => type.name === newAlert.AlertType);
@@ -745,6 +1160,270 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
     </div>
   );
 
+  const renderManageAlerts = () => (
+    <div className={styles.tabContent}>
+      <div className={styles.tabHeader}>
+        <div>
+          <h3>Manage Alerts</h3>
+          <p>View, edit, and manage existing alerts across your sites</p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {selectedAlerts.length > 0 && (
+            <SharePointButton
+              variant="danger"
+              icon={<Delete24Regular />}
+              onClick={handleBulkDelete}
+            >
+              Delete Selected ({selectedAlerts.length})
+            </SharePointButton>
+          )}
+          <SharePointButton
+            variant="secondary"
+            onClick={loadExistingAlerts}
+            disabled={isLoadingAlerts}
+          >
+            {isLoadingAlerts ? 'Refreshing...' : 'Refresh'}
+          </SharePointButton>
+        </div>
+      </div>
+
+      {isLoadingAlerts ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#605e5c' }}>
+          <div style={{ fontSize: '16px', marginBottom: '8px' }}>Loading alerts...</div>
+          <div style={{ fontSize: '14px' }}>Please wait while we fetch your alerts</div>
+        </div>
+      ) : existingAlerts.length === 0 ? (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>📢</div>
+          <h4>No Alerts Found</h4>
+          <p>No alerts are currently available. Create your first alert using the "Create Alert" tab, or check if SharePoint integration is properly configured.</p>
+        </div>
+      ) : (
+        <div className={styles.alertsList}>
+          {existingAlerts.map((alert) => {
+            const alertType = alertTypes.find(type => type.name === alert.AlertType);
+            const isSelected = selectedAlerts.includes(alert.id);
+            
+            return (
+              <div key={alert.id} className={`${styles.alertCard} ${isSelected ? styles.selected : ''}`}>
+                <div className={styles.alertCardHeader}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedAlerts(prev => [...prev, alert.id]);
+                      } else {
+                        setSelectedAlerts(prev => prev.filter(id => id !== alert.id));
+                      }
+                    }}
+                    className={styles.alertCheckbox}
+                  />
+                  <div className={styles.alertStatus}>
+                    <span className={`${styles.statusBadge} ${alert.status.toLowerCase() === 'active' ? styles.active : alert.status.toLowerCase() === 'expired' ? styles.expired : styles.scheduled}`}>
+                      {alert.status}
+                    </span>
+                    {alert.isPinned && (
+                      <span className={styles.pinnedBadge}>📌 PINNED</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.alertCardContent}>
+                  {alertType && (
+                    <div className={styles.alertTypeIndicator} style={{
+                      backgroundColor: alertType.backgroundColor,
+                      color: alertType.textColor
+                    }}>
+                      {alert.AlertType}
+                    </div>
+                  )}
+                  
+                  <h4 className={styles.alertCardTitle}>{alert.title}</h4>
+                  <div className={styles.alertCardDescription} 
+                       dangerouslySetInnerHTML={{ __html: alert.description }} />
+                  
+                  <div className={styles.alertMetadata}>
+                    <div className={styles.metadataRow}>
+                      <span className={styles.metadataLabel}>Priority:</span>
+                      <span className={`${styles.priorityBadge} ${
+                        alert.priority.toLowerCase() === 'critical' ? styles.critical :
+                        alert.priority.toLowerCase() === 'high' ? styles.high :
+                        alert.priority.toLowerCase() === 'medium' ? styles.medium :
+                        styles.low
+                      }`}>
+                        {alert.priority.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className={styles.metadataRow}>
+                      <span className={styles.metadataLabel}>Created by:</span>
+                      <span>{alert.createdBy}</span>
+                    </div>
+                    <div className={styles.metadataRow}>
+                      <span className={styles.metadataLabel}>Created:</span>
+                      <span>{new Date(alert.createdDate).toLocaleDateString()}</span>
+                    </div>
+                    {alert.scheduledEnd && (
+                      <div className={styles.metadataRow}>
+                        <span className={styles.metadataLabel}>Expires:</span>
+                        <span>{new Date(alert.scheduledEnd).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.alertCardActions}>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={() => handleEditAlert(alert)}
+                  >
+                    Edit
+                  </SharePointButton>
+                  <SharePointButton
+                    variant="danger"
+                    icon={<Delete24Regular />}
+                    onClick={() => handleDeleteAlert(alert.id)}
+                  >
+                    Delete
+                  </SharePointButton>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Edit Alert Dialog */}
+      {isEditingAlert && editingAlert && (
+        <SharePointDialog
+          isOpen={isEditingAlert}
+          onClose={handleCancelEdit}
+          title={`Edit Alert: ${editingAlert.title}`}
+          width={900}
+          height={700}
+          footer={
+            <div className={styles.dialogFooter}>
+              <SharePointButton
+                variant="primary"
+                icon={<Save24Regular />}
+                onClick={handleSaveEditedAlert}
+              >
+                Save Changes
+              </SharePointButton>
+              <SharePointButton
+                variant="secondary"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </SharePointButton>
+            </div>
+          }
+        >
+          <div className={styles.editAlertForm}>
+            <div className={styles.formWithPreview}>
+              <div className={styles.formColumn}>
+                <SharePointSection title="Basic Information">
+                  <SharePointInput
+                    label="Alert Title"
+                    value={editingAlert.title}
+                    onChange={(value) => setEditingAlert(prev => prev ? { ...prev, title: value } : null)}
+                    placeholder="Enter a clear, concise title"
+                    required
+                  />
+                  
+                  <SharePointRichTextEditor
+                    label="Alert Description"
+                    value={editingAlert.description}
+                    onChange={(value) => setEditingAlert(prev => prev ? { ...prev, description: value } : null)}
+                    placeholder="Provide detailed information about the alert..."
+                    required
+                    rows={6}
+                  />
+                </SharePointSection>
+
+                <SharePointSection title="Alert Configuration">
+                  <div className={styles.configGrid}>
+                    <SharePointSelect
+                      label="Alert Type"
+                      value={editingAlert.AlertType}
+                      onChange={(value) => setEditingAlert(prev => prev ? { ...prev, AlertType: value } : null)}
+                      options={alertTypeOptions}
+                      placeholder="Choose alert style"
+                      required
+                    />
+                    
+                    <SharePointSelect
+                      label="Priority Level"
+                      value={editingAlert.priority}
+                      onChange={(value) => setEditingAlert(prev => prev ? { ...prev, priority: value as AlertPriority } : null)}
+                      options={priorityOptions}
+                    />
+                  </div>
+
+                  <SharePointSelect
+                    label="Notifications"
+                    value={editingAlert.notificationType || NotificationType.None}
+                    onChange={(value) => setEditingAlert(prev => prev ? { ...prev, notificationType: value as NotificationType } : null)}
+                    options={notificationOptions}
+                  />
+
+                  <SharePointToggle
+                    label="Pin Alert to Top"
+                    checked={editingAlert.isPinned}
+                    onChange={(checked) => setEditingAlert(prev => prev ? { ...prev, isPinned: checked } : null)}
+                  />
+                </SharePointSection>
+
+                <SharePointSection title="Scheduling">
+                  <div className={styles.dateGrid}>
+                    <SharePointInput
+                      label="Start Date & Time"
+                      value={editingAlert.scheduledStart ? editingAlert.scheduledStart.toISOString().slice(0, 16) : ""}
+                      onChange={(value) => {
+                        const date = value ? new Date(value) : undefined;
+                        setEditingAlert(prev => prev ? { ...prev, scheduledStart: date } : null);
+                      }}
+                      type="datetime-local"
+                    />
+                    
+                    <SharePointInput
+                      label="End Date & Time"
+                      value={editingAlert.scheduledEnd ? editingAlert.scheduledEnd.toISOString().slice(0, 16) : ""}
+                      onChange={(value) => {
+                        const date = value ? new Date(value) : undefined;
+                        setEditingAlert(prev => prev ? { ...prev, scheduledEnd: date } : null);
+                      }}
+                      type="datetime-local"
+                    />
+                  </div>
+                </SharePointSection>
+              </div>
+
+              {(() => {
+                const selectedAlertType = alertTypes.find(type => type.name === editingAlert.AlertType);
+                return selectedAlertType ? (
+                  <div className={styles.previewColumn}>
+                    <div className={styles.previewSticky}>
+                      <AlertPreview
+                        title={editingAlert.title || "Alert Title"}
+                        description={editingAlert.description || "Alert description will appear here..."}
+                        alertType={selectedAlertType}
+                        priority={editingAlert.priority}
+                        isPinned={editingAlert.isPinned}
+                        linkUrl={editingAlert.linkUrl}
+                        linkDescription={editingAlert.linkDescription}
+                      />
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          </div>
+        </SharePointDialog>
+      )}
+    </div>
+  );
+
   const renderAlertTypes = () => (
     <div className={styles.tabContent}>
       <div className={styles.tabHeader}>
@@ -839,9 +1518,25 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
       )}
 
       <SharePointSection title="Existing Alert Types">
+        <div className={styles.dragDropInstructions}>
+          <p>💡 <strong>Tip:</strong> Drag and drop alert types to reorder them. The order here determines the display order in dropdown menus.</p>
+        </div>
         <div className={styles.existingTypes}>
           {alertTypes.map((type, index) => (
-            <div key={type.name} className={styles.alertTypeCard}>
+            <div 
+              key={type.name} 
+              className={styles.alertTypeCard}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, index)}
+            >
+              <div className={styles.dragHandle}>
+                <span className={styles.dragIcon}>⋮⋮</span>
+                <span className={styles.orderNumber}>#{index + 1}</span>
+              </div>
+              
               <div className={styles.typePreview}>
                 <AlertPreview
                   title={`Sample ${type.name} Alert`}
@@ -974,6 +1669,13 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
               Create Alert
             </button>
             <button 
+              className={`${styles.tab} ${activeTab === "manage" ? styles.activeTab : ""}`}
+              onClick={() => setActiveTab("manage")}
+            >
+              <span className={styles.tabIcon}>📋</span>
+              Manage Alerts
+            </button>
+            <button 
               className={`${styles.tab} ${activeTab === "types" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("types")}
             >
@@ -990,6 +1692,7 @@ const UserFriendlyAlertSettings: React.FC<IUserFriendlyAlertSettingsProps> = ({
           </div>
           
           {activeTab === "create" && renderCreateAlert()}
+          {activeTab === "manage" && renderManageAlerts()}
           {activeTab === "types" && renderAlertTypes()}
           {activeTab === "settings" && renderSettings()}
         </div>

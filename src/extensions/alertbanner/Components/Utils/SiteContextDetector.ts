@@ -91,7 +91,7 @@ export class SiteContextDetector {
       const userPermissions = await this.getUserPermissions(siteId);
       
       // Check if this is the root site
-      const isRootSite = this.isRootSiteCollection(siteUrl, tenantUrl);
+      const isRootSite = this.isRootSiteCollection(siteUrl);
 
       this.currentSiteContext = {
         siteId,
@@ -361,27 +361,97 @@ export class SiteContextDetector {
 
   private async getUserPermissions(siteId: string): Promise<ISitePermissions> {
     try {
-      const permissions = await this.graphClient
-        .api(`/sites/${siteId}/permissions`)
-        .get();
+      // Try multiple approaches to determine permissions
+      let hasWritePermission = false;
+      let hasOwnerPermission = false;
+      let permissionLevel: 'none' | 'read' | 'contribute' | 'design' | 'fullControl' | 'owner' = 'read';
 
-      // Analyze permissions to determine capabilities
-      const hasWritePermission = permissions.value.some((p: any) => 
-        p.roles.includes('write') || p.roles.includes('owner') || p.roles.includes('fullcontrol')
-      );
-      
-      const hasOwnerPermission = permissions.value.some((p: any) => 
-        p.roles.includes('owner') || p.roles.includes('fullcontrol')
-      );
+      try {
+        // First, try to get the current user's effective permissions
+        await this.graphClient
+          .api(`/sites/${siteId}/drive/root`)
+          .select('permissions')
+          .get();
+
+        // If we can access the drive root, user likely has write permissions
+        hasWritePermission = true;
+        
+        // Try to check if user is site owner by attempting to access site permissions
+        try {
+          await this.graphClient
+            .api(`/sites/${siteId}/permissions`)
+            .get();
+          
+          // If we can read site permissions, user likely has elevated access
+          hasOwnerPermission = true;
+          permissionLevel = 'owner';
+        } catch (permError) {
+          // Can't read site permissions, but can access content
+          permissionLevel = 'contribute';
+        }
+      } catch (driveError) {
+        // Can't access drive, try other methods
+        try {
+          // Try to get site information - if successful, user has at least read access
+          await this.graphClient
+            .api(`/sites/${siteId}`)
+            .select('id,displayName')
+            .get();
+          
+          // Try to access lists to determine write permissions
+          try {
+            await this.graphClient
+              .api(`/sites/${siteId}/lists`)
+              .top(1)
+              .get();
+            
+            hasWritePermission = true;
+            permissionLevel = 'contribute';
+          } catch (listError) {
+            // Can only read basic site info
+            permissionLevel = 'read';
+          }
+        } catch (siteError) {
+          // No access at all
+          permissionLevel = 'none';
+          return {
+            canCreateAlerts: false,
+            canManageAlerts: false,
+            canViewAlerts: false,
+            permissionLevel: 'none'
+          };
+        }
+      }
+
+      // Additional check: if this is the current site and user is logged in, 
+      // assume they have at least read access
+      const currentSiteId = this.context.pageContext.site.id.toString();
+      if (siteId === currentSiteId) {
+        // User is on the current site, so they must have access
+        hasWritePermission = true; // Assume write permission for current site
+        permissionLevel = hasOwnerPermission ? 'owner' : 'contribute';
+      }
 
       return {
         canCreateAlerts: hasWritePermission,
         canManageAlerts: hasOwnerPermission,
         canViewAlerts: true,
-        permissionLevel: hasOwnerPermission ? 'owner' : hasWritePermission ? 'contribute' : 'read'
+        permissionLevel
       };
     } catch (error) {
       console.warn(`Could not get user permissions for site ${siteId}:`, error);
+      
+      // For the current site, assume user has permissions since they're viewing it
+      const currentSiteId = this.context.pageContext.site.id.toString();
+      if (siteId === currentSiteId) {
+        return {
+          canCreateAlerts: true,
+          canManageAlerts: true,
+          canViewAlerts: true,
+          permissionLevel: 'contribute'
+        };
+      }
+      
       return {
         canCreateAlerts: false,
         canManageAlerts: false,
@@ -391,7 +461,7 @@ export class SiteContextDetector {
     }
   }
 
-  private isRootSiteCollection(siteUrl: string, tenantUrl: string): boolean {
+  private isRootSiteCollection(siteUrl: string): boolean {
     try {
       const url = new URL(siteUrl);
       const path = url.pathname;

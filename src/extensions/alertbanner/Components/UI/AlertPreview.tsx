@@ -36,17 +36,72 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
 
   // Ensure proper contrast for preview
   const getContrastText = (bgColor: string): string => {
-    // Simple contrast check - if background is very light, use dark text
-    if (bgColor.toLowerCase() === '#ffffff' || bgColor.toLowerCase() === 'white') {
-      return '#323130'; // Dark text for white background
+    // Enhanced contrast detection
+    const getLuminance = (color: string): number => {
+      // Convert color to RGB values
+      let r: number, g: number, b: number;
+      
+      if (color.startsWith('#')) {
+        // Hex color
+        const hex = color.replace('#', '');
+        if (hex.length === 3) {
+          r = parseInt(hex[0] + hex[0], 16);
+          g = parseInt(hex[1] + hex[1], 16);
+          b = parseInt(hex[2] + hex[2], 16);
+        } else {
+          r = parseInt(hex.substr(0, 2), 16);
+          g = parseInt(hex.substr(2, 2), 16);
+          b = parseInt(hex.substr(4, 2), 16);
+        }
+      } else if (color.toLowerCase() === 'white') {
+        r = g = b = 255;
+      } else if (color.toLowerCase() === 'black') {
+        r = g = b = 0;
+      } else {
+        // For other colors, use a conservative approach
+        return 0.5; // Assume medium luminance
+      }
+      
+      // Calculate relative luminance using WCAG formula
+      const toLinear = (val: number) => {
+        val = val / 255;
+        return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+      };
+      
+      return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    };
+    
+    const bgLuminance = getLuminance(bgColor);
+    
+    // If background is light (luminance > 0.5), use dark text
+    // If background is dark (luminance <= 0.5), use light text
+    if (bgLuminance > 0.5) {
+      return '#323130'; // Dark text for light backgrounds
+    } else {
+      // Check if the original text color would have good contrast
+      const textLuminance = getLuminance(alertType.textColor);
+      const contrast = (Math.max(bgLuminance, textLuminance) + 0.05) / (Math.min(bgLuminance, textLuminance) + 0.05);
+      
+      // If contrast is good (4.5:1 or better), use original color
+      if (contrast >= 4.5) {
+        return alertType.textColor;
+      } else {
+        // Use white text for dark backgrounds with poor contrast
+        return '#ffffff';
+      }
     }
-    return alertType.textColor;
   };
 
+  const textColor = getContrastText(alertType.backgroundColor);
   const containerStyle: React.CSSProperties = {
     backgroundColor: alertType.backgroundColor,
-    color: getContrastText(alertType.backgroundColor),
-    border: alertType.backgroundColor === '#ffffff' ? '1px solid #edebe9' : undefined,
+    color: textColor,
+    border: alertType.backgroundColor === '#ffffff' || alertType.backgroundColor.toLowerCase() === 'white' ? '1px solid #edebe9' : undefined,
+  };
+
+  // Override inline styles for better visibility
+  const textStyle: React.CSSProperties = {
+    color: textColor,
   };
 
   return (
@@ -69,21 +124,21 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
           
           <div className={styles.textSection}>
             {title && (
-              <div className={styles.alertTitle}>
+              <div className={styles.alertTitle} style={textStyle}>
                 {title || 'Alert Title'}
-                {isPinned && <span className={styles.pinnedBadge}>📌 PINNED</span>}
+                {isPinned && <span className={styles.pinnedBadge} style={textStyle}>📌 PINNED</span>}
               </div>
             )}
             
             {description && (
-              <div className={styles.alertDescription}>
+              <div className={styles.alertDescription} style={textStyle}>
                 <div dangerouslySetInnerHTML={{ __html: description || 'Alert description will appear here...' }} />
               </div>
             )}
             
             {linkUrl && linkDescription && (
               <div className={styles.alertLink}>
-                <a href={linkUrl} target="_blank" rel="noopener noreferrer">
+                <a href={linkUrl} target="_blank" rel="noopener noreferrer" style={textStyle}>
                   🔗 {linkDescription}
                 </a>
               </div>
