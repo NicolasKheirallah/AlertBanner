@@ -3,14 +3,14 @@
     "solution": {
         "name": "alert-banner-client-side-solution",
         "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
-        "version": "2.0.0.1",
+        "version": "2.0.0.5",
         "includeClientSideAssets": true,
         "skipFeatureDeployment": true,
         "isDomainIsolated": false,
         "webApiPermissionRequests": [
             {
                 "resource": "Microsoft Graph",
-                "scope": "Sites.Read.All"
+                "scope": "Sites.ReadWrite.All"
             },
             {
                 "resource": "Microsoft Graph",

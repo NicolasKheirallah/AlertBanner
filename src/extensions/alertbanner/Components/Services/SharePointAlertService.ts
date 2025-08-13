@@ -173,9 +173,21 @@ export class SharePointAlertService {
           .top(1)
           .get();
       } catch (permissionError) {
-        if (permissionError.message?.includes('Access denied') || permissionError.message?.includes('403')) {
-          console.warn('User lacks permissions to create SharePoint lists.');
-          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
+        const errorMessage = permissionError.message || '';
+        const statusCode = permissionError.code || '';
+        
+        console.error('Permission check failed:', {
+          message: errorMessage,
+          code: statusCode,
+          siteId
+        });
+        
+        if (errorMessage.includes('Access denied') || statusCode === '403' || errorMessage.includes('403')) {
+          throw new Error('PERMISSION_DENIED: User lacks Sites.ReadWrite.All permissions to create SharePoint lists. Please contact your SharePoint administrator to grant the required permissions.');
+        } else if (statusCode === '401') {
+          throw new Error('AUTHENTICATION_FAILED: User authentication failed. Please re-authenticate.');
+        } else {
+          throw new Error(`PERMISSION_CHECK_FAILED: Unable to verify permissions - ${errorMessage}`);
         }
       }
 
@@ -199,18 +211,22 @@ export class SharePointAlertService {
             name: 'Priority',
             choice: {
               choices: ['Low', 'Medium', 'High', 'Critical'],
-              displayAs: 'dropDownMenu'
+              displayAs: 'dropDownMenu',
+              defaultValue: 'Medium'
             }
           },
           {
             name: 'IsPinned',
-            boolean: {}
+            boolean: {
+              defaultValue: false
+            }
           },
           {
             name: 'NotificationType',
             choice: {
               choices: ['None', 'Browser', 'Email', 'Both'],
-              displayAs: 'dropDownMenu'
+              displayAs: 'dropDownMenu',
+              defaultValue: 'None'
             }
           },
           {
@@ -229,7 +245,8 @@ export class SharePointAlertService {
             name: 'Status',
             choice: {
               choices: ['Active', 'Expired', 'Scheduled'],
-              displayAs: 'dropDownMenu'
+              displayAs: 'dropDownMenu',
+              defaultValue: 'Active'
             }
           },
           {
