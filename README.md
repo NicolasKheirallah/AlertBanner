@@ -4,7 +4,9 @@
 
 The **Alert Banner SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display alert notifications prominently in the Banner of Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
 
-![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Screenshot/Screenshot2024-08-17170932.png)
+![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-16%20kl.%2013.51.52.png)
+![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-16%20kl.%2013.52.10.png)
+![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-16%20kl.%2013.52.24.png)
 
 This project draws inspiration from the work of Thomas Daly. Special thanks to Thomas Daly for the original concept!
 
