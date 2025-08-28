@@ -1,9 +1,9 @@
 import * as React from "react";
 import {
-  IAlertItem,
   IAlertType,
   IQuickAction
 } from "../Alerts/IAlerts";
+import { IAlertItem } from "../Services/SharePointAlertService";
 import styles from "./AlertItem.module.scss";
 
 // Import new components
@@ -39,8 +39,8 @@ const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
 // ===== INTERFACES =====
 export interface IAlertItemProps {
   item: IAlertItem;
-  remove: (id: number) => void;
-  hideForever: (id: number) => void;
+  remove: (id: string) => void;
+  hideForever: (id: string) => void;
   alertType: IAlertType;
   richMediaEnabled?: boolean;
   // Carousel props
@@ -72,14 +72,14 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   const [expanded, setExpanded] = React.useState(false);
 
   // Accessibility IDs
-  const ariaControlsId = `alert-description-${item.Id}`;
+  const ariaControlsId = `alert-description-${item.id}`;
 
 
   // Event handlers
   const handlers = React.useMemo(() => ({
     toggleExpanded: () => setExpanded(prev => !prev),
-    remove: (id: number) => remove(id),
-    hideForever: (id: number) => hideForever(id),
+    remove: (id: string) => remove(id),
+    hideForever: (id: string) => hideForever(id),
     stopPropagation: (e: React.MouseEvent) => e.stopPropagation(),
   }), [remove, hideForever]);
 
@@ -91,15 +91,23 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         }
         break;
       case "dismiss":
-        handlers.remove(item.Id); // Use handlers.remove with item.Id
+        handlers.remove(item.id); // Use handlers.remove with item.id
         break;
       case "acknowledge":
-        console.log(`Alert ${item.Id} acknowledged`);
-        handlers.remove(item.Id); // Use handlers.remove with item.Id
+        console.log(`Alert ${item.id} acknowledged`);
+        handlers.remove(item.id); // Use handlers.remove with item.id
         break;
       case "custom":
-        if (action.callback && typeof (window as any)[action.callback] === "function") {
-          (window as any)[action.callback](item);
+        // Define a map of safe, allowed actions to prevent arbitrary code execution
+        const allowedCustomActions: { [key: string]: (item: IAlertItem) => void } = {
+          // Example: 
+          // "showDetails": (item) => console.log("Showing details for", item.id),
+        };
+
+        if (action.callback && typeof allowedCustomActions[action.callback] === "function") {
+          allowedCustomActions[action.callback](item);
+        } else {
+          console.warn(`Unknown or disallowed custom action: ${action.callback}`);
         }
         break;
     }

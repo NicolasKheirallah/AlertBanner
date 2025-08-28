@@ -7,7 +7,7 @@ import {
   EyeOff24Regular,
   Link24Regular
 } from "@fluentui/react-icons";
-import { IAlertItem } from "../Alerts/IAlerts";
+import { IAlertItem } from "../Services/SharePointAlertService";
 import styles from "./AlertItem.module.scss";
 
 interface IAlertActionsProps {
@@ -19,8 +19,8 @@ interface IAlertActionsProps {
   onPrevious?: () => void;
   expanded: boolean;
   toggleExpanded: () => void;
-  remove: (id: number) => void;
-  hideForever: (id: number) => void;
+  remove: (id: string) => void;
+  hideForever: (id: string) => void;
   stopPropagation: (e: React.MouseEvent) => void;
 }
 
@@ -39,17 +39,17 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
 }) => {
   return (
     <div className={styles.actionSection} onClick={stopPropagation}>
-      {item.link && (
+      {item.linkUrl && (
         <Button
           appearance="subtle"
           icon={<Link24Regular />}
           onClick={(e) => {
             stopPropagation(e);
-            if (item.link?.Url) {
-              window.open(item.link.Url, "_blank", "noopener,noreferrer");
+            if (item.linkUrl) {
+              window.open(item.linkUrl, "_blank", "noopener,noreferrer");
             }
           }}
-          aria-label={item.link.Description || "Open link"}
+          aria-label={item.linkDescription || "Open link"}
           size="small"
         />
       )}
@@ -81,7 +81,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
       <Button
         appearance="subtle"
         icon={<Dismiss24Regular />}
-        onClick={() => remove(item.Id)}
+        onClick={() => remove(item.id)}
         aria-label="Dismiss Alert"
         size="small"
         title="Dismiss"
@@ -89,7 +89,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
       <Button
         appearance="subtle"
         icon={<EyeOff24Regular />}
-        onClick={() => hideForever(item.Id)}
+        onClick={() => hideForever(item.id)}
         aria-label="Hide Alert Forever"
         size="small"
         title="Hide Forever"

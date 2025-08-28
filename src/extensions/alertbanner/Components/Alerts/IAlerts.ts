@@ -61,13 +61,13 @@ export interface IAlertsProps {
 }
 
 export interface IAlertsState {
-  alerts: IAlertItem[];
+  alerts: import("../Services/SharePointAlertService").IAlertItem[];
   alertTypes: { [key: string]: IAlertType };
   isLoading: boolean;
   hasError: boolean;
   errorMessage?: string;
-  userDismissedAlerts: number[];
-  userHiddenAlerts: number[];
+  userDismissedAlerts: string[];
+  userHiddenAlerts: string[];
   currentIndex: number;
   isInEditMode: boolean;
 }

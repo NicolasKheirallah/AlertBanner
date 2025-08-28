@@ -1,4 +1,5 @@
-import { IAlertItem, IUser, ITargetingRule, IPersonField } from "../Alerts/IAlerts";
+import { IUser, ITargetingRule, IPersonField } from "../Alerts/IAlerts";
+import { IAlertItem } from "./SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 
 export class UserTargetingService {
@@ -204,7 +205,7 @@ export class UserTargetingService {
     return this.currentUser;
   }
 
-  public getUserDismissedAlerts(): number[] {
+  public getUserDismissedAlerts(): string[] {
     try {
       if (!this.currentUser) return [];
 
@@ -217,7 +218,7 @@ export class UserTargetingService {
     }
   }
 
-  public addUserDismissedAlert(alertId: number): void {
+  public addUserDismissedAlert(alertId: string): void {
     try {
       if (!this.currentUser) return;
 
@@ -233,7 +234,7 @@ export class UserTargetingService {
     }
   }
 
-  public getUserHiddenAlerts(): number[] {
+  public getUserHiddenAlerts(): string[] {
     try {
       if (!this.currentUser) return [];
 
@@ -246,7 +247,7 @@ export class UserTargetingService {
     }
   }
 
-  public addUserHiddenAlert(alertId: number): void {
+  public addUserHiddenAlert(alertId: string): void {
     try {
       if (!this.currentUser) return;
 

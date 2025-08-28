@@ -1,7 +1,8 @@
 import * as React from "react";
 import { tokens, Button } from "@fluentui/react-components";
 import { Link24Regular } from "@fluentui/react-icons";
-import { IAlertItem, IQuickAction } from "../Alerts/IAlerts";
+import { IAlertItem } from "../Services/SharePointAlertService";
+import { IQuickAction } from "../Alerts/IAlerts";
 import RichMediaAlert from "../Services/RichMediaAlert";
 import DescriptionContent from "./DescriptionContent";
 
@@ -28,7 +29,7 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, richMedia
       >
         {item.quickActions.map((action: IQuickAction, index: number) => (
           <Button
-            key={`${item.Id}-action-${index}`}
+            key={`${item.id}-action-${index}`}
             appearance="primary"
             size="small"
             icon={<Link24Regular />}
@@ -42,7 +43,7 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, richMedia
         ))}
       </div>
     );
-  }, [item.quickActions, stopPropagation, handleQuickAction, item.Id]);
+  }, [item.quickActions, stopPropagation, handleQuickAction, item.id]);
 
   if (!expanded) return null;
 

@@ -295,61 +295,7 @@
   }
 }
 
-// Dark mode support
-@media (prefers-color-scheme: dark) {
-  .previewContainer {
-    background: #292827;
-    border-color: #484644;
-  }
-  
-  .previewHeader {
-    background: #3b3a39;
-    border-bottom-color: #484644;
-    
-    h4 {
-      color: #ffffff;
-    }
-  }
-  
-  .previewNote {
-    color: #c8c6c4;
-  }
-  
-  .previewInfo {
-    background: #323130;
-    border-top-color: #484644;
-  }
-  
-  .infoLabel {
-    color: #c8c6c4;
-  }
-  
-  .infoValue {
-    color: #ffffff;
-  }
-  
-  .colorSwatch {
-    border-color: #605e5c;
-  }
-  
-  // Dark mode priority overrides
-  .critical,
-  .high,
-  .medium,
-  .low {
-    color: #ffffff;
-    
-    .expandButton,
-    .dismissButton {
-      background: rgba(0, 0, 0, 0.2);
-      border-color: rgba(0, 0, 0, 0.3);
-      
-      &:hover {
-        background: rgba(0, 0, 0, 0.3);
-      }
-    }
-  }
-}
+// Removed dark mode support as requested
 
 // Responsive design
 @media (max-width: 768px) {

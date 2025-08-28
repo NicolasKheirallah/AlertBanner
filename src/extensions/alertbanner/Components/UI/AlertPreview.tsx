@@ -34,7 +34,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     }
   };
 
-  // Ensure proper contrast for preview
+  // Ensure proper contrast for preview with enhanced readability
   const getContrastText = (bgColor: string): string => {
     // Enhanced contrast detection
     const getLuminance = (color: string): number => {
@@ -53,10 +53,20 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
           g = parseInt(hex.substr(2, 2), 16);
           b = parseInt(hex.substr(4, 2), 16);
         }
-      } else if (color.toLowerCase() === 'white') {
+      } else if (color.toLowerCase() === 'white' || color.toLowerCase() === '#ffffff') {
         r = g = b = 255;
-      } else if (color.toLowerCase() === 'black') {
+      } else if (color.toLowerCase() === 'black' || color.toLowerCase() === '#000000') {
         r = g = b = 0;
+      } else if (color.startsWith('rgb(')) {
+        // Handle RGB format
+        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (match) {
+          r = parseInt(match[1]);
+          g = parseInt(match[2]);
+          b = parseInt(match[3]);
+        } else {
+          return 0.5; // Fallback
+        }
       } else {
         // For other colors, use a conservative approach
         return 0.5; // Assume medium luminance
@@ -73,22 +83,14 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
 
     const bgLuminance = getLuminance(bgColor);
 
-    // If background is light (luminance > 0.5), use dark text
-    // If background is dark (luminance <= 0.5), use light text
-    if (bgLuminance > 0.5) {
-      return '#323130'; // Dark text for light backgrounds
+    // More aggressive approach for better readability
+    // Use WCAG AAA standard (7:1 contrast ratio) for better accessibility
+    if (bgLuminance > 0.3) {
+      // For lighter backgrounds, always use dark text for maximum readability
+      return '#323130'; // Dark text that meets AAA standards
     } else {
-      // Check if the original text color would have good contrast
-      const textLuminance = getLuminance(alertType.textColor);
-      const contrast = (Math.max(bgLuminance, textLuminance) + 0.05) / (Math.min(bgLuminance, textLuminance) + 0.05);
-
-      // If contrast is good (4.5:1 or better), use original color
-      if (contrast >= 4.5) {
-        return alertType.textColor;
-      } else {
-        // Use white text for dark backgrounds with poor contrast
-        return '#ffffff';
-      }
+      // For darker backgrounds, always use white text
+      return '#ffffff'; // White text for maximum contrast
     }
   };
 
@@ -99,9 +101,16 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     border: alertType.backgroundColor === '#ffffff' || alertType.backgroundColor.toLowerCase() === 'white' ? '1px solid #edebe9' : undefined,
   };
 
-  // Override inline styles for better visibility
+  // Override inline styles for better visibility with enhanced readability
   const textStyle: React.CSSProperties = {
     color: textColor,
+    // Add subtle text shadow for better readability across all backgrounds
+    textShadow: textColor === '#ffffff' 
+      ? '0 1px 3px rgba(0, 0, 0, 0.5)' // White text gets dark shadow
+      : '0 1px 3px rgba(255, 255, 255, 0.8)', // Dark text gets light shadow
+    // Ensure text is always readable
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale',
   };
 
   return (

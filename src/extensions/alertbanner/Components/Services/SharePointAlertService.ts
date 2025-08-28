@@ -1,6 +1,6 @@
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
-import { AlertPriority, NotificationType, IAlertType } from "../Alerts/IAlerts";
+import { AlertPriority, NotificationType, IAlertType, ITargetingRule, IAlertRichMedia, IQuickAction } from "../Alerts/IAlerts";
 
 export interface IAlertItem {
   id: string;
@@ -9,9 +9,12 @@ export interface IAlertItem {
   AlertType: string;
   priority: AlertPriority;
   isPinned: boolean;
+  targetingRules?: ITargetingRule[];
   notificationType: NotificationType;
+  richMedia?: IAlertRichMedia;
   linkUrl?: string;
   linkDescription?: string;
+  quickActions?: IQuickAction[];
   targetSites: string[];
   status: 'Active' | 'Expired' | 'Scheduled';
   createdDate: string;
@@ -260,106 +263,8 @@ export class SharePointAlertService {
           {
             name: 'Metadata',
             text: { allowMultipleLines: true }
-          },
-          // Multi-language Title fields
-          {
-            name: 'Title_EN',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Title_FR',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Title_DE',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Title_ES',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Title_SV',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Title_FI',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Title_DA',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Title_NO',
-            text: { maxLength: 255 }
-          },
-          // Multi-language Description fields
-          {
-            name: 'Description_EN',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'Description_FR',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'Description_DE',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'Description_ES',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'Description_SV',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'Description_FI',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'Description_DA',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'Description_NO',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          // Multi-language LinkDescription fields
-          {
-            name: 'LinkDescription_EN',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'LinkDescription_FR',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'LinkDescription_DE',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'LinkDescription_ES',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'LinkDescription_SV',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'LinkDescription_FI',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'LinkDescription_DA',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'LinkDescription_NO',
-            text: { maxLength: 255 }
           }
+          // Note: Multi-language fields will be added dynamically based on user selection
         ]
       };
 

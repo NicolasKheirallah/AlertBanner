@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createContext, useReducer, useContext, useCallback } from "react";
-import { IAlertItem, IAlertType, AlertPriority, IPersonField, ITargetingRule } from "../Alerts/IAlerts";
+import { IAlertType, AlertPriority, IPersonField, ITargetingRule } from "../Alerts/IAlerts";
+import { IAlertItem } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import UserTargetingService from "../Services/UserTargetingService";
 import NotificationService from "../Services/NotificationService";
@@ -12,8 +13,8 @@ interface AlertsState {
   isLoading: boolean;
   hasError: boolean;
   errorMessage?: string;
-  userDismissedAlerts: number[];
-  userHiddenAlerts: number[];
+  userDismissedAlerts: string[];
+  userHiddenAlerts: string[];
 }
 
 // Define the actions we can perform
@@ -22,10 +23,10 @@ type AlertsAction =
   | { type: 'SET_ALERT_TYPES'; payload: { [key: string]: IAlertType } }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: { hasError: boolean; message?: string } }
-  | { type: 'DISMISS_ALERT'; payload: number }
-  | { type: 'HIDE_ALERT_FOREVER'; payload: number }
-  | { type: 'SET_DISMISSED_ALERTS'; payload: number[] }
-  | { type: 'SET_HIDDEN_ALERTS'; payload: number[] };
+  | { type: 'DISMISS_ALERT'; payload: string }
+  | { type: 'HIDE_ALERT_FOREVER'; payload: string }
+  | { type: 'SET_DISMISSED_ALERTS'; payload: string[] }
+  | { type: 'SET_HIDDEN_ALERTS'; payload: string[] };
 
 // Initial state
 const initialState: AlertsState = {
@@ -60,14 +61,14 @@ const alertsReducer = (state: AlertsState, action: AlertsAction): AlertsState =>
     case 'DISMISS_ALERT':
       return {
         ...state,
-        alerts: state.alerts.filter(alert => alert.Id !== action.payload),
+        alerts: state.alerts.filter(alert => alert.id !== action.payload),
         userDismissedAlerts: [...state.userDismissedAlerts, action.payload]
       };
 
     case 'HIDE_ALERT_FOREVER':
       return {
         ...state,
-        alerts: state.alerts.filter(alert => alert.Id !== action.payload),
+        alerts: state.alerts.filter(alert => alert.id !== action.payload),
         userHiddenAlerts: [...state.userHiddenAlerts, action.payload]
       };
 
@@ -86,8 +87,8 @@ const alertsReducer = (state: AlertsState, action: AlertsAction): AlertsState =>
 interface AlertsContextProps {
   state: AlertsState;
   dispatch: React.Dispatch<AlertsAction>;
-  removeAlert: (id: number) => void;
-  hideAlertForever: (id: number) => void;
+  removeAlert: (id: string) => void;
+  hideAlertForever: (id: string) => void;
   initializeAlerts: (options: AlertsContextOptions) => Promise<void>;
   refreshAlerts: () => Promise<void>;
 }
@@ -196,7 +197,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     return {
-      Id: parseInt(item.id, 10),
+      id: item.id,
       title: item.fields.Title || "",
       description: item.fields.Description || "",
       AlertType: item.fields.AlertType || "Default",
@@ -205,11 +206,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       targetingRules: targetingRules,
       notificationType: item.fields.NotificationType || "none",
       richMedia: richMedia,
-      link: item.fields.Link ? {
-        Url: item.fields.Link.Url || "",
-        Description: item.fields.Link.Description || "Learn More"
-      } : undefined,
+      linkUrl: item.fields.LinkUrl || "",
+      linkDescription: item.fields.LinkDescription || "Learn More",
       quickActions: quickActions,
+      targetSites: item.fields.TargetSites ? item.fields.TargetSites.split(',') : [],
+      status: item.fields.Status || 'Active',
       createdDate: item.fields.CreatedDateTime || "",
       createdBy: createdBy
     };
@@ -330,12 +331,12 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Remove duplicates
   const removeDuplicateAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
-    const seenIds = new Set<number>();
+    const seenIds = new Set<string>();
     return alertsToFilter.filter((alert) => {
-      if (seenIds.has(alert.Id)) {
+      if (seenIds.has(alert.id)) {
         return false;
       } else {
-        seenIds.add(alert.Id);
+        seenIds.add(alert.id);
         return true;
       }
     });
@@ -347,11 +348,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (newAlerts.length !== cachedAlerts.length) return true;
 
     // Create maps for faster comparison
-    const newAlertsMap = new Map(newAlerts.map(alert => [alert.Id, alert]));
-    const cachedAlertsMap = new Map(cachedAlerts.map(alert => [alert.Id, alert]));
+    const newAlertsMap = new Map(newAlerts.map(alert => [alert.id, alert]));
+    const cachedAlertsMap = new Map(cachedAlerts.map(alert => [alert.id, alert]));
 
     // Check if all IDs match
-    if (newAlerts.some(alert => !cachedAlertsMap.has(alert.Id))) return true;
+    if (newAlerts.some(alert => !cachedAlertsMap.has(alert.id))) return true;
 
     // Check if any alert properties have changed
     for (const [id, newAlert] of newAlertsMap.entries()) {
@@ -364,7 +365,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         newAlert.AlertType !== cachedAlert.AlertType ||
         newAlert.priority !== cachedAlert.priority ||
         newAlert.isPinned !== cachedAlert.isPinned ||
-        JSON.stringify(newAlert.link) !== JSON.stringify(cachedAlert.link)
+        newAlert.linkUrl !== cachedAlert.linkUrl || newAlert.linkDescription !== cachedAlert.linkDescription
       ) {
         return true;
       }
@@ -376,8 +377,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Filter alerts based on user preferences
   const filterAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
     return alertsToFilter.filter(alert =>
-      !state.userDismissedAlerts.includes(alert.Id) &&
-      !state.userHiddenAlerts.includes(alert.Id)
+      !state.userDismissedAlerts.includes(alert.id) &&
+      !state.userHiddenAlerts.includes(alert.id)
     );
   }, [state.userDismissedAlerts, state.userHiddenAlerts]);
 
@@ -533,7 +534,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   ]);
 
   // Handle removing an alert
-  const removeAlert = useCallback((id: number): void => {
+  const removeAlert = useCallback((id: string): void => {
     dispatch({ type: 'DISMISS_ALERT', payload: id });
 
     // Add to user's dismissed alerts if targeting is enabled
@@ -543,7 +544,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   // Handle hiding an alert forever
-  const hideAlertForever = useCallback((id: number): void => {
+  const hideAlertForever = useCallback((id: string): void => {
     dispatch({ type: 'HIDE_ALERT_FOREVER', payload: id });
 
     // Add to user's hidden alerts if targeting is enabled
@@ -553,14 +554,14 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   // The value we'll provide to consumers
-  const value = {
+  const value = React.useMemo(() => ({
     state,
     dispatch,
     removeAlert,
     hideAlertForever,
     initializeAlerts,
     refreshAlerts
-  };
+  }), [state, removeAlert, hideAlertForever, initializeAlerts, refreshAlerts]);
 
   return (
     <AlertsContext.Provider value={value}>

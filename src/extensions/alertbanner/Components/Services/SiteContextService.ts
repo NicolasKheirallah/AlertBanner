@@ -82,62 +82,132 @@ export class SiteContextService {
   }
 
   /**
-   * Detect the tenant's home site
+   * Detect the tenant's home site using user-accessible APIs
    */
   private async detectHomeSite(): Promise<void> {
     try {
-      // Try to get home site configuration
-      const response = await this._graphClient
-        .api('/admin/sharepoint/settings')
+      // Use the more accessible approach: try to get organization settings
+      // This doesn't require SharePoint Admin permissions
+      const orgResponse = await this._graphClient
+        .api('/organization')
         .get();
 
-      if (response?.homeSiteUrl) {
-        // Extract site ID from URL
-        const homeSiteResponse = await this._graphClient
-          .api(`/sites/${this.extractHostnameFromUrl(response.homeSiteUrl)}:${this.extractPathFromUrl(response.homeSiteUrl)}`)
-          .get();
+      // Try to get tenant information which might include home site
+      if (orgResponse?.value?.[0]) {
+        const tenantId = orgResponse.value[0].id;
+        
+        // Try to find home site through organization information
+        try {
+          const homeSiteResponse = await this._graphClient
+            .api('/sites/root')
+            .get();
 
-        this._homeSiteInfo = {
-          id: homeSiteResponse.id,
-          url: response.homeSiteUrl,
-          name: (homeSiteResponse as any).name || (homeSiteResponse as any).displayName || 'Home Site',
-          type: 'home'
-        };
+          // Check if root site is configured as home site
+          if (homeSiteResponse?.sharepointIds?.tenantId === tenantId) {
+            this._homeSiteInfo = {
+              id: homeSiteResponse.id,
+              url: homeSiteResponse.webUrl,
+              name: (homeSiteResponse as any).displayName || (homeSiteResponse as any).name || 'Home Site',
+              type: 'home'
+            };
+          }
+        } catch (rootError) {
+          console.log('Root site not accessible or not home site');
+        }
+      }
+
+      // If still no home site found, try alternative search method
+      if (!this._homeSiteInfo) {
+        await this.searchForHomeSite();
       }
     } catch (error) {
-      console.warn('Could not detect home site:', error);
+      console.warn('Could not detect home site through organization API:', error);
       // Try alternative method using search
       await this.searchForHomeSite();
     }
   }
 
   /**
-   * Alternative method to find home site using search
+   * Alternative method to find home site using user-accessible APIs
    */
   private async searchForHomeSite(): Promise<void> {
     try {
+      // Try to use Microsoft Search API which is more accessible
       const searchResponse = await this._graphClient
         .api('/search/query')
         .post({
           requests: [{
             entityTypes: ['site'],
-            query: 'contentclass:STS_Site AND IsHubSite:true AND SiteTemplate:SITEPAGEPUBLISHING',
-            size: 1
+            query: 'IsHomeSite:true OR SiteTemplate:SITEPAGEPUBLISHING',
+            from: 0,
+            size: 5
           }]
         });
 
       const results = searchResponse.value[0]?.hitsContainers[0]?.hits;
       if (results && results.length > 0) {
-        const homesite = results[0];
-        this._homeSiteInfo = {
-          id: homesite.resource.id,
-          url: homesite.resource.webUrl,
-          name: homesite.resource.name,
-          type: 'home'
-        };
+        // Look for a site that might be the home site
+        for (const result of results) {
+          const site = result.resource;
+          // Check if this looks like a home site (typically has specific characteristics)
+          if (site.webUrl && (site.webUrl.includes('/sites/home') || 
+                             site.webUrl.includes('/sites/intranet') ||
+                             site.displayName?.toLowerCase().includes('home') ||
+                             site.displayName?.toLowerCase().includes('intranet'))) {
+            this._homeSiteInfo = {
+              id: site.id || site.siteId,
+              url: site.webUrl,
+              name: site.displayName || site.name || 'Home Site',
+              type: 'home'
+            };
+            break;
+          }
+        }
+
+        // If no obvious home site found, use the first result as a fallback
+        if (!this._homeSiteInfo && results.length > 0) {
+          const firstSite = results[0].resource;
+          this._homeSiteInfo = {
+            id: firstSite.id || firstSite.siteId,
+            url: firstSite.webUrl,
+            name: firstSite.displayName || firstSite.name || 'Tenant Root Site',
+            type: 'home'
+          };
+        }
       }
     } catch (error) {
-      console.warn('Could not find home site through search:', error);
+      console.warn('Could not find home site through search API:', error);
+      
+      // Final fallback: try to find sites the user can access and look for patterns
+      try {
+        const sitesResponse = await this._graphClient
+          .api('/sites')
+          .filter("siteCollection/root ne null")
+          .top(10)
+          .get();
+
+        if (sitesResponse?.value?.length > 0) {
+          // Look for a site that might be home site based on naming patterns
+          const potentialHomeSite = sitesResponse.value.find((site: any) => 
+            site.webUrl?.includes('/sites/home') || 
+            site.webUrl?.includes('/sites/intranet') ||
+            site.displayName?.toLowerCase().includes('home') ||
+            site.displayName?.toLowerCase().includes('intranet')
+          );
+
+          if (potentialHomeSite) {
+            this._homeSiteInfo = {
+              id: potentialHomeSite.id,
+              url: potentialHomeSite.webUrl,
+              name: potentialHomeSite.displayName || 'Home Site',
+              type: 'home'
+            };
+          }
+        }
+      } catch (sitesError) {
+        console.warn('Could not access sites collection:', sitesError);
+        // At this point, we'll proceed without home site detection
+      }
     }
   }
 
@@ -320,34 +390,8 @@ export class SiteContextService {
           {
             name: 'Metadata',
             text: { allowMultipleLines: true }
-          },
-          // Multi-language Title fields
-          { name: 'Title_EN', text: { maxLength: 255 } },
-          { name: 'Title_FR', text: { maxLength: 255 } },
-          { name: 'Title_DE', text: { maxLength: 255 } },
-          { name: 'Title_ES', text: { maxLength: 255 } },
-          { name: 'Title_SV', text: { maxLength: 255 } },
-          { name: 'Title_FI', text: { maxLength: 255 } },
-          { name: 'Title_DA', text: { maxLength: 255 } },
-          { name: 'Title_NO', text: { maxLength: 255 } },
-          // Multi-language Description fields
-          { name: 'Description_EN', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          { name: 'Description_FR', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          { name: 'Description_DE', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          { name: 'Description_ES', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          { name: 'Description_SV', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          { name: 'Description_FI', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          { name: 'Description_DA', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          { name: 'Description_NO', text: { allowMultipleLines: true, appendChangesToExistingText: false } },
-          // Multi-language LinkDescription fields
-          { name: 'LinkDescription_EN', text: { maxLength: 255 } },
-          { name: 'LinkDescription_FR', text: { maxLength: 255 } },
-          { name: 'LinkDescription_DE', text: { maxLength: 255 } },
-          { name: 'LinkDescription_ES', text: { maxLength: 255 } },
-          { name: 'LinkDescription_SV', text: { maxLength: 255 } },
-          { name: 'LinkDescription_FI', text: { maxLength: 255 } },
-          { name: 'LinkDescription_DA', text: { maxLength: 255 } },
-          { name: 'LinkDescription_NO', text: { maxLength: 255 } }
+          }
+          // Note: Multi-language fields will be added dynamically based on user selection
         ]
       };
 
@@ -431,21 +475,7 @@ export class SiteContextService {
   /**
    * Utility methods
    */
-  private extractHostnameFromUrl(url: string): string {
-    try {
-      return new URL(url).hostname;
-    } catch {
-      return url;
-    }
-  }
-
-  private extractPathFromUrl(url: string): string {
-    try {
-      return new URL(url).pathname;
-    } catch {
-      return '';
-    }
-  }
+  // Removed unused extractHostnameFromUrl and extractPathFromUrl methods
 
   /**
    * Refresh site context (useful after list creation)

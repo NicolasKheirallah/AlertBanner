@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button, Text } from "@fluentui/react-components";
 import { ChevronDown24Regular, ChevronUp24Regular } from "@fluentui/react-icons";
-import { IAlertItem } from "../Alerts/IAlerts";
+import { IAlertItem } from "../Services/SharePointAlertService";
 import { getPriorityIcon } from "./utils"; // getPriorityIcon is exported from utils.tsx
 import styles from "./AlertItem.module.scss";
 
