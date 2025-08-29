@@ -138,27 +138,6 @@
   }
 }
 
-// Dark mode support
-@media (prefers-color-scheme: dark) {
-  .multiLanguageEditor {
-    .languageTabs {
-      .languageTab {
-        &:hover {
-          background: var(--colorNeutralBackground2Hover);
-        }
-      }
-    }
-    
-    .languageSummary {
-      .summaryGrid {
-        .summaryItem {
-          background: var(--colorNeutralBackground2);
-          border-color: var(--colorNeutralStroke1);
-        }
-      }
-    }
-  }
-}
 
 // High contrast mode support
 @media (prefers-contrast: high) {

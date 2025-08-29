@@ -131,54 +131,6 @@
   }
 }
 
-// Dark mode support
-@media (prefers-color-scheme: dark) {
-  .dialog {
-    background: #252423;
-    color: #ffffff;
-  }
-  
-  .header {
-    border-bottom-color: #3b3a39;
-  }
-  
-  .title {
-    color: #ffffff;
-  }
-  
-  .closeButton {
-    color: #d2d0ce;
-    
-    &:hover {
-      background-color: #3b3a39;
-      color: #ffffff;
-    }
-    
-    &:active {
-      background-color: #484644;
-    }
-  }
-  
-  .footer {
-    background: #201f1e;
-    border-top-color: #3b3a39;
-  }
-  
-  .content {
-    &::-webkit-scrollbar-track {
-      background: #3b3a39;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      background: #605e5c;
-      border-color: #3b3a39;
-      
-      &:hover {
-        background: #797775;
-      }
-    }
-  }
-}
 
 // High contrast mode
 @media (prefers-contrast: high) {

@@ -100,14 +100,24 @@ const AlertItem: React.FC<IAlertItemProps> = ({
       case "custom":
         // Define a map of safe, allowed actions to prevent arbitrary code execution
         const allowedCustomActions: { [key: string]: (item: IAlertItem) => void } = {
-          // Example: 
-          // "showDetails": (item) => console.log("Showing details for", item.id),
+          "showDetails": (item) => {
+            console.log("Showing details for alert:", item.id);
+            // Add your safe custom action implementations here
+          },
+          "logInteraction": (item) => {
+            console.log("User interacted with alert:", item.id);
+            // Safe logging action
+          },
+          "markAsRead": (item) => {
+            console.log("Marking alert as read:", item.id);
+            handlers.remove(item.id);
+          }
         };
 
         if (action.callback && typeof allowedCustomActions[action.callback] === "function") {
           allowedCustomActions[action.callback](item);
         } else {
-          console.warn(`Unknown or disallowed custom action: ${action.callback}`);
+          console.warn(`Unknown or disallowed custom action: ${action.callback}. Allowed actions: ${Object.keys(allowedCustomActions).join(', ')}`);
         }
         break;
     }

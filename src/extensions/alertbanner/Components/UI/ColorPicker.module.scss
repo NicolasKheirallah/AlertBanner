@@ -235,54 +235,6 @@
   }
 }
 
-// Dark mode support
-@media (prefers-color-scheme: dark) {
-  .label {
-    color: #ffffff;
-  }
-  
-  .description {
-    color: #c8c6c4;
-  }
-  
-  .colorButton {
-    background-color: #3b3a39;
-    border-color: #605e5c;
-    
-    &:hover {
-      border-color: #a19f9d;
-    }
-  }
-  
-  .colorValue {
-    color: #ffffff;
-  }
-  
-  .colorDropdown {
-    background-color: #323130;
-    border-color: #605e5c;
-  }
-  
-  .presetColors h4,
-  .customColor h4 {
-    color: #ffffff;
-  }
-  
-  .colorTextInput {
-    background-color: #3b3a39;
-    border-color: #605e5c;
-    color: #ffffff;
-    
-    &:focus {
-      border-color: #0078d4;
-      box-shadow: inset 0 0 0 1px #0078d4;
-    }
-  }
-  
-  .colorSwatch {
-    border-color: #605e5c;
-  }
-}
 
 // High contrast mode
 @media (prefers-contrast: high) {

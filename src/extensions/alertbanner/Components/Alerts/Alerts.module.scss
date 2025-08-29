@@ -85,12 +85,6 @@
   }
 }
 
-// Dark mode support (future-proofing)
-@media (prefers-color-scheme: dark) {
-  .alerts {
-    // Additional dark mode adjustments if needed
-  }
-}
 
 // High contrast mode support
 @media (prefers-contrast: high) {

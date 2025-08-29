@@ -41,6 +41,11 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
   const [customColor, setCustomColor] = React.useState(value);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
+  // ✅ CRITICAL FIX: Sync internal state with prop changes
+  React.useEffect(() => {
+    setCustomColor(value);
+  }, [value]);
+
   // Close dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,22 +63,36 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
     };
   }, [isOpen]);
 
-  const handleColorSelect = (color: string) => {
+  const handleColorSelect = React.useCallback((color: string) => {
     onChange(color);
     setCustomColor(color);
     setIsOpen(false);
-  };
+  }, [onChange]);
 
-  const handleCustomColorChange = (color: string) => {
+  // ✅ PERFORMANCE FIX: Use regex instead of DOM manipulation
+  const isValidColor = React.useCallback((color: string): boolean => {
+    if (!color) return false;
+    
+    // Check hex color format
+    const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexPattern.test(color)) return true;
+    
+    // Check common CSS color names
+    const cssColors = [
+      'red', 'green', 'blue', 'white', 'black', 'yellow', 'orange', 'purple',
+      'pink', 'brown', 'gray', 'grey', 'cyan', 'magenta', 'lime', 'maroon',
+      'navy', 'olive', 'teal', 'silver', 'aqua', 'fuchsia'
+    ];
+    
+    return cssColors.includes(color.toLowerCase());
+  }, []);
+
+  const handleCustomColorChange = React.useCallback((color: string) => {
     setCustomColor(color);
-    onChange(color);
-  };
-
-  const isValidColor = (color: string): boolean => {
-    const testElement = document.createElement('div');
-    testElement.style.color = color;
-    return testElement.style.color !== '';
-  };
+    if (isValidColor(color)) {
+      onChange(color);
+    }
+  }, [onChange, isValidColor]);
 
   return (
     <div className={`${styles.field} ${className || ''}`} ref={containerRef}>

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Button, Text, tokens } from "@fluentui/react-components";
+import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import richMediaStyles from "../Services/RichMediaAlert.module.scss";
 
 interface IDescriptionContentProps {
@@ -23,12 +24,17 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
     showReadMoreButton = true;
   }
 
-  // If description contains HTML tags, render it directly
+  // If description contains HTML tags, sanitize and render it
   if (/<[a-z][\s\S]*>/i.test(description)) {
+    const sanitizedHtml = React.useMemo(() => 
+      htmlSanitizer.sanitizeAlertContent(description), 
+      [description]
+    );
+    
     return (
       <div
         className={richMediaStyles.markdownContainer}
-        dangerouslySetInnerHTML={{ __html: description }}
+        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
     );
   }

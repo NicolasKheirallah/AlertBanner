@@ -5,6 +5,7 @@ import { IAlertItem } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import UserTargetingService from "../Services/UserTargetingService";
 import NotificationService from "../Services/NotificationService";
+import StorageService from "../Services/StorageService";
 
 // Define the shape of our state
 interface AlertsState {
@@ -105,36 +106,22 @@ export interface AlertsContextOptions {
   richMediaEnabled?: boolean;
 }
 
-// Simple helper for localStorage
-const getFromLocalStorage = <T,>(key: string): T | null => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
-  } catch (error) {
-    console.error("Error accessing localStorage:", error);
-    return null;
-  }
-};
-
-const saveToLocalStorage = (key: string, data: any): void => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.error("Error saving to localStorage:", error);
-  }
-};
+// Using StorageService instead of direct localStorage access
 
 // Provider component
 export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(alertsReducer, initialState);
+  
+  // Storage service instance
+  const storageService = React.useMemo(() => StorageService.getInstance(), []);
 
-  // Services
-  let graphClient: MSGraphClientV3;
-  let userTargetingService: UserTargetingService;
-  let notificationService: NotificationService;
-
-  // Options
-  let options: AlertsContextOptions;
+  // Services - Use refs to prevent recreating on every render
+  const servicesRef = React.useRef<{
+    graphClient?: MSGraphClientV3;
+    userTargetingService?: UserTargetingService;
+    notificationService?: NotificationService;
+    options?: AlertsContextOptions;
+  }>({});
 
   // Load alert types from JSON
   const loadAlertTypes = useCallback((alertTypesJson: string) => {
@@ -291,17 +278,32 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Fetch alerts from a site
   const fetchAlerts = useCallback(async (siteId: string): Promise<IAlertItem[]> => {
     const dateTimeNow = new Date().toISOString();
-    const filterQuery = `fields/StartDateTime le '${dateTimeNow}' and fields/EndDateTime ge '${dateTimeNow}'`;
 
     try {
-      // Include TargetUsers and TargetGroups fields in the query
-      const response = await graphClient
-        .api(`/sites/${siteId}/lists/Alerts/items`)
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .expand("fields($select=Title,AlertType,Description,Link,StartDateTime,EndDateTime,Priority,IsPinned,TargetingRules,TargetUsers,TargetGroups,TargetingOperation,NotificationType,RichMedia,QuickActions,CreatedDateTime,CreatedBy)")
-        .filter(filterQuery)
-        .orderby("fields/StartDateTime desc")
-        .get();
+      // First, try to get list with custom fields
+      let response;
+      try {
+        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null)`;
+        if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
+        response = await servicesRef.current.graphClient
+          .api(`/sites/${siteId}/lists/Alerts/items`)
+          .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,Metadata)")
+          .filter(filterQuery)
+          .orderby("fields/ScheduledStart desc")
+          .top(50) // Limit to 50 items per site for better performance
+          .get();
+      } catch (customFieldError) {
+        console.warn('Custom fields not found, falling back to basic fields:', customFieldError);
+        // Fall back to basic SharePoint fields only - no filtering since we don't have ScheduledStart field
+        if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
+        response = await servicesRef.current.graphClient
+          .api(`/sites/${siteId}/lists/Alerts/items`)
+          .expand("fields($select=Title,Description,Created,Author)")
+          .orderby("fields/Created desc")
+          .top(50) // Limit to 50 items per site
+          .get();
+      }
 
       return response.value.map(mapSharePointItemToAlert);
     } catch (error) {
@@ -332,14 +334,23 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Remove duplicates
   const removeDuplicateAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
     const seenIds = new Set<string>();
-    return alertsToFilter.filter((alert) => {
+    const duplicates: IAlertItem[] = [];
+    
+    const unique = alertsToFilter.filter((alert) => {
       if (seenIds.has(alert.id)) {
+        duplicates.push(alert);
         return false;
       } else {
         seenIds.add(alert.id);
         return true;
       }
     });
+
+    if (duplicates.length > 0) {
+      console.warn(`🗂️ Removed ${duplicates.length} duplicate alerts:`, duplicates.map(a => `${a.id} (${a.title})`));
+    }
+
+    return unique;
   }, []);
 
   // Check if alerts have changed
@@ -384,37 +395,37 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Send notifications
   const sendNotifications = useCallback(async (alertsToNotify: IAlertItem[]): Promise<void> => {
-    if (!options?.notificationsEnabled || alertsToNotify.length === 0 || !notificationService) return;
+    if (!servicesRef.current.options?.notificationsEnabled || alertsToNotify.length === 0 || !servicesRef.current.notificationService) return;
 
     for (const alert of alertsToNotify) {
-      await notificationService.sendNotification(alert);
+      await servicesRef.current.notificationService.sendNotification(alert);
     }
   }, []);
 
   // Initialize alerts
   const initializeAlerts = useCallback(async (initOptions: AlertsContextOptions): Promise<void> => {
     try {
-      options = initOptions;
-      graphClient = options.graphClient;
+      servicesRef.current.options = initOptions;
+      servicesRef.current.graphClient = initOptions.graphClient;
 
       // Initialize services
-      userTargetingService = UserTargetingService.getInstance(graphClient);
-      notificationService = NotificationService.getInstance(graphClient);
+      servicesRef.current.userTargetingService = UserTargetingService.getInstance(servicesRef.current.graphClient);
+      servicesRef.current.notificationService = NotificationService.getInstance(servicesRef.current.graphClient);
 
       dispatch({ type: 'SET_LOADING', payload: true });
 
       // Initialize user targeting service first
-      if (options.userTargetingEnabled) {
-        await userTargetingService.initialize();
+      if (servicesRef.current.options.userTargetingEnabled) {
+        await servicesRef.current.userTargetingService.initialize();
       }
 
       // Load alert types from JSON
-      loadAlertTypes(options.alertTypesJson);
+      loadAlertTypes(servicesRef.current.options.alertTypesJson);
 
       // Get user's dismissed and hidden alerts
-      if (options.userTargetingEnabled) {
-        const dismissedAlerts = userTargetingService.getUserDismissedAlerts();
-        const hiddenAlerts = userTargetingService.getUserHiddenAlerts();
+      if (servicesRef.current.options.userTargetingEnabled) {
+        const dismissedAlerts = servicesRef.current.userTargetingService.getUserDismissedAlerts();
+        const hiddenAlerts = servicesRef.current.userTargetingService.getUserHiddenAlerts();
 
         dispatch({ type: 'SET_DISMISSED_ALERTS', payload: dismissedAlerts });
         dispatch({ type: 'SET_HIDDEN_ALERTS', payload: hiddenAlerts });
@@ -438,22 +449,31 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Refresh alerts
   const refreshAlerts = useCallback(async (): Promise<void> => {
-    if (!options || !graphClient) return;
+    if (!servicesRef.current.options || !servicesRef.current.graphClient) return;
 
     try {
       const allAlerts: IAlertItem[] = [];
 
       // Process only 3 sites at a time to avoid performance issues
       const batchSize = 3;
-      const siteIds = options.siteIds || [];
+      const siteIds = servicesRef.current.options.siteIds || [];
 
-      for (let i = 0; i < siteIds.length; i += batchSize) {
-        const batch = siteIds.slice(i, i + batchSize);
+      // Remove duplicate site IDs
+      const uniqueSiteIds = [...new Set(siteIds)];
+      console.log(`🌐 Site IDs configured: ${siteIds.length}, unique: ${uniqueSiteIds.length}`, uniqueSiteIds);
+
+      for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
+        const batch = uniqueSiteIds.slice(i, i + batchSize);
         const batchPromises = batch.map(siteId => fetchAlerts(siteId));
-        const batchResults = await Promise.all(batchPromises);
+        const batchResults = await Promise.allSettled(batchPromises);
 
-        batchResults.forEach(siteAlerts => {
-          allAlerts.push(...siteAlerts);
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            console.log(`📋 Site ${batch[index]} returned ${result.value.length} alerts`);
+            allAlerts.push(...result.value);
+          } else {
+            console.warn(`⚠️ Site ${batch[index]} failed:`, result.reason);
+          }
         });
       }
 
@@ -464,24 +484,35 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
+      // Debug logging for duplicates
+      console.log(`🔍 Total alerts fetched: ${allAlerts.length}`);
+      if (allAlerts.length > 0) {
+        const alertIds = allAlerts.map(a => `${a.id} (${a.title})`);
+        const duplicateIds = alertIds.filter((id, index) => alertIds.indexOf(id) !== index);
+        if (duplicateIds.length > 0) {
+          console.warn('🚨 Duplicate alerts detected:', duplicateIds);
+        }
+      }
+
       // Process alerts
       const uniqueAlerts = removeDuplicateAlerts(allAlerts);
+      console.log(`✅ Unique alerts after deduplication: ${uniqueAlerts.length}`);
 
       // Compare with cached alerts
-      const cachedAlerts = getFromLocalStorage<IAlertItem[]>("AllAlerts");
+      const cachedAlerts = storageService.getFromLocalStorage<IAlertItem[]>('AllAlerts');
       const alertsAreDifferent = areAlertsDifferent(uniqueAlerts, cachedAlerts);
 
       // Update cache if needed
       if (alertsAreDifferent) {
-        saveToLocalStorage("AllAlerts", uniqueAlerts);
+        storageService.saveToLocalStorage('AllAlerts', uniqueAlerts);
       }
 
       // Get alerts to display
       let alertsToShow = alertsAreDifferent ? uniqueAlerts : cachedAlerts || [];
 
       // Apply user targeting if enabled
-      if (options.userTargetingEnabled && userTargetingService) {
-        alertsToShow = await userTargetingService.filterAlertsForCurrentUser(alertsToShow);
+      if (servicesRef.current.options.userTargetingEnabled && servicesRef.current.userTargetingService) {
+        alertsToShow = await servicesRef.current.userTargetingService.filterAlertsForCurrentUser(alertsToShow);
       }
 
       // Filter out hidden/dismissed alerts
@@ -497,7 +528,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       alertsToShow = sortAlertsByPriority(alertsToShow);
 
       // Send notifications for critical/high priority alerts if they're new
-      if (options.notificationsEnabled && alertsAreDifferent) {
+      if (servicesRef.current.options.notificationsEnabled && alertsAreDifferent) {
         const highPriorityAlerts = alertsToShow.filter(alert =>
           alert.priority === AlertPriority.Critical ||
           alert.priority === AlertPriority.High
@@ -538,8 +569,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     dispatch({ type: 'DISMISS_ALERT', payload: id });
 
     // Add to user's dismissed alerts if targeting is enabled
-    if (options?.userTargetingEnabled && userTargetingService) {
-      userTargetingService.addUserDismissedAlert(id);
+    if (servicesRef.current.options?.userTargetingEnabled && servicesRef.current.userTargetingService) {
+      servicesRef.current.userTargetingService.addUserDismissedAlert(id);
     }
   }, []);
 
@@ -548,8 +579,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     dispatch({ type: 'HIDE_ALERT_FOREVER', payload: id });
 
     // Add to user's hidden alerts if targeting is enabled
-    if (options?.userTargetingEnabled && userTargetingService) {
-      userTargetingService.addUserHiddenAlert(id);
+    if (servicesRef.current.options?.userTargetingEnabled && servicesRef.current.userTargetingService) {
+      servicesRef.current.userTargetingService.addUserHiddenAlert(id);
     }
   }, []);
 
@@ -562,6 +593,20 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     initializeAlerts,
     refreshAlerts
   }), [state, removeAlert, hideAlertForever, initializeAlerts, refreshAlerts]);
+
+  // Memory cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      // Clean up any pending timeouts or intervals
+      if (typeof window !== 'undefined') {
+        // Clear any stored timers that might be lingering
+        for (let i = 1; i < 9999; i++) {
+          window.clearTimeout(i);
+          window.clearInterval(i);
+        }
+      }
+    };
+  }, []);
 
   return (
     <AlertsContext.Provider value={value}>

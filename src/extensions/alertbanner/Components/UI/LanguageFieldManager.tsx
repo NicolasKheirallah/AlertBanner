@@ -30,7 +30,8 @@ const useStyles = makeStyles({
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: "12px",
-    marginTop: "16px"
+    marginTop: "16px",
+    marginRight: "20px" // Prevent cutoff on right side
   },
   languageItem: {
     padding: "12px 16px",
@@ -96,20 +97,14 @@ interface ILanguageFieldManagerProps {
 }
 
 const DEFAULT_LANGUAGES: ILanguage[] = [
-  { code: "en-us", name: "English (US)", nativeName: "English", flag: "🇺🇸", isAdded: true }, // Always added
+  { code: "en-us", name: "English (US)", nativeName: "English", flag: "🇺🇸", isAdded: true }, // Only English preselected
   { code: "fr-fr", name: "French (France)", nativeName: "Français", flag: "🇫🇷", isAdded: false },
+  { code: "sv-se", name: "Swedish (Sweden)", nativeName: "Svenska", flag: "🇸🇪", isAdded: false },
   { code: "de-de", name: "German (Germany)", nativeName: "Deutsch", flag: "🇩🇪", isAdded: false },
   { code: "es-es", name: "Spanish (Spain)", nativeName: "Español", flag: "🇪🇸", isAdded: false },
-  { code: "sv-se", name: "Swedish (Sweden)", nativeName: "Svenska", flag: "🇸🇪", isAdded: false },
   { code: "fi-fi", name: "Finnish (Finland)", nativeName: "Suomi", flag: "🇫🇮", isAdded: false },
   { code: "da-dk", name: "Danish (Denmark)", nativeName: "Dansk", flag: "🇩🇰", isAdded: false },
-  { code: "nb-no", name: "Norwegian (Norway)", nativeName: "Norsk", flag: "🇳🇴", isAdded: false },
-  { code: "it-it", name: "Italian (Italy)", nativeName: "Italiano", flag: "🇮🇹", isAdded: false },
-  { code: "pt-br", name: "Portuguese (Brazil)", nativeName: "Português", flag: "🇧🇷", isAdded: false },
-  { code: "nl-nl", name: "Dutch (Netherlands)", nativeName: "Nederlands", flag: "🇳🇱", isAdded: false },
-  { code: "ja-jp", name: "Japanese (Japan)", nativeName: "日本語", flag: "🇯🇵", isAdded: false },
-  { code: "zh-cn", name: "Chinese (China)", nativeName: "中文", flag: "🇨🇳", isAdded: false },
-  { code: "ko-kr", name: "Korean (Korea)", nativeName: "한국어", flag: "🇰🇷", isAdded: false }
+  { code: "nb-no", name: "Norwegian (Norway)", nativeName: "Norsk", flag: "🇳🇴", isAdded: false }
 ];
 
 const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
@@ -120,6 +115,50 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
   const [languages, setLanguages] = React.useState<ILanguage[]>(DEFAULT_LANGUAGES);
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
+  
+  // Get site's default language
+  const getSiteDefaultLanguage = React.useCallback((): string => {
+    // Try to get from SharePoint context, fallback to browser, then English
+    const spLanguage = (window as any).SPClientContext?.web?.language;
+    const browserLanguage = navigator.language?.toLowerCase();
+    
+    // Map common language codes to our supported ones
+    const languageMap: { [key: string]: string } = {
+      '1033': 'en-us', // SharePoint LCID for English
+      '1036': 'fr-fr', // French
+      '1031': 'de-de', // German  
+      '1034': 'es-es', // Spanish
+      '1053': 'sv-se', // Swedish
+      '1035': 'fi-fi', // Finnish
+      '1030': 'da-dk', // Danish
+      '1044': 'nb-no', // Norwegian
+      'en': 'en-us',
+      'en-us': 'en-us',
+      'fr': 'fr-fr',
+      'de': 'de-de',
+      'es': 'es-es', 
+      'sv': 'sv-se',
+      'fi': 'fi-fi',
+      'da': 'da-dk',
+      'nb': 'nb-no',
+      'no': 'nb-no'
+    };
+    
+    // Try SharePoint language first
+    if (spLanguage && languageMap[spLanguage.toString()]) {
+      return languageMap[spLanguage.toString()];
+    }
+    
+    // Try browser language
+    if (browserLanguage) {
+      const shortLang = browserLanguage.split('-')[0];
+      if (languageMap[browserLanguage]) return languageMap[browserLanguage];
+      if (languageMap[shortLang]) return languageMap[shortLang];
+    }
+    
+    // Default to English
+    return 'en-us';
+  }, []);
 
   // Load currently supported languages on component mount
   React.useEffect(() => {
@@ -135,23 +174,47 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     try {
       setLoading(true);
       const supported = await alertService.getSupportedLanguageColumns();
+      const siteDefaultLanguage = getSiteDefaultLanguage();
       
-      // Update language states based on what's currently supported
+      console.log(`🌍 Site default language detected: ${siteDefaultLanguage}`);
+      console.log(`📋 Supported languages from SharePoint: ${supported.join(', ')}`);
+      
+      // Update language states: only add languages that exist in SharePoint OR the site default
       setLanguages(prev => prev.map(lang => ({
         ...lang,
-        isAdded: supported.includes(lang.code) || lang.code === 'en-us'
+        isAdded: supported.includes(lang.code) || (lang.code === siteDefaultLanguage && supported.length === 0)
       })));
+      
+      // If no languages are supported yet and this is first load, ensure site default is selected
+      if (supported.length === 0) {
+        setLanguages(prev => prev.map(lang => ({
+          ...lang,
+          isAdded: lang.code === siteDefaultLanguage
+        })));
+        console.log(`✅ Set ${siteDefaultLanguage} as default language for new installation`);
+      }
+      
     } catch (error) {
       console.warn('Could not load supported languages:', error);
-      showMessage('warning', 'Could not load current language support. Using defaults.');
+      
+      // Fallback: set only site default language as active
+      const siteDefaultLanguage = getSiteDefaultLanguage();
+      setLanguages(prev => prev.map(lang => ({
+        ...lang,
+        isAdded: lang.code === siteDefaultLanguage
+      })));
+      
+      showMessage('warning', `Could not load language support. Using site default: ${siteDefaultLanguage}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleLanguageToggle = async (languageCode: string, checked: boolean) => {
-    if (languageCode === 'en-us') {
-      showMessage('warning', 'English is the default language and cannot be removed.');
+    const siteDefaultLanguage = getSiteDefaultLanguage();
+    if (languageCode === siteDefaultLanguage && !checked) {
+      const defaultLanguageName = languages.find(l => l.code === siteDefaultLanguage)?.name || 'default';
+      showMessage('warning', `${defaultLanguageName} is the site's default language and cannot be removed.`);
       return;
     }
 
@@ -168,12 +231,14 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     try {
       if (checked) {
         // Add language columns
+        setLoading(true);
         await alertService.addLanguageColumns(languageCode);
         showMessage('success', `Added ${language.name} language support successfully!`);
       } else {
-        // For removal, we'll just mark it as not supported in our state
-        // (SharePoint columns can't be easily deleted, so we'll just hide them from UI)
-        showMessage('success', `Removed ${language.name} from active languages.`);
+        // Remove language columns from SharePoint
+        setLoading(true);
+        await alertService.removeLanguageColumns(languageCode);
+        showMessage('success', `Removed ${language.name} language support and columns.`);
       }
 
       // Update final state
@@ -199,6 +264,8 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           ? { ...lang, isPending: false, isAdded: !checked }
           : lang
       ));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -259,18 +326,28 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         
         <CardPreview>
           <div style={{ padding: "16px" }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div>
-                <Text weight="semibold">Available Languages</Text>
-                <Text size={200} style={{ marginLeft: '8px', color: tokens.colorNeutralForeground2 }}>
-                  {addedCount} active{pendingCount > 0 ? `, ${pendingCount} updating` : ''}
-                </Text>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              marginBottom: '16px',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <div style={{ minWidth: '0', flex: '1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                  <Text weight="semibold">Available Languages</Text>
+                  <Text size={200} style={{ color: tokens.colorNeutralForeground2 }}>
+                    {addedCount} active{pendingCount > 0 ? `, ${pendingCount} updating` : ''}
+                  </Text>
+                </div>
               </div>
               <Button
                 appearance="secondary"
                 icon={<Add24Regular />}
                 onClick={loadSupportedLanguages}
                 disabled={loading}
+                style={{ flexShrink: 0 }}
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </Button>

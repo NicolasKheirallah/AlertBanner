@@ -1,5 +1,6 @@
 import * as React from "react";
 import { AlertPriority, IAlertType } from "../Alerts/IAlerts";
+import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import { getPriorityIcon } from "../AlertItem/utils";
 import styles from "./AlertPreview.module.scss";
 
@@ -141,7 +142,12 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
 
             {description && (
               <div className={styles.alertDescription} style={textStyle}>
-                <div dangerouslySetInnerHTML={{ __html: description || 'Alert description will appear here...' }} />
+                <div dangerouslySetInnerHTML={{ 
+                  __html: React.useMemo(() => 
+                    htmlSanitizer.sanitizePreviewContent(description || 'Alert description will appear here...'), 
+                    [description]
+                  )
+                }} />
               </div>
             )}
 

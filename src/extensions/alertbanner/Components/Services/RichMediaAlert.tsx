@@ -1,7 +1,6 @@
 import * as React from "react";
 import { IAlertRichMedia } from "../Alerts/IAlerts";
-// Text import removed as it's no longer used
-import { marked } from "marked";
+import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import styles from "./RichMediaAlert.module.scss";
 
 export interface IRichMediaAlertProps {
@@ -43,22 +42,29 @@ const RichMediaAlert: React.FC<IRichMediaAlertProps> = ({ media, expanded }) => 
         );
 
       case "html":
+        const sanitizedHtml = React.useMemo(() => 
+          htmlSanitizer.sanitizeHtml(media.content), 
+          [media.content]
+        );
         return (
           <div className={styles.htmlContainer}>
             <div
-              dangerouslySetInnerHTML={{ __html: media.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
             />
           </div>
         );
 
       case "markdown":
-        // Convert markdown to HTML
-        const htmlContent = marked(media.content);
+        // Convert markdown to sanitized HTML
+        const sanitizedMarkdown = React.useMemo(() => 
+          htmlSanitizer.markdownToHtml(media.content), 
+          [media.content]
+        );
 
         return (
           <div className={styles.markdownContainer}>
             <div
-              dangerouslySetInnerHTML={{ __html: htmlContent }}
+              dangerouslySetInnerHTML={{ __html: sanitizedMarkdown }}
             />
           </div>
         );

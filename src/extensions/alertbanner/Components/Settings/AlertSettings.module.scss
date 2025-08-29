@@ -621,6 +621,13 @@
   padding: 16px;
 }
 
+.alertMetaData {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .alertTypeIndicator {
   display: inline-block;
   padding: 4px 8px;
@@ -629,6 +636,8 @@
   font-weight: 600;
   text-transform: uppercase;
   margin-bottom: 8px;
+  background-color: var(--bg-color, #0078d4);
+  color: var(--text-color, #ffffff);
 }
 
 .alertCardTitle {
@@ -812,102 +821,6 @@
   border-top: 1px solid #edebe9;
 }
 
-// Dark mode support
-@media (prefers-color-scheme: dark) {
-  .settingsContainer {
-    background: #292827;
-  }
-  
-  .tabs {
-    background: #3b3a39;
-    border-bottom-color: #484644;
-  }
-  
-  .tab {
-    color: #c8c6c4;
-    
-    &:hover {
-      background: #484644;
-      color: #ffffff;
-    }
-  }
-  
-  .activeTab {
-    background: #323130;
-    color: #ffffff;
-    border-bottom-color: #0078d4;
-    
-    &:hover {
-      background: #323130;
-    }
-  }
-  
-  .tabContent {
-    background: #323130;
-  }
-  
-  .tabHeader {
-    h3 {
-      color: #ffffff;
-    }
-    
-    p {
-      color: #c8c6c4;
-    }
-  }
-  
-  .templateActions {
-    border-top-color: #484644;
-  }
-  
-  .formActions {
-    border-top-color: #484644;
-  }
-  
-  .alertTypeCard {
-    background: #3b3a39;
-    border-color: #484644;
-    
-    &:hover {
-      border-color: #605e5c;
-    }
-  }
-  
-  .typePreview {
-    background: #484644;
-    border-bottom-color: #605e5c;
-  }
-  
-  .typeActions {
-    background: #3b3a39;
-  }
-  
-  .emptyState {
-    color: #c8c6c4;
-    
-    h4 {
-      color: #ffffff;
-    }
-  }
-  
-  .systemInfo {
-    background: #484644;
-    border-color: #605e5c;
-  }
-  
-  .infoItem {
-    border-bottom-color: #605e5c;
-  }
-  
-  .infoLabel {
-    color: #c8c6c4;
-  }
-  
-  .dialogFooter {
-    background: #3b3a39;
-    border-top-color: #484644;
-  }
-}
 
 // Responsive design
 @media (max-width: 1200px) {
@@ -1092,4 +1005,147 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+// Additional styles for inline replacements
+.errorMessage {
+  color: #d13438;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.flexRowGap12 {
+  display: flex;
+  gap: 12px;
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.loadingContainer {
+  text-align: center;
+  padding: 40px;
+  color: #605e5c;
+}
+
+.loadingTitle {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.loadingSubtitle {
+  font-size: 14px;
+}
+
+.emptyStateList {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.flexRowCentered {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.metaInfo {
+  font-size: 14px;
+  color: #605e5c;
+  margin: 8px 0;
+}
+
+.colorPreviewSwatch {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.fullWidthColumn {
+  grid-column: 1 / -1;
+}
+
+.spinnerContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #605e5c;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #0078d4;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.infoText {
+  margin-bottom: 16px;
+  color: #605e5c;
+}
+
+.actionButtonsRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.helpText {
+  font-size: 14px;
+  color: #605e5c;
+}
+
+.creatingProgress {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #f3f2f1;
+  border-radius: 4px;
+}
+
+.successContainer {
+  padding: 16px;
+  background-color: #dff6dd;
+  border: 1px solid #92c5f7;
+  border-radius: 4px;
+  color: #323130;
+}
+
+.successHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.successIcon {
+  font-size: 18px;
+}
+
+.successDescription {
+  margin: 8px 0 0 26px;
+  color: #605e5c;
+}
+
+.storageManagement {
+  margin-bottom: 16px;
+  color: #605e5c;
+}
+
+.storageButtons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sampleTypePreview {
+  background-color: var(--bg-color, #0078d4);
+  color: var(--text-color, #ffffff);
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

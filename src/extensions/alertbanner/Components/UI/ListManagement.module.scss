@@ -121,32 +121,6 @@
   }
 }
 
-// Dark mode support
-@media (prefers-color-scheme: dark) {
-  .listManagement {
-    .sitesGrid {
-      .siteCard {
-        background: var(--colorNeutralBackground2);
-
-        &:hover {
-          background: var(--colorNeutralBackground1Hover);
-        }
-      }
-    }
-
-    .hierarchyInfo {
-      background: var(--colorNeutralBackground3);
-
-      .hierarchyDescription {
-        .hierarchyList {
-          .hierarchyItem {
-            background: var(--colorNeutralBackground2);
-          }
-        }
-      }
-    }
-  }
-}
 
 // High contrast mode
 @media (prefers-contrast: high) {

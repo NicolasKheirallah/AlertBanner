@@ -96,6 +96,42 @@ export class SharePointAlertService {
   /**
    * Initialize SharePoint lists if they don't exist
    */
+  /**
+   * Check which sites need list creation
+   */
+  public async checkListsNeeded(): Promise<{ site: string; needsAlerts: boolean; needsTypes: boolean }[]> {
+    const results = [];
+    const currentSiteId = this.context.pageContext.site.id.toString();
+    
+    // Check current site
+    let needsAlerts = false;
+    let needsTypes = false;
+    
+    try {
+      await this.graphClient.api(`/sites/${currentSiteId}/lists/Alerts`).get();
+    } catch (error) {
+      if (error.message?.includes('not found') || error.message?.includes('404')) {
+        needsAlerts = true;
+      }
+    }
+    
+    try {
+      await this.graphClient.api(`/sites/${currentSiteId}/lists/AlertBannerTypes`).get();
+    } catch (error) {
+      if (error.message?.includes('not found') || error.message?.includes('404')) {
+        needsTypes = true;
+      }
+    }
+    
+    results.push({
+      site: currentSiteId,
+      needsAlerts,
+      needsTypes
+    });
+    
+    return results;
+  }
+
   public async initializeLists(): Promise<void> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
@@ -199,79 +235,22 @@ export class SharePointAlertService {
 
       const listDefinition = {
         displayName: this.alertsListName,
-        description: 'Stores alert banner notifications',
-        template: 'genericList',
-        columns: [
-          {
-            name: 'Description',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'AlertType',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Priority',
-            choice: {
-              choices: ['Low', 'Medium', 'High', 'Critical'],
-              displayAs: 'dropDownMenu',
-              defaultValue: 'Medium'
-            }
-          },
-          {
-            name: 'IsPinned',
-            boolean: {
-              defaultValue: false
-            }
-          },
-          {
-            name: 'NotificationType',
-            choice: {
-              choices: ['None', 'Browser', 'Email', 'Both'],
-              displayAs: 'dropDownMenu',
-              defaultValue: 'None'
-            }
-          },
-          {
-            name: 'LinkUrl',
-            text: { maxLength: 2083 }
-          },
-          {
-            name: 'LinkDescription',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'TargetSites',
-            text: { allowMultipleLines: true }
-          },
-          {
-            name: 'Status',
-            choice: {
-              choices: ['Active', 'Expired', 'Scheduled'],
-              displayAs: 'dropDownMenu',
-              defaultValue: 'Active'
-            }
-          },
-          {
-            name: 'ScheduledStart',
-            dateTime: { displayAs: 'default', format: 'dateTime' }
-          },
-          {
-            name: 'ScheduledEnd',
-            dateTime: { displayAs: 'default', format: 'dateTime' }
-          },
-          {
-            name: 'Metadata',
-            text: { allowMultipleLines: true }
-          }
-          // Note: Multi-language fields will be added dynamically based on user selection
-        ]
+        list: {
+          template: 'genericList'
+        }
       };
 
       try {
+        console.log('📋 Creating basic list structure...');
         await this.graphClient
           .api(`/sites/${siteId}/lists`)
           .post(listDefinition);
+        console.log('✅ Basic list structure created successfully');
+
+        // Add custom columns after list creation
+        console.log('🏗️ Adding custom columns to Alerts list...');
+        await this.addAlertsListColumns(siteId);
+        console.log('✅ All custom columns added successfully');
 
         return true; // List was created
       } catch (createError) {
@@ -279,8 +258,180 @@ export class SharePointAlertService {
           console.warn('User lacks permissions to create SharePoint lists.');
           throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
         }
+        if (createError.message?.includes('CRITICAL_COLUMNS_FAILED')) {
+          console.error('List created but critical columns failed:', createError.message);
+          throw new Error(`LIST_INCOMPLETE: ${createError.message}`);
+        }
         throw createError;
       }
+    }
+  }
+
+  /**
+   * Add custom columns to the Alerts list after creation
+   */
+  private async addAlertsListColumns(siteId: string): Promise<void> {
+    // Get the AlertBannerTypes list ID for the lookup field
+    let alertTypesListId = '';
+    try {
+      const alertTypesList = await this.graphClient
+        .api(`/sites/${siteId}/lists/${this.alertTypesListName}`)
+        .select('id')
+        .get();
+      alertTypesListId = alertTypesList.id;
+    } catch (error) {
+      console.warn('Could not get AlertBannerTypes list ID for lookup field:', error);
+      // If we can't get the list ID, we'll create AlertType as a text field instead
+    }
+
+    const columns = [
+      // Create AlertType as lookup if we have the AlertBannerTypes list, otherwise as text
+      alertTypesListId ? {
+        name: 'AlertType',
+        lookup: {
+          listId: alertTypesListId,
+          columnName: 'Title',
+          allowMultipleValues: false,
+          allowUnlimitedLength: false
+        }
+      } : {
+        name: 'AlertType',
+        text: { 
+          maxLength: 255,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'Priority',
+        text: { 
+          maxLength: 50,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'IsPinned',
+        boolean: {}
+      },
+      {
+        name: 'NotificationType',
+        text: { 
+          maxLength: 50,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'LinkUrl',
+        text: { 
+          maxLength: 2083,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'LinkDescription',
+        text: { 
+          maxLength: 255,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'TargetSites',
+        text: { 
+          allowMultipleLines: true,
+          maxLength: 4000
+        }
+      },
+      {
+        name: 'Status',
+        text: { 
+          maxLength: 50,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'ScheduledStart',
+        dateTime: {
+          displayFormat: 'friendlyDateTime'
+        },
+        indexed: true
+      },
+      {
+        name: 'ScheduledEnd',
+        dateTime: {
+          displayFormat: 'friendlyDateTime'
+        },
+        indexed: true
+      },
+      {
+        name: 'Metadata',
+        text: { 
+          allowMultipleLines: true,
+          maxLength: 4000
+        }
+      },
+      {
+        name: 'Description',
+        text: { 
+          allowMultipleLines: true,
+          maxLength: 4000,
+          textType: 'richText',
+          linesForEditing: 10,
+          appendChangesToExistingText: false
+        }
+      }
+    ];
+
+    const criticalColumns = ['ScheduledStart', 'ScheduledEnd'];
+    const failedColumns: string[] = [];
+
+    for (const column of columns) {
+      try {
+        console.log(`Creating column: ${column.name}`);
+        await this.graphClient
+          .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+          .post(column);
+        console.log(`✅ Successfully created column: ${column.name}`);
+      } catch (error) {
+        console.error(`❌ Failed to create column ${column.name}:`, {
+          columnName: column.name,
+          columnDefinition: column,
+          error: error.message,
+          statusCode: error.code || error.status
+        });
+        
+        failedColumns.push(column.name);
+        
+        // For critical columns, try alternative creation methods
+        if (criticalColumns.includes(column.name) && column.name.includes('Scheduled')) {
+          console.log(`🔄 Retrying critical column ${column.name} with alternative method...`);
+          try {
+            // Try with simpler dateTime definition
+            const simpleColumn = {
+              name: column.name,
+              dateTime: {}
+            };
+            await this.graphClient
+              .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+              .post(simpleColumn);
+            console.log(`✅ Successfully created ${column.name} with alternative method`);
+          } catch (retryError) {
+            console.error(`❌ Alternative method also failed for ${column.name}:`, retryError);
+          }
+        }
+      }
+    }
+
+    // Report summary of column creation
+    if (failedColumns.length > 0) {
+      console.warn(`⚠️ Column creation summary: ${failedColumns.length} columns failed:`, failedColumns);
+      
+      // If critical columns failed, throw an error
+      const failedCriticalColumns = failedColumns.filter(name => criticalColumns.includes(name));
+      if (failedCriticalColumns.length > 0) {
+        console.error(`🚨 Critical columns failed: ${failedCriticalColumns.join(', ')}`);
+        throw new Error(`CRITICAL_COLUMNS_FAILED: Failed to create critical columns: ${failedCriticalColumns.join(', ')}`);
+      }
+    } else {
+      console.log(`✅ All ${columns.length} columns created successfully`);
     }
   }
 
@@ -321,43 +472,18 @@ export class SharePointAlertService {
 
       const listDefinition = {
         displayName: this.alertTypesListName,
-        description: 'Stores alert banner type definitions',
-        template: 'genericList',
-        columns: [
-          {
-            name: 'IconName',
-            text: { maxLength: 100 }
-          },
-          {
-            name: 'BackgroundColor',
-            text: { maxLength: 50 }
-          },
-          {
-            name: 'TextColor',
-            text: { maxLength: 50 }
-          },
-          {
-            name: 'AdditionalStyles',
-            text: { allowMultipleLines: true }
-          },
-          {
-            name: 'PriorityStyles',
-            text: { allowMultipleLines: true }
-          },
-          {
-            name: 'SortOrder',
-            number: { 
-              decimalPlaces: 0,
-              defaultValue: '0'
-            }
-          }
-        ]
+        list: {
+          template: 'genericList'
+        }
       };
 
       try {
         await this.graphClient
           .api(`/sites/${siteId}/lists`)
           .post(listDefinition);
+
+        // Add custom columns after list creation
+        await this.addAlertTypesListColumns(siteId);
 
         return true; // List was created
       } catch (createError) {
@@ -366,6 +492,67 @@ export class SharePointAlertService {
           throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
         }
         throw createError;
+      }
+    }
+  }
+
+  /**
+   * Add custom columns to the AlertTypes list after creation
+   */
+  private async addAlertTypesListColumns(siteId: string): Promise<void> {
+    const columns = [
+      {
+        name: 'IconName',
+        text: { 
+          maxLength: 100,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'BackgroundColor',
+        text: { 
+          maxLength: 50,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'TextColor',
+        text: { 
+          maxLength: 50,
+          allowMultipleLines: false
+        }
+      },
+      {
+        name: 'AdditionalStyles',
+        text: { 
+          allowMultipleLines: true,
+          maxLength: 4000
+        }
+      },
+      {
+        name: 'PriorityStyles',
+        text: { 
+          allowMultipleLines: true,
+          maxLength: 4000
+        }
+      },
+      {
+        name: 'SortOrder',
+        number: { 
+          decimalPlaces: 'none'
+        },
+        indexed: true
+      }
+    ];
+
+    for (const column of columns) {
+      try {
+        await this.graphClient
+          .api(`/sites/${siteId}/lists/${this.alertTypesListName}/columns`)
+          .post(column);
+      } catch (error) {
+        console.warn(`Failed to create AlertTypes column ${column.name}:`, error);
+        // Continue creating other columns even if one fails
       }
     }
   }
@@ -391,17 +578,28 @@ export class SharePointAlertService {
         }
       }
       const allAlerts: IAlertItem[] = [];
+      const seenAlerts = new Map<string, IAlertItem>(); // Track alerts by title+description to avoid duplicates
 
       // Query alerts from each site
       for (const siteId of sitesToQuery) {
         try {
           const response = await this.graphClient
             .api(`/sites/${siteId}/lists/${this.alertsListName}/items`)
-            .expand('fields,author')
+            .expand('fields')
             .get();
 
-          const siteAlerts = response.value.map((item: any) => this.mapSharePointItemToAlert(item));
-          allAlerts.push(...siteAlerts);
+          const siteAlerts = response.value.map((item: any) => this.mapSharePointItemToAlert(item, siteId));
+          
+          // Deduplicate alerts based on SharePoint item ID and site ID
+          for (const alert of siteAlerts) {
+            const dedupeKey = `${siteId}-${alert.id.split('-').pop()}`; // Use actual SharePoint item ID
+            if (!seenAlerts.has(dedupeKey)) {
+              seenAlerts.set(dedupeKey, alert);
+              allAlerts.push(alert);
+            } else {
+              console.warn(`Duplicate alert detected and skipped: ${alert.title} (ID: ${alert.id})`);
+            }
+          }
         } catch (error) {
           console.warn(`Failed to get alerts from site ${siteId}:`, error);
           // Continue with other sites
@@ -435,7 +633,7 @@ export class SharePointAlertService {
         fields: {
           Title: alert.title,
           Description: alert.description,
-          AlertType: alert.AlertType,
+          AlertType: alert.AlertType, // This should be the lookup value (just the text name)
           Priority: alert.priority,
           IsPinned: alert.isPinned,
           NotificationType: alert.notificationType,
@@ -456,10 +654,10 @@ export class SharePointAlertService {
       // Get the created item with expanded fields
       const createdItem = await this.graphClient
         .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${response.id}`)
-        .expand('fields,author')
+        .expand('fields')
         .get();
 
-      return this.mapSharePointItemToAlert(createdItem);
+      return this.mapSharePointItemToAlert(createdItem, siteId);
     } catch (error) {
       console.error('Failed to create alert:', error);
       throw error;
@@ -467,11 +665,28 @@ export class SharePointAlertService {
   }
 
   /**
+   * Extract site ID and item ID from composite alert ID
+   */
+  private parseAlertId(alertId: string): { siteId: string; itemId: string } {
+    const lastHyphenIndex = alertId.lastIndexOf('-');
+    if (lastHyphenIndex > 0 && lastHyphenIndex < alertId.length - 1) {
+      const siteId = alertId.substring(0, lastHyphenIndex);
+      const itemId = alertId.substring(lastHyphenIndex + 1);
+      // Check if itemId is numeric (valid SharePoint item ID)
+      if (/^\d+$/.test(itemId)) {
+        return { siteId, itemId };
+      }
+    }
+    // For backward compatibility, assume current site if no composite ID
+    return { siteId: this.context.pageContext.site.id.toString(), itemId: alertId };
+  }
+
+  /**
    * Update an existing alert
    */
   public async updateAlert(alertId: string, updates: Partial<IAlertItem>): Promise<IAlertItem> {
     try {
-      const siteId = this.context.pageContext.site.id.toString();
+      const { siteId, itemId } = this.parseAlertId(alertId);
 
       const listItem = {
         fields: {
@@ -491,16 +706,16 @@ export class SharePointAlertService {
       };
 
       await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${alertId}/fields`)
+        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${itemId}/fields`)
         .patch(listItem.fields);
 
       // Get the updated item
       const updatedItem = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${alertId}`)
-        .expand('fields,author')
+        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${itemId}`)
+        .expand('fields')
         .get();
 
-      return this.mapSharePointItemToAlert(updatedItem);
+      return this.mapSharePointItemToAlert(updatedItem, siteId);
     } catch (error) {
       console.error('Failed to update alert:', error);
       throw error;
@@ -512,10 +727,10 @@ export class SharePointAlertService {
    */
   public async deleteAlert(alertId: string): Promise<void> {
     try {
-      const siteId = this.context.pageContext.site.id.toString();
+      const { siteId, itemId } = this.parseAlertId(alertId);
 
       await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${alertId}`)
+        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${itemId}`)
         .delete();
     } catch (error) {
       console.error('Failed to delete alert:', error);
@@ -614,7 +829,7 @@ export class SharePointAlertService {
   /**
    * Map SharePoint list item to alert object
    */
-  private mapSharePointItemToAlert(item: any): IAlertItem {
+  private mapSharePointItemToAlert(item: any, siteId?: string): IAlertItem {
     const fields = item.fields;
     
     // Create the original list item for multi-language support
@@ -622,7 +837,7 @@ export class SharePointAlertService {
       Id: parseInt(item.id.toString()),
       Title: fields.Title || '',
       Description: fields.Description || '',
-      AlertType: fields.AlertType || '',
+      AlertType: fields.AlertType?.LookupValue || fields.AlertType || '',
       Priority: fields.Priority || AlertPriority.Medium,
       IsPinned: fields.IsPinned || false,
       NotificationType: fields.NotificationType || NotificationType.None,
@@ -673,10 +888,10 @@ export class SharePointAlertService {
     };
 
     return {
-      id: item.id.toString(),
+      id: siteId ? `${siteId}-${item.id}` : item.id.toString(),
       title: fields.Title || '',
       description: fields.Description || '',
-      AlertType: fields.AlertType || '',
+      AlertType: fields.AlertType?.LookupValue || fields.AlertType || '',
       priority: fields.Priority || AlertPriority.Medium,
       isPinned: fields.IsPinned || false,
       notificationType: fields.NotificationType || NotificationType.None,
@@ -777,18 +992,23 @@ export class SharePointAlertService {
 
     return allAlerts.filter(alert => {
       // Check if alert is scheduled and within active period
+      // If scheduledStart exists and is in the future, not yet active
       if (alert.scheduledStart && new Date(alert.scheduledStart) > now) {
         return false; // Not yet active
       }
 
+      // If scheduledEnd exists and is in the past, already expired
       if (alert.scheduledEnd && new Date(alert.scheduledEnd) < now) {
         return false; // Already expired
       }
 
+      // Alert is active if:
+      // 1. Status is 'Active' (regardless of dates)
+      // 2. Status is 'Scheduled' and start time has passed (or no start time = forever)
+      // 3. No dates at all means it's a forever alert
       return alert.status === 'Active' ||
         (alert.status === 'Scheduled' &&
-          alert.scheduledStart &&
-          new Date(alert.scheduledStart) <= now);
+          (!alert.scheduledStart || new Date(alert.scheduledStart) <= now));
     });
   }
 
@@ -921,6 +1141,58 @@ export class SharePointAlertService {
       }
     } catch (error) {
       console.error(`Failed to add language columns for ${languageCode}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove language columns from SharePoint lists
+   */
+  public async removeLanguageColumns(languageCode: string): Promise<void> {
+    try {
+      const siteId = this.context.pageContext.site.id.toString();
+      const languageSuffix = languageCode.split('-')[0].toUpperCase();
+
+      const columnsToRemove = [
+        `Title_${languageSuffix}`,
+        `Description_${languageSuffix}`,
+        `LinkDescription_${languageSuffix}`
+      ];
+
+      console.log(`🗑️ Removing language columns for ${languageCode} (${languageSuffix})...`);
+
+      for (const columnName of columnsToRemove) {
+        try {
+          // First check if the column exists
+          const existingColumns = await this.graphClient
+            .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+            .select('name,id')
+            .filter(`name eq '${columnName}'`)
+            .get();
+
+          if (existingColumns.value && existingColumns.value.length > 0) {
+            const columnId = existingColumns.value[0].id;
+            await this.graphClient
+              .api(`/sites/${siteId}/lists/${this.alertsListName}/columns/${columnId}`)
+              .delete();
+            
+            console.log(`✅ Removed column ${columnName} for language ${languageCode}`);
+          } else {
+            console.log(`ℹ️ Column ${columnName} does not exist, skipping`);
+          }
+        } catch (error) {
+          if (error.message?.includes('does not exist') || error.message?.includes('not found')) {
+            console.log(`ℹ️ Column ${columnName} already does not exist`);
+          } else {
+            console.warn(`⚠️ Failed to remove column ${columnName}:`, error);
+            // Don't throw - continue removing other columns
+          }
+        }
+      }
+      
+      console.log(`✅ Completed removal process for language ${languageCode}`);
+    } catch (error) {
+      console.error(`❌ Failed to remove language columns for ${languageCode}:`, error);
       throw error;
     }
   }

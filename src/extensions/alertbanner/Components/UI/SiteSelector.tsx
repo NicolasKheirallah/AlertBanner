@@ -44,7 +44,6 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
   className
 }) => {
   const [availableSites, setAvailableSites] = React.useState<ISiteOption[]>([]);
-  const [filteredSites, setFilteredSites] = React.useState<ISiteOption[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filters, setFilters] = React.useState<IFilterOptions>({
@@ -66,11 +65,6 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     loadSites();
   }, []);
 
-  // Apply filters when they change
-  React.useEffect(() => {
-    applyFilters();
-  }, [availableSites, filters, searchTerm]);
-
   const loadSites = async () => {
     setLoading(true);
     try {
@@ -88,7 +82,8 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     }
   };
 
-  const applyFilters = () => {
+  // ✅ PERFORMANCE FIX: Memoize expensive filtering operations
+  const filteredSites = React.useMemo(() => {
     let filtered = [...availableSites];
 
     // Apply search filter
@@ -127,10 +122,10 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       return a.name.localeCompare(b.name);
     });
 
-    setFilteredSites(filtered);
-  };
+    return filtered;
+  }, [availableSites, filters, searchTerm, selectedSites]);
 
-  const toggleSiteSelection = (siteId: string) => {
+  const toggleSiteSelection = React.useCallback((siteId: string) => {
     if (!allowMultiple) {
       onSitesChange([siteId]);
       return;
@@ -151,9 +146,9 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     }
 
     onSitesChange(newSelection);
-  };
+  }, [allowMultiple, selectedSites, maxSelection, onSitesChange]);
 
-  const selectSuggestedScope = (scope: 'current' | 'hub' | 'homesite' | 'recent') => {
+  const selectSuggestedScope = React.useCallback((scope: 'current' | 'hub' | 'homesite' | 'recent') => {
     if (!suggestedSites) return;
 
     let sitesToSelect: string[] = [];
@@ -184,9 +179,9 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     }
 
     onSitesChange(sitesToSelect);
-  };
+  }, [suggestedSites, onSitesChange]);
 
-  const getSiteIcon = (site: ISiteOption) => {
+  const getSiteIcon = React.useCallback((site: ISiteOption) => {
     switch (site.type) {
       case 'hub':
         return <Settings24Regular />;
@@ -199,9 +194,9 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       default:
         return <Building24Regular />;
     }
-  };
+  }, []);
 
-  const getPermissionBadge = (site: ISiteOption) => {
+  const getPermissionBadge = React.useCallback((site: ISiteOption) => {
     if (!showPermissionStatus) return null;
 
     const { permissionLevel, canCreateAlerts } = site.userPermissions;
@@ -222,7 +217,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       default:
         return <span className={`${styles.permissionBadge} ${styles.readOnly}`}>Read Only</span>;
     }
-  };
+  }, [showPermissionStatus]);
 
   if (loading) {
     return (

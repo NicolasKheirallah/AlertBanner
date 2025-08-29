@@ -3,9 +3,11 @@ import { MessageBar, MessageBarBody, MessageBarTitle, tokens } from "@fluentui/r
 import styles from "./Alerts.module.scss";
 import { IAlertsProps, IAlertType, AlertPriority } from "./IAlerts";
 import AlertItem from "../AlertItem/AlertItem";
-import AlertSettings, { ISettingsData } from "../Settings/AlertSettings";
+import AlertSettingsTabs from "../Settings/AlertSettingsTabs";
+import { ISettingsData } from "../Settings/Tabs/SettingsTab";
 import { EditModeDetector } from "../Utils/EditModeDetector";
 import { useAlerts } from "../Context/AlertsContext";
+import { StorageService } from "../Services/StorageService";
 
 const Alerts: React.FC<IAlertsProps> = (props) => {
   const { state, initializeAlerts, removeAlert, hideAlertForever } = useAlerts();
@@ -13,12 +15,18 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInEditMode, setIsInEditMode] = React.useState(false);
+  
+  // Carousel settings
+  const [carouselEnabled, setCarouselEnabled] = React.useState(false);
+  const [carouselInterval, setCarouselInterval] = React.useState(5000); // 5 seconds default
+  const carouselTimer = React.useRef<number | null>(null);
+  const storageService = React.useRef<StorageService>(StorageService.getInstance());
 
   // Initialize alerts and edit mode detection on mount
   React.useEffect(() => {
     initializeAlerts({
       graphClient: props.graphClient,
-      siteIds: props.siteIds,
+      siteIds: props.siteIds || [],
       alertTypesJson: props.alertTypesJson,
       userTargetingEnabled: props.userTargetingEnabled,
       notificationsEnabled: props.notificationsEnabled,
@@ -39,21 +47,78 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     }
   }, [alerts, currentIndex]);
 
-  const handleSettingsChange = (settings: ISettingsData) => {
+  // Carousel timer effect
+  React.useEffect(() => {
+    if (carouselEnabled && alerts.length > 1) {
+      carouselTimer.current = window.setInterval(() => {
+        setCurrentIndex(prevIndex => (prevIndex + 1) % alerts.length);
+      }, carouselInterval);
+    } else if (carouselTimer.current) {
+      window.clearInterval(carouselTimer.current);
+      carouselTimer.current = null;
+    }
+
+    // Cleanup
+    return () => {
+      if (carouselTimer.current) {
+        window.clearInterval(carouselTimer.current);
+      }
+    };
+  }, [carouselEnabled, carouselInterval, alerts.length]);
+
+  // ✅ STORAGE FIX: Use StorageService instead of direct localStorage access
+  React.useEffect(() => {
+    const savedCarouselEnabled = storageService.current.getFromLocalStorage<boolean>('carouselEnabled');
+    const savedCarouselInterval = storageService.current.getFromLocalStorage<number>('carouselInterval');
+    
+    if (savedCarouselEnabled) {
+      setCarouselEnabled(savedCarouselEnabled);
+    }
+    if (savedCarouselInterval && savedCarouselInterval >= 2000 && savedCarouselInterval <= 30000) {
+      setCarouselInterval(savedCarouselInterval);
+    }
+  }, []);
+
+  const handleSettingsChange = React.useCallback((settings: ISettingsData) => {
     if (props.onSettingsChange) {
       props.onSettingsChange(settings);
     }
     // The context will handle reloading alert types if they changed via its own logic
-  };
+  }, [props.onSettingsChange]);
 
-  // Carousel navigation
-  const goToNext = () => {
+  // Save carousel settings when they change
+  React.useEffect(() => {
+    storageService.current.saveToLocalStorage('carouselEnabled', carouselEnabled);
+  }, [carouselEnabled]);
+
+  React.useEffect(() => {
+    storageService.current.saveToLocalStorage('carouselInterval', carouselInterval);
+  }, [carouselInterval]);
+
+  // Carousel navigation with useCallback optimization
+  const goToNext = React.useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % alerts.length);
-  };
+  }, [alerts.length]);
 
-  const goToPrevious = () => {
+  const goToPrevious = React.useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + alerts.length) % alerts.length);
-  };
+  }, [alerts.length]);
+
+  // Carousel pause functionality with useCallback optimization
+  const handleMouseEnter = React.useCallback(() => {
+    if (carouselTimer.current) {
+      window.clearInterval(carouselTimer.current);
+      carouselTimer.current = null;
+    }
+  }, []);
+
+  const handleMouseLeave = React.useCallback(() => {
+    if (carouselEnabled && alerts.length > 1) {
+      carouselTimer.current = window.setInterval(() => {
+        setCurrentIndex(prevIndex => (prevIndex + 1) % alerts.length);
+      }, carouselInterval);
+    }
+  }, [carouselEnabled, alerts.length, carouselInterval]);
 
   if (isLoading) {
     return null; // Hide loading, let alerts load silently in the background
@@ -63,17 +128,37 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     return (
       <div style={{
         width: '100%',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: tokens.spacingVerticalM,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: tokens.spacingVerticalM,
+        maxWidth: '100vw',
+        margin: '0',
+        padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+        backgroundColor: tokens.colorNeutralBackground1,
+        borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+        fontFamily: tokens.fontFamilyBase,
       }}>
-        <MessageBar intent="error">
+        <MessageBar 
+          intent="error"
+          style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+            borderRadius: tokens.borderRadiusMedium,
+            boxShadow: tokens.shadow4,
+          }}
+        >
           <MessageBarBody>
-            <MessageBarTitle>Unable to Load Alerts</MessageBarTitle>
-            {errorMessage || "An error occurred while loading alerts. Please try refreshing the page."}
+            <MessageBarTitle style={{ 
+              color: tokens.colorPaletteRedForeground1,
+              fontWeight: tokens.fontWeightSemibold,
+              fontSize: tokens.fontSizeBase300
+            }}>
+              Unable to Load Alerts
+            </MessageBarTitle>
+            <div style={{
+              marginTop: tokens.spacingVerticalXS,
+              fontSize: tokens.fontSizeBase200,
+              lineHeight: tokens.lineHeightBase200,
+            }}>
+              {errorMessage || "An error occurred while loading alerts. Please try refreshing the page or contact your administrator if the problem persists."}
+            </div>
           </MessageBarBody>
         </MessageBar>
       </div>
@@ -89,7 +174,11 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   return (
     <div className={styles.alerts}>
       {hasAlerts && (
-        <div className={styles.carousel}>
+        <div 
+          className={styles.carousel}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           <AlertItem
             key={alerts[currentIndex].id}
             item={alerts[currentIndex]}
@@ -106,7 +195,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
         </div>
       )}
       {isInEditMode && (
-        <AlertSettings
+        <AlertSettingsTabs
           isInEditMode={isInEditMode}
           alertTypesJson={props.alertTypesJson}
           userTargetingEnabled={props.userTargetingEnabled || false}

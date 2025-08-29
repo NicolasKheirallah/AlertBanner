@@ -1,6 +1,7 @@
 import { IUser, ITargetingRule, IPersonField } from "../Alerts/IAlerts";
 import { IAlertItem } from "./SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
+import StorageService from "./StorageService";
 
 export class UserTargetingService {
   private static instance: UserTargetingService;
@@ -9,9 +10,11 @@ export class UserTargetingService {
   private userGroups: string[] = [];
   private userGroupIds: string[] = [];
   private isInitialized: boolean = false;
+  private storageService: StorageService;
 
   private constructor(graphClient: MSGraphClientV3) {
     this.graphClient = graphClient;
+    this.storageService = StorageService.getInstance();
   }
 
   public static getInstance(graphClient: MSGraphClientV3): UserTargetingService {
@@ -36,6 +39,9 @@ export class UserTargetingService {
         department: userResponse.department,
         userGroups: []
       };
+
+      // Set user ID in storage service for user-specific storage
+      this.storageService.setUserId(this.currentUser.id);
 
       // Get user group memberships
       const groupsResponse = await this.graphClient.api('/me/memberOf').select('id,displayName').get();
@@ -208,10 +214,7 @@ export class UserTargetingService {
   public getUserDismissedAlerts(): string[] {
     try {
       if (!this.currentUser) return [];
-
-      const key = `DismissedAlerts_${this.currentUser.id}`;
-      const data = sessionStorage.getItem(key);
-      return data ? JSON.parse(data) : [];
+      return this.storageService.getFromSessionStorage<string[]>('DismissedAlerts', { userSpecific: true }) || [];
     } catch (error) {
       console.error("Error getting dismissed alerts:", error);
       return [];
@@ -222,12 +225,11 @@ export class UserTargetingService {
     try {
       if (!this.currentUser) return;
 
-      const key = `DismissedAlerts_${this.currentUser.id}`;
       const dismissedAlerts = this.getUserDismissedAlerts();
 
       if (!dismissedAlerts.includes(alertId)) {
         dismissedAlerts.push(alertId);
-        sessionStorage.setItem(key, JSON.stringify(dismissedAlerts));
+        this.storageService.saveToSessionStorage('DismissedAlerts', dismissedAlerts, { userSpecific: true });
       }
     } catch (error) {
       console.error("Error saving dismissed alert:", error);
@@ -237,10 +239,7 @@ export class UserTargetingService {
   public getUserHiddenAlerts(): string[] {
     try {
       if (!this.currentUser) return [];
-
-      const key = `HiddenAlerts_${this.currentUser.id}`;
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : [];
+      return this.storageService.getFromLocalStorage<string[]>('HiddenAlerts', { userSpecific: true }) || [];
     } catch (error) {
       console.error("Error getting hidden alerts:", error);
       return [];
@@ -251,12 +250,11 @@ export class UserTargetingService {
     try {
       if (!this.currentUser) return;
 
-      const key = `HiddenAlerts_${this.currentUser.id}`;
       const hiddenAlerts = this.getUserHiddenAlerts();
 
       if (!hiddenAlerts.includes(alertId)) {
         hiddenAlerts.push(alertId);
-        localStorage.setItem(key, JSON.stringify(hiddenAlerts));
+        this.storageService.saveToLocalStorage('HiddenAlerts', hiddenAlerts, { userSpecific: true });
       }
     } catch (error) {
       console.error("Error saving hidden alert:", error);
