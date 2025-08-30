@@ -3,7 +3,7 @@
     "solution": {
         "name": "alert-banner-client-side-solution",
         "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
-        "version": "2.0.0.157",
+        "version": "2.4.0.40",
         "includeClientSideAssets": true,
         "skipFeatureDeployment": true,
         "isDomainIsolated": false,
@@ -45,7 +45,7 @@
                 "default": "Hierarchical alert banner with Home/Hub/Site distribution, automatic list management, and multi-language content creation"
             },
             "longDescription": {
-                "default": "A sophisticated alert banner with hierarchical site distribution (Home/Hub/Site), automatic list detection and creation, multi-language content management, user targeting, rich media support, and comprehensive site context awareness."
+                "default": "A sophisticated alert banner with hierarchical site distribution (Home/Hub/Site), automatic list detection and creation, multi-language content management, simplified user targeting with SharePoint People/Groups fields, HTML content support, and comprehensive site context awareness."
             },
             "screenshotPaths": [],
             "videoUrl": "",

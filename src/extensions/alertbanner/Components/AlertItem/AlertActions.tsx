@@ -43,7 +43,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
         <Button
           appearance="subtle"
           icon={<Link24Regular />}
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent) => {
             stopPropagation(e);
             if (item.linkUrl) {
               window.open(item.linkUrl, "_blank", "noopener,noreferrer");

@@ -1,5 +1,6 @@
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+import { logger } from '../Services/LoggerService';
 
 export interface ISiteContext {
   siteId: string;
@@ -110,7 +111,7 @@ export class SiteContextDetector {
 
       return this.currentSiteContext;
     } catch (error) {
-      console.error('Failed to get site context:', error);
+      logger.error('SiteContextDetector', 'Failed to get site context', error);
 
       // Return basic context as fallback
       return {
@@ -172,7 +173,7 @@ export class SiteContextDetector {
                 userPermissions: permissions
               };
             } catch (error) {
-              console.warn(`Failed to check permissions for site ${site.id}:`, error);
+              logger.warn('SiteContextDetector', `Failed to check permissions for site ${site.id}`, error);
               return {
                 ...site,
                 userPermissions: {
@@ -190,7 +191,7 @@ export class SiteContextDetector {
 
       return Array.from(allSites.values());
     } catch (error) {
-      console.error('Failed to get available sites:', error);
+      logger.error('SiteContextDetector', 'Failed to get available sites', error);
       return [];
     }
   }
@@ -296,7 +297,7 @@ export class SiteContextDetector {
 
       // Skip hub site detection via Graph API filtering as it's not reliably supported
       // We'll rely on other methods or SharePoint context for hub site detection
-      console.debug('Skipping Graph API hub site filtering - not supported in all tenants');
+      logger.debug('SiteContextDetector', 'Skipping Graph API hub site filtering - not supported in all tenants');
 
       // Fallback: Use SharePoint REST API through the current context if available
       if (this.context.pageContext.site.id.toString() === siteId) {
@@ -307,7 +308,7 @@ export class SiteContextDetector {
 
       return { isHub: false };
     } catch (error) {
-      console.warn('Could not determine hub site status:', error);
+      logger.warn('SiteContextDetector', 'Could not determine hub site status', error);
       return { isHub: false };
     }
   }
@@ -325,7 +326,7 @@ export class SiteContextDetector {
 
       return false;
     } catch (error) {
-      console.warn('Could not determine homesite status:', error);
+      logger.warn('SiteContextDetector', 'Could not determine homesite status', error);
       return false;
     }
   }
@@ -333,10 +334,10 @@ export class SiteContextDetector {
   private async getAssociatedSites(hubSiteId: string): Promise<string[]> {
     try {
       // Skip associated sites query via Graph API filtering as it's not supported in all tenants
-      console.debug(`Associated sites query skipped for hub ${hubSiteId} - Graph API filtering not reliable`);
+      logger.debug('SiteContextDetector', `Associated sites query skipped for hub ${hubSiteId} - Graph API filtering not reliable`);
       return [];
     } catch (error) {
-      console.warn('Could not get associated sites:', error);
+      logger.warn('SiteContextDetector', 'Could not get associated sites', error);
       return [];
     }
   }
@@ -452,7 +453,7 @@ export class SiteContextDetector {
         permissionLevel
       };
     } catch (error) {
-      console.warn(`Could not get user permissions for site ${siteId}:`, error);
+      logger.warn('SiteContextDetector', `Could not get user permissions for site ${siteId}`, error);
 
       // For the current site, assume user has permissions since they're viewing it
       const currentSiteId = this.context.pageContext.site.id.toString();
@@ -507,7 +508,7 @@ export class SiteContextDetector {
         }
       }));
     } catch (error) {
-      console.warn('Could not get followed sites:', error);
+      logger.warn('SiteContextDetector', 'Could not get followed sites', error);
       return [];
     }
   }
@@ -515,10 +516,10 @@ export class SiteContextDetector {
   private async getHubAssociatedSites(hubSiteId: string): Promise<ISiteOption[]> {
     try {
       // Skip hub site filtering via Graph API as it's not supported in all tenants
-      console.debug('Hub associated sites query skipped - Graph API filtering not reliable');
+      logger.debug('SiteContextDetector', 'Hub associated sites query skipped - Graph API filtering not reliable');
       return [];
     } catch (error) {
-      console.warn('Could not get hub associated sites:', error);
+      logger.warn('SiteContextDetector', 'Could not get hub associated sites', error);
       return [];
     }
   }
@@ -551,7 +552,7 @@ export class SiteContextDetector {
         }))
         .filter((site: ISiteOption) => site.id); // Filter out sites where ID extraction failed
     } catch (error) {
-      console.warn('Could not get recent sites:', error);
+      logger.warn('SiteContextDetector', 'Could not get recent sites', error);
       return [];
     }
   }
@@ -583,7 +584,7 @@ export class SiteContextDetector {
         }
       };
     } catch (error) {
-      console.warn('Could not get homesite:', error);
+      logger.warn('SiteContextDetector', 'Could not get homesite', error);
       return null;
     }
   }

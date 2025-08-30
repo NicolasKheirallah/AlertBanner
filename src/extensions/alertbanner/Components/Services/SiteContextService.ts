@@ -1,4 +1,5 @@
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+import { logger } from './LoggerService';
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 
 export interface ISiteInfo {
@@ -77,7 +78,7 @@ export class SiteContextService {
       await this.checkAlertLists();
 
     } catch (error) {
-      console.error('Failed to detect site context:', error);
+      logger.error('SiteContextService', 'Failed to detect site context', error);
     }
   }
 
@@ -112,7 +113,7 @@ export class SiteContextService {
             };
           }
         } catch (rootError) {
-          console.log('Root site not accessible or not home site');
+          logger.debug('SiteContextService', 'Root site not accessible or not home site');
         }
       }
 
@@ -121,7 +122,7 @@ export class SiteContextService {
         await this.searchForHomeSite();
       }
     } catch (error) {
-      console.warn('Could not detect home site through organization API:', error);
+      logger.warn('SiteContextService', 'Could not detect home site through organization API', error);
       // Try alternative method using search
       await this.searchForHomeSite();
     }
@@ -176,7 +177,7 @@ export class SiteContextService {
         }
       }
     } catch (error) {
-      console.warn('Could not find home site through search API:', error);
+      logger.warn('SiteContextService', 'Could not find home site through search API', error);
       
       // Final fallback: try to find sites the user can access and look for patterns
       try {
@@ -205,7 +206,7 @@ export class SiteContextService {
           }
         }
       } catch (sitesError) {
-        console.warn('Could not access sites collection:', sitesError);
+        logger.warn('SiteContextService', 'Could not access sites collection', sitesError);
         // At this point, we'll proceed without home site detection
       }
     }
@@ -231,7 +232,7 @@ export class SiteContextService {
         };
       }
     } catch (error) {
-      console.warn('Could not detect hub site:', error);
+      logger.warn('SiteContextService', 'Could not detect hub site', error);
     }
   }
 
@@ -246,7 +247,7 @@ export class SiteContextService {
         try {
           site.hasAlertsList = await this.checkAlertListExists(site.id);
         } catch (error) {
-          console.warn(`Failed to check alerts list for site ${site.name}:`, error);
+          logger.warn('SiteContextService', `Failed to check alerts list for site ${site.name}`, error);
           site.hasAlertsList = false;
         }
       }
@@ -325,85 +326,85 @@ export class SiteContextService {
   }
 
   /**
-   * Create alerts list on a specific site
+   * Create alerts list on a specific site using SharePointAlertService
    */
-  public async createAlertsList(siteId: string): Promise<boolean> {
+  public async createAlertsList(siteId: string, selectedLanguages?: string[]): Promise<boolean> {
     try {
-      const listDefinition = {
-        displayName: this.alertsListName,
-        description: 'Stores alert banner notifications',
-        template: 'genericList',
-        columns: [
-          {
-            name: 'Description',
-            text: { allowMultipleLines: true, appendChangesToExistingText: false }
-          },
-          {
-            name: 'AlertType',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'Priority',
-            choice: {
-              choices: ['Low', 'Medium', 'High', 'Critical'],
-              displayAs: 'dropDownMenu'
+      // Import SharePointAlertService dynamically to avoid circular dependency
+      const { SharePointAlertService } = await import('./SharePointAlertService');
+      const alertService = new SharePointAlertService(this._graphClient, this._context);
+      
+      // Temporarily override the site context to create list on specific site
+      const originalSiteId = this._context.pageContext.site.id.toString();
+      (this._context.pageContext.site as any).id = { toString: () => siteId };
+      
+      try {
+        await alertService.initializeLists();
+        
+        // Add language columns if specific languages were selected
+        if (selectedLanguages && selectedLanguages.length > 0) {
+          logger.debug('SiteContextService', `Adding language columns for: ${selectedLanguages.join(', ')}`);
+          for (const languageCode of selectedLanguages) {
+            try {
+              await alertService.addLanguageSupport(languageCode);
+              logger.debug('SiteContextService', `Added language columns for ${languageCode}`);
+            } catch (langError) {
+              logger.warn('SiteContextService', `Failed to add language columns for ${languageCode}`, langError);
+              // Continue with other languages
             }
-          },
-          {
-            name: 'IsPinned',
-            boolean: {}
-          },
-          {
-            name: 'NotificationType',
-            choice: {
-              choices: ['None', 'Browser', 'Email', 'Both'],
-              displayAs: 'dropDownMenu'
-            }
-          },
-          {
-            name: 'LinkUrl',
-            text: { maxLength: 2083 }
-          },
-          {
-            name: 'LinkDescription',
-            text: { maxLength: 255 }
-          },
-          {
-            name: 'TargetSites',
-            text: { allowMultipleLines: true }
-          },
-          {
-            name: 'Status',
-            choice: {
-              choices: ['Active', 'Expired', 'Scheduled'],
-              displayAs: 'dropDownMenu'
-            }
-          },
-          {
-            name: 'ScheduledStart',
-            dateTime: { displayAs: 'default', format: 'dateTime' }
-          },
-          {
-            name: 'ScheduledEnd',
-            dateTime: { displayAs: 'default', format: 'dateTime' }
-          },
-          {
-            name: 'Metadata',
-            text: { allowMultipleLines: true }
           }
-          // Note: Multi-language fields will be added dynamically based on user selection
-        ]
-      };
-
-      await this._graphClient
-        .api(`/sites/${siteId}/lists`)
-        .post(listDefinition);
-
-      console.log(`Successfully created alerts list on site ${siteId}`);
-      return true;
+        }
+        
+        logger.info('SiteContextService', `Successfully created alerts list on site ${siteId}`);
+        
+        // Update the hasAlertsList flag for the site
+        const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo];
+        const targetSite = sites.find(s => s && s.id === siteId);
+        if (targetSite) {
+          targetSite.hasAlertsList = true;
+        }
+        
+        return true;
+      } finally {
+        // Restore original site context
+        (this._context.pageContext.site as any).id = { toString: () => originalSiteId };
+      }
     } catch (error) {
-      console.error(`Failed to create alerts list on site ${siteId}:`, error);
-      return false;
+      logger.error('SiteContextService', `Failed to create alerts list on site ${siteId}`, error);
+      
+      // Provide more detailed error messages
+      if (error.message?.includes('PERMISSION_DENIED')) {
+        throw new Error(`PERMISSION_DENIED: Cannot create alerts list on site ${siteId}. User lacks required permissions.`);
+      } else if (error.message?.includes('CRITICAL_COLUMNS_FAILED')) {
+        throw new Error(`LIST_INCOMPLETE: Alerts list created but some critical columns failed. ${error.message}`);
+      } else {
+        throw new Error(`LIST_CREATION_FAILED: ${error.message || 'Unknown error during list creation'}`);
+      }
+    }
+  }
+
+  /**
+   * Get supported languages for a specific site's alerts list
+   */
+  public async getSupportedLanguagesForSite(siteId: string): Promise<string[]> {
+    try {
+      // Import SharePointAlertService dynamically to avoid circular dependency
+      const { SharePointAlertService } = await import('./SharePointAlertService');
+      const alertService = new SharePointAlertService(this._graphClient, this._context);
+      
+      // Temporarily override the site context to query the specific site
+      const originalSiteId = this._context.pageContext.site.id.toString();
+      (this._context.pageContext.site as any).id = { toString: () => siteId };
+      
+      try {
+        return await alertService.getSupportedLanguages();
+      } finally {
+        // Restore original site context
+        (this._context.pageContext.site as any).id = { toString: () => originalSiteId };
+      }
+    } catch (error) {
+      logger.warn('SiteContextService', `Failed to get supported languages for site ${siteId}`, error);
+      return ['en-us']; // Default fallback
     }
   }
 
@@ -470,6 +471,20 @@ export class SiteContextService {
    */
   public getHomeSite(): ISiteInfo | null {
     return this._homeSiteInfo;
+  }
+
+  /**
+   * Get application context
+   */
+  public getContext(): ApplicationCustomizerContext {
+    return this._context;
+  }
+
+  /**
+   * Get Microsoft Graph client
+   */
+  public async getGraphClient(): Promise<MSGraphClientV3> {
+    return this._graphClient;
   }
 
   /**

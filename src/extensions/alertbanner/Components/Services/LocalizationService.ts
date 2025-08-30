@@ -1,4 +1,5 @@
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+import { logger } from './LoggerService';
 import { STATIC_STRINGS } from './StaticStrings';
 
 export interface ILanguageInfo {
@@ -118,7 +119,7 @@ export class LocalizationService {
 
     // Return key if no translation found
     if (!value) {
-      console.warn(`Localization key not found: ${key}`);
+      logger.warn('LocalizationService', `Localization key not found: ${key}`);
       return key;
     }
 
@@ -274,7 +275,7 @@ export class LocalizationService {
         }
       }
     } catch (error) {
-      console.warn('Error detecting user language:', error);
+      logger.warn('LocalizationService', 'Error detecting user language', error);
     }
 
     return language;
@@ -300,7 +301,7 @@ export class LocalizationService {
   private async loadLanguageStrings(languageCode: string): Promise<void> {
     // Use static strings directly - more reliable than dynamic imports
     this._strings = this.getStaticStrings(languageCode);
-    console.debug(`Loaded static strings for ${languageCode}`);
+    logger.debug('LocalizationService', `Loaded static strings for ${languageCode}`);
   }
 
 
@@ -313,7 +314,7 @@ export class LocalizationService {
     try {
       this._fallbackStrings = this.getStaticStrings('en-us');
     } catch (error) {
-      console.warn('Failed to load fallback language strings:', error);
+      logger.warn('LocalizationService', 'Failed to load fallback language strings', error);
       this._fallbackStrings = {};
     }
   }
@@ -329,7 +330,7 @@ export class LocalizationService {
     try {
       localStorage.setItem('alertbanner-language', languageCode);
     } catch (error) {
-      console.warn('Failed to store language preference:', error);
+      logger.warn('LocalizationService', 'Failed to store language preference', error);
     }
   }
 }

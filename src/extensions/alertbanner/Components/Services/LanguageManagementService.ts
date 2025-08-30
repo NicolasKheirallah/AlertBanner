@@ -1,4 +1,5 @@
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+import { logger } from './LoggerService';
 import { LocalizationService, ILanguageInfo } from "./LocalizationService";
 import { SharePointAlertService } from "./SharePointAlertService";
 
@@ -51,7 +52,7 @@ export class LanguageManagementService {
    */
   public async getAllAvailableLanguages(): Promise<ICustomLanguage[]> {
     const builtInLanguages = this._localizationService.getSupportedLanguages();
-    const contentLanguages = await this._alertService.getSupportedLanguageColumns();
+    const contentLanguages = await this._alertService.getSupportedLanguages();
     
     const allLanguages: ICustomLanguage[] = [];
 
@@ -95,7 +96,7 @@ export class LanguageManagementService {
       }
 
       // Add columns to SharePoint list
-      await this._alertService.addLanguageColumns(languageInfo.code);
+      await this._alertService.addLanguageSupport(languageInfo.code);
 
       // Add to custom languages
       const customLanguage: ICustomLanguage = {
@@ -109,9 +110,9 @@ export class LanguageManagementService {
       // Persist to storage
       await this.saveCustomLanguages();
 
-      console.log(`Successfully added custom language: ${languageInfo.name} (${languageInfo.code})`);
+      logger.info('LanguageManagementService', `Successfully added custom language: ${languageInfo.name} (${languageInfo.code})`);
     } catch (error) {
-      console.error('Failed to add custom language:', error);
+      logger.error('LanguageManagementService', 'Failed to add custom language', error);
       throw error;
     }
   }
@@ -132,9 +133,9 @@ export class LanguageManagementService {
       
       await this.saveCustomLanguages();
 
-      console.log(`Successfully removed custom language: ${languageCode}`);
+      logger.info('LanguageManagementService', `Successfully removed custom language: ${languageCode}`);
     } catch (error) {
-      console.error('Failed to remove custom language:', error);
+      logger.error('LanguageManagementService', 'Failed to remove custom language', error);
       throw error;
     }
   }
@@ -144,14 +145,14 @@ export class LanguageManagementService {
    */
   public async getContentOnlyLanguages(): Promise<string[]> {
     try {
-      const contentLanguages = await this._alertService.getSupportedLanguageColumns();
+      const contentLanguages = await this._alertService.getSupportedLanguages();
       const uiLanguages = await this.getAllAvailableLanguages();
       
       return contentLanguages.filter(contentLang => 
         !uiLanguages.find(uiLang => uiLang.code === contentLang)
       );
     } catch (error) {
-      console.error('Failed to get content-only languages:', error);
+      logger.error('LanguageManagementService', 'Failed to get content-only languages', error);
       return [];
     }
   }
@@ -179,7 +180,7 @@ export class LanguageManagementService {
         this._customLanguages = JSON.parse(stored);
       }
     } catch (error) {
-      console.warn('Failed to load custom languages from storage:', error);
+      logger.warn('LanguageManagementService', 'Failed to load custom languages from storage', error);
       this._customLanguages = [];
     }
   }
@@ -191,7 +192,7 @@ export class LanguageManagementService {
     try {
       localStorage.setItem('alertbanner-custom-languages', JSON.stringify(this._customLanguages));
     } catch (error) {
-      console.warn('Failed to save custom languages to storage:', error);
+      logger.warn('LanguageManagementService', 'Failed to save custom languages to storage', error);
     }
   }
 
@@ -200,14 +201,14 @@ export class LanguageManagementService {
    */
   private async syncContentLanguages(): Promise<void> {
     try {
-      const contentLanguages = await this._alertService.getSupportedLanguageColumns();
+      const contentLanguages = await this._alertService.getSupportedLanguages();
       
       // Update hasContentColumns flag for all languages
       this._customLanguages.forEach(lang => {
         lang.hasContentColumns = contentLanguages.includes(lang.code);
       });
     } catch (error) {
-      console.warn('Failed to sync content languages:', error);
+      logger.warn('LanguageManagementService', 'Failed to sync content languages', error);
     }
   }
 

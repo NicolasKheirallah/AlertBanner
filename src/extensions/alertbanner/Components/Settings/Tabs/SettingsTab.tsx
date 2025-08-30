@@ -1,20 +1,78 @@
 import * as React from "react";
-import { Add24Regular } from "@fluentui/react-icons";
+import { Add24Regular, LocalLanguage24Regular, Wrench24Regular, Globe24Regular } from "@fluentui/react-icons";
+import {
+  Card,
+  CardHeader,
+  CardPreview,
+  Text,
+  Checkbox,
+  makeStyles,
+  tokens
+} from "@fluentui/react-components";
 import {
   SharePointButton,
   SharePointInput,
   SharePointToggle,
   SharePointSection
 } from "../../UI/SharePointControls";
-import { SharePointAlertService } from "../../Services/SharePointAlertService";
+import { SharePointAlertService, IRepairResult } from "../../Services/SharePointAlertService";
 import { StorageService } from "../../Services/StorageService";
+import LanguageFieldManager from "../../UI/LanguageFieldManager";
+import { LanguageAwarenessService } from "../../Services/LanguageAwarenessService";
+import { NotificationService } from "../../Services/NotificationService";
+import ProgressIndicator, { StepStatus, IProgressStep } from "../../UI/ProgressIndicator";
+import RepairDialog from "../../UI/RepairDialog";
+import { logger } from '../../Services/LoggerService';
 import styles from "../AlertSettings.module.scss";
+
+const useCardStyles = makeStyles({
+  languageGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: "12px",
+    marginTop: "16px",
+    marginRight: "20px"
+  },
+  languageItem: {
+    padding: "12px 16px",
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: "6px",
+    backgroundColor: tokens.colorNeutralBackground1,
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  languageInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
+  },
+  languageName: {
+    fontWeight: tokens.fontWeightSemibold,
+    fontSize: tokens.fontSizeBase200
+  },
+  languageCode: {
+    fontSize: tokens.fontSizeBase100,
+    color: tokens.colorNeutralForeground2
+  },
+  cardHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
+  },
+  cardContent: {
+    padding: "16px"
+  },
+  hintText: {
+    marginTop: "12px",
+    color: tokens.colorNeutralForeground2
+  }
+});
 
 export interface ISettingsData {
   alertTypesJson: string;
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
-  richMediaEnabled: boolean;
 }
 
 export interface ISettingsTabProps {
@@ -30,7 +88,10 @@ export interface ISettingsTabProps {
   setIsCreatingLists: React.Dispatch<React.SetStateAction<boolean>>;
   alertService: SharePointAlertService;
   onSettingsChange: (settings: ISettingsData) => void;
+  onLanguageChange?: (languages: string[]) => void;
+  context?: any; // ApplicationCustomizerContext for notifications
 }
+
 
 const SettingsTab: React.FC<ISettingsTabProps> = ({
   settings,
@@ -44,11 +105,21 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   isCreatingLists,
   setIsCreatingLists,
   alertService,
-  onSettingsChange
+  onSettingsChange,
+  onLanguageChange,
+  context
 }) => {
+  const cardStyles = useCardStyles();
   const storageService = React.useRef<StorageService>(StorageService.getInstance());
   const [carouselEnabled, setCarouselEnabled] = React.useState(false);
   const [carouselInterval, setCarouselInterval] = React.useState(5);
+  const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
+  const [preCreationLanguages, setPreCreationLanguages] = React.useState<string[]>(['en-us']); // English selected by default
+  const [creationSteps, setCreationSteps] = React.useState<IProgressStep[]>([]);
+  const notificationService = React.useMemo(() => 
+    context ? NotificationService.getInstance(context) : null, 
+    [context]
+  );
 
   // Load carousel settings from StorageService on mount
   React.useEffect(() => {
@@ -88,6 +159,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     onSettingsChange(updatedSettings);
   }, [settings, setSettings, onSettingsChange]);
 
+
   const checkListsExistence = React.useCallback(async () => {
     setIsCheckingLists(true);
     try {
@@ -109,7 +181,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         setAlertTypesListExists(typesTest.status === 'fulfilled');
       }
     } catch (error) {
-      console.error('Error checking lists:', error);
+      logger.error('SettingsTab', 'Error checking lists', error);
       // Fallback: assume lists don't exist if there's an error
       setAlertsListExists(false);
       setAlertTypesListExists(false);
@@ -120,43 +192,236 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
 
   const handleCreateLists = React.useCallback(async () => {
     setIsCreatingLists(true);
+    
+    // Initialize progress steps
+    const steps: IProgressStep[] = [
+      {
+        id: 'check-lists',
+        name: 'Checking existing lists',
+        description: 'Verifying what lists need to be created',
+        status: StepStatus.InProgress
+      },
+      {
+        id: 'create-lists',
+        name: 'Creating SharePoint lists',
+        description: 'Setting up Alerts and AlertBannerTypes lists',
+        status: StepStatus.Pending
+      }
+    ];
+
+    // Add language steps if multiple languages selected
+    if (preCreationLanguages.length > 1) {
+      preCreationLanguages.forEach((lang, index) => {
+        if (lang !== 'en-us') {
+          steps.push({
+            id: `add-language-${lang}`,
+            name: `Adding ${lang.toUpperCase()} language support`,
+            description: `Creating language-specific columns for ${lang}`,
+            status: StepStatus.Pending
+          });
+        }
+      });
+    }
+
+    steps.push({
+      id: 'finalize',
+      name: 'Finalizing setup',
+      description: 'Completing configuration and verification',
+      status: StepStatus.Pending
+    });
+
+    setCreationSteps(steps);
+    
     try {
       // First check what's needed
       const listStatus = await alertService.checkListsNeeded();
       const currentSite = listStatus[0];
+
+      // Update first step as completed
+      setCreationSteps(prev => prev.map(step => 
+        step.id === 'check-lists' 
+          ? { ...step, status: StepStatus.Completed }
+          : step
+      ));
       
       if (!currentSite || (!currentSite.needsAlerts && !currentSite.needsTypes)) {
-        alert('All required lists already exist on this site.');
+        if (notificationService) {
+          notificationService.showInfo('All required lists already exist on this site.', 'Lists Already Exist');
+        } else {
+          alert('All required lists already exist on this site.');
+        }
         return;
       }
       
+      // Start creating lists step
+      setCreationSteps(prev => prev.map(step => 
+        step.id === 'create-lists' 
+          ? { ...step, status: StepStatus.InProgress }
+          : step
+      ));
+
       // Initialize lists using the existing service method
       await alertService.initializeLists();
       
+      // Complete create lists step
+      setCreationSteps(prev => prev.map(step => 
+        step.id === 'create-lists' 
+          ? { ...step, status: StepStatus.Completed }
+          : step
+      ));
+      
+      // Add selected language columns to the newly created lists
+      if (preCreationLanguages.length > 1 || !preCreationLanguages.includes('en-us')) {
+        for (const languageCode of preCreationLanguages) {
+          if (languageCode !== 'en-us') { // English is already included by default
+            // Start language step
+            setCreationSteps(prev => prev.map(step => 
+              step.id === `add-language-${languageCode}` 
+                ? { ...step, status: StepStatus.InProgress }
+                : step
+            ));
+
+            try {
+              await alertService.addLanguageSupport(languageCode);
+              logger.debug('SettingsTab', `Added ${languageCode} language columns during list creation`);
+              
+              // Complete language step
+              setCreationSteps(prev => prev.map(step => 
+                step.id === `add-language-${languageCode}` 
+                  ? { ...step, status: StepStatus.Completed }
+                  : step
+              ));
+            } catch (error) {
+              logger.warn('SettingsTab', `Failed to add ${languageCode} language columns`, error);
+              
+              // Mark language step as failed
+              setCreationSteps(prev => prev.map(step => 
+                step.id === `add-language-${languageCode}` 
+                  ? { ...step, status: StepStatus.Failed, error: error.message }
+                  : step
+              ));
+            }
+          }
+        }
+      }
+      
+      // Start finalize step
+      setCreationSteps(prev => prev.map(step => 
+        step.id === 'finalize' 
+          ? { ...step, status: StepStatus.InProgress }
+          : step
+      ));
+
       // Re-check lists after creation
       await checkListsExistence();
+
+      // Complete finalize step
+      setCreationSteps(prev => prev.map(step => 
+        step.id === 'finalize' 
+          ? { ...step, status: StepStatus.Completed }
+          : step
+      ));
       
       // Success message
       const createdLists = [];
       if (currentSite.needsAlerts) createdLists.push('Alerts');
-      if (currentSite.needsTypes) createdLists.push('AlertBannerTypes');
+      if (currentSite.needsTypes && currentSite.isHomeSite) createdLists.push('AlertBannerTypes (Home Site only)');
       
       if (createdLists.length > 0) {
-        alert(`Successfully created ${createdLists.join(' and ')} list${createdLists.length > 1 ? 's' : ''} on this site.`);
+        const languageMessage = preCreationLanguages.length > 1 
+          ? ` with support for ${preCreationLanguages.length} languages (${preCreationLanguages.join(', ')})`
+          : '';
+        const successMessage = `Successfully created ${createdLists.join(' and ')} list${createdLists.length > 1 ? 's' : ''}${languageMessage} on this site.`;
+        
+        if (notificationService) {
+          notificationService.showSuccess(successMessage, 'Lists Created Successfully');
+        } else {
+          alert(successMessage);
+        }
+      }
+      
+      // Trigger language change callback to refresh other components
+      if (onLanguageChange) {
+        onLanguageChange(preCreationLanguages);
+      }
+      
+      // Show informational message about AlertBannerTypes if not on home site
+      if (!currentSite.isHomeSite && currentSite.needsAlerts) {
+        const infoMessage = 'Alerts list created successfully. Note: AlertBannerTypes list is only created on the SharePoint home site to maintain consistency across the tenant.';
+        
+        if (notificationService) {
+          notificationService.showInfo(infoMessage, 'Additional Information');
+        } else {
+          alert(infoMessage);
+        }
       }
     } catch (error) {
-      console.error('Error creating lists:', error);
+      logger.error('SettingsTab', 'Error creating lists', error);
       const errorMsg = error.message || error.toString();
       
       if (errorMsg.includes('PERMISSION_DENIED')) {
-        alert('Permission denied: You need site owner or full control permissions to create SharePoint lists.');
+        const permissionError = 'Permission denied: You need site owner or full control permissions to create SharePoint lists.';
+        
+        if (notificationService) {
+          notificationService.showError(permissionError, 'Permission Error', [
+            {
+              text: 'Contact Administrator',
+              onClick: () => {
+                window.open('mailto:?subject=SharePoint Permissions Required&body=I need permissions to create SharePoint lists for the Alert Banner system.');
+              }
+            }
+          ]);
+        } else {
+          alert(permissionError);
+        }
       } else {
-        alert(`Failed to create some lists: ${errorMsg}`);
+        const generalError = `Failed to create some lists: ${errorMsg}`;
+        
+        if (notificationService) {
+          notificationService.showError(generalError, 'List Creation Failed', [
+            {
+              text: 'Retry',
+              onClick: () => handleCreateLists()
+            }
+          ]);
+        } else {
+          alert(generalError);
+        }
       }
     } finally {
       setIsCreatingLists(false);
     }
   }, [alertService, checkListsExistence, setIsCreatingLists]);
+
+  const handleOpenRepairDialog = React.useCallback(() => {
+    setIsRepairDialogOpen(true);
+  }, []);
+
+  const handleCloseRepairDialog = React.useCallback(() => {
+    setIsRepairDialogOpen(false);
+  }, []);
+
+  const handleRepairComplete = React.useCallback(async (result: IRepairResult) => {
+    // Show appropriate notification based on result
+    if (notificationService) {
+      if (result.success) {
+        if (result.details.warnings.length > 0) {
+          notificationService.showWarning(result.message, 'Repair Completed with Warnings');
+        } else {
+          notificationService.showSuccess(result.message, 'Repair Completed Successfully');
+        }
+      } else {
+        notificationService.showError(result.message, 'Repair Failed');
+      }
+    }
+    
+    // Re-check lists after repair to refresh the UI
+    try {
+      await checkListsExistence();
+    } catch (error) {
+      logger.warn('SettingsTab', 'Failed to refresh list status after repair', error);
+    }
+  }, [checkListsExistence, notificationService]);
 
   // Check lists on mount
   React.useEffect(() => {
@@ -181,12 +446,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
             description="Send native browser notifications for critical and high-priority alerts to ensure visibility"
           />
 
-          <SharePointToggle
-            label="Enable Rich Media Support"
-            checked={settings.richMediaEnabled}
-            onChange={(checked) => handleSettingsChange({ richMediaEnabled: checked })}
-            description="Support images, videos, HTML content, and markdown formatting in alert descriptions"
-          />
         </div>
       </SharePointSection>
 
@@ -238,6 +497,59 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                     )}
                   </ul>
                   
+                  {/* Language Selection */}
+                  <Card>
+                    <CardHeader
+                      header={
+                        <div className={cardStyles.cardHeader}>
+                          <Globe24Regular />
+                          <Text weight="semibold">Select Languages for Initial Setup</Text>
+                        </div>
+                      }
+                      description={
+                        <Text size={200}>
+                          Choose which languages to support from the start. Additional languages can be added later through Language Management.
+                        </Text>
+                      }
+                    />
+                    
+                    <CardPreview>
+                      <div className={cardStyles.cardContent}>
+                        <div className={cardStyles.languageGrid}>
+                          {LanguageAwarenessService.getSupportedLanguages().map(language => (
+                            <div key={language.code} className={cardStyles.languageItem}>
+                              <Checkbox
+                                checked={preCreationLanguages.includes(language.code)}
+                                disabled={language.code === 'en-us'}
+                                onChange={(_, data) => {
+                                  if (data.checked === true) {
+                                    setPreCreationLanguages(prev => [...prev, language.code]);
+                                  } else {
+                                    // Don't allow unchecking English
+                                    if (language.code !== 'en-us') {
+                                      setPreCreationLanguages(prev => prev.filter(code => code !== language.code));
+                                    }
+                                  }
+                                }}
+                              />
+                              <div className={cardStyles.languageInfo}>
+                                <div className={cardStyles.languageName}>
+                                  {language.flag} {language.nativeName}
+                                </div>
+                                <div className={cardStyles.languageCode}>
+                                  {language.name} ({language.code.toUpperCase()})
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <Text size={100} className={cardStyles.hintText}>
+                          💡 English is always included and cannot be removed as it serves as the fallback language.
+                        </Text>
+                      </div>
+                    </CardPreview>
+                  </Card>
+                  
                   <div className={styles.actionButtonsRow}>
                     <SharePointButton
                       variant="primary"
@@ -253,12 +565,14 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                     </div>
                   </div>
 
-                  {isCreatingLists && (
+                  {isCreatingLists && creationSteps.length > 0 && (
                     <div className={styles.creatingProgress}>
-                      <div className={styles.spinnerContainer}>
-                        <div className={styles.spinner}></div>
-                        Creating SharePoint lists... This may take a few moments.
-                      </div>
+                      <ProgressIndicator 
+                        steps={creationSteps} 
+                        title="Creating SharePoint Lists"
+                        showStepDescriptions={true}
+                        variant="vertical"
+                      />
                     </div>
                   )}
                 </>
@@ -268,7 +582,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         </SharePointSection>
       )}
 
-      {/* Success message when lists exist */}
+      {/* Success message when lists exist with language management option */}
       {alertsListExists === true && alertTypesListExists === true && (
         <SharePointSection title="SharePoint Setup">
           <div className={styles.successContainer}>
@@ -279,6 +593,38 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
             <p className={styles.successDescription}>
               All required SharePoint lists are properly configured and ready to use.
             </p>
+            
+            {/* List Maintenance */}
+            <div className={styles.additionalOptions}>
+              <h4>List Maintenance</h4>
+              <div className={styles.actionButtonsRow}>
+                <SharePointButton
+                  variant="secondary"
+                  icon={<Wrench24Regular />}
+                  onClick={handleOpenRepairDialog}
+                >
+                  Repair Alerts List
+                </SharePointButton>
+                <div className={styles.helpText}>
+                  Remove outdated columns and add current ones to match the latest schema.
+                </div>
+              </div>
+            </div>
+            
+            {/* Language Management */}
+            <div className={styles.additionalOptions}>
+              <h3 className={styles.languageManagementTitle}>
+                <LocalLanguage24Regular style={{ marginRight: '8px' }} />
+                Manage Language Support
+              </h3>
+              <p className={styles.languageManagementDescription}>
+                Add or update multi-language support for your existing alert lists. This will add additional language-specific columns to support content in multiple languages.
+              </p>
+              <LanguageFieldManager 
+                alertService={alertService}
+                onLanguageChange={onLanguageChange}
+              />
+            </div>
           </div>
         </SharePointSection>
       )}
@@ -294,7 +640,12 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                 variant="secondary"
                 onClick={() => {
                   storageService.current.clearAllAlertData();
-                  alert('Alert data cleared from local storage.');
+                  
+                  if (notificationService) {
+                    notificationService.showSuccess('Alert data cleared from local storage.', 'Cache Cleared');
+                  } else {
+                    alert('Alert data cleared from local storage.');
+                  }
                 }}
               >
                 Clear Alert Cache
@@ -306,7 +657,12 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                   storageService.current.removeFromLocalStorage('carouselInterval');
                   setCarouselEnabled(false);
                   setCarouselInterval(5);
-                  alert('Carousel settings reset to defaults.');
+                  
+                  if (notificationService) {
+                    notificationService.showSuccess('Carousel settings reset to defaults.', 'Settings Reset');
+                  } else {
+                    alert('Carousel settings reset to defaults.');
+                  }
                 }}
               >
                 Reset Carousel Settings
@@ -315,6 +671,14 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           </div>
         </div>
       </SharePointSection>
+
+      {/* Repair Dialog */}
+      <RepairDialog
+        isOpen={isRepairDialogOpen}
+        onDismiss={handleCloseRepairDialog}
+        onRepairComplete={handleRepairComplete}
+        alertService={alertService}
+      />
     </div>
   );
 };

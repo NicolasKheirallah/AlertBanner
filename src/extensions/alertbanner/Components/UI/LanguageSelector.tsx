@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { logger } from '../Services/LoggerService';
 import {
   Dropdown,
   Option,
@@ -39,7 +40,7 @@ const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
       await setLanguage(languageCode);
       onLanguageChange?.(languageCode);
     } catch (error) {
-      console.error('Failed to change language:', error);
+      logger.error('LanguageSelector', 'Failed to change language', error);
     }
   };
 

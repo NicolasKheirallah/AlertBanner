@@ -3,10 +3,11 @@ let DOMPurify: any = null;
 try {
   DOMPurify = require('dompurify');
 } catch (error) {
-  console.warn('DOMPurify not available in this environment:', error);
+  logger.warn('HtmlSanitizer', 'DOMPurify not available in this environment', error);
 }
 
 import { marked } from 'marked';
+import { logger } from '../Services/LoggerService';
 
 /**
  * HTML Sanitization utility to prevent XSS vulnerabilities
@@ -39,7 +40,7 @@ export class HtmlSanitizer {
           }
         });
       } catch (error) {
-        console.warn('Failed to configure DOMPurify hooks:', error);
+        logger.warn('HtmlSanitizer', 'Failed to configure DOMPurify hooks', error);
       }
     }
   }
@@ -55,7 +56,7 @@ export class HtmlSanitizer {
     
     // Fallback if DOMPurify is not available
     if (!DOMPurify || typeof DOMPurify.sanitize !== 'function') {
-      console.warn('DOMPurify not available, using fallback HTML escaping');
+      logger.warn('HtmlSanitizer', 'DOMPurify not available, using fallback HTML escaping');
       return this.escapeHtml(html);
     }
 
@@ -81,7 +82,7 @@ export class HtmlSanitizer {
     try {
       return DOMPurify.sanitize(html, config);
     } catch (error) {
-      console.error('DOMPurify sanitization failed, using fallback:', error);
+      logger.error('HtmlSanitizer', 'DOMPurify sanitization failed, using fallback', error);
       return this.escapeHtml(html);
     }
   }

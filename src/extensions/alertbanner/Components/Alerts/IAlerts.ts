@@ -15,6 +15,23 @@ export enum NotificationType {
   Both = "both"
 }
 
+export enum ContentType {
+  Alert = "alert",
+  Template = "template"
+}
+
+export enum TargetLanguage {
+  EnglishUS = "en-us",
+  FrenchFR = "fr-fr", 
+  GermanDE = "de-de",
+  SpanishES = "es-es",
+  SwedishSE = "sv-se",
+  FinnishFI = "fi-fi",
+  DanishDK = "da-dk",
+  NorwegianNO = "nb-no",
+  All = "all" // For items that should show to all languages
+}
+
 // Interface for SharePoint Person field data
 export interface IPersonField {
   id: string;          // User/Group ID
@@ -41,7 +58,6 @@ export interface IAlertsBannerApplicationCustomizerProperties {
   alertTypesJson: string; // Property to hold the alert types JSON
   userTargetingEnabled: boolean; // Enable user targeting feature
   notificationsEnabled: boolean; // Enable notifications feature
-  richMediaEnabled: boolean; // Enable rich media support
 }
 
 export interface IAlertsProps {
@@ -51,12 +67,10 @@ export interface IAlertsProps {
   alertTypesJson: string; // Property to receive the alert types JSON
   userTargetingEnabled?: boolean;
   notificationsEnabled?: boolean;
-  richMediaEnabled?: boolean;
   onSettingsChange?: (settings: {
     alertTypesJson: string;
     userTargetingEnabled: boolean;
     notificationsEnabled: boolean;
-    richMediaEnabled: boolean;
   }) => void;
 }
 
@@ -88,23 +102,27 @@ export interface IAlertItem {
   AlertType: string;
   priority: AlertPriority;
   isPinned: boolean;
-  targetingRules?: ITargetingRule[];
+  targetUsers?: IPersonField[]; // People/Groups who can see this alert. If empty, everyone sees it
   notificationType: NotificationType;
-  richMedia?: IAlertRichMedia;
-  link?: {
-    Url: string;
-    Description: string;
-  };
+  linkUrl?: string;
+  linkDescription?: string;
   quickActions?: IQuickAction[];
   createdDate: string;
   createdBy: string;
+  // New language and classification properties
+  contentType: ContentType; // Alert or Template
+  targetLanguage: TargetLanguage; // Specific language or 'all'
+  languageGroup?: string; // Groups related language variants (same content, different languages)
+  // Additional SharePoint properties
+  targetSites?: string[];
+  scheduledStart?: string | Date;
+  scheduledEnd?: string | Date;
+  metadata?: any;
+  status?: string;
+  availableForAll?: boolean;
 }
 
-export interface IAlertRichMedia {
-  type: "image" | "video" | "html" | "markdown";
-  content: string; // URL for image/video or content for html/markdown
-  altText?: string; // For accessibility
-}
+// IAlertRichMedia removed - using description field for all content
 
 export interface IQuickAction {
   label: string;

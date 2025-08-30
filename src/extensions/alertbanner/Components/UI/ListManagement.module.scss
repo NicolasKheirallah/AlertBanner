@@ -50,7 +50,28 @@
           align-items: center;
           gap: 8px;
         }
+
+        .createActions {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
       }
+    }
+  }
+
+  .languageGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 4px;
+
+    .languageLabel {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
   }
 
@@ -82,6 +103,17 @@
         }
       }
     }
+  }
+  
+  .existingListActions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .languageDialogIcon {
+    margin-right: 8px;
   }
 }
 
@@ -150,4 +182,55 @@
       }
     }
   }
+}
+
+// Additional utility classes
+.loadingContainer {
+  padding: 16px;
+  text-align: center;
+}
+
+.messageBarWithMargin {
+  margin-bottom: 16px;
+}
+
+.statusIcon {
+  &.success {
+    color: var(--colorPaletteGreenForeground1);
+  }
+  
+  &.warning {
+    color: var(--colorPaletteYellowForeground1);
+  }
+  
+  &.neutral {
+    color: var(--colorNeutralForeground3);
+  }
+  
+  &.error {
+    color: var(--colorPaletteRedForeground1);
+  }
+}
+
+.errorText {
+  color: var(--colorPaletteRedForeground1);
+}
+
+.successText {
+  color: var(--colorPaletteGreenForeground1);
+}
+
+.languageDialogIcon {
+  margin-right: 8px;
+}
+
+.languageGridWithMargin {
+  margin-top: 16px;
+}
+
+.languageSelectionSummary {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: var(--colorNeutralBackground2);
+  border-radius: 4px;
 }

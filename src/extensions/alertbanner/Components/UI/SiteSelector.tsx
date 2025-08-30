@@ -1,4 +1,5 @@
 import * as React from "react";
+import { logger } from '../Services/LoggerService';
 import {
   Search24Regular,
   CheckmarkCircle24Regular,
@@ -72,11 +73,11 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
         siteDetector.getAvailableSites(showPermissionStatus),
         siteDetector.getSuggestedDistributionScopes()
       ]);
-      
+
       setAvailableSites(sites);
       setSuggestedSites(suggestions);
     } catch (error) {
-      console.error('Failed to load sites:', error);
+      logger.error('SiteSelector', 'Failed to load sites', error);
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     // Apply search filter
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(site => 
+      filtered = filtered.filter(site =>
         site.name.toLowerCase().includes(search) ||
         site.url.toLowerCase().includes(search)
       );
@@ -109,16 +110,16 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     filtered.sort((a, b) => {
       const aSelected = selectedSites.includes(a.id);
       const bSelected = selectedSites.includes(b.id);
-      
+
       if (aSelected && !bSelected) return -1;
       if (!aSelected && bSelected) return 1;
-      
+
       const aCanWrite = a.userPermissions.canCreateAlerts;
       const bCanWrite = b.userPermissions.canCreateAlerts;
-      
+
       if (aCanWrite && !bCanWrite) return -1;
       if (!aCanWrite && bCanWrite) return 1;
-      
+
       return a.name.localeCompare(b.name);
     });
 
@@ -152,7 +153,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     if (!suggestedSites) return;
 
     let sitesToSelect: string[] = [];
-    
+
     switch (scope) {
       case 'current':
         sitesToSelect = [suggestedSites.currentSite.id];
@@ -200,7 +201,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     if (!showPermissionStatus) return null;
 
     const { permissionLevel, canCreateAlerts } = site.userPermissions;
-    
+
     if (!canCreateAlerts) {
       return <span className={`${styles.permissionBadge} ${styles.readOnly}`}>Read Only</span>;
     }
@@ -244,7 +245,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
             >
               <Building24Regular /> Current Site Only
             </SharePointButton>
-            
+
             {suggestedSites.hubSites && suggestedSites.hubSites.length > 0 && (
               <SharePointButton
                 variant="secondary"
@@ -254,7 +255,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
                 <Settings24Regular /> This Hub ({suggestedSites.hubSites.length + 1} sites)
               </SharePointButton>
             )}
-            
+
             {suggestedSites.homesite && (
               <SharePointButton
                 variant="secondary"
@@ -264,7 +265,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
                 <Home24Regular /> Organization Home
               </SharePointButton>
             )}
-            
+
             {suggestedSites.recentSites.length > 0 && (
               <SharePointButton
                 variant="secondary"
@@ -308,14 +309,14 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
                 checked={filters.showOnlyWritable}
                 onChange={(checked) => setFilters(prev => ({ ...prev, showOnlyWritable: checked }))}
               />
-              
+
               <div className={styles.typeFilter}>
                 <label>Site Type:</label>
                 <select
                   value={filters.siteType}
-                  onChange={(e) => setFilters(prev => ({ 
-                    ...prev, 
-                    siteType: e.target.value as any 
+                  onChange={(e) => setFilters(prev => ({
+                    ...prev,
+                    siteType: e.target.value as any
                   }))}
                   className={styles.typeSelect}
                 >
@@ -346,7 +347,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
         {filteredSites.map(site => {
           const isSelected = selectedSites.includes(site.id);
           const canSelect = !maxSelection || selectedSites.length < maxSelection || isSelected;
-          
+
           return (
             <div
               key={site.id}
@@ -356,13 +357,13 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
               <div className={styles.siteIcon}>
                 {getSiteIcon(site)}
               </div>
-              
+
               <div className={styles.siteInfo}>
                 <h4 className={styles.siteName}>{site.name}</h4>
                 <p className={styles.siteUrl}>{new URL(site.url).hostname + new URL(site.url).pathname}</p>
                 {getPermissionBadge(site)}
               </div>
-              
+
               <div className={styles.selectionIndicator}>
                 {isSelected && <CheckmarkCircle24Regular />}
               </div>
@@ -376,7 +377,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
           <Search24Regular className={styles.noResultsIcon} />
           <h4>No sites found</h4>
           <p>
-            Try adjusting your search terms or filters. 
+            Try adjusting your search terms or filters.
             {filters.showOnlyWritable && " You may need to disable the 'writable only' filter to see more sites."}
           </p>
         </div>

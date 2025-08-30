@@ -12,10 +12,13 @@ import SharePointRichTextEditor from "../../UI/SharePointRichTextEditor";
 import AlertPreview from "../../UI/AlertPreview";
 import AlertTemplates, { IAlertTemplate } from "../../UI/AlertTemplates";
 import SiteSelector from "../../UI/SiteSelector";
-import { AlertPriority, NotificationType, IAlertType } from "../../Alerts/IAlerts";
+import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
+import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage } from "../../Alerts/IAlerts";
+import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
 import { SiteContextDetector, ISiteValidationResult } from "../../Utils/SiteContextDetector";
 import { SharePointAlertService } from "../../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { logger } from '../../Services/LoggerService';
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
 
@@ -31,6 +34,10 @@ export interface INewAlert {
   targetSites: string[];
   scheduledStart?: Date;
   scheduledEnd?: Date;
+  // New language and classification properties
+  contentType: ContentType;
+  targetLanguage: TargetLanguage;
+  languageContent: ILanguageContent[]; // Content for multiple languages
 }
 
 export interface IFormErrors {
@@ -42,6 +49,8 @@ export interface IFormErrors {
   targetSites?: string;
   scheduledStart?: string;
   scheduledEnd?: string;
+  // Index signature for dynamic language error keys
+  [key: string]: string | undefined;
 }
 
 export interface ICreateAlertTabProps {
@@ -52,7 +61,6 @@ export interface ICreateAlertTabProps {
   alertTypes: IAlertType[];
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
-  richMediaEnabled: boolean;
   siteDetector: SiteContextDetector;
   alertService: SharePointAlertService;
   graphClient: MSGraphClientV3;
@@ -65,6 +73,7 @@ export interface ICreateAlertTabProps {
   setShowPreview: React.Dispatch<React.SetStateAction<boolean>>;
   showTemplates: boolean;
   setShowTemplates: React.Dispatch<React.SetStateAction<boolean>>;
+  languageUpdateTrigger?: number;
 }
 
 const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
@@ -75,7 +84,6 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   alertTypes,
   userTargetingEnabled,
   notificationsEnabled,
-  richMediaEnabled,
   siteDetector,
   alertService,
   graphClient,
@@ -87,7 +95,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   showPreview,
   setShowPreview,
   showTemplates,
-  setShowTemplates
+  setShowTemplates,
+  languageUpdateTrigger
 }) => {
   // Priority options
   const priorityOptions: ISharePointSelectOption[] = [
@@ -111,35 +120,226 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     label: type.name
   }));
 
-  const handleTemplateSelect = React.useCallback((template: IAlertTemplate) => {
-    setNewAlert(prev => ({
-      ...prev,
-      title: template.template.title,
-      description: template.template.description,
-      priority: template.template.priority,
-      notificationType: template.template.notificationType,
-      isPinned: template.template.isPinned,
-      linkUrl: template.template.linkUrl || "",
-      linkDescription: template.template.linkDescription || ""
-    }));
+  // Content type options
+  const contentTypeOptions: ISharePointSelectOption[] = [
+    { value: ContentType.Alert, label: "Alert - Live content for users" },
+    { value: ContentType.Template, label: "Template - Reusable template for future alerts" }
+  ];
+
+  // Language awareness state
+  const [languageService] = React.useState(() => new LanguageAwarenessService(graphClient, context));
+  const [supportedLanguages, setSupportedLanguages] = React.useState<ISupportedLanguage[]>([]);
+  const [useMultiLanguage, setUseMultiLanguage] = React.useState(false);
+
+  // Language targeting options - only show enabled languages
+  const languageOptions: ISharePointSelectOption[] = React.useMemo(() => {
+    const enabledOptions = [
+      { value: TargetLanguage.All, label: "All Languages - Show to everyone" }
+    ];
+    
+    // Add only enabled languages (those with columnExists: true OR English which is always available)
+    const enabledLanguages = supportedLanguages.filter(lang => 
+      (lang.isSupported && lang.columnExists) || lang.code === TargetLanguage.EnglishUS
+    );
+    enabledLanguages.forEach(lang => {
+      enabledOptions.push({
+        value: lang.code,
+        label: `${lang.flag} ${lang.nativeName} (${lang.name})`
+      });
+    });
+    
+    return enabledOptions;
+  }, [supportedLanguages]);
+
+  // Load supported languages from SharePoint (actual enabled ones)
+  const loadSupportedLanguages = React.useCallback(async () => {
+    try {
+      // Get the base language definitions
+      const baseLanguages = LanguageAwarenessService.getSupportedLanguages();
+      
+      // Get the actually supported languages from SharePoint columns
+      const supportedLanguageCodes = await alertService.getSupportedLanguages();
+      
+      logger.debug('CreateAlertTab', `Refreshing supported languages. SharePoint columns: [${supportedLanguageCodes.join(', ')}]`);
+      
+      // Update the base languages with the actual status
+      const updatedLanguages = baseLanguages.map(lang => ({
+        ...lang,
+        columnExists: supportedLanguageCodes.includes(lang.code) || lang.code === TargetLanguage.EnglishUS,
+        isSupported: supportedLanguageCodes.includes(lang.code) || lang.code === TargetLanguage.EnglishUS
+      }));
+      
+      setSupportedLanguages(updatedLanguages);
+      logger.debug('CreateAlertTab', 'Updated supported languages', { supportedLanguages: updatedLanguages.filter(l => l.isSupported).map(l => l.code) });
+    } catch (error) {
+      logger.error('CreateAlertTab', 'Error loading supported languages', error);
+      // Fallback to default with English only
+      const defaultLanguages = LanguageAwarenessService.getSupportedLanguages();
+      setSupportedLanguages(defaultLanguages.map(lang => ({
+        ...lang,
+        isSupported: lang.code === TargetLanguage.EnglishUS,
+        columnExists: lang.code === TargetLanguage.EnglishUS
+      })));
+    }
+  }, [alertService]);
+
+  React.useEffect(() => {
+    loadSupportedLanguages();
+  }, [loadSupportedLanguages, languageUpdateTrigger]);
+
+  // Initialize language content when multi-language is enabled
+  React.useEffect(() => {
+    if (useMultiLanguage && newAlert.languageContent.length === 0) {
+      // Start with English by default
+      setNewAlert(prev => {
+        const englishContent: ILanguageContent = {
+          language: TargetLanguage.EnglishUS,
+          title: prev.title,
+          description: prev.description,
+          linkDescription: prev.linkUrl ? prev.linkDescription : undefined
+        };
+        return { ...prev, languageContent: [englishContent] };
+      });
+    } else if (!useMultiLanguage && newAlert.languageContent.length > 0) {
+      // When switching back to single language, use the first language's content
+      setNewAlert(prev => {
+        const firstLang = prev.languageContent[0];
+        if (firstLang) {
+          return {
+            ...prev,
+            title: firstLang.title,
+            description: firstLang.description,
+            linkDescription: firstLang.linkDescription || '',
+            languageContent: []
+          };
+        }
+        return prev;
+      });
+    }
+  }, [useMultiLanguage, newAlert.languageContent.length]);
+
+  const handleTemplateSelect = React.useCallback(async (template: IAlertTemplate) => {
+    try {
+      // First, try to get the full alert data from SharePoint to include all fields
+      const templateAlerts = await alertService.getTemplateAlerts(alertService.getCurrentSiteId());
+      const fullTemplate = templateAlerts.find(t => t.id === template.id);
+      
+      if (fullTemplate) {
+        // Use the full template data
+        setNewAlert(prev => ({
+          ...prev,
+          title: fullTemplate.title,
+          description: fullTemplate.description,
+          AlertType: fullTemplate.AlertType,
+          priority: fullTemplate.priority,
+          notificationType: fullTemplate.notificationType,
+          isPinned: fullTemplate.isPinned,
+          linkUrl: fullTemplate.linkUrl || "",
+          linkDescription: fullTemplate.linkDescription || "",
+          contentType: ContentType.Alert, // New alert should be Alert, not Template
+        }));
+
+        // If multi-language is enabled, try to load language variants of the template
+        if (useMultiLanguage && fullTemplate.languageGroup) {
+          try {
+            // Get all language variants of this template
+            const allAlerts = await alertService.getAlerts([alertService.getCurrentSiteId()]);
+            const languageVariants = allAlerts.filter(a => 
+              a.languageGroup === fullTemplate.languageGroup && 
+              a.contentType === ContentType.Template
+            );
+            
+            // Convert to language content format
+            const languageContent: ILanguageContent[] = languageVariants.map(variant => ({
+              language: variant.targetLanguage,
+              title: variant.title,
+              description: variant.description,
+              linkDescription: variant.linkDescription || ""
+            }));
+
+            if (languageContent.length > 0) {
+              setNewAlert(prev => ({
+                ...prev,
+                languageContent,
+                targetLanguage: languageContent[0].language // Set primary language
+              }));
+            }
+          } catch (error) {
+            logger.warn('CreateAlertTab', 'Could not load template language variants', error);
+          }
+        }
+      } else {
+        // Fallback to basic template data
+        setNewAlert(prev => ({
+          ...prev,
+          title: template.template.title,
+          description: template.template.description,
+          priority: template.template.priority,
+          notificationType: template.template.notificationType,
+          isPinned: template.template.isPinned,
+          linkUrl: template.template.linkUrl || "",
+          linkDescription: template.template.linkDescription || "",
+          contentType: ContentType.Alert, // New alert should be Alert, not Template
+        }));
+      }
+    } catch (error) {
+      logger.error('CreateAlertTab', 'Failed to load template', error);
+      // Fallback to basic template data
+      setNewAlert(prev => ({
+        ...prev,
+        title: template.template.title,
+        description: template.template.description,
+        priority: template.template.priority,
+        notificationType: template.template.notificationType,
+        isPinned: template.template.isPinned,
+        linkUrl: template.template.linkUrl || "",
+        linkDescription: template.template.linkDescription || "",
+        contentType: ContentType.Alert, // New alert should be Alert, not Template
+      }));
+    }
+    
     setShowTemplates(false);
-  }, [setNewAlert, setShowTemplates]);
+  }, [alertService, setNewAlert, setShowTemplates, useMultiLanguage]);
 
   const validateForm = React.useCallback((): boolean => {
     const newErrors: IFormErrors = {};
 
-    if (!newAlert.title?.trim()) {
-      newErrors.title = "Title is required";
-    } else if (newAlert.title.length < 3) {
-      newErrors.title = "Title must be at least 3 characters";
-    } else if (newAlert.title.length > 100) {
-      newErrors.title = "Title cannot exceed 100 characters";
-    }
+    if (useMultiLanguage) {
+      // Validate multi-language content
+      if (newAlert.languageContent.length === 0) {
+        newErrors.title = 'At least one language must be configured';
+      } else {
+        newAlert.languageContent.forEach(content => {
+          if (!content.title.trim()) {
+            newErrors.title = `Title is required for ${content.language}`;
+          }
+          if (!content.description.trim()) {
+            newErrors.description = `Description is required for ${content.language}`;
+          }
+          if (newAlert.linkUrl && !content.linkDescription?.trim()) {
+            newErrors.linkDescription = `Link description is required for ${content.language} when URL is provided`;
+          }
+        });
+      }
+    } else {
+      // Validate single language content
+      if (!newAlert.title?.trim()) {
+        newErrors.title = "Title is required";
+      } else if (newAlert.title.length < 3) {
+        newErrors.title = "Title must be at least 3 characters";
+      } else if (newAlert.title.length > 100) {
+        newErrors.title = "Title cannot exceed 100 characters";
+      }
 
-    if (!newAlert.description?.trim()) {
-      newErrors.description = "Description is required";
-    } else if (newAlert.description.length < 10) {
-      newErrors.description = "Description must be at least 10 characters";
+      if (!newAlert.description?.trim()) {
+        newErrors.description = "Description is required";
+      } else if (newAlert.description.length < 10) {
+        newErrors.description = "Description must be at least 10 characters";
+      }
+
+      if (newAlert.linkUrl && !newAlert.linkDescription?.trim()) {
+        newErrors.linkDescription = "Link description is required when URL is provided";
+      }
     }
 
     if (!newAlert.AlertType) {
@@ -154,10 +354,6 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       }
     }
 
-    if (newAlert.linkUrl && !newAlert.linkDescription?.trim()) {
-      newErrors.linkDescription = "Link description is required when URL is provided";
-    }
-
     if (newAlert.targetSites.length === 0) {
       newErrors.targetSites = "At least one target site must be selected";
     }
@@ -170,7 +366,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [newAlert, setErrors]);
+  }, [newAlert, setErrors, useMultiLanguage]);
 
   const handleCreateAlert = React.useCallback(async () => {
     if (!validateForm()) return;
@@ -179,32 +375,73 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     setCreationProgress([]);
 
     try {
-      // Transform INewAlert to match service expectations
-      const alertData = {
-        title: newAlert.title,
-        description: newAlert.description,
-        AlertType: newAlert.AlertType,
-        priority: newAlert.priority,
-        isPinned: newAlert.isPinned,
-        notificationType: newAlert.notificationType,
-        linkUrl: newAlert.linkUrl,
-        linkDescription: newAlert.linkDescription,
-        targetSites: newAlert.targetSites,
-        scheduledStart: newAlert.scheduledStart?.toISOString(),
-        scheduledEnd: newAlert.scheduledEnd?.toISOString()
-      };
+      if (useMultiLanguage && newAlert.languageContent.length > 0) {
+        // Create multi-language alerts
+        const multiLanguageAlert = languageService.createMultiLanguageAlert({
+          AlertType: newAlert.AlertType,
+          priority: newAlert.priority,
+          isPinned: newAlert.isPinned,
+          linkUrl: newAlert.linkUrl,
+          notificationType: newAlert.notificationType,
+          createdDate: new Date().toISOString(),
+          createdBy: context.pageContext.user.displayName,
+          contentType: newAlert.contentType,
+          targetLanguage: TargetLanguage.All,
+          status: 'Active' as 'Active' | 'Expired' | 'Scheduled',
+          targetSites: newAlert.targetSites,
+          id: '0'
+        }, newAlert.languageContent);
 
-      await alertService.createAlert(alertData);
-      
-      // Success - create a simple success result
-      setCreationProgress([{
-        siteId: "success",
-        siteName: "Alert Created",
-        hasAccess: true,
-        canCreateAlerts: true,
-        permissionLevel: "success",
-        error: ""
-      }]);
+        const alertItems = languageService.generateAlertItems(multiLanguageAlert);
+        
+        // Create each language variant
+        for (const alertItem of alertItems) {
+          const alertData = {
+            ...alertItem,
+            targetSites: newAlert.targetSites,
+            scheduledStart: newAlert.scheduledStart?.toISOString(),
+            scheduledEnd: newAlert.scheduledEnd?.toISOString()
+          };
+          await alertService.createAlert(alertData);
+        }
+        
+        setCreationProgress([{
+          siteId: "success",
+          siteName: `Multi-Language Alert Created (${alertItems.length} variants)`,
+          hasAccess: true,
+          canCreateAlerts: true,
+          permissionLevel: "success",
+          error: ""
+        }]);
+      } else {
+        // Create single language alert
+        const alertData = {
+          title: newAlert.title,
+          description: newAlert.description,
+          AlertType: newAlert.AlertType,
+          priority: newAlert.priority,
+          isPinned: newAlert.isPinned,
+          notificationType: newAlert.notificationType,
+          linkUrl: newAlert.linkUrl,
+          linkDescription: newAlert.linkDescription,
+          targetSites: newAlert.targetSites,
+          scheduledStart: newAlert.scheduledStart?.toISOString(),
+          scheduledEnd: newAlert.scheduledEnd?.toISOString(),
+          contentType: newAlert.contentType,
+          targetLanguage: newAlert.targetLanguage
+        };
+
+        await alertService.createAlert(alertData);
+        
+        setCreationProgress([{
+          siteId: "success",
+          siteName: "Alert Created",
+          hasAccess: true,
+          canCreateAlerts: true,
+          permissionLevel: "success",
+          error: ""
+        }]);
+      }
 
       // Reset form on success
       setNewAlert({
@@ -218,11 +455,15 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         linkDescription: "",
         targetSites: [],
         scheduledStart: undefined,
-        scheduledEnd: undefined
+        scheduledEnd: undefined,
+        contentType: ContentType.Alert,
+        targetLanguage: TargetLanguage.All,
+        languageContent: []
       });
+      setUseMultiLanguage(false);
       setShowTemplates(true);
     } catch (error) {
-      console.error('Error creating alert:', error);
+      logger.error('CreateAlertTab', 'Error creating alert', error);
       setCreationProgress([{
         siteId: "error",
         siteName: "Creation Error",
@@ -234,7 +475,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     } finally {
       setIsCreatingAlert(false);
     }
-  }, [validateForm, setIsCreatingAlert, setCreationProgress, alertService, newAlert, setNewAlert, alertTypes, setShowTemplates]);
+  }, [validateForm, setIsCreatingAlert, setCreationProgress, alertService, newAlert, setNewAlert, alertTypes, setShowTemplates, useMultiLanguage, languageService, context.pageContext.user.displayName]);
 
   const resetForm = React.useCallback(() => {
     setNewAlert({
@@ -248,9 +489,13 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       linkDescription: "",
       targetSites: [],
       scheduledStart: undefined,
-      scheduledEnd: undefined
+      scheduledEnd: undefined,
+      contentType: ContentType.Alert,
+      targetLanguage: TargetLanguage.All,
+      languageContent: []
     });
     setErrors({});
+    setUseMultiLanguage(false);
     setShowTemplates(true);
   }, [setNewAlert, alertTypes, setErrors, setShowTemplates]);
 
@@ -264,6 +509,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         <div className={styles.templatesSection}>
           <AlertTemplates
             onSelectTemplate={handleTemplateSelect}
+            graphClient={graphClient}
+            context={context}
+            alertService={alertService}
             className={styles.templates}
           />
           <div className={styles.templateActions}>
@@ -281,33 +529,87 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         <div className={styles.alertForm}>
           <div className={styles.formWithPreview}>
             <div className={styles.formColumn}>
-              <SharePointSection title="Basic Information">
-                <SharePointInput
-                  label="Alert Title"
-                  value={newAlert.title}
-                  onChange={(value) => {
-                    setNewAlert(prev => ({ ...prev, title: value }));
-                    if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
-                  }}
-                  placeholder="Enter a clear, concise title"
+              <SharePointSection title="Content Classification">
+                <SharePointSelect
+                  label="Content Type"
+                  value={newAlert.contentType}
+                  onChange={(value) => setNewAlert(prev => ({ ...prev, contentType: value as ContentType }))}
+                  options={contentTypeOptions}
                   required
-                  error={errors.title}
-                  description="This will be the main heading of your alert (3-100 characters)"
+                  description="Choose whether this is a live alert or a reusable template"
                 />
 
-                <SharePointRichTextEditor
-                  label="Alert Description"
-                  value={newAlert.description}
-                  onChange={(value) => {
-                    setNewAlert(prev => ({ ...prev, description: value }));
-                    if (errors.description) setErrors(prev => ({ ...prev, description: undefined }));
-                  }}
-                  placeholder="Provide detailed information about the alert..."
-                  required
-                  error={errors.description}
-                  description="Use the toolbar to format your message with rich text, links, lists, and more."
-                />
+                <div className={styles.languageModeSelector}>
+                  <label className={styles.fieldLabel}>Language Configuration</label>
+                  <div className={styles.languageOptions}>
+                    <SharePointButton
+                      variant={!useMultiLanguage ? "primary" : "secondary"}
+                      onClick={() => setUseMultiLanguage(false)}
+                    >
+                      🌐 Single Language
+                    </SharePointButton>
+                    <SharePointButton
+                      variant={useMultiLanguage ? "primary" : "secondary"}
+                      onClick={() => setUseMultiLanguage(true)}
+                    >
+                      🗣️ Multi-Language
+                    </SharePointButton>
+                  </div>
+                </div>
               </SharePointSection>
+
+              {!useMultiLanguage ? (
+                <>
+                  <SharePointSection title="Language Targeting">
+                    <SharePointSelect
+                      label="Target Language"
+                      value={newAlert.targetLanguage}
+                      onChange={(value) => setNewAlert(prev => ({ ...prev, targetLanguage: value as TargetLanguage }))}
+                      options={languageOptions}
+                      required
+                      description="Choose which language audience this alert targets"
+                    />
+                  </SharePointSection>
+
+                  <SharePointSection title="Basic Information">
+                    <SharePointInput
+                      label="Alert Title"
+                      value={newAlert.title}
+                      onChange={(value) => {
+                        setNewAlert(prev => ({ ...prev, title: value }));
+                        setErrors(prev => prev.title ? { ...prev, title: undefined } : prev);
+                      }}
+                      placeholder="Enter a clear, concise title"
+                      required
+                      error={errors.title}
+                      description="This will be the main heading of your alert (3-100 characters)"
+                    />
+
+                    <SharePointRichTextEditor
+                      label="Alert Description"
+                      value={newAlert.description}
+                      onChange={(value) => {
+                        setNewAlert(prev => ({ ...prev, description: value }));
+                        if (errors.description) setErrors(prev => ({ ...prev, description: undefined }));
+                      }}
+                      placeholder="Provide detailed information about the alert..."
+                      required
+                      error={errors.description}
+                      description="Use the toolbar to format your message with rich text, links, lists, and more."
+                    />
+                  </SharePointSection>
+                </>
+              ) : (
+                <SharePointSection title="Multi-Language Content">
+                  <MultiLanguageContentEditor
+                    content={newAlert.languageContent}
+                    onContentChange={(content) => setNewAlert(prev => ({ ...prev, languageContent: content }))}
+                    availableLanguages={supportedLanguages}
+                    errors={errors}
+                    linkUrl={newAlert.linkUrl}
+                  />
+                </SharePointSection>
+              )}
 
               <SharePointSection title="Alert Configuration">
                 <SharePointSelect
@@ -356,26 +658,32 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                   value={newAlert.linkUrl}
                   onChange={(value) => {
                     setNewAlert(prev => ({ ...prev, linkUrl: value }));
-                    if (errors.linkUrl) setErrors(prev => ({ ...prev, linkUrl: undefined }));
+                    setErrors(prev => prev.linkUrl ? { ...prev, linkUrl: undefined } : prev);
                   }}
                   placeholder="https://example.com/more-info"
                   error={errors.linkUrl}
                   description="Optional link for users to get more information or take action"
                 />
 
-                {newAlert.linkUrl && (
+                {newAlert.linkUrl && !useMultiLanguage && (
                   <SharePointInput
                     label="Link Description"
                     value={newAlert.linkDescription}
                     onChange={(value) => {
                       setNewAlert(prev => ({ ...prev, linkDescription: value }));
-                      if (errors.linkDescription) setErrors(prev => ({ ...prev, linkDescription: undefined }));
+                      setErrors(prev => prev.linkDescription ? { ...prev, linkDescription: undefined } : prev);
                     }}
                     placeholder="Learn More"
                     required={!!newAlert.linkUrl}
                     error={errors.linkDescription}
                     description="Text that will appear on the action button"
                   />
+                )}
+                
+                {newAlert.linkUrl && useMultiLanguage && (
+                  <div className={styles.infoMessage}>
+                    <p>Link descriptions will be configured per language in the Multi-Language Content section above.</p>
+                  </div>
                 )}
               </SharePointSection>
 

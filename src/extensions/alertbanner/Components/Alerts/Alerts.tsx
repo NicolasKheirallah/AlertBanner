@@ -1,4 +1,5 @@
 import * as React from "react";
+import { logger } from '../Services/LoggerService';
 import { MessageBar, MessageBarBody, MessageBarTitle, tokens } from "@fluentui/react-components";
 import styles from "./Alerts.module.scss";
 import { IAlertsProps, IAlertType, AlertPriority } from "./IAlerts";
@@ -22,21 +23,43 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   const carouselTimer = React.useRef<number | null>(null);
   const storageService = React.useRef<StorageService>(StorageService.getInstance());
 
+  // Store initial props to prevent unnecessary re-initialization
+  const initialPropsRef = React.useRef<{
+    siteIds: string[];
+    alertTypesJson: string;
+    userTargetingEnabled: boolean;
+    notificationsEnabled: boolean;
+  } | null>(null);
+
   // Initialize alerts and edit mode detection on mount
   React.useEffect(() => {
-    initializeAlerts({
-      graphClient: props.graphClient,
+    const currentProps = {
       siteIds: props.siteIds || [],
       alertTypesJson: props.alertTypesJson,
       userTargetingEnabled: props.userTargetingEnabled,
       notificationsEnabled: props.notificationsEnabled,
-      richMediaEnabled: props.richMediaEnabled,
-    });
+    };
+
+    // Only initialize if props have actually changed
+    if (!initialPropsRef.current || 
+        JSON.stringify(initialPropsRef.current) !== JSON.stringify(currentProps)) {
+      
+      logger.debug('Alerts', 'Initializing alerts with props', currentProps);
+      initialPropsRef.current = currentProps;
+      
+      initializeAlerts({
+        graphClient: props.graphClient,
+        context: props.context,
+        ...currentProps
+      });
+    } else {
+      logger.debug('Alerts', 'Props unchanged, skipping alert re-initialization');
+    }
 
     setIsInEditMode(EditModeDetector.isPageInEditMode());
     const cleanup = EditModeDetector.onEditModeChange(setIsInEditMode);
     return cleanup;
-  }, [props.graphClient, props.siteIds, props.alertTypesJson, props.userTargetingEnabled, props.notificationsEnabled, props.richMediaEnabled, initializeAlerts]);
+  }, [props.graphClient, JSON.stringify(props.siteIds), props.alertTypesJson, props.userTargetingEnabled, props.notificationsEnabled, initializeAlerts]);
 
   // Effect to reset index when alerts change
   React.useEffect(() => {
@@ -185,7 +208,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
             remove={removeAlert}
             hideForever={hideAlertForever}
             alertType={alertTypes[alerts[currentIndex].AlertType] || defaultAlertType}
-            richMediaEnabled={props.richMediaEnabled}
             isCarousel={true}
             currentIndex={currentIndex + 1}
             totalAlerts={alerts.length}
@@ -200,7 +222,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
           alertTypesJson={props.alertTypesJson}
           userTargetingEnabled={props.userTargetingEnabled || false}
           notificationsEnabled={props.notificationsEnabled || false}
-          richMediaEnabled={props.richMediaEnabled || false}
           graphClient={props.graphClient}
           context={props.context}
           onSettingsChange={handleSettingsChange}

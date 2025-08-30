@@ -13,12 +13,14 @@ import {
   makeStyles,
   tokens
 } from "@fluentui/react-components";
+import { logger } from '../Services/LoggerService';
 import {
   Globe24Regular,
   Add24Regular,
   Checkmark24Filled
 } from "@fluentui/react-icons";
 import { SharePointAlertService } from "../Services/SharePointAlertService";
+import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
 
 const useStyles = makeStyles({
   container: {
@@ -79,6 +81,32 @@ const useStyles = makeStyles({
     paddingTop: "16px",
     borderTop: `1px solid ${tokens.colorNeutralStroke1}`,
     marginTop: "20px"
+  },
+  languageHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "16px",
+    flexWrap: "wrap",
+    gap: "8px"
+  },
+  languageSummary: {
+    minWidth: "0",
+    flex: "1",
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "4px"
+  },
+  languageCount: {
+    color: tokens.colorNeutralForeground2
+  },
+  refreshButton: {
+    flexShrink: "0"
+  },
+  loadingContainer: {
+    textAlign: "center",
+    padding: "40px"
   }
 });
 
@@ -173,17 +201,29 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
   const loadSupportedLanguages = async () => {
     try {
       setLoading(true);
-      const supported = await alertService.getSupportedLanguageColumns();
+      const supported = await alertService.getSupportedLanguages();
       const siteDefaultLanguage = getSiteDefaultLanguage();
       
-      console.log(`🌍 Site default language detected: ${siteDefaultLanguage}`);
-      console.log(`📋 Supported languages from SharePoint: ${supported.join(', ')}`);
+      logger.debug('LanguageFieldManager', `Site default language detected: ${siteDefaultLanguage}`);
+      logger.debug('LanguageFieldManager', `Supported languages from SharePoint: ${supported.join(', ')}`);
       
-      // Update language states: only add languages that exist in SharePoint OR the site default
-      setLanguages(prev => prev.map(lang => ({
-        ...lang,
-        isAdded: supported.includes(lang.code) || (lang.code === siteDefaultLanguage && supported.length === 0)
-      })));
+      // Get standardized language definitions from LanguageAwarenessService
+      const supportedLanguages = LanguageAwarenessService.getSupportedLanguages();
+      
+      // Map our internal language list to the standardized one and update with SharePoint status
+      const updatedLanguages = supportedLanguages.map(stdLang => {
+        const currentLang = languages.find(l => l.code === stdLang.code);
+        return {
+          code: stdLang.code,
+          name: stdLang.name,
+          nativeName: stdLang.nativeName,
+          flag: stdLang.flag,
+          isAdded: supported.includes(stdLang.code) || (stdLang.code === siteDefaultLanguage && supported.length === 0),
+          isPending: currentLang?.isPending || false
+        };
+      });
+      
+      setLanguages(updatedLanguages);
       
       // If no languages are supported yet and this is first load, ensure site default is selected
       if (supported.length === 0) {
@@ -191,11 +231,11 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           ...lang,
           isAdded: lang.code === siteDefaultLanguage
         })));
-        console.log(`✅ Set ${siteDefaultLanguage} as default language for new installation`);
+        logger.debug('LanguageFieldManager', `Set ${siteDefaultLanguage} as default language for new installation`);
       }
       
     } catch (error) {
-      console.warn('Could not load supported languages:', error);
+      logger.warn('LanguageFieldManager', 'Could not load supported languages', error);
       
       // Fallback: set only site default language as active
       const siteDefaultLanguage = getSiteDefaultLanguage();
@@ -211,11 +251,15 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
   };
 
   const handleLanguageToggle = async (languageCode: string, checked: boolean) => {
-    const siteDefaultLanguage = getSiteDefaultLanguage();
-    if (languageCode === siteDefaultLanguage && !checked) {
-      const defaultLanguageName = languages.find(l => l.code === siteDefaultLanguage)?.name || 'default';
-      showMessage('warning', `${defaultLanguageName} is the site's default language and cannot be removed.`);
-      return;
+    // Allow English to be toggled even if it's the site default
+    // This gives users full control over language selection
+    if (languageCode !== 'en-us') {
+      const siteDefaultLanguage = getSiteDefaultLanguage();
+      if (languageCode === siteDefaultLanguage && !checked) {
+        const defaultLanguageName = languages.find(l => l.code === siteDefaultLanguage)?.name || 'default';
+        showMessage('warning', `${defaultLanguageName} is the site's default language and cannot be removed.`);
+        return;
+      }
     }
 
     const language = languages.find(l => l.code === languageCode);
@@ -232,12 +276,12 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       if (checked) {
         // Add language columns
         setLoading(true);
-        await alertService.addLanguageColumns(languageCode);
+        await alertService.addLanguageSupport(languageCode);
         showMessage('success', `Added ${language.name} language support successfully!`);
       } else {
         // Remove language columns from SharePoint
         setLoading(true);
-        await alertService.removeLanguageColumns(languageCode);
+        await alertService.removeLanguageSupport(languageCode);
         showMessage('success', `Removed ${language.name} language support and columns.`);
       }
 
@@ -255,7 +299,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       onLanguageChange?.(activeLanguages);
 
     } catch (error) {
-      console.error(`Failed to ${checked ? 'add' : 'remove'} language ${languageCode}:`, error);
+      logger.error('LanguageFieldManager', `Failed to ${checked ? 'add' : 'remove'} language ${languageCode}`, error);
       showMessage('error', `Failed to ${checked ? 'add' : 'remove'} ${language.name} language support.`);
       
       // Revert UI state on error
@@ -326,35 +370,26 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         
         <CardPreview>
           <div style={{ padding: "16px" }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between', 
-              marginBottom: '16px',
-              flexWrap: 'wrap',
-              gap: '8px'
-            }}>
-              <div style={{ minWidth: '0', flex: '1' }}>
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                  <Text weight="semibold">Available Languages</Text>
-                  <Text size={200} style={{ color: tokens.colorNeutralForeground2 }}>
-                    {addedCount} active{pendingCount > 0 ? `, ${pendingCount} updating` : ''}
-                  </Text>
-                </div>
+            <div className={styles.languageHeader}>
+              <div className={styles.languageSummary}>
+                <Text weight="semibold">Available Languages</Text>
+                <Text size={200} className={styles.languageCount}>
+                  {addedCount} active{pendingCount > 0 ? `, ${pendingCount} updating` : ''}
+                </Text>
               </div>
               <Button
                 appearance="secondary"
                 icon={<Add24Regular />}
                 onClick={loadSupportedLanguages}
                 disabled={loading}
-                style={{ flexShrink: 0 }}
+                className={styles.refreshButton}
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </Button>
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
+              <div className={styles.loadingContainer}>
                 <Spinner label="Loading language support..." />
               </div>
             ) : (
@@ -364,7 +399,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
                     <div className={styles.languageInfo}>
                       <Checkbox
                         checked={language.isAdded}
-                        disabled={language.code === 'en-us' || language.isPending}
+                        disabled={language.isPending}
                         onChange={(_, data) => handleLanguageToggle(language.code, data.checked === true)}
                       />
                       <div className={styles.languageDetails}>
@@ -381,12 +416,6 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
                 ))}
               </div>
             )}
-
-            <div className={styles.actions}>
-              <Text size={200} style={{ flex: 1, color: tokens.colorNeutralForeground2 }}>
-                💡 Tip: Language fields are created as: Title_{'{LANG}'}, Description_{'{LANG}'}, LinkDescription_{'{LANG}'}
-              </Text>
-            </div>
           </div>
         </CardPreview>
       </Card>

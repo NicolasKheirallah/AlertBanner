@@ -45,16 +45,20 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 ## Version History
 
-| Version | Date            | Comments                                        |
-| ------- | --------------- | ----------------------------------------------- |
-| 2.0     | August 13, 2025 | Major release: Hierarchical alert system with Home/Hub/Site distribution, automatic list management, multi-language content creation, and enhanced site context awareness |
-| 1.6     | August 13, 2025 | Added comprehensive multi-language support with 8 languages, automatic language detection, and localization framework |
-| 1.5     | August 12, 2025 | Removed dialog, integrated content directly into banner, added "Read More" functionality |
-| 1.4     | March 5, 2025  | Enhanced UI with modern dialog and improved link styling |
-| 1.3     | March 3, 2025   | Added alert prioritization, user targeting, notifications, rich media support |
-| 1.2     | October 11, 2024| Added dynamic alerttypes, added support for homesite, hubsite and local site |
-| 1.1     | August 17, 2024 | Added caching and session management for alerts |
-| 1.0     | July 15, 2024   | Initial release                                 |
+| Version | Date               | Comments                                        |
+| ------- | ------------------ | ----------------------------------------------- |
+| 2.4 | August 30, 2025 | Streamlined Targeting Release: Simplified user targeting with SharePoint People/Groups fields (replacing JSON-based rules), removed rich media complexity in favor of HTML description field, enhanced template system with better SharePoint integration, comprehensive CRUD operations, and enterprise-grade logging and error handling |
+| 2.3 | August 29, 2025 | Advanced Multi-Language Release: Dynamic language targeting with intelligent fallback system, language-aware audience filtering, dynamic SharePoint choice field management, comprehensive multi-language content editing, and full end-to-end language workflow integration |
+| 2.2 | August 27, 2025 | Production-Ready Release: Comprehensive logging, accessibility (WCAG 2.1 AA), input validation, error boundaries, performance optimizations, TypeScript enhancements, and responsive UI fixes |
+| 2.1     | August 16, 2025   | Enhanced multi-language list creation with UI improvements and error handling refinements |
+| 2.0     | August 13, 2025   | Major release: Hierarchical alert system with Home/Hub/Site distribution, automatic list management, multi-language content creation, and enhanced site context awareness |
+| 1.6     | August 13, 2025   | Added comprehensive multi-language support with 8 languages, automatic language detection, and localization framework |
+| 1.5     | August 12, 2025   | Removed dialog, integrated content directly into banner, added "Read More" functionality |
+| 1.4     | March 5, 2025     | Enhanced UI with modern dialog and improved link styling |
+| 1.3     | March 3, 2025     | Added alert prioritization, user targeting, notifications, rich media support |
+| 1.2     | October 11, 2024  | Added dynamic alerttypes, added support for homesite, hubsite and local site |
+| 1.1     | August 17, 2024   | Added caching and session management for alerts |
+| 1.0     | July 15, 2024     | Initial release                                 |
 
 ## Disclaimer
 
@@ -84,14 +88,15 @@ This SPFx extension offers the following capabilities:
 - **Performance Optimization**: Utilizes local storage for caching alerts, improving performance.
 - **Multi-Site Support**: Support for Root, Local, and Hub sites.
 - **Alert Prioritization**: Categorize alerts as Low, Medium, High, or Critical with visual differentiation.
-- **User Targeting**: Target alerts to specific departments, job titles, or SharePoint groups.
-- **Notification System**: Send browser and email notifications for important alerts.
-- **Rich Media Support**: Include images, videos, HTML, and markdown content in alerts.
-- **Quick Actions**: Add interactive buttons to alerts for direct user engagement.
+- **Simplified User Targeting**: Target alerts using SharePoint People/Groups picker - select specific users or groups, or leave empty for everyone to see.
+- **Notification System**: Send browser notifications for critical and high-priority alerts.
+- **HTML Content Support**: Rich text descriptions with HTML formatting, including images, links, and styled content.
 - **Read More Functionality**: Automatically truncates long alert descriptions and provides a "Read More" button to expand the full content directly within the banner.
 - **Stylized Action Links**: Buttons-styled links for better visibility and user interaction.
-- **Multi-Language Support**: Full internationalization support with automatic language detection, manual language switching, and multi-language content creation.
-- **Multi-Language Content Editor**: Create alert content in multiple languages with intelligent fallback systems and custom language support.
+- **Advanced Multi-Language System**: Dynamic language targeting with intelligent fallback logic, language-aware audience filtering, and automatic user language detection from SharePoint/browser settings.
+- **Dynamic Language Management**: Self-updating SharePoint choice fields that automatically add/remove language options based on administrator configuration.
+- **Multi-Language Content Editor**: Comprehensive interface for creating and managing alert content across multiple languages with validation and status tracking.
+- **Language-Aware Audience Targeting**: Users automatically see alerts in their preferred language (French users see French, German users see German) with smart fallback to available languages.
 - **Hierarchical Alert System**: Intelligent alert distribution based on SharePoint site hierarchy (Home Site → Hub Site → Current Site).
 - **Automatic List Management**: Smart detection and one-click creation of alert lists across site hierarchy.
 - **Site Context Awareness**: Automatic detection of Home Sites, Hub Sites, and current site relationships.

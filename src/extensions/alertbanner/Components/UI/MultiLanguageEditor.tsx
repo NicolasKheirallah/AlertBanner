@@ -101,7 +101,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
 
     availableLanguages.forEach(language => {
       const langContent: ILanguageContent = {};
-      
+
       contentFields.forEach(field => {
         const fieldName = languageManager.createLanguageFieldName(field.fieldName, language.code);
         const value = alertItem[fieldName] || '';
@@ -150,7 +150,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
     try {
       await languageManager.removeCustomLanguage(languageCode);
       await loadLanguages();
-      
+
       // Remove content for this language
       setContent(prev => {
         const updated = { ...prev };
@@ -172,7 +172,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
 
   const getSuggestedLanguages = (): ILanguageInfo[] => {
     const suggested = languageManager.getSuggestedLanguages();
-    return suggested.filter(lang => 
+    return suggested.filter(lang =>
       !availableLanguages.find(available => available.code === lang.code)
     );
   };
@@ -233,7 +233,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
             {language.isCustom && <span className={styles.customLabel}>Custom</span>}
           </Button>
         ))}
-        
+
         <Dialog open={showAddLanguageDialog} onOpenChange={(_, data) => setShowAddLanguageDialog(data.open)}>
           <DialogTrigger disableButtonEnhancement>
             <Button
@@ -258,7 +258,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
                       placeholder="e.g., it-it"
                     />
                   </Field>
-                  
+
                   <Field label={getString('LanguageName') || 'Language Name'} required>
                     <Input
                       value={newLanguageInfo.name}
@@ -266,7 +266,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
                       placeholder="e.g., Italian"
                     />
                   </Field>
-                  
+
                   <Field label={getString('NativeLanguageName') || 'Native Language Name'} required>
                     <Input
                       value={newLanguageInfo.nativeName}
@@ -293,7 +293,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
                       ))}
                     </Dropdown>
                   </Field>
-                  
+
                   <Field label={getString('RightToLeft') || 'Right-to-Left'}>
                     <Switch
                       checked={newLanguageInfo.isRTL}
@@ -351,7 +351,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
             <CardPreview>
               <div className={styles.contentFields}>
                 {contentFields.map(field => (
-                  <Field 
+                  <Field
                     key={field.fieldName}
                     label={getString(field.displayName) || field.displayName}
                   >

@@ -37,7 +37,7 @@ export class StorageService {
 
       localStorage.setItem(fullKey, JSON.stringify(storageData));
     } catch (error) {
-      console.error(`Error saving to localStorage (${key}):`, error);
+      // Silent fail for storage operations
     }
   }
 
@@ -58,7 +58,7 @@ export class StorageService {
 
       return parsedData.data as T;
     } catch (error) {
-      console.error(`Error reading from localStorage (${key}):`, error);
+      // Silent fail for storage operations
       return null;
     }
   }
@@ -68,7 +68,7 @@ export class StorageService {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       localStorage.removeItem(fullKey);
     } catch (error) {
-      console.error(`Error removing from localStorage (${key}):`, error);
+      // Silent fail for storage operations
     }
   }
 
@@ -83,7 +83,7 @@ export class StorageService {
 
       sessionStorage.setItem(fullKey, JSON.stringify(storageData));
     } catch (error) {
-      console.error(`Error saving to sessionStorage (${key}):`, error);
+      // Silent fail for storage operations
     }
   }
 
@@ -97,7 +97,7 @@ export class StorageService {
       const parsedData = JSON.parse(data);
       return parsedData.data as T;
     } catch (error) {
-      console.error(`Error reading from sessionStorage (${key}):`, error);
+      // Silent fail for storage operations
       return null;
     }
   }
@@ -107,7 +107,7 @@ export class StorageService {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       sessionStorage.removeItem(fullKey);
     } catch (error) {
-      console.error(`Error removing from sessionStorage (${key}):`, error);
+      // Silent fail for storage operations
     }
   }
 

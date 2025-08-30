@@ -28,7 +28,7 @@ export const SharePointButton: React.FC<ISharePointButtonProps> = ({
   type = "button"
 }) => {
   const buttonClass = `${styles.button} ${styles[variant]} ${className || ''}`;
-  
+
   return (
     <button
       type={type}
@@ -71,20 +71,20 @@ export const SharePointInput: React.FC<ISharePointInputProps> = ({
   const inputId = React.useMemo(() => generateId(), []);
   const errorId = `${inputId}-error`;
   const descId = `${inputId}-desc`;
-  
+
   return (
     <div className={`${styles.field} ${className || ''}`}>
       <label htmlFor={inputId} className={styles.label}>
         {label}
         {required && <span className={styles.required}>*</span>}
       </label>
-      
+
       {description && (
         <div id={descId} className={styles.description}>
           {description}
         </div>
       )}
-      
+
       <input
         id={inputId}
         type={type}
@@ -97,7 +97,7 @@ export const SharePointInput: React.FC<ISharePointInputProps> = ({
         aria-invalid={!!error}
         required={required}
       />
-      
+
       {error && (
         <div id={errorId} className={styles.error}>
           {error}
@@ -136,20 +136,20 @@ export const SharePointTextArea: React.FC<ISharePointTextAreaProps> = ({
   const textareaId = React.useMemo(() => generateId(), []);
   const errorId = `${textareaId}-error`;
   const descId = `${textareaId}-desc`;
-  
+
   return (
     <div className={`${styles.field} ${className || ''}`}>
       <label htmlFor={textareaId} className={styles.label}>
         {label}
         {required && <span className={styles.required}>*</span>}
       </label>
-      
+
       {description && (
         <div id={descId} className={styles.description}>
           {description}
         </div>
       )}
-      
+
       <textarea
         id={textareaId}
         value={value}
@@ -162,7 +162,7 @@ export const SharePointTextArea: React.FC<ISharePointTextAreaProps> = ({
         aria-invalid={!!error}
         required={required}
       />
-      
+
       {error && (
         <div id={errorId} className={styles.error}>
           {error}
@@ -207,20 +207,20 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
   const selectId = React.useMemo(() => generateId(), []);
   const errorId = `${selectId}-error`;
   const descId = `${selectId}-desc`;
-  
+
   return (
     <div className={`${styles.field} ${className || ''}`}>
       <label htmlFor={selectId} className={styles.label}>
         {label}
         {required && <span className={styles.required}>*</span>}
       </label>
-      
+
       {description && (
         <div id={descId} className={styles.description}>
           {description}
         </div>
       )}
-      
+
       <select
         id={selectId}
         value={value}
@@ -246,7 +246,7 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
           </option>
         ))}
       </select>
-      
+
       {error && (
         <div id={errorId} className={styles.error}>
           {error}
@@ -276,7 +276,7 @@ export const SharePointToggle: React.FC<ISharePointToggleProps> = ({
 }) => {
   const toggleId = React.useMemo(() => generateId(), []);
   const descId = `${toggleId}-desc`;
-  
+
   return (
     <div className={`${styles.field} ${className || ''}`}>
       <div className={styles.toggleContainer}>
@@ -292,12 +292,12 @@ export const SharePointToggle: React.FC<ISharePointToggleProps> = ({
         >
           <span className={styles.toggleThumb} />
         </button>
-        
+
         <label htmlFor={toggleId} className={styles.toggleLabel}>
           {label}
         </label>
       </div>
-      
+
       {description && (
         <div id={descId} className={styles.description}>
           {description}
@@ -325,7 +325,7 @@ export const SharePointSection: React.FC<ISharePointSectionProps> = ({
 }) => {
   return (
     <div className={`${styles.section} ${className || ''}`}>
-      <div 
+      <div
         className={styles.sectionHeader}
         onClick={onToggle ? () => onToggle(!collapsed) : undefined}
         role={onToggle ? "button" : undefined}
@@ -338,7 +338,7 @@ export const SharePointSection: React.FC<ISharePointSectionProps> = ({
           </span>
         )}
       </div>
-      
+
       {!collapsed && (
         <div className={styles.sectionContent}>
           {children}

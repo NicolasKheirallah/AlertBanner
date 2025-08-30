@@ -10,11 +10,12 @@
 
 .previewHeader {
   padding: 12px 16px;
-  background: #f3f2f1;
+  background: #ffffff;
   border-bottom: 1px solid #edebe9;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  color: #323130;
   
   h4 {
     margin: 0;
@@ -43,6 +44,16 @@
   &:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
+  }
+  
+  // Type details within preview - inherits alert text color
+  .typeDetails {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    margin-top: 8px;
+    /* Inherits the alert's text color dynamically */
   }
 }
 

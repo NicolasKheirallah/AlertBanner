@@ -1,11 +1,14 @@
 import * as React from "react";
 import { createContext, useReducer, useContext, useCallback } from "react";
-import { IAlertType, AlertPriority, IPersonField, ITargetingRule } from "../Alerts/IAlerts";
+import { IAlertType, AlertPriority, IPersonField, ITargetingRule, ContentType, TargetLanguage } from "../Alerts/IAlerts";
 import { IAlertItem } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import UserTargetingService from "../Services/UserTargetingService";
-import NotificationService from "../Services/NotificationService";
+import { NotificationService } from "../Services/NotificationService";
 import StorageService from "../Services/StorageService";
+import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
+import { logger } from "../Services/LoggerService";
 
 // Define the shape of our state
 interface AlertsState {
@@ -27,7 +30,8 @@ type AlertsAction =
   | { type: 'DISMISS_ALERT'; payload: string }
   | { type: 'HIDE_ALERT_FOREVER'; payload: string }
   | { type: 'SET_DISMISSED_ALERTS'; payload: string[] }
-  | { type: 'SET_HIDDEN_ALERTS'; payload: string[] };
+  | { type: 'SET_HIDDEN_ALERTS'; payload: string[] }
+  | { type: 'BATCH_UPDATE'; payload: Partial<AlertsState> };
 
 // Initial state
 const initialState: AlertsState = {
@@ -79,6 +83,9 @@ const alertsReducer = (state: AlertsState, action: AlertsAction): AlertsState =>
     case 'SET_HIDDEN_ALERTS':
       return { ...state, userHiddenAlerts: action.payload };
 
+    case 'BATCH_UPDATE':
+      return { ...state, ...action.payload };
+
     default:
       return state;
   }
@@ -99,11 +106,11 @@ const AlertsContext = createContext<AlertsContextProps | undefined>(undefined);
 // Options for initializing the context
 export interface AlertsContextOptions {
   graphClient: MSGraphClientV3;
+  context: ApplicationCustomizerContext;
   siteIds: string[];
   alertTypesJson: string;
   userTargetingEnabled?: boolean;
   notificationsEnabled?: boolean;
-  richMediaEnabled?: boolean;
 }
 
 // Using StorageService instead of direct localStorage access
@@ -120,22 +127,30 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     graphClient?: MSGraphClientV3;
     userTargetingService?: UserTargetingService;
     notificationService?: NotificationService;
+    languageAwarenessService?: LanguageAwarenessService;
     options?: AlertsContextOptions;
   }>({});
 
   // Load alert types from JSON
   const loadAlertTypes = useCallback((alertTypesJson: string) => {
+    const endPerformanceTracking = logger.startPerformanceTracking('loadAlertTypes');
+    
     try {
       const alertTypesData: IAlertType[] = JSON.parse(alertTypesJson);
       const alertTypesMap: { [key: string]: IAlertType } = {};
+      
       alertTypesData.forEach((type) => {
         alertTypesMap[type.name] = type;
       });
 
       dispatch({ type: 'SET_ALERT_TYPES', payload: alertTypesMap });
+      logger.info('AlertsContext', `Loaded ${alertTypesData.length} alert types`);
+      
     } catch (error) {
-      console.error("Error parsing alert types JSON:", error);
+      logger.error("AlertsContext", "Error parsing alert types JSON", error, { alertTypesJson });
       dispatch({ type: 'SET_ALERT_TYPES', payload: {} });
+    } finally {
+      endPerformanceTracking();
     }
   }, []);
 
@@ -154,33 +169,19 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // Parse JSON fields
-    let targetingRules = undefined;
-    let richMedia = undefined;
-    let quickActions = undefined;
-
+    // Get target users directly from SharePoint People field
+    let targetUsers: IPersonField[] = [];
     try {
-      // First try to parse the JSON TargetingRules field (legacy format)
-      if (item.fields.TargetingRules) {
-        targetingRules = JSON.parse(item.fields.TargetingRules);
-      }
-      // If either People field is present, create targeting rules using them
-      else if (item.fields.TargetUsers || item.fields.TargetGroups) {
-        targetingRules = createTargetingRulesFromPeopleFields(
-          item.fields.TargetUsers,
-          item.fields.TargetGroups,
-          item.fields.TargetingOperation || "anyOf" // Default to anyOf if not specified
-        );
-      }
-
-      if (item.fields.RichMedia) {
-        richMedia = JSON.parse(item.fields.RichMedia);
-      }
-      if (item.fields.QuickActions) {
-        quickActions = JSON.parse(item.fields.QuickActions);
+      if (item.fields.TargetUsers) {
+        if (Array.isArray(item.fields.TargetUsers)) {
+          targetUsers = item.fields.TargetUsers.map((user: any) => mapPersonFieldData(user, user.isGroup || false));
+        } else {
+          // Handle single user case
+          targetUsers = [mapPersonFieldData(item.fields.TargetUsers, item.fields.TargetUsers.isGroup || false)];
+        }
       }
     } catch (error) {
-      console.warn("Error parsing JSON fields for alert:", item.id, error);
+      logger.warn('AlertsContext', `Error processing target users for alert: ${item.id}`, error);
     }
 
     return {
@@ -190,62 +191,23 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       AlertType: item.fields.AlertType || "Default",
       priority: priority,
       isPinned: item.fields.IsPinned || false,
-      targetingRules: targetingRules,
+      targetUsers: targetUsers,
       notificationType: item.fields.NotificationType || "none",
-      richMedia: richMedia,
       linkUrl: item.fields.LinkUrl || "",
       linkDescription: item.fields.LinkDescription || "Learn More",
-      quickActions: quickActions,
       targetSites: item.fields.TargetSites ? item.fields.TargetSites.split(',') : [],
       status: item.fields.Status || 'Active',
       createdDate: item.fields.CreatedDateTime || "",
-      createdBy: createdBy
+      createdBy: createdBy,
+      contentType: (item.fields.ItemType as ContentType) || ContentType.Alert,
+      targetLanguage: (item.fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
+      languageGroup: item.fields.LanguageGroup || undefined
     };
   }, []);
 
-  // Helper to create targeting rules from People fields
-  const createTargetingRulesFromPeopleFields = (
-    targetUsers: any,
-    targetGroups: any,
-    operation: "anyOf" | "allOf" | "noneOf"
-  ): ITargetingRule[] => {
-    const rule: ITargetingRule = {
-      operation: operation
-    };
-
-    // Process target users (individual people)
-    if (targetUsers) {
-      // Handle array of users
-      if (Array.isArray(targetUsers)) {
-        rule.targetUsers = targetUsers.map(user => mapPersonFieldData(user, false));
-      }
-      // Handle single user
-      else {
-        rule.targetUsers = [mapPersonFieldData(targetUsers, false)];
-      }
-    }
-
-    // Process target groups
-    if (targetGroups) {
-      // Handle array of groups
-      if (Array.isArray(targetGroups)) {
-        rule.targetGroups = targetGroups.map(group => mapPersonFieldData(group, true));
-      }
-      // Handle single group
-      else {
-        rule.targetGroups = [mapPersonFieldData(targetGroups, true)];
-      }
-    }
-
-    // Return as an array of rules (for now just one rule)
-    return [rule];
-  };
 
   // Helper to map Person field data
   const mapPersonFieldData = (personField: any, isGroup: boolean): IPersonField => {
-    // Try to handle both classic Person field format and Graph-like format
-
-    // Format 1: SharePoint's classic Person field format
     if (personField.LookupId && personField.LookupValue) {
       return {
         id: personField.LookupId,
@@ -254,7 +216,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
     }
 
-    // Format 2: New format from Graph or REST API
     if (personField.ID || personField.id) {
       return {
         id: personField.ID || personField.id,
@@ -264,8 +225,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isGroup: isGroup
       };
     }
-
-    // Format 3: Simple JSON object
     return {
       id: personField.id || "",
       displayName: personField.displayName || personField.title || "",
@@ -275,42 +234,67 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   };
 
-  // Fetch alerts from a site
+  const alertCacheRef = React.useRef<Map<string, { alerts: IAlertItem[]; timestamp: number }>>(new Map());
+  const CACHE_DURATION = 5 * 60 * 1000; 
+
   const fetchAlerts = useCallback(async (siteId: string): Promise<IAlertItem[]> => {
+    // Check cache first
+    const cached = alertCacheRef.current.get(siteId);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      logger.debug('AlertsContext', `Using cached alerts for site ${siteId}`, { 
+        alertCount: cached.alerts.length,
+        cacheAge: now - cached.timestamp 
+      });
+      return cached.alerts;
+    }
+
     const dateTimeNow = new Date().toISOString();
 
     try {
       // First, try to get list with custom fields
       let response;
       try {
-        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null)`;
+        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null) and (fields/ItemType eq 'alert' or fields/ItemType eq null)`;
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
           .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,Metadata)")
+          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,Metadata)")
           .filter(filterQuery)
           .orderby("fields/ScheduledStart desc")
-          .top(50) // Limit to 50 items per site for better performance
+          .top(25) // Reduced from 50 to 25 for better performance
           .get();
       } catch (customFieldError) {
-        console.warn('Custom fields not found, falling back to basic fields:', customFieldError);
+        logger.warn('AlertsContext', 'Custom fields not found, falling back to basic fields', customFieldError);
         // Fall back to basic SharePoint fields only - no filtering since we don't have ScheduledStart field
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
           .expand("fields($select=Title,Description,Created,Author)")
           .orderby("fields/Created desc")
-          .top(50) // Limit to 50 items per site
+          .top(25) // Reduced from 50 to 25 for better performance
           .get();
       }
 
-      return response.value.map(mapSharePointItemToAlert);
+      let alerts = response.value.map(mapSharePointItemToAlert);
+      
+      // Client-side filter to ensure templates are never shown (additional safety measure)
+      alerts = alerts.filter((alert: IAlertItem) => alert.contentType !== ContentType.Template);
+      
+      // Cache the results
+      alertCacheRef.current.set(siteId, { alerts, timestamp: now });
+      logger.info('AlertsContext', `Fetched and cached alerts for site ${siteId}`, { 
+        alertCount: alerts.length,
+        siteId
+      });
+      
+      return alerts;
     } catch (error) {
-      console.error(`Error fetching alerts from site ${siteId}:`, error);
+      logger.error('AlertsContext', `Error fetching alerts from site ${siteId}`, error, { siteId });
       return [];
     }
-  }, []);
+  }, [mapSharePointItemToAlert]);
 
   // Sort alerts by priority
   const sortAlertsByPriority = useCallback((alertsToSort: IAlertItem[]): IAlertItem[] => {
@@ -347,7 +331,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     if (duplicates.length > 0) {
-      console.warn(`🗂️ Removed ${duplicates.length} duplicate alerts:`, duplicates.map(a => `${a.id} (${a.title})`));
+      logger.debug('AlertsContext', `Removed ${duplicates.length} duplicate alerts`, { duplicates: duplicates.map(a => `${a.id} (${a.title})`) });
     }
 
     return unique;
@@ -385,20 +369,49 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return false;
   }, []);
 
-  // Filter alerts based on user preferences
+  // Filter alerts based on user preferences - optimized with Sets for faster lookups
   const filterAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
+    if (state.userDismissedAlerts.length === 0 && state.userHiddenAlerts.length === 0) {
+      return alertsToFilter; // No filtering needed
+    }
+    
+    const dismissedSet = new Set(state.userDismissedAlerts);
+    const hiddenSet = new Set(state.userHiddenAlerts);
+    
     return alertsToFilter.filter(alert =>
-      !state.userDismissedAlerts.includes(alert.id) &&
-      !state.userHiddenAlerts.includes(alert.id)
+      !dismissedSet.has(alert.id) && !hiddenSet.has(alert.id)
     );
   }, [state.userDismissedAlerts, state.userHiddenAlerts]);
+
+  // Apply language-aware filtering to show appropriate language variants
+  const applyLanguageAwareFiltering = useCallback(async (alertsToFilter: IAlertItem[]): Promise<IAlertItem[]> => {
+    if (!servicesRef.current.languageAwarenessService) {
+      return alertsToFilter; // No language service, return as-is
+    }
+
+    try {
+      const userLanguage = await servicesRef.current.languageAwarenessService.getUserPreferredLanguage();
+      const filteredAlerts = servicesRef.current.languageAwarenessService.filterAlertsForUser(alertsToFilter, userLanguage);
+      
+      logger.info('AlertsContext', `Applied language filtering: ${userLanguage}`, {
+        originalCount: alertsToFilter.length,
+        filteredCount: filteredAlerts.length,
+        userLanguage
+      });
+      
+      return filteredAlerts;
+    } catch (error) {
+      logger.warn('AlertsContext', 'Error applying language filtering, using all alerts', error);
+      return alertsToFilter;
+    }
+  }, []);
 
   // Send notifications
   const sendNotifications = useCallback(async (alertsToNotify: IAlertItem[]): Promise<void> => {
     if (!servicesRef.current.options?.notificationsEnabled || alertsToNotify.length === 0 || !servicesRef.current.notificationService) return;
 
     for (const alert of alertsToNotify) {
-      await servicesRef.current.notificationService.sendNotification(alert);
+      await servicesRef.current.notificationService.showInfo(`New alert: ${alert.title}`, 'Alert Notification');
     }
   }, []);
 
@@ -410,7 +423,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Initialize services
       servicesRef.current.userTargetingService = UserTargetingService.getInstance(servicesRef.current.graphClient);
-      servicesRef.current.notificationService = NotificationService.getInstance(servicesRef.current.graphClient);
+      servicesRef.current.notificationService = NotificationService.getInstance(initOptions.context);
+      servicesRef.current.languageAwarenessService = new LanguageAwarenessService(servicesRef.current.graphClient, initOptions.context);
 
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -422,20 +436,27 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Load alert types from JSON
       loadAlertTypes(servicesRef.current.options.alertTypesJson);
 
-      // Get user's dismissed and hidden alerts
+      // Get user's dismissed and hidden alerts - batch update to reduce re-renders
       if (servicesRef.current.options.userTargetingEnabled) {
         const dismissedAlerts = servicesRef.current.userTargetingService.getUserDismissedAlerts();
         const hiddenAlerts = servicesRef.current.userTargetingService.getUserHiddenAlerts();
 
-        dispatch({ type: 'SET_DISMISSED_ALERTS', payload: dismissedAlerts });
-        dispatch({ type: 'SET_HIDDEN_ALERTS', payload: hiddenAlerts });
+        dispatch({ 
+          type: 'BATCH_UPDATE', 
+          payload: { 
+            userDismissedAlerts: dismissedAlerts,
+            userHiddenAlerts: hiddenAlerts
+          } 
+        });
       }
 
       // Fetch and process alerts
       await refreshAlerts();
 
     } catch (error) {
-      console.error("Error initializing alerts:", error);
+      logger.error("AlertsContext", "Error initializing alerts", error, {
+        options: servicesRef.current.options
+      });
       dispatch({
         type: 'SET_ERROR',
         payload: {
@@ -460,7 +481,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Remove duplicate site IDs
       const uniqueSiteIds = [...new Set(siteIds)];
-      console.log(`🌐 Site IDs configured: ${siteIds.length}, unique: ${uniqueSiteIds.length}`, uniqueSiteIds);
+      logger.info('AlertsContext', 'Processing sites for alert refresh', { 
+        totalSiteIds: siteIds.length, 
+        uniqueSiteIds: uniqueSiteIds.length,
+        sites: uniqueSiteIds
+      });
 
       for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
         const batch = uniqueSiteIds.slice(i, i + batchSize);
@@ -469,10 +494,16 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         batchResults.forEach((result, index) => {
           if (result.status === 'fulfilled') {
-            console.log(`📋 Site ${batch[index]} returned ${result.value.length} alerts`);
+            logger.debug('AlertsContext', `Site returned alerts successfully`, {
+              siteId: batch[index],
+              alertCount: result.value.length
+            });
             allAlerts.push(...result.value);
           } else {
-            console.warn(`⚠️ Site ${batch[index]} failed:`, result.reason);
+            logger.warn('AlertsContext', `Site failed to return alerts`, {
+              siteId: batch[index],
+              error: result.reason
+            });
           }
         });
       }
@@ -485,18 +516,18 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // Debug logging for duplicates
-      console.log(`🔍 Total alerts fetched: ${allAlerts.length}`);
+      logger.debug('AlertsContext', `Total alerts fetched: ${allAlerts.length}`);
       if (allAlerts.length > 0) {
         const alertIds = allAlerts.map(a => `${a.id} (${a.title})`);
         const duplicateIds = alertIds.filter((id, index) => alertIds.indexOf(id) !== index);
         if (duplicateIds.length > 0) {
-          console.warn('🚨 Duplicate alerts detected:', duplicateIds);
+          logger.warn('AlertsContext', 'Duplicate alerts detected', { duplicateIds });
         }
       }
 
       // Process alerts
       const uniqueAlerts = removeDuplicateAlerts(allAlerts);
-      console.log(`✅ Unique alerts after deduplication: ${uniqueAlerts.length}`);
+      logger.debug('AlertsContext', `Unique alerts after deduplication: ${uniqueAlerts.length}`);
 
       // Compare with cached alerts
       const cachedAlerts = storageService.getFromLocalStorage<IAlertItem[]>('AllAlerts');
@@ -515,12 +546,15 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         alertsToShow = await servicesRef.current.userTargetingService.filterAlertsForCurrentUser(alertsToShow);
       }
 
+      // Apply language-aware filtering to show appropriate language variants
+      alertsToShow = await applyLanguageAwareFiltering(alertsToShow);
+
       // Filter out hidden/dismissed alerts
       alertsToShow = filterAlerts(alertsToShow);
 
       // Limit the number of alerts to prevent performance issues
       if (alertsToShow.length > 20) {
-        console.warn(`Limiting alerts to 20 for performance (found ${alertsToShow.length})`);
+        logger.warn('AlertsContext', `Limiting alerts to 20 for performance (found ${alertsToShow.length})`);
         alertsToShow = alertsToShow.slice(0, 20);
       }
 
@@ -545,7 +579,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       dispatch({ type: 'SET_LOADING', payload: false });
 
     } catch (error) {
-      console.error("Error refreshing alerts:", error);
+      logger.error('AlertsContext', 'Error refreshing alerts', error);
       dispatch({
         type: 'SET_ERROR',
         payload: {
@@ -594,19 +628,26 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     refreshAlerts
   }), [state, removeAlert, hideAlertForever, initializeAlerts, refreshAlerts]);
 
+  // Add cleanup function to clear cache and services
+  const cleanup = useCallback(() => {
+    logger.info('AlertsContext', 'Cleaning up AlertsContext resources');
+    
+    // Clear alert cache
+    alertCacheRef.current.clear();
+    
+    // Clear services references
+    servicesRef.current = {};
+    
+    // Dispatch final cleanup state
+    dispatch({ type: 'SET_ALERTS', payload: [] });
+    dispatch({ type: 'SET_LOADING', payload: false });
+    dispatch({ type: 'SET_ERROR', payload: { hasError: false } });
+  }, []);
+
   // Memory cleanup on unmount
   React.useEffect(() => {
-    return () => {
-      // Clean up any pending timeouts or intervals
-      if (typeof window !== 'undefined') {
-        // Clear any stored timers that might be lingering
-        for (let i = 1; i < 9999; i++) {
-          window.clearTimeout(i);
-          window.clearInterval(i);
-        }
-      }
-    };
-  }, []);
+    return cleanup;
+  }, [cleanup]);
 
   return (
     <AlertsContext.Provider value={value}>

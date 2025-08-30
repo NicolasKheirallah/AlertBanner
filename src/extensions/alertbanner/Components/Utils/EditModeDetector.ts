@@ -1,6 +1,7 @@
 /**
  * Utility to detect if SharePoint page is in edit mode
  */
+import { logger } from '../Services/LoggerService';
 export class EditModeDetector {
   /**
    * Check if the current SharePoint page is in edit mode
@@ -77,7 +78,7 @@ export class EditModeDetector {
 
       return false;
     } catch (error) {
-      console.warn('Error detecting edit mode:', error);
+      logger.warn('EditModeDetector', 'Error detecting edit mode', error);
       return false;
     }
   }

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { logger } from '../Services/LoggerService';
 import {
   Card,
   CardHeader,
@@ -8,7 +9,16 @@ import {
   MessageBar,
   Spinner,
   Badge,
-  tokens
+  tokens,
+  Checkbox,
+  Dialog,
+  DialogTrigger,
+  DialogSurface,
+  DialogTitle,
+  DialogBody,
+  DialogActions,
+  DialogContent,
+  Field
 } from '@fluentui/react-components';
 import { 
   List24Regular, 
@@ -18,7 +28,8 @@ import {
   Warning24Filled,
   Globe24Regular,
   Building24Regular,
-  Home24Regular
+  Home24Regular,
+  LocalLanguage24Regular
 } from '@fluentui/react-icons';
 import { useLocalization } from '../Hooks/useLocalization';
 import { SiteContextService, ISiteInfo, IAlertListStatus } from '../Services/SiteContextService';
@@ -29,6 +40,18 @@ export interface IListManagementProps {
   onListCreated?: (siteId: string) => void;
   className?: string;
 }
+
+// Available languages for selection
+const AVAILABLE_LANGUAGES = [
+  { code: 'en-us', name: 'English (US)', nativeName: 'English' },
+  { code: 'fr-fr', name: 'French (France)', nativeName: 'Français' },
+  { code: 'de-de', name: 'German (Germany)', nativeName: 'Deutsch' },
+  { code: 'es-es', name: 'Spanish (Spain)', nativeName: 'Español' },
+  { code: 'sv-se', name: 'Swedish (Sweden)', nativeName: 'Svenska' },
+  { code: 'fi-fi', name: 'Finnish (Finland)', nativeName: 'Suomi' },
+  { code: 'da-dk', name: 'Danish (Denmark)', nativeName: 'Dansk' },
+  { code: 'nb-no', name: 'Norwegian (Norway)', nativeName: 'Norsk' }
+];
 
 const ListManagement: React.FC<IListManagementProps> = ({
   siteContextService,
@@ -41,6 +64,8 @@ const ListManagement: React.FC<IListManagementProps> = ({
   const [loading, setLoading] = React.useState(true);
   const [creatingList, setCreatingList] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedLanguages, setSelectedLanguages] = React.useState<string[]>(['en-us']); // Default to English
+  const [languageDialogOpen, setLanguageDialogOpen] = React.useState<{ siteId: string; siteName: string } | null>(null);
 
   React.useEffect(() => {
     loadSiteInformation();
@@ -79,17 +104,109 @@ const ListManagement: React.FC<IListManagementProps> = ({
     }
   };
 
+  const handleLanguageToggle = (languageCode: string) => {
+    setSelectedLanguages(prev => {
+      if (prev.includes(languageCode)) {
+        // Don't allow removing English as it's required
+        if (languageCode === 'en-us') {
+          return prev;
+        }
+        return prev.filter(code => code !== languageCode);
+      } else {
+        return [...prev, languageCode];
+      }
+    });
+  };
+
+  const handleOpenLanguageDialog = async (siteId: string, siteName: string) => {
+    try {
+      // Check if the site already has an alerts list
+      const status = listStatuses[siteId];
+      if (status?.exists && status?.canAccess) {
+        // Load the actual configured languages from the existing list
+        const configuredLanguages = await siteContextService.getSupportedLanguagesForSite(siteId);
+        setSelectedLanguages(configuredLanguages);
+      } else {
+        // Reset to default for new lists
+        setSelectedLanguages(['en-us']);
+      }
+      
+      setLanguageDialogOpen({ siteId, siteName });
+    } catch (error) {
+      // Fallback to default if we can't load the configured languages
+      setSelectedLanguages(['en-us']);
+      setLanguageDialogOpen({ siteId, siteName });
+    }
+  };
+
+  const handleUpdateLanguages = async (siteId: string, siteName: string) => {
+    try {
+      setCreatingList(siteId);
+      setMessage(null);
+      setLanguageDialogOpen(null);
+
+      // Update language support for the existing list
+      const { SharePointAlertService } = await import('../Services/SharePointAlertService');
+      const alertService = new SharePointAlertService(
+        await siteContextService.getGraphClient(),
+        siteContextService.getContext()
+      );
+
+      // Temporarily override the site context
+      const originalSiteId = siteContextService.getContext().pageContext.site.id.toString();
+      (siteContextService.getContext().pageContext.site as any).id = { toString: () => siteId };
+
+      try {
+        // Add support for newly selected languages
+        for (const languageCode of selectedLanguages) {
+          if (languageCode !== 'en-us') { // English is already there
+            try {
+              await alertService.addLanguageSupport(languageCode);
+            } catch (langError) {
+              logger.warn('ListManagement', `Failed to add language support for ${languageCode}`, langError);
+            }
+          }
+        }
+        
+        setMessage({
+          type: 'success',
+          text: getString('LanguagesUpdatedSuccessfully') || `Languages updated successfully for ${siteName}`
+        });
+
+        // Refresh site context and list statuses
+        await siteContextService.refresh();
+        await loadSiteInformation();
+      } finally {
+        // Restore original site context
+        (siteContextService.getContext().pageContext.site as any).id = { toString: () => originalSiteId };
+      }
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error.message || getString('FailedToUpdateLanguages') || `Failed to update languages for ${siteName}`
+      });
+    } finally {
+      setCreatingList(null);
+    }
+  };
+
   const handleCreateList = async (siteId: string, siteName: string) => {
     try {
       setCreatingList(siteId);
       setMessage(null);
+      setLanguageDialogOpen(null);
 
-      const success = await siteContextService.createAlertsList(siteId);
+      // Create the list with selected languages
+      const success = await siteContextService.createAlertsList(siteId, selectedLanguages);
       
       if (success) {
+        const languagesList = selectedLanguages.length > 1 
+          ? ` with support for ${selectedLanguages.length} languages`
+          : '';
+          
         setMessage({
           type: 'success',
-          text: getString('AlertsListCreatedSuccessfully') || `Alerts list created successfully on ${siteName}`
+          text: getString('AlertsListCreatedSuccessfully') || `Alerts list created successfully on ${siteName}${languagesList}`
         });
 
         // Refresh site context and list statuses
@@ -103,9 +220,18 @@ const ListManagement: React.FC<IListManagementProps> = ({
         throw new Error('Creation failed');
       }
     } catch (error) {
+      let errorMessage = error.message || getString('FailedToCreateAlertsList') || `Failed to create alerts list on ${siteName}`;
+      
+      // Provide user-friendly error messages
+      if (error.message?.includes('LIST_INCOMPLETE')) {
+        errorMessage = `List created on ${siteName} but some features may be limited. ${error.message}`;
+      } else if (error.message?.includes('PERMISSION_DENIED')) {
+        errorMessage = `Cannot create list on ${siteName}: Insufficient permissions. Contact your SharePoint administrator.`;
+      }
+      
       setMessage({
-        type: 'error',
-        text: error.message || getString('FailedToCreateAlertsList') || `Failed to create alerts list on ${siteName}`
+        type: error.message?.includes('LIST_INCOMPLETE') ? 'success' : 'error',
+        text: errorMessage
       });
     } finally {
       setCreatingList(null);
@@ -138,13 +264,13 @@ const ListManagement: React.FC<IListManagementProps> = ({
 
   const getStatusIcon = (status: IAlertListStatus) => {
     if (status.exists && status.canAccess) {
-      return <CheckmarkCircle24Filled style={{ color: tokens.colorPaletteGreenForeground1 }} />;
+      return <CheckmarkCircle24Filled className={`${styles.statusIcon} ${styles.statusIcon}.success`} />;
     } else if (status.exists && !status.canAccess) {
-      return <Warning24Filled style={{ color: tokens.colorPaletteYellowForeground1 }} />;
+      return <Warning24Filled className={`${styles.statusIcon} ${styles.statusIcon}.warning`} />;
     } else if (!status.exists && status.canCreate) {
-      return <Add24Regular style={{ color: tokens.colorNeutralForeground3 }} />;
+      return <Add24Regular className={`${styles.statusIcon} ${styles.statusIcon}.neutral`} />;
     } else {
-      return <ErrorCircle24Filled style={{ color: tokens.colorPaletteRedForeground1 }} />;
+      return <ErrorCircle24Filled className={`${styles.statusIcon} ${styles.statusIcon}.error`} />;
     }
   };
 
@@ -169,7 +295,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
             header={<Text weight="semibold">{getString('AlertListsManagement') || 'Alert Lists Management'}</Text>}
           />
           <CardPreview>
-            <div style={{ padding: '16px', textAlign: 'center' }}>
+            <div className={styles.loadingContainer}>
               <Spinner label={getString('LoadingSiteInformation') || 'Loading site information...'} />
             </div>
           </CardPreview>
@@ -181,7 +307,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
   return (
     <div className={`${styles.listManagement} ${className || ''}`}>
       {message && (
-        <MessageBar intent={message.type} style={{ marginBottom: '16px' }}>
+        <MessageBar intent={message.type} className={styles.messageBarWithMargin}>
           {message.text}
         </MessageBar>
       )}
@@ -227,31 +353,168 @@ const ListManagement: React.FC<IListManagementProps> = ({
                     </div>
                     
                     {status.error && (
-                      <Text size={200} style={{ color: tokens.colorPaletteRedForeground1 }}>
+                      <Text size={200} className={styles.errorText}>
                         {status.error}
                       </Text>
                     )}
                   </div>
 
                   {!status.exists && status.canCreate && (
-                    <Button
-                      appearance="primary"
-                      icon={<Add24Regular />}
-                      onClick={() => handleCreateList(site.id, site.name)}
-                      disabled={creatingList === site.id}
-                    >
-                      {creatingList === site.id 
-                        ? (getString('CreatingList') || 'Creating...')
-                        : (getString('CreateAlertsList') || 'Create Alerts List')
-                      }
-                    </Button>
+                    <div className={styles.createActions}>
+                      <Dialog open={!!languageDialogOpen && languageDialogOpen.siteId === site.id}>
+                        <DialogTrigger disableButtonEnhancement>
+                          <Button
+                            appearance="primary"
+                            icon={<Add24Regular />}
+                            onClick={() => handleOpenLanguageDialog(site.id, site.name)}
+                            disabled={creatingList === site.id}
+                          >
+                            {creatingList === site.id 
+                              ? (getString('CreatingList') || 'Creating...')
+                              : (getString('CreateAlertsList') || 'Create Alerts List')
+                            }
+                          </Button>
+                        </DialogTrigger>
+                        <DialogSurface>
+                          <DialogBody>
+                            <DialogTitle>
+                              <LocalLanguage24Regular className={styles.languageDialogIcon} />
+                              {getString('SelectLanguagesForList') || 'Select Languages for Alert List'}
+                            </DialogTitle>
+                            <DialogContent>
+                              <Text>
+                                {getString('SelectLanguagesDescription') || 
+                                  `Choose which languages to support for alerts on ${site.name}. English is required and will always be included.`
+                                }
+                              </Text>
+                              
+                              <div className={`${styles.languageGrid} ${styles.languageGridWithMargin}`}>
+                                {AVAILABLE_LANGUAGES.map(language => (
+                                  <Field key={language.code}>
+                                    <Checkbox
+                                      checked={selectedLanguages.includes(language.code)}
+                                      onChange={() => handleLanguageToggle(language.code)}
+                                      disabled={language.code === 'en-us'} // English is always required
+                                      label={
+                                        <div className={styles.languageLabel}>
+                                          <Text weight="semibold">{language.nativeName}</Text>
+                                          <Text size={200}>{language.name}</Text>
+                                        </div>
+                                      }
+                                    />
+                                  </Field>
+                                ))}
+                              </div>
+                              
+                              <div className={styles.languageSelectionSummary}>
+                                <Text size={200}>
+                                  <strong>{getString('SelectedLanguages') || 'Selected languages'}:</strong> {selectedLanguages.length} 
+                                  ({AVAILABLE_LANGUAGES
+                                    .filter(lang => selectedLanguages.includes(lang.code))
+                                    .map(lang => lang.nativeName)
+                                    .join(', ')})
+                                </Text>
+                              </div>
+                            </DialogContent>
+                            <DialogActions>
+                              <DialogTrigger disableButtonEnhancement>
+                                <Button appearance="secondary" onClick={() => setLanguageDialogOpen(null)}>
+                                  {getString('Cancel') || 'Cancel'}
+                                </Button>
+                              </DialogTrigger>
+                              <Button 
+                                appearance="primary" 
+                                onClick={() => languageDialogOpen && handleCreateList(languageDialogOpen.siteId, languageDialogOpen.siteName)}
+                                disabled={creatingList === site.id}
+                              >
+                                {creatingList === site.id 
+                                  ? (getString('CreatingList') || 'Creating...')
+                                  : (getString('CreateWithSelectedLanguages') || `Create with ${selectedLanguages.length} languages`)
+                                }
+                              </Button>
+                            </DialogActions>
+                          </DialogBody>
+                        </DialogSurface>
+                      </Dialog>
+                    </div>
                   )}
 
                   {status.exists && status.canAccess && (
                     <div className={styles.listInfo}>
-                      <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>
+                      <Text size={200} className={styles.successText}>
                         ✓ {getString('ReadyForAlerts') || 'Ready for alerts'}
                       </Text>
+                      <div className={styles.existingListActions}>
+                        <Dialog open={!!languageDialogOpen && languageDialogOpen.siteId === site.id}>
+                          <DialogTrigger disableButtonEnhancement>
+                            <Button
+                              appearance="subtle"
+                              size="small"
+                              icon={<LocalLanguage24Regular />}
+                              onClick={() => handleOpenLanguageDialog(site.id, site.name)}
+                            >
+                              {getString('ViewEditLanguages') || 'Languages'}
+                            </Button>
+                          </DialogTrigger>
+                          <DialogSurface>
+                            <DialogBody>
+                              <DialogTitle>
+                                <LocalLanguage24Regular className={styles.languageDialogIcon} />
+                                {getString('ManageLanguagesForList') || 'Manage Languages for Alert List'}
+                              </DialogTitle>
+                              <DialogContent>
+                                <Text>
+                                  {getString('ManageLanguagesDescription') || 
+                                    `Manage which languages are supported for alerts on ${site.name}. English is required and will always be included.`
+                                  }
+                                </Text>
+                                
+                                <div className={`${styles.languageGrid} ${styles.languageGridWithMargin}`}>
+                                  {AVAILABLE_LANGUAGES.map(language => (
+                                    <Field key={language.code}>
+                                      <Checkbox
+                                        checked={selectedLanguages.includes(language.code)}
+                                        onChange={() => handleLanguageToggle(language.code)}
+                                        disabled={language.code === 'en-us'} // English is always required
+                                        label={
+                                          <div className={styles.languageLabel}>
+                                            <Text weight="semibold">{language.nativeName}</Text>
+                                            <Text size={200}>{language.name}</Text>
+                                          </div>
+                                        }
+                                      />
+                                    </Field>
+                                  ))}
+                                </div>
+                                
+                                <div className={styles.languageSelectionSummary}>
+                                  <Text size={200}>
+                                    <strong>{getString('SelectedLanguages') || 'Selected languages'}:</strong> {selectedLanguages.length} 
+                                    ({AVAILABLE_LANGUAGES
+                                      .filter(lang => selectedLanguages.includes(lang.code))
+                                      .map(lang => lang.nativeName)
+                                      .join(', ')})
+                                  </Text>
+                                </div>
+                              </DialogContent>
+                              <DialogActions>
+                                <DialogTrigger disableButtonEnhancement>
+                                  <Button appearance="secondary" onClick={() => setLanguageDialogOpen(null)}>
+                                    {getString('Cancel') || 'Cancel'}
+                                  </Button>
+                                </DialogTrigger>
+                                <Button 
+                                  appearance="primary" 
+                                  onClick={() => languageDialogOpen && handleUpdateLanguages(languageDialogOpen.siteId, languageDialogOpen.siteName)}
+                                  disabled={creatingList === site.id}
+                                >
+                                  {getString('UpdateLanguages') || 'Update Languages'}
+                                </Button>
+                              </DialogActions>
+                            </DialogBody>
+                          </DialogSurface>
+                        </Dialog>
+                      </div>
                     </div>
                   )}
                 </div>

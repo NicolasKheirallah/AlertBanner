@@ -1,6 +1,6 @@
 declare interface IAlertBannerApplicationCustomizerStrings {
   Title: string;
-  
+
   // General UI
   Save: string;
   Cancel: string;
@@ -19,18 +19,18 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   Success: string;
   Warning: string;
   Info: string;
-  
+
   // Language
   Language: string;
   SelectLanguage: string;
   ChangeLanguage: string;
-  
+
   // Time-related
   JustNow: string;
   MinutesAgo: string;
   HoursAgo: string;
   DaysAgo: string;
-  
+
   // Alert Settings
   AlertSettings: string;
   AlertSettingsTitle: string;
@@ -49,7 +49,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertTypesHelpText: string;
   SaveSettings: string;
   InvalidJSONError: string;
-  
+
   // Alert Management
   CreateAlert: string;
   EditAlert: string;
@@ -66,31 +66,31 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ScheduledEnd: string;
   IsPinned: string;
   NotificationType: string;
-  
+
   // Priority Levels
   PriorityLow: string;
   PriorityMedium: string;
   PriorityHigh: string;
   PriorityCritical: string;
-  
+
   // Status Types
   StatusActive: string;
   StatusExpired: string;
   StatusScheduled: string;
   StatusInactive: string;
-  
+
   // Notification Types
   NotificationNone: string;
   NotificationBrowser: string;
   NotificationEmail: string;
   NotificationBoth: string;
-  
+
   // Alert Types
   AlertTypeInfo: string;
   AlertTypeWarning: string;
   AlertTypeMaintenance: string;
   AlertTypeInterruption: string;
-  
+
   // User Interface
   ShowMore: string;
   ShowLess: string;
@@ -100,7 +100,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   Preview: string;
   Templates: string;
   CustomizeColors: string;
-  
+
   // Site Selection
   SelectSites: string;
   CurrentSite: string;
@@ -108,7 +108,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   HubSites: string;
   RecentSites: string;
   FollowedSites: string;
-  
+
   // Permissions and Errors
   InsufficientPermissions: string;
   PermissionDeniedCreateLists: string;
@@ -118,7 +118,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ConnectionError: string;
   SaveError: string;
   LoadError: string;
-  
+
   // User Friendly Messages
   NoAlertsMessage: string;
   AlertsLoadingMessage: string;
@@ -126,7 +126,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertUpdatedSuccess: string;
   AlertDeletedSuccess: string;
   SettingsSavedSuccess: string;
-  
+
   // Date and Time
   CreatedBy: string;
   CreatedOn: string;
@@ -135,7 +135,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   Today: string;
   Yesterday: string;
   Tomorrow: string;
-  
+
   // Validation Messages
   FieldRequired: string;
   InvalidUrl: string;
@@ -143,14 +143,14 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   InvalidEmail: string;
   TitleTooLong: string;
   DescriptionTooLong: string;
-  
+
   // Rich Media
   UploadImage: string;
   RemoveImage: string;
   ImageAltText: string;
   VideoUrl: string;
   EmbedCode: string;
-  
+
   // Accessibility
   CloseDialog: string;
   OpenSettings: string;

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { logger } from '../Services/LoggerService';
 import {
   IAlertType,
   IQuickAction
@@ -42,7 +43,6 @@ export interface IAlertItemProps {
   remove: (id: string) => void;
   hideForever: (id: string) => void;
   alertType: IAlertType;
-  richMediaEnabled?: boolean;
   // Carousel props
   isCarousel?: boolean;
   currentIndex?: number;
@@ -61,7 +61,6 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   remove,
   hideForever,
   alertType,
-  richMediaEnabled = false,
   isCarousel = false,
   currentIndex = 1,
   totalAlerts = 1,
@@ -94,22 +93,22 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         handlers.remove(item.id); // Use handlers.remove with item.id
         break;
       case "acknowledge":
-        console.log(`Alert ${item.id} acknowledged`);
+        logger.debug('AlertItem', `Alert ${item.id} acknowledged`);
         handlers.remove(item.id); // Use handlers.remove with item.id
         break;
       case "custom":
         // Define a map of safe, allowed actions to prevent arbitrary code execution
         const allowedCustomActions: { [key: string]: (item: IAlertItem) => void } = {
           "showDetails": (item) => {
-            console.log("Showing details for alert:", item.id);
+            logger.debug('AlertItem', `Showing details for alert: ${item.id}`);
             // Add your safe custom action implementations here
           },
           "logInteraction": (item) => {
-            console.log("User interacted with alert:", item.id);
+            logger.debug('AlertItem', `User interacted with alert: ${item.id}`);
             // Safe logging action
           },
           "markAsRead": (item) => {
-            console.log("Marking alert as read:", item.id);
+            logger.debug('AlertItem', `Marking alert as read: ${item.id}`);
             handlers.remove(item.id);
           }
         };
@@ -117,7 +116,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         if (action.callback && typeof allowedCustomActions[action.callback] === "function") {
           allowedCustomActions[action.callback](item);
         } else {
-          console.warn(`Unknown or disallowed custom action: ${action.callback}. Allowed actions: ${Object.keys(allowedCustomActions).join(', ')}`);
+          logger.warn('AlertItem', `Unknown or disallowed custom action: ${action.callback}. Allowed actions: ${Object.keys(allowedCustomActions).join(', ')}`);
         }
         break;
     }
@@ -200,10 +199,8 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         </div>
         <AlertContent
           item={item}
-          richMediaEnabled={richMediaEnabled}
           expanded={expanded}
           stopPropagation={handlers.stopPropagation}
-          handleQuickAction={handleQuickAction}
         />
       </div>
     </div>

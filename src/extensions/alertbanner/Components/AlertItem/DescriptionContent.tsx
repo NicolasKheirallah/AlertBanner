@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button, Text, tokens } from "@fluentui/react-components";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
-import richMediaStyles from "../Services/RichMediaAlert.module.scss";
+import styles from "./AlertItem.module.scss";
 
 interface IDescriptionContentProps {
   description: string;
@@ -33,7 +33,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
     
     return (
       <div
-        className={richMediaStyles.markdownContainer}
+        className={styles.descriptionListContainer}
         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
     );
@@ -42,20 +42,20 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   const paragraphs = displayedDescription.split("\n\n");
 
   return (
-    <div className={richMediaStyles.markdownContainer}>
+    <div className={styles.descriptionListContainer}>
       {paragraphs.map((paragraph, index) => {
         // Handle lists
         if (paragraph.includes("\n- ") || paragraph.includes("\n* ")) {
           const [listTitle, ...listItems] = paragraph.split(/\n[-*]\s+/);
           return (
-            <div key={`para-${index}`} style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS }}>
+            <div key={`para-${index}`} className={styles.descriptionParagraph}>
               {listTitle.trim() && <Text>{listTitle.trim()}</Text>}
               {listItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
+                <div className={styles.descriptionListContainer}>
                   {listItems.map((listItem, itemIndex) => (
                     <div
                       key={`list-item-${itemIndex}`}
-                      style={{ display: 'flex', gap: tokens.spacingHorizontalS, alignItems: 'flex-start' }}
+                      className={styles.descriptionListItem}
                     >
                       <Text>•</Text>
                       <Text>{listItem.trim()}</Text>
@@ -80,7 +80,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
                   return (
                     <span
                       key={`part-${partIndex}`}
-                      style={{ fontWeight: tokens.fontWeightSemibold }}
+                      className={styles.descriptionBoldText}
                     >
                       {part.slice(2, -2)}
                     </span>
@@ -100,7 +100,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
           appearance="transparent"
           size="small"
           onClick={toggleExpanded}
-          style={{ alignSelf: 'flex-start', marginTop: tokens.spacingVerticalS }}
+          className={styles.descriptionToggleButton}
         >
           {isExpanded ? "Show Less" : "Read More"}
         </Button>

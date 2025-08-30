@@ -2,6 +2,7 @@ import { IUser, ITargetingRule, IPersonField } from "../Alerts/IAlerts";
 import { IAlertItem } from "./SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import StorageService from "./StorageService";
+import { logger } from './LoggerService';
 
 export class UserTargetingService {
   private static instance: UserTargetingService;
@@ -54,7 +55,7 @@ export class UserTargetingService {
 
       this.isInitialized = true;
     } catch (error) {
-      console.error("Error initializing user targeting service:", error);
+      logger.error('UserTargetingService', 'Error initializing user targeting service', error);
       // Initialize with minimal information to avoid blocking the application
       this.isInitialized = true;
     }
@@ -71,13 +72,29 @@ export class UserTargetingService {
     }
 
     return alerts.filter(alert => {
-      // If no targeting rules defined, show to everyone
-      if (!alert.targetingRules || alert.targetingRules.length === 0) {
+      // If no target users defined, show to everyone
+      if (!alert.targetUsers || alert.targetUsers.length === 0) {
         return true;
       }
 
-      // Check each targeting rule
-      return alert.targetingRules.some(rule => this.evaluateTargetingRule(rule));
+      // Check if current user is in target users list
+      return this.isUserTargeted(alert.targetUsers);
+    });
+  }
+
+  private isUserTargeted(targetUsers: IPersonField[]): boolean {
+    if (!this.currentUser || !targetUsers || targetUsers.length === 0) {
+      return false;
+    }
+
+    return targetUsers.some(person => {
+      if (person.isGroup) {
+        // If it's a group, check if user is member of that group
+        return this.isUserInGroup(person);
+      } else {
+        // If it's a user, check if it's the current user
+        return this.isCurrentUser(person);
+      }
     });
   }
 
@@ -216,7 +233,7 @@ export class UserTargetingService {
       if (!this.currentUser) return [];
       return this.storageService.getFromSessionStorage<string[]>('DismissedAlerts', { userSpecific: true }) || [];
     } catch (error) {
-      console.error("Error getting dismissed alerts:", error);
+      logger.error('UserTargetingService', 'Error getting dismissed alerts', error);
       return [];
     }
   }
@@ -232,7 +249,7 @@ export class UserTargetingService {
         this.storageService.saveToSessionStorage('DismissedAlerts', dismissedAlerts, { userSpecific: true });
       }
     } catch (error) {
-      console.error("Error saving dismissed alert:", error);
+      logger.error('UserTargetingService', 'Error saving dismissed alert', error);
     }
   }
 
@@ -241,7 +258,7 @@ export class UserTargetingService {
       if (!this.currentUser) return [];
       return this.storageService.getFromLocalStorage<string[]>('HiddenAlerts', { userSpecific: true }) || [];
     } catch (error) {
-      console.error("Error getting hidden alerts:", error);
+      logger.error('UserTargetingService', 'Error getting hidden alerts', error);
       return [];
     }
   }
@@ -257,7 +274,7 @@ export class UserTargetingService {
         this.storageService.saveToLocalStorage('HiddenAlerts', hiddenAlerts, { userSpecific: true });
       }
     } catch (error) {
-      console.error("Error saving hidden alert:", error);
+      logger.error('UserTargetingService', 'Error saving hidden alert', error);
     }
   }
 }

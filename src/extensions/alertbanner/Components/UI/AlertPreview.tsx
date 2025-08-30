@@ -95,18 +95,19 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     }
   };
 
-  const textColor = getContrastText(alertType.backgroundColor);
+  // Use the text color from the alert type configuration
+  const textColor = alertType.textColor || getContrastText(alertType.backgroundColor);
   const containerStyle: React.CSSProperties = {
     backgroundColor: alertType.backgroundColor,
     color: textColor,
     border: alertType.backgroundColor === '#ffffff' || alertType.backgroundColor.toLowerCase() === 'white' ? '1px solid #edebe9' : undefined,
   };
 
-  // Override inline styles for better visibility with enhanced readability
+  // Override inline styles using the configured text color
   const textStyle: React.CSSProperties = {
     color: textColor,
     // Add subtle text shadow for better readability across all backgrounds
-    textShadow: textColor === '#ffffff' 
+    textShadow: textColor === '#ffffff' || textColor.toLowerCase() === '#ffffff'
       ? '0 1px 3px rgba(0, 0, 0, 0.5)' // White text gets dark shadow
       : '0 1px 3px rgba(255, 255, 255, 0.8)', // Dark text gets light shadow
     // Ensure text is always readable
@@ -114,11 +115,18 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     MozOsxFontSmoothing: 'grayscale',
   };
 
+  // Header style to match alert colors
+  const headerStyle: React.CSSProperties = {
+    backgroundColor: alertType.backgroundColor,
+    color: textColor,
+    border: alertType.backgroundColor === '#ffffff' || alertType.backgroundColor.toLowerCase() === 'white' ? '1px solid #edebe9' : undefined,
+  };
+
   return (
     <div className={`${styles.previewContainer} ${className || ''}`}>
-      <div className={styles.previewHeader}>
-        <h4>Live Preview</h4>
-        <span className={styles.previewNote}>This is how your alert will appear</span>
+      <div className={styles.previewHeader} style={headerStyle}>
+        <h4 style={{ color: textColor }}>Live Preview</h4>
+        <span className={styles.previewNote} style={{ color: textColor, opacity: 0.8 }}>This is how your alert will appear</span>
       </div>
 
       <div
@@ -196,6 +204,10 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
               <span className={styles.colorSwatch} style={{ backgroundColor: alertType.textColor }} />
               {alertType.textColor}
             </span>
+          </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>Icon:</span>
+            <span className={styles.infoValue}>{alertType.iconName}</span>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Add24Regular, Save24Regular, Delete24Regular, Dismiss24Regular } from "@fluentui/react-icons";
+import { Add24Regular, Save24Regular, Delete24Regular, Dismiss24Regular, Edit24Regular } from "@fluentui/react-icons";
 import {
   SharePointButton,
   SharePointInput,
@@ -10,7 +10,9 @@ import ColorPicker from "../../UI/ColorPicker";
 import AlertPreview from "../../UI/AlertPreview";
 import { AlertPriority, IAlertType } from "../../Alerts/IAlerts";
 import { SharePointAlertService } from "../../Services/SharePointAlertService";
+import { NotificationService } from "../../Services/NotificationService";
 import styles from "../AlertSettings.module.scss";
+import { logger } from '../../Services/LoggerService';
 
 export interface IAlertTypesTabProps {
   alertTypes: IAlertType[];
@@ -21,6 +23,7 @@ export interface IAlertTypesTabProps {
   setIsCreatingType: React.Dispatch<React.SetStateAction<boolean>>;
   alertService: SharePointAlertService;
   onSettingsChange: (settings: any) => void;
+  context?: any; // ApplicationCustomizerContext for notifications
 }
 
 const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
@@ -31,13 +34,24 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
   isCreatingType,
   setIsCreatingType,
   alertService,
-  onSettingsChange
+  onSettingsChange,
+  context
 }) => {
   const [draggedItem, setDraggedItem] = React.useState<number | null>(null);
+  const [editingType, setEditingType] = React.useState<IAlertType | null>(null);
+  const [isEditMode, setIsEditMode] = React.useState(false);
+  const notificationService = React.useMemo(() => 
+    context ? NotificationService.getInstance(context) : null, 
+    [context]
+  );
 
   const handleCreateAlertType = React.useCallback(async () => {
     if (!newAlertType.name.trim()) {
-      alert("Please enter a name for the alert type");
+      if (notificationService) {
+        notificationService.showWarning("Please enter a name for the alert type", "Validation Error");
+      } else {
+        alert("Please enter a name for the alert type");
+      }
       return;
     }
 
@@ -71,7 +85,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
       });
       setIsCreatingType(false);
     } catch (error) {
-      console.error('Error creating alert type:', error);
+      logger.error('AlertTypesTab', 'Error creating alert type', error);
       alert('Failed to create alert type. Please try again.');
     }
   }, [newAlertType, alertTypes, setAlertTypes, alertService, setNewAlertType, setIsCreatingType]);
@@ -92,7 +106,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
       // Update local state
       setAlertTypes(updatedTypes);
     } catch (error) {
-      console.error('Error deleting alert type:', error);
+      logger.error('AlertTypesTab', 'Error deleting alert type', error);
       alert('Failed to delete alert type. Please try again.');
     }
   }, [alertTypes, setAlertTypes, alertService]);
@@ -133,7 +147,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
       // Update local state
       setAlertTypes(updatedTypes);
     } catch (error) {
-      console.error('Error reordering alert types:', error);
+      logger.error('AlertTypesTab', 'Error reordering alert types', error);
       alert('Failed to save reordered alert types. Please try again.');
     }
     
@@ -156,6 +170,63 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
     });
     setIsCreatingType(false);
   }, [setNewAlertType, setIsCreatingType]);
+
+  const handleEditAlertType = React.useCallback((alertType: IAlertType) => {
+    setEditingType({ ...alertType });
+    setNewAlertType({ ...alertType });
+    setIsEditMode(true);
+    setIsCreatingType(true); // Reuse the creation form for editing
+  }, [setNewAlertType, setIsCreatingType]);
+
+  const handleUpdateAlertType = React.useCallback(async () => {
+    if (!editingType || !newAlertType.name.trim()) {
+      if (notificationService) {
+        notificationService.showWarning("Please enter a name for the alert type", "Validation Error");
+      } else {
+        alert("Please enter a name for the alert type");
+      }
+      return;
+    }
+
+    // Check for duplicate names (excluding the current type being edited)
+    if (alertTypes.some(type => 
+      type.name.toLowerCase() === newAlertType.name.toLowerCase() && 
+      type.name !== editingType.name
+    )) {
+      alert("An alert type with this name already exists");
+      return;
+    }
+
+    try {
+      // Update the alert type in the list
+      const updatedTypes = alertTypes.map(type => 
+        type.name === editingType.name ? { ...newAlertType } : type
+      );
+      
+      setAlertTypes(updatedTypes);
+      
+      // Save to SharePoint
+      await alertService.saveAlertTypes(updatedTypes);
+      
+      // Reset editing state
+      setEditingType(null);
+      setIsEditMode(false);
+      resetNewAlertType();
+      
+      onSettingsChange({ alertTypes: updatedTypes });
+      
+      alert("Alert type updated successfully!");
+    } catch (error) {
+      logger.error('AlertTypesTab', 'Failed to update alert type', error);
+      alert(`Failed to update alert type: ${error.message || error}`);
+    }
+  }, [editingType, newAlertType, alertTypes, setAlertTypes, alertService, onSettingsChange, resetNewAlertType]);
+
+  const handleCancelEdit = React.useCallback(() => {
+    setEditingType(null);
+    setIsEditMode(false);
+    resetNewAlertType();
+  }, [resetNewAlertType]);
 
   return (
     <div className={styles.tabContent}>
@@ -222,15 +293,15 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
                 <SharePointButton
                   variant="primary"
                   icon={<Save24Regular />}
-                  onClick={handleCreateAlertType}
+                  onClick={isEditMode ? handleUpdateAlertType : handleCreateAlertType}
                   disabled={!newAlertType.name.trim()}
                 >
-                  Create Type
+                  {isEditMode ? 'Update Type' : 'Create Type'}
                 </SharePointButton>
                 <SharePointButton
                   variant="secondary"
                   icon={<Dismiss24Regular />}
-                  onClick={resetNewAlertType}
+                  onClick={isEditMode ? handleCancelEdit : resetNewAlertType}
                 >
                   Cancel
                 </SharePointButton>
@@ -274,18 +345,6 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
 
               <div className={styles.alertCardContent}>
                 <h4>{type.name}</h4>
-                <div className={styles.alertCard}>
-                  <div 
-                    className={styles.sampleTypePreview}
-                    style={{
-                      '--bg-color': type.backgroundColor,
-                      '--text-color': type.textColor
-                    } as React.CSSProperties}
-                  >
-                    {type.iconName && <span>{type.iconName}</span>}
-                    <span>Sample Text</span>
-                  </div>
-                </div>
               </div>
 
               <div className={styles.typePreview}>
@@ -299,6 +358,13 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
               </div>
 
               <div className={styles.typeActions}>
+                <SharePointButton
+                  variant="secondary"
+                  icon={<Edit24Regular />}
+                  onClick={() => handleEditAlertType(type)}
+                >
+                  Edit
+                </SharePointButton>
                 <SharePointButton
                   variant="danger"
                   icon={<Delete24Regular />}

@@ -78,12 +78,6 @@
   z-index: 1;
 }
 
-// Rich media container - let Fluent UI v9 handle dialog styling
-.dialogRichMedia {
-  border-radius: 8px;
-  overflow: hidden;
-  margin: 16px 0;
-}
 
 // Responsive enhancements
 @media (max-width: 768px) {
@@ -335,4 +329,43 @@
   height: 24px;
   background-color: #d1d1d1;
   margin: 0 4px;
+}
+
+
+// Alert Content Styles
+.alertContentContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalM);
+  padding-top: var(--spacingVerticalM);
+  border-top: 1px solid var(--colorNeutralStroke2);
+}
+
+
+// Description Content Styles
+.descriptionParagraph {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalS);
+}
+
+.descriptionListContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalXS);
+}
+
+.descriptionListItem {
+  display: flex;
+  gap: var(--spacingHorizontalS);
+  align-items: flex-start;
+}
+
+.descriptionBoldText {
+  font-weight: var(--fontWeightSemibold);
+}
+
+.descriptionToggleButton {
+  align-self: flex-start;
+  margin-top: var(--spacingVerticalS);
 }

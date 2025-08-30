@@ -6,19 +6,19 @@ import CreateAlertTab, { INewAlert, IFormErrors } from "./Tabs/CreateAlertTab";
 import ManageAlertsTab, { IEditingAlert } from "./Tabs/ManageAlertsTab";
 import AlertTypesTab from "./Tabs/AlertTypesTab";
 import SettingsTab, { ISettingsData } from "./Tabs/SettingsTab";
-import { AlertPriority, NotificationType, IAlertType } from "../Alerts/IAlerts";
+import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage } from "../Alerts/IAlerts";
 import { SiteContextDetector, ISiteValidationResult } from "../Utils/SiteContextDetector";
 import { SharePointAlertService, IAlertItem } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertSettings.module.scss";
+import { logger } from '../Services/LoggerService';
 
 export interface IAlertSettingsTabsProps {
   isInEditMode: boolean;
   alertTypesJson: string;
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
-  richMediaEnabled: boolean;
   graphClient: MSGraphClientV3;
   context: ApplicationCustomizerContext;
   onSettingsChange: (settings: ISettingsData) => void;
@@ -29,7 +29,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   alertTypesJson,
   userTargetingEnabled,
   notificationsEnabled,
-  richMediaEnabled,
   graphClient,
   context,
   onSettingsChange
@@ -40,6 +39,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   // Shared services - using useRef to prevent recreation
   const siteDetector = React.useRef<SiteContextDetector>(new SiteContextDetector(graphClient, context));
   const alertService = React.useRef<SharePointAlertService>(new SharePointAlertService(graphClient, context));
+  const [languageUpdateTrigger, setLanguageUpdateTrigger] = React.useState(0);
 
   // Site context (removed unused variable)
 
@@ -47,8 +47,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   const [settings, setSettings] = React.useState<ISettingsData>({
     alertTypesJson,
     userTargetingEnabled,
-    notificationsEnabled,
-    richMediaEnabled
+    notificationsEnabled
   });
 
   // Alert types state
@@ -66,7 +65,10 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     linkDescription: "",
     targetSites: [],
     scheduledStart: undefined,
-    scheduledEnd: undefined
+    scheduledEnd: undefined,
+    contentType: ContentType.Alert,
+    targetLanguage: TargetLanguage.All,
+    languageContent: []
   });
   const [errors, setErrors] = React.useState<IFormErrors>({});
   const [creationProgress, setCreationProgress] = React.useState<ISiteValidationResult[]>([]);
@@ -115,7 +117,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
           setNewAlert(prev => ({ ...prev, AlertType: types[0].name }));
         }
       } catch (error) {
-        console.error('Error loading alert types from SharePoint:', error);
+        logger.error('AlertSettingsTabs', 'Error loading alert types from SharePoint', error);
         setAlertTypes([]);
       }
     };
@@ -137,7 +139,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
           }));
         }
       }).catch(error => {
-        console.error('Failed to get site context:', error);
+        logger.error('AlertSettingsTabs', 'Failed to get site context', error);
       });
     }
   }, [isInEditMode, newAlert.targetSites.length]);
@@ -147,15 +149,19 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     setSettings({
       alertTypesJson,
       userTargetingEnabled,
-      notificationsEnabled,
-      richMediaEnabled
+      notificationsEnabled
     });
-  }, [alertTypesJson, userTargetingEnabled, notificationsEnabled, richMediaEnabled]);
+  }, [alertTypesJson, userTargetingEnabled, notificationsEnabled]);
 
   const handleSettingsChange = React.useCallback((newSettings: ISettingsData) => {
     setSettings(newSettings);
     onSettingsChange(newSettings);
   }, [onSettingsChange]);
+
+  const handleLanguageChange = React.useCallback((languages: string[]) => {
+    logger.debug('AlertSettingsTabs', 'Languages changed, triggering refresh', { languages });
+    setLanguageUpdateTrigger(prev => prev + 1);
+  }, []);
 
   // Don't render if not in edit mode
   if (!isInEditMode) {
@@ -227,7 +233,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 alertTypes={alertTypes}
                 userTargetingEnabled={userTargetingEnabled}
                 notificationsEnabled={notificationsEnabled}
-                richMediaEnabled={richMediaEnabled}
                 siteDetector={siteDetector.current}
                 alertService={alertService.current}
                 graphClient={graphClient}
@@ -240,6 +245,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 setShowPreview={setShowPreview}
                 showTemplates={showTemplates}
                 setShowTemplates={setShowTemplates}
+                languageUpdateTrigger={languageUpdateTrigger}
               />
             )}
 
@@ -259,6 +265,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 siteDetector={siteDetector.current}
                 alertService={alertService.current}
                 graphClient={graphClient}
+                context={context}
                 setActiveTab={setActiveTab}
               />
             )}
@@ -273,6 +280,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 setIsCreatingType={setIsCreatingType}
                 alertService={alertService.current}
                 onSettingsChange={handleSettingsChange}
+                context={context}
               />
             )}
 
@@ -290,6 +298,8 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 setIsCreatingLists={setIsCreatingLists}
                 alertService={alertService.current}
                 onSettingsChange={handleSettingsChange}
+                onLanguageChange={handleLanguageChange}
+                context={context}
               />
             )}
           </div>
