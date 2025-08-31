@@ -184,6 +184,20 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       logger.warn('AlertsContext', `Error processing target users for alert: ${item.id}`, error);
     }
 
+    // Determine content type - check multiple possible fields
+    let contentType = ContentType.Alert; // Default to alert
+    if (item.fields.ItemType) {
+      if (item.fields.ItemType.toLowerCase() === 'template') {
+        contentType = ContentType.Template;
+      } else if (item.fields.ItemType.toLowerCase() === 'alert') {
+        contentType = ContentType.Alert;
+      }
+    } else if (item.fields.ContentType) {
+      if (item.fields.ContentType.toLowerCase() === 'template') {
+        contentType = ContentType.Template;
+      }
+    }
+
     return {
       id: item.id,
       title: item.fields.Title || "",
@@ -199,7 +213,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       status: item.fields.Status || 'Active',
       createdDate: item.fields.CreatedDateTime || "",
       createdBy: createdBy,
-      contentType: (item.fields.ItemType as ContentType) || ContentType.Alert,
+      contentType: contentType,
       targetLanguage: (item.fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
       languageGroup: item.fields.LanguageGroup || undefined
     };
@@ -255,7 +269,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // First, try to get list with custom fields
       let response;
       try {
-        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null) and (fields/ItemType eq 'alert' or fields/ItemType eq null)`;
+        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null) and (fields/ItemType ne 'template')`;
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
@@ -279,8 +293,31 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       let alerts = response.value.map(mapSharePointItemToAlert);
       
+      // Log raw data for debugging
+      logger.debug('AlertsContext', `Raw SharePoint items fetched`, { 
+        count: response.value.length,
+        items: response.value.map((item: any) => ({
+          id: item.id,
+          title: item.fields.Title,
+          itemType: item.fields.ItemType,
+          contentType: item.fields.ContentType
+        }))
+      });
+      
       // Client-side filter to ensure templates are never shown (additional safety measure)
-      alerts = alerts.filter((alert: IAlertItem) => alert.contentType !== ContentType.Template);
+      const alertsBeforeFilter = alerts.length;
+      alerts = alerts.filter((alert: IAlertItem) => {
+        const isTemplate = alert.contentType === ContentType.Template || 
+                          alert.AlertType?.toLowerCase().includes('template') ||
+                          alert.title?.toLowerCase().includes('template');
+        return !isTemplate;
+      });
+      
+      logger.debug('AlertsContext', `Filtered out templates`, { 
+        beforeFilter: alertsBeforeFilter,
+        afterFilter: alerts.length,
+        filtered: alertsBeforeFilter - alerts.length
+      });
       
       // Cache the results
       alertCacheRef.current.set(siteId, { alerts, timestamp: now });

@@ -1,4 +1,4 @@
-import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { AlertPriority, NotificationType, IAlertType, IPersonField, ContentType, TargetLanguage } from "../Alerts/IAlerts";
 import { logger } from './LoggerService';
@@ -841,7 +841,9 @@ export class SharePointAlertService {
         try {
           const response = await this.graphClient
             .api(`/sites/${siteId}/lists/${this.alertsListName}/items`)
-            .expand('fields')
+            .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+            .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author)")
+            .orderby("fields/Created desc")
             .get();
 
           const siteAlerts = response.value.map((item: any) => this.mapSharePointItemToAlert(item, siteId));
@@ -1800,13 +1802,24 @@ export class SharePointAlertService {
    */
   public async getSupportedLanguages(): Promise<string[]> {
     try {
-      const siteId = this.context.pageContext.site.id.toString();
-      const response = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/columns/TargetLanguage`)
-        .get();
-
-      if (response.choice?.choices) {
-        return response.choice.choices.filter((choice: string) => choice !== 'all');
+      // Use SharePoint REST API for consistency with updateTargetLanguageChoices
+      const webAbsoluteUrl = this.context.pageContext.web.absoluteUrl;
+      const fieldInfoUrl = `${webAbsoluteUrl}/_api/web/lists/getbytitle('${this.alertsListName}')/fields/getbytitle('TargetLanguage')`;
+      
+      const fieldResponse = await this.context.spHttpClient.get(fieldInfoUrl, 
+        SPHttpClient.configurations.v1, {
+          headers: {
+            'Accept': 'application/json;odata.metadata=minimal'
+          }
+        });
+      
+      if (fieldResponse.ok) {
+        const fieldData = await fieldResponse.json();
+        const targetLanguageColumn = fieldData.value || fieldData;
+        const choices = targetLanguageColumn.Choices || ['en-us'];
+        
+        // Filter out 'all' and return actual language codes
+        return choices.filter((choice: string) => choice !== 'all');
       }
 
       return ['en-us']; // Default fallback
@@ -1849,21 +1862,27 @@ export class SharePointAlertService {
     try {
       const siteId = this.context.pageContext.site.id.toString();
 
-      // Get current TargetLanguage column
-      const columns = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
-        .filter(`name eq 'TargetLanguage'`)
-        .get();
-
-      if (!columns.value || columns.value.length === 0) {
-        logger.warn('SharePointAlertService', 'TargetLanguage column not found');
+      // Get current TargetLanguage column using SharePoint REST API for consistency
+      const webAbsoluteUrl = this.context.pageContext.web.absoluteUrl;
+      const fieldInfoUrl = `${webAbsoluteUrl}/_api/web/lists/getbytitle('${this.alertsListName}')/fields/getbytitle('TargetLanguage')`;
+      
+      const fieldResponse = await this.context.spHttpClient.get(fieldInfoUrl, 
+        SPHttpClient.configurations.v1, {
+          headers: {
+            'Accept': 'application/json;odata.metadata=minimal'
+          }
+        });
+      
+      if (!fieldResponse.ok) {
+        logger.warn('SharePointAlertService', 'TargetLanguage column not found via REST API');
         return;
       }
+      
+      const fieldData = await fieldResponse.json();
+      const targetLanguageColumn = fieldData.value || fieldData;
+      const currentChoices = targetLanguageColumn.Choices || ['all', 'en-us'];
 
-      const targetLanguageColumn = columns.value[0];
-      const currentChoices = targetLanguageColumn.choice?.choices || ['all', 'en-us'];
-
-      logger.info('SharePointAlertService', `Current TargetLanguage choices:`, { currentChoices });
+      logger.info('SharePointAlertService', `Current TargetLanguage choices from REST API:`, { currentChoices });
 
       let updatedChoices: string[];
       if (action === 'add') {
@@ -1888,65 +1907,33 @@ export class SharePointAlertService {
 
       logger.info('SharePointAlertService', `Updating TargetLanguage choices from [${currentChoices.join(', ')}] to [${updatedChoices.join(', ')}]`);
 
-      // SharePoint choice field updates are notoriously difficult via Graph API
-      // Use a more robust approach with proper error handling and fallbacks
-      let updateSuccess = false;
-      let lastError: Error | null = null;
-
-      // Method 1: Try minimal Graph API update
-      try {
-        await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}/columns/${targetLanguageColumn.id}`)
-          .patch({
-            choice: {
-              choices: updatedChoices
-            }
-          });
-        updateSuccess = true;
-        logger.info('SharePointAlertService', 'Method 1 (minimal Graph API) succeeded');
-      } catch (error) {
-        lastError = error;
-        logger.warn('SharePointAlertService', 'Method 1 failed, trying method 2:', error.message);
-      }
-
-      // Method 2: Try full choice object update
-      if (!updateSuccess) {
-        try {
-          await this.graphClient
-            .api(`/sites/${siteId}/lists/${this.alertsListName}/columns/${targetLanguageColumn.id}`)
-            .patch({
-              choice: {
-                allowTextEntry: false,
-                choices: updatedChoices,
-                displayAs: 'dropDownMenu'
-              }
-            });
-          updateSuccess = true;
-          logger.info('SharePointAlertService', 'Method 2 (full choice object) succeeded');
-        } catch (error) {
-          lastError = error;
-          logger.warn('SharePointAlertService', 'Method 2 failed, trying method 3:', error.message);
-        }
-      }
-
-      // Method 3: Use REST API via SharePoint context (if available)
-      if (!updateSuccess && this.context.spHttpClient) {
-        try {
-          // Skip REST API approach for now due to configuration complexity
-          logger.warn('SharePointAlertService', 'REST API approach skipped due to configuration issues');
-          
-          // For now, let's use a workaround: Skip the update but don't fail
-          logger.warn('SharePointAlertService', 'Skipping choice field update due to API limitations. Manual update may be required.');
-          updateSuccess = true; // Don't fail the entire operation
-        } catch (error) {
-          lastError = error;
-          logger.error('SharePointAlertService', 'Method 3 (REST API) also failed:', error.message);
-        }
-      }
-
-      // If all methods failed, throw the last error but with better context
-      if (!updateSuccess && lastError) {
-        throw new Error(`Failed to update TargetLanguage choices after trying multiple approaches. Last error: ${lastError.message}. The language columns were created successfully, but the dropdown choices may need manual update in SharePoint.`);
+      // Use SharePoint REST API (the correct approach for choice field schema updates)
+      // Graph API cannot update choice field schemas, only REST API works
+      logger.info('SharePointAlertService', 'Using SharePoint REST API approach for choice field schema update');
+      
+      // Prepare the update payload for REST API (OData v4.0 format)
+      const updatePayload = {
+        '@odata.type': 'SP.FieldChoice',
+        Choices: updatedChoices
+      };
+      
+      // Update the field via REST API
+      const updateUrl = `${webAbsoluteUrl}/_api/web/lists/getbytitle('${this.alertsListName}')/fields/getbytitle('TargetLanguage')`;
+      
+      const updateResponse = await this.context.spHttpClient.post(updateUrl, 
+        SPHttpClient.configurations.v1, {
+          headers: {
+            'Accept': 'application/json;odata.metadata=minimal',
+            'Content-Type': 'application/json;odata.metadata=minimal',
+            'X-HTTP-Method': 'MERGE',
+            'IF-MATCH': targetLanguageColumn['@odata.etag'] || targetLanguageColumn.etag || '*'
+          },
+          body: JSON.stringify(updatePayload)
+        });
+      
+      if (!updateResponse.ok && updateResponse.status !== 204) {
+        const errorText = await updateResponse.text();
+        throw new Error(`REST API update failed: ${updateResponse.status} ${updateResponse.statusText} - ${errorText}`);
       }
 
       logger.info('SharePointAlertService', `Successfully updated TargetLanguage choices:`, { 

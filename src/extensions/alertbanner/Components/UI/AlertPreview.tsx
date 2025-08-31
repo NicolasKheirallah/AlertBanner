@@ -115,18 +115,18 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     MozOsxFontSmoothing: 'grayscale',
   };
 
-  // Header style to match alert colors
+  // Header style with fixed white text (not inheriting alert colors)
   const headerStyle: React.CSSProperties = {
     backgroundColor: alertType.backgroundColor,
-    color: textColor,
+    color: '#ffffff', // Always white text for header
     border: alertType.backgroundColor === '#ffffff' || alertType.backgroundColor.toLowerCase() === 'white' ? '1px solid #edebe9' : undefined,
   };
 
   return (
     <div className={`${styles.previewContainer} ${className || ''}`}>
       <div className={styles.previewHeader} style={headerStyle}>
-        <h4 style={{ color: textColor }}>Live Preview</h4>
-        <span className={styles.previewNote} style={{ color: textColor, opacity: 0.8 }}>This is how your alert will appear</span>
+        <h4 style={{ color: '#ffffff' }}>Live Preview</h4>
+        <span className={styles.previewNote} style={{ color: '#ffffff', opacity: 0.8 }}>This is how your alert will appear</span>
       </div>
 
       <div

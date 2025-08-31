@@ -47,8 +47,9 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 | Version | Date               | Comments                                        |
 | ------- | ------------------ | ----------------------------------------------- |
-| 2.4 | August 30, 2025 | Streamlined Targeting Release: Simplified user targeting with SharePoint People/Groups fields (replacing JSON-based rules), removed rich media complexity in favor of HTML description field, enhanced template system with better SharePoint integration, comprehensive CRUD operations, and enterprise-grade logging and error handling |
-| 2.3 | August 29, 2025 | Advanced Multi-Language Release: Dynamic language targeting with intelligent fallback system, language-aware audience filtering, dynamic SharePoint choice field management, comprehensive multi-language content editing, and full end-to-end language workflow integration |
+| 3.0 | August 31, 2025 |  Enhanced multi-language support with persistent language selection, improved UI/UX with proper input field containment, streamlined codebase, and robust API consistency improvements |
+| 2.4 | August 30, 2025 | Simplified user targeting with SharePoint People/Groups fields (replacing JSON-based rules), removed rich media complexity in favor of HTML description field, enhanced template with better SharePoint integration, comprehensive CRUD operations, and  better logging and error handling |
+| 2.3 | August 29, 2025 | Dynamic language targeting with intelligent fallback system, language-aware audience filtering, dynamic SharePoint choice field management, comprehensive multi-language content editing, and full end-to-end language workflow integration |
 | 2.2 | August 27, 2025 | Production-Ready Release: Comprehensive logging, accessibility (WCAG 2.1 AA), input validation, error boundaries, performance optimizations, TypeScript enhancements, and responsive UI fixes |
 | 2.1     | August 16, 2025   | Enhanced multi-language list creation with UI improvements and error handling refinements |
 | 2.0     | August 13, 2025   | Major release: Hierarchical alert system with Home/Hub/Site distribution, automatic list management, multi-language content creation, and enhanced site context awareness |
@@ -77,6 +78,18 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 > Additional steps may be required depending on your environment configuration.
 
+## What's New in Version 3.0
+
+### Production-Ready Enterprise Features
+
+- **🔧 Production Optimization**: All debug code removed, console.log statements cleaned up for enterprise deployment
+- **🌍 Enhanced Multi-Language Support**: Fixed persistent language selection across sessions with improved API consistency
+- **🎨 Improved User Experience**: Fixed input field containment issues, proper padding and spacing throughout the interface
+- **📊 Complete Alert Management**: Full alert information display in Manage Alerts tab with proper scrolling support
+- **🔄 API Consistency**: Unified SharePoint REST API usage for reliable language choice field management
+- **⚡ Performance Optimized**: Streamlined codebase with reduced overhead and faster load times
+- **🛡️ Enterprise Ready**: Robust error handling and production-grade logging implementation
+
 ## Features
 
 This SPFx extension offers the following capabilities:
@@ -91,8 +104,7 @@ This SPFx extension offers the following capabilities:
 - **Simplified User Targeting**: Target alerts using SharePoint People/Groups picker - select specific users or groups, or leave empty for everyone to see.
 - **Notification System**: Send browser notifications for critical and high-priority alerts.
 - **HTML Content Support**: Rich text descriptions with HTML formatting, including images, links, and styled content.
-- **Read More Functionality**: Automatically truncates long alert descriptions and provides a "Read More" button to expand the full content directly within the banner.
-- **Stylized Action Links**: Buttons-styled links for better visibility and user interaction.
+- **Action Links**: Optional action links with customizable descriptions for enhanced user engagement.
 - **Advanced Multi-Language System**: Dynamic language targeting with intelligent fallback logic, language-aware audience filtering, and automatic user language detection from SharePoint/browser settings.
 - **Dynamic Language Management**: Self-updating SharePoint choice fields that automatically add/remove language options based on administrator configuration.
 - **Multi-Language Content Editor**: Comprehensive interface for creating and managing alert content across multiple languages with validation and status tracking.
@@ -255,60 +267,49 @@ The Settings dialog includes a comprehensive List Management section that provid
 #### For Site-Specific Alerts
 - Perfect for team notifications and project updates
 - Use lower priority levels for routine communications
-- Leverage rich media for detailed explanations
+- Use HTML content in descriptions for rich formatting
 - Target specific user groups as needed
 
 ### Alert List Fields & Configuration:
 
-When creating the "Alerts" list in SharePoint, you should configure the following fields:
+The Alert Banner extension automatically creates and manages SharePoint lists with the following fields:
+
+#### Core Alert Fields:
 
 | Field Name      | Field Type                     | Description                                        |
 |-----------------|--------------------------------|----------------------------------------------------|
 | Title           | Single line of text            | The main heading of the alert                      |
-| Description     | Multiple lines of text (Rich)  | Detailed message content                           |
-| AlertType       | Choice                         | Type of alert (Info, Warning, etc.)                |
+| Description     | Multiple lines of text (Rich)  | Detailed message content with HTML support        |
+| AlertType       | Choice                         | Type of alert (Info, Warning, etc.)               |
 | Priority        | Choice                         | Low, Medium, High, Critical                        |
-| IsPinned        | Yes/No                         | Whether the alert should be pinned to the top      |
-| StartDateTime   | Date and Time                  | When the alert should begin displaying             |
-| EndDateTime     | Date and Time                  | When the alert should stop displaying              |
-| TargetingRules  | Multiple lines of text (Plain) | JSON defining which users should see the alert     |
+| IsPinned        | Yes/No                         | Whether the alert should be pinned to the top     |
+| ScheduledStart  | Date and Time                  | When the alert should begin displaying             |
+| ScheduledEnd    | Date and Time                  | When the alert should stop displaying             |
+| TargetUsers     | Person or Group (Multi)        | SharePoint users/groups who can see this alert    |
 | NotificationType| Choice                         | None, Browser, Email, Both                         |
-| RichMedia       | Multiple lines of text (Plain) | JSON defining embedded media content               |
-| QuickActions    | Multiple lines of text (Plain) | JSON defining interactive buttons for the alert    |
-| Link            | Hyperlink or Picture           | URL for additional information                     |
+| LinkUrl         | Single line of text            | Optional action link URL                           |
+| LinkDescription | Single line of text            | Description for the action link                    |
+| ItemType        | Choice                         | Alert or Template                                  |
+| TargetLanguage  | Choice (Dynamic)               | Language targeting with automatic management       |
+| LanguageGroup   | Single line of text            | Groups related language variants                   |
+| AvailableForAll | Yes/No                         | Allow content to be shown to other languages      |
 
-#### Multi-Language Content Fields:
+#### Language Targeting:
 
-**Important:** When setting up the SharePoint list, include these additional fields for multi-language content support:
+Multi-language support is managed through a simple choice field approach:
 
-| Field Name      | Field Type                     | Description                                        |
-|-----------------|--------------------------------|----------------------------------------------------|
-| Title_EN        | Single line of text            | English version of the alert title                |
-| Title_FR        | Single line of text            | French version of the alert title                 |
-| Title_DE        | Single line of text            | German version of the alert title                 |
-| Title_ES        | Single line of text            | Spanish version of the alert title                |
-| Title_SV        | Single line of text            | Swedish version of the alert title                |
-| Title_FI        | Single line of text            | Finnish version of the alert title                |
-| Title_DA        | Single line of text            | Danish version of the alert title                 |
-| Title_NO        | Single line of text            | Norwegian version of the alert title              |
-| Description_EN  | Multiple lines of text (Rich)  | English version of the alert description          |
-| Description_FR  | Multiple lines of text (Rich)  | French version of the alert description           |
-| Description_DE  | Multiple lines of text (Rich)  | German version of the alert description           |
-| Description_ES  | Multiple lines of text (Rich)  | Spanish version of the alert description          |
-| Description_SV  | Multiple lines of text (Rich)  | Swedish version of the alert description          |
-| Description_FI  | Multiple lines of text (Rich)  | Finnish version of the alert description          |
-| Description_DA  | Multiple lines of text (Rich)  | Danish version of the alert description           |
-| Description_NO  | Multiple lines of text (Rich)  | Norwegian version of the alert description        |
-| LinkDescription_EN | Single line of text         | English version of the link description           |
-| LinkDescription_FR | Single line of text         | French version of the link description            |
-| LinkDescription_DE | Single line of text         | German version of the link description            |
-| LinkDescription_ES | Single line of text         | Spanish version of the link description           |
-| LinkDescription_SV | Single line of text         | Swedish version of the link description           |
-| LinkDescription_FI | Single line of text         | Finnish version of the link description           |
-| LinkDescription_DA | Single line of text         | Danish version of the link description            |
-| LinkDescription_NO | Single line of text         | Norwegian version of the link description         |
+- **TargetLanguage Choice Field**: Contains language options (all, en-us, fr-fr, de-de, etc.)
+- **Language Group Field**: Groups related language variants of the same content
+- **Content Approach**: Each alert targets a specific language using the TargetLanguage choice field
+- **Dynamic Management**: The Language Management interface automatically adds new language options to the TargetLanguage choice field
 
-**Note:** The extension automatically creates these fields when deployed. For additional languages, use the Language Management interface to add custom language columns dynamically.
+**How it works:**
+1. Create separate alert items for each language version
+2. Use the same LanguageGroup value to link related language variants
+3. Set TargetLanguage to specify which users should see each version
+4. Users automatically see the version that matches their language preference
+
+**Note:** The extension automatically manages the TargetLanguage choice field options when administrators add new languages through the interface.
 
 #### Choice Field Options:
 
@@ -318,18 +319,19 @@ When creating the "Alerts" list in SharePoint, you should configure the followin
 
 ### User Interface Components
 
-#### Alert Card
-- **Clickable Interface**: The entire alert card is clickable, expanding and collapsing the banner to show/hide detailed content.
-- **Visual Priority Indicators**: Color-coded borders and backgrounds based on alert priority.
-- **Collapsible Content**: Toggle between condensed and expanded views.
-- **Quick Action Buttons**: Customizable action buttons for direct user engagement.
+#### Alert Display
+- **Banner Integration**: Alerts display prominently in the SharePoint page banner
+- **Visual Priority Indicators**: Color-coded styling based on alert priority levels
+- **Expandable Content**: Click to expand/collapse detailed alert information
+- **Responsive Design**: Adapts seamlessly to desktop, tablet, and mobile devices
+- **Accessibility First**: Full keyboard navigation and screen reader support
 
-
-
-#### Action Links
-- **Icon Integration**: Link icon for visual clarity.
-- **Button-Like Appearance**: Enhanced clickability compared to traditional text links.
-- **Responsive Design**: Adapts to different screen sizes.
+#### Management Interface
+- **Comprehensive Settings Panel**: All configuration options accessible through intuitive interface
+- **CRUD Operations**: Create, read, update, and delete alerts with full form validation
+- **Multi-Language Content Editor**: Tabbed interface for managing content across multiple languages
+- **List Management**: One-click creation of alert lists across site hierarchy
+- **Language Management**: Dynamic addition of new languages with automatic field creation
 
 ### Dynamic Alert Type Configuration:
 
@@ -376,71 +378,25 @@ Alert types can be customized dynamically using a JSON configuration property. T
  ]
 ```
 
-### User Targeting Configuration:
+### User Targeting:
 
-Alerts can be targeted to specific users based on their properties. This allows administrators to ensure that alerts are only shown to relevant audiences.
+Version 3.0 features simplified user targeting using SharePoint's built-in People and Groups picker:
 
-**Example Targeting Rules JSON (for TargetingRules field):**
+- **Simple Selection**: Use the intuitive SharePoint People/Groups field to select target audiences
+- **Individual Users**: Select specific users by name or email
+- **SharePoint Groups**: Target entire SharePoint groups or security groups
+- **Universal Access**: Leave the field empty for alerts visible to everyone
+- **No JSON Required**: Eliminated complex JSON-based targeting rules for ease of use
 
-```json
-{
-  "audiences": ["HR", "Finance"],
-  "operation": "anyOf"
-}
-```
+### Content Management:
 
-Operations supported:
-- `anyOf`: User must match any of the audiences
-- `allOf`: User must match all of the audiences
-- `noneOf`: User must not match any of the audiences
+Alerts support rich HTML content directly in the Description field:
 
-### Rich Media Configuration:
-
-Alerts can include various types of rich media content for enhanced communication.
-
-**Example Rich Media JSON (for RichMedia field):**
-
-```json
-{
-  "type": "markdown",
-  "content": "# Important Update\n\nPlease review the [latest guidelines](https://example.com)",
-  "altText": "Important update about new guidelines"
-}
-```
-
-Media types supported:
-- `image`: Display an image with the alert
-- `video`: Embed a video player
-- `html`: Include formatted HTML content
-- `markdown`: Include markdown-formatted content
-
-### Quick Actions Configuration:
-
-Alerts can include interactive buttons for direct user engagement.
-
-**Example Quick Actions JSON (for QuickActions field):**
-
-```json
-[
-  {
-    "label": "Add to Calendar",
-    "actionType": "link",
-    "url": "https://example.com/calendar",
-    "icon": "Calendar"
-  },
-  {
-    "label": "Acknowledge",
-    "actionType": "acknowledge",
-    "icon": "CheckMark"
-  }
-]
-```
-
-Action types supported:
-- `link`: Open a URL
-- `dismiss`: Dismiss the alert
-- `acknowledge`: Acknowledge and dismiss the alert
-- `custom`: Execute a custom JavaScript function
+- **Rich Text Editor**: Built-in SharePoint rich text editor with formatting options
+- **HTML Support**: Full HTML content including images, links, and styling
+- **Media Integration**: Embed images and links directly in the description
+- **Responsive Design**: Content automatically adapts to different screen sizes
+- **Content Sanitization**: Built-in security measures prevent malicious content
 
 ## Accessibility Features
 
@@ -545,8 +501,8 @@ Use the field configuration table in the [Managing Alerts](#managing-alerts) sec
 1. **Site Hierarchy**: Check if alerts exist at the appropriate level (Home/Hub/Current site)
 2. **List Management**: Use Settings → List Management to verify alert lists exist
 3. **List fields**: Ensure all required fields exist with correct types
-4. **Alert dates**: Check StartDateTime and EndDateTime fields
-5. **User targeting**: Verify TargetingRules allow current user to see alerts
+4. **Alert dates**: Check ScheduledStart and ScheduledEnd fields
+5. **User targeting**: Verify TargetUsers field contains appropriate users/groups
 6. **Hub connections**: Verify site is connected to expected hub (if applicable)
 7. **Home site**: Confirm organization has a configured Home Site (for tenant-wide alerts)
 8. **Browser console**: Check for JavaScript errors or network issues
@@ -559,7 +515,7 @@ Use the field configuration table in the [Managing Alerts](#managing-alerts) sec
 
 #### Performance Issues
 1. **Large alert lists**: Consider archiving old alerts or implementing pagination
-2. **Rich media content**: Optimize image sizes and video formats
+2. **HTML content**: Optimize embedded images and media in descriptions
 3. **Network latency**: Check SharePoint service health and connectivity
 
 ### Diagnostic Steps
@@ -608,8 +564,7 @@ This extension showcases:
 - **Efficient State Management and Caching** using local and session storage to optimize performance and reduce redundant data fetching.
 - **Multi-Language Content Management**: Column-based approach for creating and managing content in multiple languages.
 - **Responsive Design and User Interaction Handling** to ensure alerts are accessible and user-friendly across various devices and screen sizes.
-- **Advanced User Targeting** based on user properties and group membership.
-- **Notification Integration** with browser notification API and Microsoft Graph email functionality.
-- **Rich Media Content Rendering** with proper sanitization and responsive design.
+- **Simplified User Targeting** using SharePoint People/Groups picker integration.
+- **HTML Content Rendering** with built-in sanitization and security measures.
 - **Modern FluentUI Implementation** with proper component hierarchy and styling patterns.
 - **Accessibility-First Design** ensuring usability for all users regardless of ability.

@@ -102,7 +102,8 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground2
   },
   refreshButton: {
-    flexShrink: "0"
+    flexShrink: "0",
+    marginRight: "32px"
   },
   loadingContainer: {
     textAlign: "center",

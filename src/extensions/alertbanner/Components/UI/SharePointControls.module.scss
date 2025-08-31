@@ -3,6 +3,7 @@
 // Common field styles
 .field {
   margin-bottom: 20px;
+  padding: 0 4px;
   font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif;
 }
 
@@ -128,8 +129,10 @@
 .select {
   display: block;
   width: 100%;
+  max-width: calc(100% - 8px);
   min-height: 32px;
   padding: 5px 12px;
+  margin: 0 4px;
   border: 1px solid #8a8886;
   border-radius: 2px;
   font-size: 14px;
@@ -137,6 +140,7 @@
   color: #323130;
   background-color: #ffffff;
   transition: border-color 0.1s ease-out;
+  box-sizing: border-box;
   
   &:focus {
     outline: none;

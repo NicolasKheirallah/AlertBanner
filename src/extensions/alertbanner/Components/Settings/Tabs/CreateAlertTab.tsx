@@ -106,12 +106,24 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     { value: AlertPriority.Critical, label: "Critical Priority - Urgent action required" }
   ];
 
-  // Notification type options
+  // Notification type options with detailed descriptions
   const notificationOptions: ISharePointSelectOption[] = [
-    { value: NotificationType.None, label: "None" },
-    { value: NotificationType.Browser, label: "Browser Notification" },
-    { value: NotificationType.Email, label: "Email Notification" },
-    { value: NotificationType.Both, label: "Browser + Email" }
+    { 
+      value: NotificationType.None, 
+      label: "None - Display only in banner (no notifications)" 
+    },
+    { 
+      value: NotificationType.Browser, 
+      label: "Browser - Banner display only" 
+    },
+    { 
+      value: NotificationType.Email, 
+      label: "Email only - Sends email to selected audience (no banner display)" 
+    },
+    { 
+      value: NotificationType.Both, 
+      label: "Browser + Email - Banner display + Email notifications to selected audience" 
+    }
   ];
 
   // Alert type options
@@ -160,7 +172,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       // Get the actually supported languages from SharePoint columns
       const supportedLanguageCodes = await alertService.getSupportedLanguages();
       
-      logger.debug('CreateAlertTab', `Refreshing supported languages. SharePoint columns: [${supportedLanguageCodes.join(', ')}]`);
+      logger.info('CreateAlertTab', `Available language columns: ${supportedLanguageCodes.length}`);
       
       // Update the base languages with the actual status
       const updatedLanguages = baseLanguages.map(lang => ({
@@ -783,16 +795,58 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
             {showPreview && (
               <div className={styles.formColumn}>
                 <div className={styles.alertCard}>
-                  <h3>Preview</h3>
+                  <h3>Live Preview</h3>
+                  
+                  {/* Multi-language preview mode selector */}
+                  {useMultiLanguage && newAlert.languageContent.length > 0 && (
+                    <div className={styles.previewLanguageSelector}>
+                      <label className={styles.previewLabel}>Preview Language:</label>
+                      <div className={styles.previewLanguageButtons}>
+                        {newAlert.languageContent.map((content, index) => {
+                          const lang = supportedLanguages.find(l => l.code === content.language);
+                          return (
+                            <SharePointButton
+                              key={content.language}
+                              variant={index === 0 ? "primary" : "secondary"}
+                              onClick={() => {
+                                // Move selected language to front for preview
+                                const reorderedContent = [content, ...newAlert.languageContent.filter((_, i) => i !== index)];
+                                setNewAlert(prev => ({ ...prev, languageContent: reorderedContent }));
+                              }}
+                              className={styles.previewLanguageButton}
+                            >
+                              {lang?.flag || content.language} {lang?.nativeName || content.language}
+                            </SharePointButton>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <AlertPreview
-                    title={newAlert.title || "Alert Title"}
-                    description={newAlert.description || "Alert description will appear here..."}
+                    title={useMultiLanguage && newAlert.languageContent.length > 0 
+                      ? newAlert.languageContent[0]?.title || "Multi-language Alert Title"
+                      : newAlert.title || "Alert Title"}
+                    description={useMultiLanguage && newAlert.languageContent.length > 0
+                      ? newAlert.languageContent[0]?.description || "Multi-language alert description will appear here..."
+                      : newAlert.description || "Alert description will appear here..."}
                     alertType={getCurrentAlertType() || { name: "Default", iconName: "Info", backgroundColor: "#0078d4", textColor: "#ffffff", additionalStyles: "", priorityStyles: {} }}
                     priority={newAlert.priority}
                     linkUrl={newAlert.linkUrl}
-                    linkDescription={newAlert.linkDescription}
+                    linkDescription={useMultiLanguage && newAlert.languageContent.length > 0
+                      ? newAlert.languageContent[0]?.linkDescription || "Learn More"
+                      : newAlert.linkDescription || "Learn More"}
                     isPinned={newAlert.isPinned}
                   />
+
+                  {/* Multi-language preview info */}
+                  {useMultiLanguage && newAlert.languageContent.length > 0 && (
+                    <div className={styles.multiLanguagePreviewInfo}>
+                      <p><strong>Multi-Language Alert</strong></p>
+                      <p>Currently previewing: <strong>{supportedLanguages.find(l => l.code === newAlert.languageContent[0]?.language)?.nativeName || newAlert.languageContent[0]?.language}</strong></p>
+                      <p>Available in {newAlert.languageContent.length} language(s): {newAlert.languageContent.map(c => supportedLanguages.find(l => l.code === c.language)?.flag || c.language).join(' ')}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -15,19 +15,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #323130;
+  color: #ffffff !important; // Always white text, never inherit
   
   h4 {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #323130;
+    color: #ffffff !important; // Always white text, never inherit
   }
 }
 
 .previewNote {
   font-size: 12px;
-  color: #605e5c;
+  color: #ffffff !important; // Always white text, never inherit
   font-style: italic;
 }
 
