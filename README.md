@@ -4,9 +4,9 @@
 
 The **Alert Banner SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display alert notifications prominently in the Banner of Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
 
-![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-16%20kl.%2013.51.52.png)
-![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-16%20kl.%2013.52.10.png)
-![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-16%20kl.%2013.52.24.png)
+![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-31%20kl.%2016.03.29.png)
+![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-31%20kl.%2016.03.59.png)
+![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-31%20kl.%2016.04.04.png)
 
 This project draws inspiration from the work of Thomas Daly. Special thanks to Thomas Daly for the original concept!
 
@@ -77,18 +77,6 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
   - **Deploy to app catalog**
 
 > Additional steps may be required depending on your environment configuration.
-
-## What's New in Version 3.0
-
-### Production-Ready Enterprise Features
-
-- **🔧 Production Optimization**: All debug code removed, console.log statements cleaned up for enterprise deployment
-- **🌍 Enhanced Multi-Language Support**: Fixed persistent language selection across sessions with improved API consistency
-- **🎨 Improved User Experience**: Fixed input field containment issues, proper padding and spacing throughout the interface
-- **📊 Complete Alert Management**: Full alert information display in Manage Alerts tab with proper scrolling support
-- **🔄 API Consistency**: Unified SharePoint REST API usage for reliable language choice field management
-- **⚡ Performance Optimized**: Streamlined codebase with reduced overhead and faster load times
-- **🛡️ Enterprise Ready**: Robust error handling and production-grade logging implementation
 
 ## Features
 
