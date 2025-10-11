@@ -38,7 +38,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
   stopPropagation
 }) => {
   return (
-    <div className={styles.actionSection} onClick={stopPropagation}>
+    <div className={styles.actionSection}>
       {item.linkUrl && (
         <Button
           appearance="subtle"
@@ -58,7 +58,10 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           <Button
             appearance="subtle"
             icon={<ChevronLeft24Regular />}
-            onClick={onPrevious}
+            onClick={(e: React.MouseEvent) => {
+              stopPropagation(e);
+              onPrevious?.();
+            }}
             aria-label="Previous Alert"
             size="small"
           />
@@ -70,18 +73,24 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           <Button
             appearance="subtle"
             icon={<ChevronRight24Regular />}
-            onClick={onNext}
+            onClick={(e: React.MouseEvent) => {
+              stopPropagation(e);
+              onNext?.();
+            }}
             aria-label="Next Alert"
             size="small"
           />
           <div className={styles.divider} />
         </>
       )}
-      
+
       <Button
         appearance="subtle"
         icon={<Dismiss24Regular />}
-        onClick={() => remove(item.id)}
+        onClick={(e: React.MouseEvent) => {
+          stopPropagation(e);
+          remove(item.id);
+        }}
         aria-label="Dismiss Alert"
         size="small"
         title="Dismiss"
@@ -89,7 +98,10 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
       <Button
         appearance="subtle"
         icon={<EyeOff24Regular />}
-        onClick={() => hideForever(item.id)}
+        onClick={(e: React.MouseEvent) => {
+          stopPropagation(e);
+          hideForever(item.id);
+        }}
         aria-label="Hide Alert Forever"
         size="small"
         title="Hide Forever"

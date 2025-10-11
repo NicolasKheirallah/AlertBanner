@@ -117,20 +117,6 @@
   color: #d13438 !important;
 }
 
-// Dark mode support
-@media (prefers-color-scheme: dark) {
-  .repairDialog {
-    .resultSection {
-      background: #323130;
-      border-color: #605e5c;
-    }
-
-    .progressText {
-      color: #a19f9d;
-    }
-  }
-}
-
 // High contrast mode
 @media (prefers-contrast: high) {
   .repairDialog {

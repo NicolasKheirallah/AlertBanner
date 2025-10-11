@@ -13,12 +13,15 @@ import { LocalizationService } from "./Components/Services/LocalizationService";
 import { LocalizationProvider } from "./Components/Hooks/useLocalization";
 import Alerts from "./Components/Alerts/Alerts";
 import { logger } from './Components/Services/LoggerService';
+import StorageService from './Components/Services/StorageService';
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
   private _topPlaceholderContent: PlaceholderContent | undefined;
   private _customProperties: IAlertsBannerApplicationCustomizerProperties;
   private _siteIds: string[] | null = null; // Cache site IDs to prevent recalculation
   private _isRendering: boolean = false; // Prevent concurrent renders
+  private _lastRenderedSiteId: string | null = null; // Track last site to detect SPA navigation
+  private readonly _storageService: StorageService = StorageService.getInstance();
 
   @override
   public async onInit(): Promise<void> {
@@ -41,6 +44,15 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
   private _initializeDefaultProperties(): void {
     // Instead of modifying this.properties directly, create a local copy
     this._customProperties = { ...this.properties };
+
+    // Merge persisted settings from storage if available
+    const persistedSettings = this._storageService.getFromLocalStorage<IAlertsBannerApplicationCustomizerProperties>('AlertBannerSettings');
+    if (persistedSettings) {
+      this._customProperties = {
+        ...this._customProperties,
+        ...persistedSettings
+      };
+    }
 
     // Set default alert types if none are provided
     if (!this._customProperties.alertTypesJson || this._customProperties.alertTypesJson === "[]") {
@@ -107,10 +119,20 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       this._customProperties.userTargetingEnabled !== undefined ?
       this._customProperties.userTargetingEnabled : true;
 
+    // DISABLED BY DEFAULT - notifications can be enabled in settings
     this._customProperties.notificationsEnabled =
       this._customProperties.notificationsEnabled !== undefined ?
-      this._customProperties.notificationsEnabled : true;
+      this._customProperties.notificationsEnabled : false;
 
+    this._persistCustomProperties();
+  }
+
+  private _persistCustomProperties(): void {
+    this.properties.alertTypesJson = this._customProperties.alertTypesJson;
+    this.properties.userTargetingEnabled = this._customProperties.userTargetingEnabled;
+    this.properties.notificationsEnabled = this._customProperties.notificationsEnabled;
+
+    this._storageService.saveToLocalStorage('AlertBannerSettings', this._customProperties);
   }
 
   @override
@@ -171,6 +193,8 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
 
     logger.debug('ApplicationCustomizer', 'Alert settings updated', settings);
 
+    this._persistCustomProperties();
+
     // Re-render the component with new settings (but only if actually changed)
     this._renderAlertsComponent();
   };
@@ -198,10 +222,18 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           throw graphError; // Re-throw to be caught by outer try/catch
         }
 
+        const currentSiteId = this.context.pageContext.site.id.toString();
+
+        if (this._lastRenderedSiteId && this._lastRenderedSiteId !== currentSiteId) {
+          logger.info('ApplicationCustomizer', `Detected site navigation from ${this._lastRenderedSiteId} to ${currentSiteId}; resetting cached site scope`);
+          this._siteIds = null;
+        }
+
+        this._lastRenderedSiteId = currentSiteId;
+
         // Use cached site IDs if available, otherwise calculate them once
         if (!this._siteIds) {
-          // Get the current site ID
-          const currentSiteId: string = this.context.pageContext.site.id.toString();
+          // Get the current site ID (already captured above)
           this._siteIds = [currentSiteId];
 
           try {

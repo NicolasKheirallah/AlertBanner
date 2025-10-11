@@ -237,8 +237,8 @@ export class LanguageAwarenessService {
    * Create a multi-language alert with content for each language
    */
   public createMultiLanguageAlert(baseAlert: Omit<IAlertItem, 'title' | 'description' | 'linkDescription'>, content: ILanguageContent[]): IMultiLanguageAlert {
-    const languageGroup = `lang-group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+    const languageGroup = `lang-group-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
     return {
       baseAlert: {
         ...baseAlert,
@@ -284,15 +284,20 @@ export class LanguageAwarenessService {
 
         // Check which language columns exist in the SharePoint list
         for (const supportedLang of supportedLanguages) {
-          const titleColumn = `Title_${supportedLang.code.replace('-', '').toUpperCase()}`;
-          const descriptionColumn = `Description_${supportedLang.code.replace('-', '').toUpperCase()}`;
+          const suffix = supportedLang.code.split('-')[0].toUpperCase();
+          const titleColumn = `Title_${suffix}`;
+          const descriptionColumn = `Description_${suffix}`;
           
           // Check if both title and description columns exist for this language
           const hasTitleColumn = listFields.value.some((field: any) => field.name === titleColumn);
           const hasDescriptionColumn = listFields.value.some((field: any) => field.name === descriptionColumn);
           
           if (hasTitleColumn && hasDescriptionColumn) {
-            availableLanguages.push(supportedLang);
+            availableLanguages.push({
+              ...supportedLang,
+              isSupported: true,
+              columnExists: true
+            });
           }
         }
 
@@ -304,7 +309,11 @@ export class LanguageAwarenessService {
           const hasDescription = listFields.value.some((field: any) => field.name === 'Description');
           
           if (hasTitle && hasDescription) {
-            availableLanguages.unshift(englishLang); // Add English at the beginning
+            availableLanguages.unshift({
+              ...englishLang,
+              isSupported: true,
+              columnExists: true
+            }); // Add English at the beginning
           }
         }
 
@@ -335,7 +344,8 @@ export class LanguageAwarenessService {
       language: alert.targetLanguage,
       title: alert.title,
       description: alert.description,
-      linkDescription: alert.linkDescription
+      linkDescription: alert.linkDescription,
+      availableForAll: alert.availableForAll
     }));
   }
 }

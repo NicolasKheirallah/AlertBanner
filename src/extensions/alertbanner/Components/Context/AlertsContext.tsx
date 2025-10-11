@@ -155,11 +155,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   // Map SharePoint item to alert
-  const mapSharePointItemToAlert = useCallback((item: any): IAlertItem => {
-    const createdBy = item.fields.CreatedBy ?
-      item.fields.CreatedBy.LookupValue || "Unknown" :
-      "Unknown";
-
+  const mapSharePointItemToAlert = useCallback((item: any, siteId: string): IAlertItem => {
     let priority = AlertPriority.Medium; // Default
     if (item.fields.Priority) {
       try {
@@ -198,8 +194,48 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
+    const createdDate = item.createdDateTime || item.fields?.CreatedDateTime || item.fields?.Created || "";
+    const createdBy =
+      item.createdBy?.user?.displayName ||
+      item.fields?.CreatedBy?.LookupValue ||
+      item.fields?.Author?.LookupValue ||
+      "Unknown";
+
+    const targetSites: string[] = (() => {
+      const raw = item.fields.TargetSites;
+
+      if (!raw) {
+        return [];
+      }
+
+      if (Array.isArray(raw)) {
+        return raw.map(String).filter(Boolean);
+      }
+
+      if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (!trimmed) {
+          return [];
+        }
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.map((entry) => String(entry)).filter(Boolean);
+          }
+        } catch (parseError) {
+          logger.warn('AlertsContext', 'Failed to parse TargetSites JSON, falling back to CSV parsing', {
+            value: trimmed,
+            error: parseError instanceof Error ? parseError.message : parseError
+          });
+        }
+        return trimmed.split(',').map(site => site.trim()).filter(Boolean);
+      }
+
+      return [];
+    })();
+
     return {
-      id: item.id,
+      id: `${siteId}-${item.id}`,
       title: item.fields.Title || "",
       description: item.fields.Description || "",
       AlertType: item.fields.AlertType || "Default",
@@ -209,13 +245,16 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       notificationType: item.fields.NotificationType || "none",
       linkUrl: item.fields.LinkUrl || "",
       linkDescription: item.fields.LinkDescription || "Learn More",
-      targetSites: item.fields.TargetSites ? item.fields.TargetSites.split(',') : [],
+      targetSites: targetSites,
       status: item.fields.Status || 'Active',
-      createdDate: item.fields.CreatedDateTime || "",
-      createdBy: createdBy,
+      createdDate,
+      createdBy,
       contentType: contentType,
       targetLanguage: (item.fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
-      languageGroup: item.fields.LanguageGroup || undefined
+      languageGroup: item.fields.LanguageGroup || undefined,
+      availableForAll: typeof item.fields.AvailableForAll === 'boolean'
+        ? item.fields.AvailableForAll
+        : Boolean(item.fields.AvailableForAll)
     };
   }, []);
 
@@ -274,7 +313,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
           .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,Metadata)")
+          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,AvailableForAll,Metadata)")
           .filter(filterQuery)
           .orderby("fields/ScheduledStart desc")
           .top(25) // Reduced from 50 to 25 for better performance
@@ -291,7 +330,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .get();
       }
 
-      let alerts = response.value.map(mapSharePointItemToAlert);
+      let alerts = response.value.map((item: any) => mapSharePointItemToAlert(item, siteId));
       
       // Log raw data for debugging
       logger.debug('AlertsContext', `Raw SharePoint items fetched`, { 
@@ -419,6 +458,24 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       !dismissedSet.has(alert.id) && !hiddenSet.has(alert.id)
     );
   }, [state.userDismissedAlerts, state.userHiddenAlerts]);
+
+  const filterAlertsByTargetSites = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
+    const scopedSiteIds = servicesRef.current.options?.siteIds || [];
+
+    if (scopedSiteIds.length === 0) {
+      return alertsToFilter;
+    }
+
+    const scopeSet = new Set(scopedSiteIds.map(site => String(site).toLowerCase()));
+
+    return alertsToFilter.filter(alert => {
+      if (!alert.targetSites || alert.targetSites.length === 0) {
+        return true;
+      }
+
+      return alert.targetSites.some(targetSiteId => scopeSet.has(String(targetSiteId).toLowerCase()));
+    });
+  }, []);
 
   // Apply language-aware filtering to show appropriate language variants
   const applyLanguageAwareFiltering = useCallback(async (alertsToFilter: IAlertItem[]): Promise<IAlertItem[]> => {
@@ -578,6 +635,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Get alerts to display
       let alertsToShow = alertsAreDifferent ? uniqueAlerts : cachedAlerts || [];
 
+      alertsToShow = filterAlertsByTargetSites(alertsToShow);
+
       // Apply user targeting if enabled
       if (servicesRef.current.options.userTargetingEnabled && servicesRef.current.userTargetingService) {
         alertsToShow = await servicesRef.current.userTargetingService.filterAlertsForCurrentUser(alertsToShow);
@@ -628,6 +687,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [
     filterAlerts,
+    filterAlertsByTargetSites,
     removeDuplicateAlerts,
     sortAlertsByPriority,
     areAlertsDifferent,

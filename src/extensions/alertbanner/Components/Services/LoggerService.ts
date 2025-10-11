@@ -66,7 +66,7 @@ export class LoggerService {
    * Generate unique session ID
    */
   private generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 
   /**
@@ -146,7 +146,7 @@ export class LoggerService {
    * Generate correlation ID for request tracking
    */
   private generateCorrelationId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
   }
 
   /**
@@ -201,27 +201,27 @@ export class LoggerService {
   }
 
   /**
-   * Send critical logs to external service (placeholder)
+   * Send critical logs to external service
+   * Integrate with Application Insights or similar monitoring service
    */
   private sendToExternalLogging(entry: ILogEntry): void {
-    // TODO: Implement external logging service integration
-    // This could be Application Insights, LogRocket, or custom endpoint
-    
     try {
-      // Example: Send to Application Insights
-      // if (window.appInsights) {
-      //   window.appInsights.trackException({
-      //     exception: entry.error || new Error(entry.message),
-      //     properties: {
-      //       component: entry.component,
-      //       sessionId: entry.sessionId,
-      //       correlationId: entry.correlationId,
-      //       ...entry.data
-      //     }
-      //   });
-      // }
+      // Integration point for external logging services
+      // Configure your preferred service (Application Insights, LogRocket, etc.)
+      if ((window as any).appInsights) {
+        (window as any).appInsights.trackException({
+          exception: entry.error || new Error(entry.message),
+          properties: {
+            component: entry.component,
+            sessionId: entry.sessionId,
+            correlationId: entry.correlationId,
+            ...entry.data
+          }
+        });
+      }
     } catch (error) {
-      console.error('Failed to send log to external service:', error);
+      // Silently fail external logging to prevent disruption
+      this.getConsoleMethod(LogLevel.ERROR)('Failed to send log to external service:', error);
     }
   }
 

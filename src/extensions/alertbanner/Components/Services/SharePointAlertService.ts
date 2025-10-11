@@ -112,10 +112,115 @@ export class SharePointAlertService {
   private context: ApplicationCustomizerContext;
   private alertsListName = 'Alerts';
   private alertTypesListName = 'AlertBannerTypes';
+  private listIdCache: Map<string, string> = new Map();
 
   constructor(graphClient: MSGraphClientV3, context: ApplicationCustomizerContext) {
     this.graphClient = graphClient;
     this.context = context;
+  }
+
+  private getListCacheKey(siteId: string, listTitle: string): string {
+    return `${siteId}|${listTitle.toLowerCase()}`;
+  }
+
+  private isAccessDeniedError(error: any): boolean {
+    if (!error) {
+      return false;
+    }
+    const message = (error.message || String(error)).toLowerCase();
+    return message.includes('access denied') || message.includes('403');
+  }
+
+  private isListNotFoundError(error: any): boolean {
+    if (!error) {
+      return false;
+    }
+    const message = (error.message || String(error)).toLowerCase();
+    return message.includes('list_not_found') || message.includes('404') || message.includes('not found');
+  }
+
+  private async resolveListId(siteId: string, listTitle: string): Promise<string> {
+    const cacheKey = this.getListCacheKey(siteId, listTitle);
+    const cachedId = this.listIdCache.get(cacheKey);
+    if (cachedId) {
+      return cachedId;
+    }
+
+    try {
+      const response = await this.graphClient
+        .api(`/sites/${siteId}/lists`)
+        .select('id,displayName,name')
+        .top(200)
+        .get();
+
+      const targetName = listTitle.toLowerCase();
+      const match = response.value.find((list: any) => {
+        const displayName = (list.displayName || '').toLowerCase();
+        const name = (list.name || '').toLowerCase();
+        return displayName === targetName || name === targetName;
+      });
+
+      if (match?.id) {
+        this.listIdCache.set(cacheKey, match.id);
+        return match.id;
+      }
+    } catch (error) {
+      logger.warn('SharePointAlertService', `Unable to enumerate lists while resolving ${listTitle}`, { siteId, error });
+      throw error;
+    }
+
+    const notFoundError = new Error(`LIST_NOT_FOUND:${listTitle}`);
+    notFoundError.name = 'LIST_NOT_FOUND';
+    throw notFoundError;
+  }
+
+  private registerListId(siteId: string, listTitle: string, listId?: string): void {
+    if (listId) {
+      this.listIdCache.set(this.getListCacheKey(siteId, listTitle), listId);
+    }
+  }
+
+  private async getAlertsListApi(siteId: string): Promise<string> {
+    const listId = await this.resolveListId(siteId, this.alertsListName);
+    return `/sites/${siteId}/lists/${listId}`;
+  }
+
+  private async getAlertTypesListApi(siteId: string): Promise<string> {
+    const listId = await this.resolveListId(siteId, this.alertTypesListName);
+    return `/sites/${siteId}/lists/${listId}`;
+  }
+
+  private parseTargetSitesField(value: any): string[] {
+    if (!value) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(entry => String(entry)).filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return [];
+      }
+
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map(entry => String(entry)).filter(Boolean);
+        }
+      } catch (error) {
+        logger.debug('SharePointAlertService', 'TargetSites JSON parse failed, falling back to CSV parsing', {
+          rawValue: value,
+          error: error instanceof Error ? error.message : error
+        });
+      }
+
+      return trimmed.split(',').map(site => site.trim()).filter(Boolean);
+    }
+
+    return [];
   }
 
   /**
@@ -213,20 +318,24 @@ export class SharePointAlertService {
     let needsTypes = false;
     
     try {
-      await this.graphClient.api(`/sites/${currentSiteId}/lists/Alerts`).get();
-    } catch (error) {
-      if (error.message?.includes('not found') || error.message?.includes('404')) {
+      await this.resolveListId(currentSiteId, this.alertsListName);
+    } catch (error: any) {
+      if (this.isListNotFoundError(error)) {
         needsAlerts = true;
+      } else if (!this.isAccessDeniedError(error)) {
+        throw error;
       }
     }
-    
+
     // Only check for AlertBannerTypes if this is the home site
     if (isHomeSite) {
       try {
-        await this.graphClient.api(`/sites/${currentSiteId}/lists/AlertBannerTypes`).get();
-      } catch (error) {
-        if (error.message?.includes('not found') || error.message?.includes('404')) {
+        await this.resolveListId(currentSiteId, this.alertTypesListName);
+      } catch (error: any) {
+        if (this.isListNotFoundError(error)) {
           needsTypes = true;
+        } else if (!this.isAccessDeniedError(error)) {
+          throw error;
         }
       }
     }
@@ -310,84 +419,82 @@ export class SharePointAlertService {
    */
   private async ensureAlertsList(siteId: string): Promise<boolean> {
     try {
-      // Try to get the list first
-      await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}`)
-        .get();
-      return false; // List already exists
-    } catch (error) {
-      // Check if it's a permission error or list doesn't exist
-      if (error.message?.includes('Access denied') || error.message?.includes('403')) {
+      await this.resolveListId(siteId, this.alertsListName);
+      return false;
+    } catch (error: any) {
+      if (this.isAccessDeniedError(error)) {
         logger.warn('SharePointAlertService', 'Cannot access or create alerts list due to insufficient permissions');
         throw new Error('PERMISSION_DENIED: User lacks permissions to access or create SharePoint lists.');
       }
 
-      // Check if user has permission to create lists before attempting
-      try {
-        // Test permissions by trying to get all lists
-        await this.graphClient
-          .api(`/sites/${siteId}/lists`)
-          .select('id')
-          .top(1)
-          .get();
-      } catch (permissionError) {
-        const errorMessage = permissionError.message || '';
-        const statusCode = permissionError.code || '';
-        
-        logger.error('SharePointAlertService', 'Permission check failed', permissionError, {
-          message: errorMessage,
-          code: statusCode,
-          siteId
-        });
-        
-        if (errorMessage.includes('Access denied') || statusCode === '403' || errorMessage.includes('403')) {
-          throw new Error('PERMISSION_DENIED: User lacks Sites.ReadWrite.All permissions to create SharePoint lists. Please contact your SharePoint administrator to grant the required permissions.');
-        } else if (statusCode === '401') {
-          throw new Error('AUTHENTICATION_FAILED: User authentication failed. Please re-authenticate.');
-        } else {
-          throw new Error(`PERMISSION_CHECK_FAILED: Unable to verify permissions - ${errorMessage}`);
-        }
+      if (!this.isListNotFoundError(error)) {
+        throw error;
       }
+    }
 
-      // List doesn't exist, create it
-      logger.info('SharePointAlertService', 'Creating alerts list');
+    try {
+      await this.graphClient
+        .api(`/sites/${siteId}/lists`)
+        .select('id')
+        .top(1)
+        .get();
+    } catch (permissionError) {
+      const errorMessage = permissionError.message || '';
+      const statusCode = permissionError.code || '';
 
-      const listDefinition = {
-        displayName: this.alertsListName,
-        list: {
-          template: 'genericList'
-        }
-      };
+      logger.error('SharePointAlertService', 'Permission check failed', permissionError, {
+        message: errorMessage,
+        code: statusCode,
+        siteId
+      });
 
-      try {
-        logger.debug('SharePointAlertService', 'Creating basic list structure');
-        await this.graphClient
-          .api(`/sites/${siteId}/lists`)
-          .post(listDefinition);
-        logger.info('SharePointAlertService', 'Basic list structure created successfully');
-
-        // Add custom columns after list creation
-        logger.debug('SharePointAlertService', 'Adding custom columns to Alerts list');
-        await this.addAlertsListColumns(siteId);
-        logger.info('SharePointAlertService', 'All custom columns added successfully');
-
-        // Create template items after columns are added
-        logger.debug('SharePointAlertService', 'Creating template alert items');
-        await this.createTemplateAlerts(siteId);
-        logger.info('SharePointAlertService', 'Template alert items created successfully');
-
-        return true; // List was created
-      } catch (createError) {
-        if (createError.message?.includes('Access denied') || createError.message?.includes('403')) {
-          logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
-          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
-        }
-        if (createError.message?.includes('CRITICAL_COLUMNS_FAILED')) {
-          logger.error('SharePointAlertService', 'List created but critical columns failed', createError);
-          throw new Error(`LIST_INCOMPLETE: ${createError.message}`);
-        }
-        throw createError;
+      if (errorMessage.includes('Access denied') || statusCode === '403' || errorMessage.includes('403')) {
+        throw new Error('PERMISSION_DENIED: User lacks Sites.ReadWrite.All permissions to create SharePoint lists. Please contact your SharePoint administrator to grant the required permissions.');
+      } else if (statusCode === '401') {
+        throw new Error('AUTHENTICATION_FAILED: User authentication failed. Please re-authenticate.');
+      } else {
+        throw new Error(`PERMISSION_CHECK_FAILED: Unable to verify permissions - ${errorMessage}`);
       }
+    }
+
+    logger.info('SharePointAlertService', 'Creating alerts list');
+
+    const listDefinition = {
+      displayName: this.alertsListName,
+      list: {
+        template: 'genericList'
+      }
+    };
+
+    try {
+      logger.debug('SharePointAlertService', 'Creating basic list structure');
+      const createdList = await this.graphClient
+        .api(`/sites/${siteId}/lists`)
+        .post(listDefinition);
+      this.registerListId(siteId, this.alertsListName, createdList?.id);
+      logger.info('SharePointAlertService', 'Basic list structure created successfully');
+
+      logger.debug('SharePointAlertService', 'Adding custom columns to Alerts list');
+      await this.addAlertsListColumns(siteId);
+      logger.info('SharePointAlertService', 'All custom columns added successfully');
+
+      await this.seedDefaultAlertTypes(siteId);
+
+      logger.debug('SharePointAlertService', 'Creating template alert items');
+      await this.createTemplateAlerts(siteId);
+      logger.info('SharePointAlertService', 'Template alert items created successfully');
+
+      return true;
+    } catch (createError) {
+      if (this.isAccessDeniedError(createError)) {
+        logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
+        throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
+      }
+      if (createError.message?.includes('CRITICAL_COLUMNS_FAILED')) {
+        logger.error('SharePointAlertService', 'List created but critical columns failed', createError);
+        throw new Error(`LIST_INCOMPLETE: ${createError.message}`);
+      }
+      throw createError;
     }
   }
 
@@ -395,21 +502,16 @@ export class SharePointAlertService {
    * Add custom columns to the Alerts list after creation
    */
   private async addAlertsListColumns(siteId: string): Promise<void> {
-    // Get the AlertBannerTypes list ID for the lookup field
     let alertTypesListId = '';
     try {
-      const alertTypesList = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertTypesListName}`)
-        .select('id')
-        .get();
-      alertTypesListId = alertTypesList.id;
+      alertTypesListId = await this.resolveListId(siteId, this.alertTypesListName);
     } catch (error) {
       logger.warn('SharePointAlertService', 'Could not get AlertBannerTypes list ID for lookup field', error);
-      // If we can't get the list ID, we'll create AlertType as a text field instead
     }
 
+    const alertsListId = await this.resolveListId(siteId, this.alertsListName);
+
     const columns = [
-      // Create AlertType as lookup if we have the AlertBannerTypes list, otherwise as text
       alertTypesListId ? {
         name: 'AlertType',
         lookup: {
@@ -420,16 +522,23 @@ export class SharePointAlertService {
         }
       } : {
         name: 'AlertType',
-        text: { 
-          maxLength: 255,
-          allowMultipleLines: false
+        text: {
+          maxLength: 255
+        }
+      },
+      {
+        name: 'Description',
+        text: {
+          allowMultipleLines: true,
+          maxLength: 4000
         }
       },
       {
         name: 'Priority',
-        text: { 
-          maxLength: 50,
-          allowMultipleLines: false
+        choice: {
+          allowTextEntry: false,
+          choices: ['low', 'medium', 'high', 'critical'],
+          displayAs: 'dropdown'
         }
       },
       {
@@ -438,9 +547,10 @@ export class SharePointAlertService {
       },
       {
         name: 'NotificationType',
-        text: { 
-          maxLength: 50,
-          allowMultipleLines: false
+        choice: {
+          allowTextEntry: false,
+          choices: ['none', 'browser', 'email', 'both'],
+          displayAs: 'dropdown'
         }
       },
       {
@@ -449,72 +559,66 @@ export class SharePointAlertService {
       },
       {
         name: 'LinkDescription',
-        text: { 
-          maxLength: 255,
-          allowMultipleLines: false
+        text: {
+          maxLength: 255
         }
       },
       {
         name: 'TargetSites',
-        text: { 
+        text: {
           allowMultipleLines: true,
           maxLength: 4000
         }
       },
       {
         name: 'Status',
-        text: { 
-          maxLength: 50,
-          allowMultipleLines: false
+        choice: {
+          allowTextEntry: false,
+          choices: ['Active', 'Expired', 'Scheduled'],
+          displayAs: 'dropdown'
         }
       },
       {
         name: 'ScheduledStart',
-        dateTime: {}
+        dateTime: {
+          displayAs: 'default',
+          format: 'dateTime'
+        }
       },
       {
         name: 'ScheduledEnd',
-        dateTime: {}
+        dateTime: {
+          displayAs: 'default',
+          format: 'dateTime'
+        }
       },
       {
         name: 'Metadata',
-        text: { 
+        text: {
           allowMultipleLines: true,
           maxLength: 4000
         }
       },
       {
-        name: 'Description',
-        text: { 
-          allowMultipleLines: true,
-          maxLength: 4000,
-          textType: 'richText',
-          linesForEditing: 10,
-          appendChangesToExistingText: false
-        }
-      },
-      // Language and classification properties
-      {
         name: 'ItemType',
         choice: {
           allowTextEntry: false,
           choices: ['alert', 'template'],
-          displayAs: 'dropDownMenu'
+          displayAs: 'dropdown'
         }
       },
       {
         name: 'TargetLanguage',
         choice: {
           allowTextEntry: false,
-          choices: ['all', 'en-us'], // Start with minimum: all and English, more languages added via management
-          displayAs: 'dropDownMenu'
+          choices: ['all', 'en-us', 'fr-fr', 'de-de', 'es-es', 'sv-se', 'fi-fi', 'da-dk', 'nb-no'],
+          displayAs: 'dropdown'
         }
       },
       {
         name: 'LanguageGroup',
-        text: { 
-          maxLength: 255,
-          allowMultipleLines: false
+        text: {
+          maxLength: 255
         }
       },
       {
@@ -530,88 +634,18 @@ export class SharePointAlertService {
       }
     ];
 
-    const criticalColumns = ['ScheduledStart', 'ScheduledEnd'];
-    const failedColumns: string[] = [];
-
     for (const column of columns) {
       try {
-        logger.debug('SharePointAlertService', `Creating column: ${column.name}`);
         await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+          .api(`/sites/${siteId}/lists/${alertsListId}/columns`)
           .post(column);
-        logger.debug('SharePointAlertService', `Successfully created column: ${column.name}`);
       } catch (error) {
-        logger.error('SharePointAlertService', `Failed to create column ${column.name}`, error, {
-          columnName: column.name,
-          columnDefinition: column,
-          statusCode: error.code || error.status
-        });
-        
-        failedColumns.push(column.name);
-        
-        if (criticalColumns.includes(column.name) && column.name.includes('Scheduled')) {
-          logger.debug('SharePointAlertService', `Retrying critical column ${column.name} with alternative methods`);
-          
-          const alternativeMethods = [
-            {
-              name: column.name,
-              dateTime: {}
-            },
-            {
-              name: column.name,
-              dateTime: {
-                format: 'dateTime'
-              }
-            },
-            {
-              name: column.name,
-              text: { 
-                maxLength: 255,
-                allowMultipleLines: false
-              }
-            }
-          ];
-
-          let retrySuccess = false;
-          for (let methodIndex = 0; methodIndex < alternativeMethods.length; methodIndex++) {
-            try {
-              logger.debug('SharePointAlertService', `Trying method ${methodIndex + 1} for ${column.name}`);
-              await this.graphClient
-                .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
-                .post(alternativeMethods[methodIndex]);
-              logger.debug('SharePointAlertService', `Successfully created ${column.name} with alternative method ${methodIndex + 1}`);
-              retrySuccess = true;
-              // Remove from failed columns since we succeeded with retry
-              const failedIndex = failedColumns.indexOf(column.name);
-              if (failedIndex > -1) {
-                failedColumns.splice(failedIndex, 1);
-              }
-              break;
-            } catch (retryError) {
-              logger.debug('SharePointAlertService', `Alternative method ${methodIndex + 1} failed for ${column.name}`, retryError);
-              // Continue to next method
-            }
-          }
-          
-          if (!retrySuccess) {
-            logger.error('SharePointAlertService', `All alternative methods failed for critical column ${column.name}`);
-          }
+        logger.warn('SharePointAlertService', `Failed to create Alerts column ${column.name}`, error);
+        if (column.name === 'AlertType') {
+          logger.error('SharePointAlertService', 'CRITICAL_COLUMNS_FAILED: AlertType column creation failed', error);
+          throw new Error('CRITICAL_COLUMNS_FAILED: Failed to create AlertType lookup column');
         }
       }
-    }
-
-    // Report summary of column creation
-    if (failedColumns.length > 0) {
-      logger.warn('SharePointAlertService', `Column creation summary: ${failedColumns.length} columns failed`, { failedColumns });
-      
-      // If critical columns failed, throw an error
-      const failedCriticalColumns = failedColumns.filter(name => criticalColumns.includes(name));
-      if (failedCriticalColumns.length > 0) {
-        logger.error('SharePointAlertService', `Critical columns failed: ${failedCriticalColumns.join(', ')}`);
-        throw new Error(`CRITICAL_COLUMNS_FAILED: Failed to create critical columns: ${failedCriticalColumns.join(', ')}`);
-      }
-    } else {
-      logger.info('SharePointAlertService', `All ${columns.length} columns created successfully`);
     }
   }
 
@@ -637,10 +671,12 @@ export class SharePointAlertService {
       }
     }));
 
+    const alertsListApi = await this.getAlertsListApi(siteId);
+
     for (const template of templateAlerts) {
       try {
         await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}/items`)
+          .api(`${alertsListApi}/items`)
           .post(template);
         logger.debug('SharePointAlertService', `Created template: ${template.fields.Title}`);
       } catch (error) {
@@ -674,9 +710,10 @@ export class SharePointAlertService {
    */
   public async getTemplateAlerts(siteId: string): Promise<IAlertItem[]> {
     try {
+      const alertsListApi = await this.getAlertsListApi(siteId);
       const response = await this.executeWithRetry(() => 
         this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}/items`)
+          .api(`${alertsListApi}/items`)
           .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
           .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers)")
           .filter("fields/ItemType eq 'template'")
@@ -696,59 +733,57 @@ export class SharePointAlertService {
    */
   private async ensureAlertTypesList(siteId: string): Promise<boolean> {
     try {
-      // Try to get the list first
-      await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertTypesListName}`)
-        .get();
-      return false; // List already exists
-    } catch (error) {
-      // Check if it's a permission error or list doesn't exist
-      if (error.message?.includes('Access denied') || error.message?.includes('403')) {
+      await this.resolveListId(siteId, this.alertTypesListName);
+      return false;
+    } catch (error: any) {
+      if (this.isAccessDeniedError(error)) {
         logger.warn('SharePointAlertService', 'Cannot access or create alert types list due to insufficient permissions');
         throw new Error('PERMISSION_DENIED: User lacks permissions to access or create SharePoint lists.');
       }
 
-      // Check if user has permission to create lists before attempting
-      try {
-        // Test permissions by trying to get all lists
-        await this.graphClient
-          .api(`/sites/${siteId}/lists`)
-          .select('id')
-          .top(1)
-          .get();
-      } catch (permissionError) {
-        if (permissionError.message?.includes('Access denied') || permissionError.message?.includes('403')) {
-          logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
-          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
-        }
+      if (!this.isListNotFoundError(error)) {
+        throw error;
       }
+    }
 
-      // List doesn't exist, create it
-      logger.info('SharePointAlertService', 'Creating alert types list');
-
-      const listDefinition = {
-        displayName: this.alertTypesListName,
-        list: {
-          template: 'genericList'
-        }
-      };
-
-      try {
-        await this.graphClient
-          .api(`/sites/${siteId}/lists`)
-          .post(listDefinition);
-
-        // Add custom columns after list creation
-        await this.addAlertTypesListColumns(siteId);
-
-        return true; // List was created
-      } catch (createError) {
-        if (createError.message?.includes('Access denied') || createError.message?.includes('403')) {
-          logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
-          throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
-        }
-        throw createError;
+    try {
+      await this.graphClient
+        .api(`/sites/${siteId}/lists`)
+        .select('id')
+        .top(1)
+        .get();
+    } catch (permissionError) {
+      if (this.isAccessDeniedError(permissionError)) {
+        logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
+        throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
       }
+    }
+
+    logger.info('SharePointAlertService', 'Creating alert types list');
+
+    const listDefinition = {
+      displayName: this.alertTypesListName,
+      list: {
+        template: 'genericList'
+      }
+    };
+
+    try {
+      const createdList = await this.graphClient
+        .api(`/sites/${siteId}/lists`)
+        .post(listDefinition);
+      this.registerListId(siteId, this.alertTypesListName, createdList?.id);
+
+      await this.addAlertTypesListColumns(siteId);
+      await this.seedDefaultAlertTypes(siteId);
+
+      return true;
+    } catch (createError) {
+      if (this.isAccessDeniedError(createError)) {
+        logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
+        throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
+      }
+      throw createError;
     }
   }
 
@@ -759,7 +794,7 @@ export class SharePointAlertService {
     const columns = [
       {
         name: 'IconName',
-        text: { 
+        text: {
           maxLength: 100,
           allowMultipleLines: false
         }
@@ -801,15 +836,59 @@ export class SharePointAlertService {
       }
     ];
 
+    const alertTypesListApi = await this.getAlertTypesListApi(siteId);
+
     for (const column of columns) {
       try {
         await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertTypesListName}/columns`)
+          .api(`${alertTypesListApi}/columns`)
           .post(column);
       } catch (error) {
         logger.warn('SharePointAlertService', `Failed to create AlertTypes column ${column.name}`, error);
         // Continue creating other columns even if one fails
       }
+    }
+  }
+
+  private async seedDefaultAlertTypes(siteId: string): Promise<void> {
+    try {
+      const alertTypesListApi = await this.getAlertTypesListApi(siteId);
+      const existing = await this.graphClient
+        .api(`${alertTypesListApi}/items`)
+        .top(1)
+        .get();
+
+      if (existing.value && existing.value.length > 0) {
+        return;
+      }
+
+      const defaults = this.getDefaultAlertTypes();
+      let sortOrder = 0;
+      for (const alertType of defaults) {
+        const payload = {
+          fields: {
+            Title: alertType.name,
+            IconName: alertType.iconName,
+            BackgroundColor: alertType.backgroundColor,
+            TextColor: alertType.textColor,
+            AdditionalStyles: alertType.additionalStyles || '',
+            PriorityStyles: JSON.stringify(alertType.priorityStyles || {}),
+            SortOrder: sortOrder++
+          }
+        };
+
+        try {
+          await this.graphClient
+            .api(`${alertTypesListApi}/items`)
+            .post(payload);
+        } catch (error) {
+          logger.warn('SharePointAlertService', 'Failed to seed default alert type', { name: alertType.name, error });
+        }
+      }
+
+      logger.info('SharePointAlertService', 'Seeded default alert types for site', { siteId });
+    } catch (error) {
+      logger.warn('SharePointAlertService', 'Unable to seed default alert types', { siteId, error });
     }
   }
 
@@ -839,8 +918,9 @@ export class SharePointAlertService {
       // Query alerts from each site
       for (const siteId of sitesToQuery) {
         try {
+          const alertsListApi = await this.getAlertsListApi(siteId);
           const response = await this.graphClient
-            .api(`/sites/${siteId}/lists/${this.alertsListName}/items`)
+            .api(`${alertsListApi}/items`)
             .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
             .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author)")
             .orderby("fields/Created desc")
@@ -901,10 +981,12 @@ export class SharePointAlertService {
         throw new Error('At least one target site is required');
       }
 
+      const alertsListApi = await this.getAlertsListApi(siteId);
+
       // Validate list exists and has required columns
       try {
         const listInfo = await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}`)
+          .api(alertsListApi)
           .expand('columns')
           .get();
         
@@ -990,7 +1072,7 @@ export class SharePointAlertService {
       let response;
       try {
         response = await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}/items`)
+          .api(`${alertsListApi}/items`)
           .post(listItem);
         
         logger.debug('SharePointAlertService', 'Alert created successfully', { alertId: response.id });
@@ -1028,7 +1110,7 @@ export class SharePointAlertService {
           logger.debug('SharePointAlertService', 'Trying minimal request', minimalItem);
           
           response = await this.graphClient
-            .api(`/sites/${siteId}/lists/${this.alertsListName}/items`)
+            .api(`${alertsListApi}/items`)
             .post(minimalItem);
             
           logger.info('SharePointAlertService', 'Alert created with minimal fields', { alertId: response.id });
@@ -1053,7 +1135,7 @@ export class SharePointAlertService {
       // Get the created item with expanded fields
       try {
         const createdItem = await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${response.id}`)
+          .api(`${alertsListApi}/items/${response.id}`)
           .expand('fields')
           .get();
 
@@ -1095,6 +1177,7 @@ export class SharePointAlertService {
   public async updateAlert(alertId: string, updates: Partial<IAlertItem>): Promise<IAlertItem> {
     try {
       const { siteId, itemId } = this.parseAlertId(alertId);
+      const alertsListApi = await this.getAlertsListApi(siteId);
 
       const listItem = {
         fields: {
@@ -1115,12 +1198,12 @@ export class SharePointAlertService {
       };
 
       await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${itemId}/fields`)
+        .api(`${alertsListApi}/items/${itemId}/fields`)
         .patch(listItem.fields);
 
       // Get the updated item
       const updatedItem = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${itemId}`)
+        .api(`${alertsListApi}/items/${itemId}`)
         .expand('fields')
         .get();
 
@@ -1137,9 +1220,10 @@ export class SharePointAlertService {
   public async deleteAlert(alertId: string): Promise<void> {
     try {
       const { siteId, itemId } = this.parseAlertId(alertId);
+      const alertsListApi = await this.getAlertsListApi(siteId);
 
       await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${itemId}`)
+        .api(`${alertsListApi}/items/${itemId}`)
         .delete();
     } catch (error) {
       logger.error('SharePointAlertService', 'Failed to delete alert', error);
@@ -1169,11 +1253,19 @@ export class SharePointAlertService {
         logger.warn('SharePointAlertService', 'Could not ensure alert types list exists', ensureError);
       }
 
+      const alertTypesListApi = await this.getAlertTypesListApi(siteId);
+
       const response = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertTypesListName}/items`)
+        .api(`${alertTypesListApi}/items`)
         .expand('fields')
         .orderby('fields/SortOrder')
         .get();
+
+      if (!response.value || response.value.length === 0) {
+        logger.warn('SharePointAlertService', 'Alert types list is empty, seeding defaults');
+        await this.seedDefaultAlertTypes(siteId);
+        return this.getDefaultAlertTypes();
+      }
 
       return response.value.map((item: any) => this.mapSharePointItemToAlertType(item));
     } catch (error) {
@@ -1190,14 +1282,16 @@ export class SharePointAlertService {
       const siteId = this.context.pageContext.site.id.toString();
 
       // Clear existing items
+      const alertTypesListApi = await this.getAlertTypesListApi(siteId);
+
       const existingItems = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertTypesListName}/items`)
+        .api(`${alertTypesListApi}/items`)
         .expand('fields')
         .get();
 
       for (const item of existingItems.value) {
         await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertTypesListName}/items/${item.id}`)
+          .api(`${alertTypesListApi}/items/${item.id}`)
           .delete();
       }
 
@@ -1217,7 +1311,7 @@ export class SharePointAlertService {
         };
 
         await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertTypesListName}/items`)
+          .api(`${alertTypesListApi}/items`)
           .post(listItem);
       }
     } catch (error) {
@@ -1322,7 +1416,7 @@ export class SharePointAlertService {
       notificationType: fields.NotificationType || NotificationType.None,
       linkUrl: fields.LinkUrl || '',
       linkDescription: fields.LinkDescription || '',
-      targetSites: fields.TargetSites ? JSON.parse(fields.TargetSites) : [],
+      targetSites: this.parseTargetSitesField(fields.TargetSites),
       status: fields.Status || 'Active',
       createdDate: fields.Created || item.createdDateTime,
       createdBy: item.createdBy?.user?.displayName || item.author?.Title || 'Unknown',
@@ -1361,10 +1455,12 @@ export class SharePointAlertService {
       progressCallback?.('Analyzing current list structure...', 10);
 
       // First, verify the list exists and we have access
+      let alertsListApi: string;
       let alertsList;
       try {
+        alertsListApi = await this.getAlertsListApi(siteId);
         alertsList = await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}`)
+          .api(alertsListApi)
           .get();
       } catch (error) {
         throw new Error(`Cannot access alerts list: ${error.message}. Please ensure you have proper permissions.`);
@@ -1374,7 +1470,7 @@ export class SharePointAlertService {
 
       // Get current list columns
       const currentColumns = await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+        .api(`${alertsListApi}/columns`)
         .get();
 
       // Get all non-system columns that might be outdated
@@ -1411,7 +1507,7 @@ export class SharePointAlertService {
         if (!keepColumns.includes(column.name)) {
           try {
             await this.graphClient
-              .api(`/sites/${siteId}/lists/${this.alertsListName}/columns/${column.id}`)
+              .api(`${alertsListApi}/columns/${column.id}`)
               .delete();
             
             result.details.columnsRemoved.push(column.name);
@@ -1449,7 +1545,7 @@ export class SharePointAlertService {
       
       try {
         const finalColumns = await this.graphClient
-          .api(`/sites/${siteId}/lists/${this.alertsListName}/columns`)
+          .api(`${alertsListApi}/columns`)
           .get();
         
         const finalColumnNames = finalColumns.value.map((col: any) => col.name);
@@ -1768,7 +1864,8 @@ export class SharePointAlertService {
     multiLanguageContent: { [languageCode: string]: { title?: string; description?: string; linkDescription?: string } }
   ): Promise<void> {
     try {
-      const siteId = this.context.pageContext.site.id.toString();
+      const { siteId, itemId } = this.parseAlertId(alertId);
+      const alertsListApi = await this.getAlertsListApi(siteId);
       const updateFields: any = {};
 
       // Convert multi-language content to SharePoint field format
@@ -1787,7 +1884,7 @@ export class SharePointAlertService {
       });
 
       await this.graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}/items/${alertId}/fields`)
+        .api(`${alertsListApi}/items/${itemId}/fields`)
         .patch(updateFields);
 
       logger.debug('SharePointAlertService', `Updated multi-language content for alert ${alertId}`);

@@ -63,14 +63,11 @@ export class EditModeDetector {
       }
 
       // Method 7: Check SharePoint context (if available)
-      // @ts-ignore - SharePoint global context
-      if (typeof window._spPageContextInfo !== 'undefined') {
-        // @ts-ignore
-        const webUIVersion = window._spPageContextInfo.webUIVersion;
+      if (typeof (window as any)._spPageContextInfo !== 'undefined') {
+        const webUIVersion = (window as any)._spPageContextInfo.webUIVersion;
         if (webUIVersion && webUIVersion === 15) {
           // Classic SharePoint - check for edit mode
-          // @ts-ignore
-          if (window.MSOLayout_InDesignMode || window.g_disableCheckoutInEditMode === false) {
+          if ((window as any).MSOLayout_InDesignMode || (window as any).g_disableCheckoutInEditMode === false) {
             return true;
           }
         }

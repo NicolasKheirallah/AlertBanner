@@ -50,9 +50,9 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
           g = parseInt(hex[1] + hex[1], 16);
           b = parseInt(hex[2] + hex[2], 16);
         } else {
-          r = parseInt(hex.substr(0, 2), 16);
-          g = parseInt(hex.substr(2, 2), 16);
-          b = parseInt(hex.substr(4, 2), 16);
+          r = parseInt(hex.substring(0, 2), 16);
+          g = parseInt(hex.substring(2, 4), 16);
+          b = parseInt(hex.substring(4, 6), 16);
         }
       } else if (color.toLowerCase() === 'white' || color.toLowerCase() === '#ffffff') {
         r = g = b = 255;

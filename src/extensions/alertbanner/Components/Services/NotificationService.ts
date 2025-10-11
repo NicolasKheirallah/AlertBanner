@@ -194,30 +194,77 @@ export class NotificationService {
       animation: slideInRight 0.3s ease-out;
     `;
 
-    const icon = this.getIcon(options.type);
-    const actionsHtml = options.actions 
-      ? options.actions.map((action, index) => 
-          `<button data-action="${index}" style="background: transparent; border: 1px solid currentColor; color: inherit; padding: 4px 12px; border-radius: 4px; margin-left: 8px; cursor: pointer; font-size: 12px;">${action.text}</button>`
-        ).join('')
-      : '';
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    notification.appendChild(wrapper);
 
-    const dismissButton = options.dismissible 
-      ? `<button data-dismiss style="position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: inherit; cursor: pointer; font-size: 16px; opacity: 0.7;">&times;</button>`
-      : '';
+    if (options.dismissible) {
+      const dismiss = document.createElement('button');
+      dismiss.type = 'button';
+      dismiss.dataset.dismiss = '';
+      dismiss.textContent = '×';
+      dismiss.style.cssText = `
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: transparent;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        font-size: 16px;
+        opacity: 0.7;
+      `;
+      wrapper.appendChild(dismiss);
+    }
 
-    notification.innerHTML = `
-      <div style="position: relative;">
-        ${dismissButton}
-        <div style="display: flex; align-items: flex-start; gap: 8px;">
-          <span style="font-size: 16px; flex-shrink: 0;">${icon}</span>
-          <div style="flex: 1;">
-            ${options.title ? `<div style="font-weight: 600; margin-bottom: 4px;">${options.title}</div>` : ''}
-            <div style="line-height: 1.4;">${options.message}</div>
-            ${actionsHtml ? `<div style="margin-top: 8px;">${actionsHtml}</div>` : ''}
-          </div>
-        </div>
-      </div>
-    `;
+    const contentRow = document.createElement('div');
+    contentRow.style.cssText = 'display: flex; align-items: flex-start; gap: 8px;';
+    wrapper.appendChild(contentRow);
+
+    const iconContainer = document.createElement('span');
+    iconContainer.style.cssText = 'font-size: 16px; flex-shrink: 0;';
+    iconContainer.textContent = this.getIcon(options.type);
+    contentRow.appendChild(iconContainer);
+
+    const textContainer = document.createElement('div');
+    textContainer.style.cssText = 'flex: 1;';
+    contentRow.appendChild(textContainer);
+
+    if (options.title) {
+      const title = document.createElement('div');
+      title.style.cssText = 'font-weight: 600; margin-bottom: 4px;';
+      title.textContent = options.title;
+      textContainer.appendChild(title);
+    }
+
+    const message = document.createElement('div');
+    message.style.cssText = 'line-height: 1.4;';
+    message.textContent = options.message;
+    textContainer.appendChild(message);
+
+    if (options.actions && options.actions.length > 0) {
+      const actionsRow = document.createElement('div');
+      actionsRow.style.cssText = 'margin-top: 8px;';
+      textContainer.appendChild(actionsRow);
+
+      options.actions.forEach((action, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.action = index.toString();
+        button.textContent = action.text;
+        button.style.cssText = `
+          background: transparent;
+          border: 1px solid currentColor;
+          color: inherit;
+          padding: 4px 12px;
+          border-radius: 4px;
+          margin-left: ${index === 0 ? '0' : '8px'};
+          cursor: pointer;
+          font-size: 12px;
+        `;
+        actionsRow.appendChild(button);
+      });
+    }
 
     // Add animation styles to head if not already present
     this.addAnimationStyles();

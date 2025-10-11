@@ -75,7 +75,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
   const [characterCount, setCharacterCount] = React.useState(0);
   const [validationError, setValidationError] = React.useState<string>('');
   const debounceRef = React.useRef<number>();
-  const uniqueId = React.useMemo(() => id || `richtext-${Math.random().toString(36).substr(2, 9)}`, [id]);
+  const uniqueId = React.useMemo(() => id || `richtext-${Math.random().toString(36).substring(2, 11)}`, [id]);
 
   // Update internal value when prop changes
   React.useEffect(() => {

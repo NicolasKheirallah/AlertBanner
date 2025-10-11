@@ -440,10 +440,10 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           />
 
           <SharePointToggle
-            label="Enable Browser Notifications"
+            label="Enable Browser Notifications (Disabled by Default)"
             checked={settings.notificationsEnabled}
             onChange={(checked) => handleSettingsChange({ notificationsEnabled: checked })}
-            description="Send native browser notifications for critical and high-priority alerts to ensure visibility"
+            description="⚠️ Send browser notifications for critical and high-priority alerts. Users may need to grant browser permission. Disabled by default to reduce interruptions."
           />
 
         </div>

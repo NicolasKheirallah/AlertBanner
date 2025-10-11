@@ -38,7 +38,7 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
     return {
       hasError: true,
       error,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     };
   }
 
@@ -70,7 +70,7 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
     this.setState({
       error,
       errorInfo,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     });
   }
 

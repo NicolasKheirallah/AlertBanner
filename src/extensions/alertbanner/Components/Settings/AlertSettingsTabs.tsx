@@ -125,7 +125,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     if (isInEditMode) {
       loadAlertTypes();
     }
-  }, [isInEditMode, newAlert.AlertType]);
+  }, [isInEditMode]);
 
   // Initialize site context
   React.useEffect(() => {

@@ -47,6 +47,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 | Version | Date               | Comments                                        |
 | ------- | ------------------ | ----------------------------------------------- |
+| 3.1 | October 10, 2025 | Code quality improvements: Removed dark mode support, fixed deprecated JavaScript methods (.substr), eliminated @ts-ignore directives for better TypeScript safety, browser notifications disabled by default (can be enabled in settings), comprehensive code cleanup and production readiness enhancements |
 | 3.0 | August 31, 2025 |  Enhanced multi-language support with persistent language selection, improved UI/UX with proper input field containment, streamlined codebase, and robust API consistency improvements |
 | 2.4 | August 30, 2025 | Simplified user targeting with SharePoint People/Groups fields (replacing JSON-based rules), removed rich media complexity in favor of HTML description field, enhanced template with better SharePoint integration, comprehensive CRUD operations, and  better logging and error handling |
 | 2.3 | August 29, 2025 | Dynamic language targeting with intelligent fallback system, language-aware audience filtering, dynamic SharePoint choice field management, comprehensive multi-language content editing, and full end-to-end language workflow integration |
