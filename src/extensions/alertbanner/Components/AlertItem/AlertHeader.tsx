@@ -45,7 +45,10 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
         <Button
           appearance="subtle"
           icon={expanded ? <ChevronUp24Regular /> : <ChevronDown24Regular />}
-          onClick={toggleExpanded}
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation();
+            toggleExpanded();
+          }}
           aria-expanded={expanded}
           aria-controls={ariaControlsId}
           aria-label={expanded ? "Collapse Alert" : "Expand Alert"}
