@@ -1,6 +1,4 @@
 import * as React from "react";
-import { tokens, Button } from "@fluentui/react-components";
-import { Link24Regular } from "@fluentui/react-icons";
 import { IAlertItem } from "../Services/SharePointAlertService";
 import DescriptionContent from "./DescriptionContent";
 import styles from "./AlertItem.module.scss";
@@ -12,23 +10,18 @@ interface IAlertContentProps {
 }
 
 const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, expanded, stopPropagation }) => {
-
   if (!expanded) return null;
 
   return (
-    <div 
+    <div
       className={styles.alertContentContainer}
       onClick={stopPropagation}
     >
-      {/* Enhanced description content */}
-      {item.description && (
-        <div>
-          <DescriptionContent description={item.description} />
-        </div>
-      )}
-      
+      {item.description && <DescriptionContent description={item.description} />}
     </div>
   );
 });
+
+AlertContent.displayName = 'AlertContent';
 
 export default AlertContent;

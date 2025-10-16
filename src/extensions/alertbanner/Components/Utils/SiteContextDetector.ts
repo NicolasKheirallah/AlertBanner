@@ -112,8 +112,6 @@ export class SiteContextDetector {
       return this.currentSiteContext;
     } catch (error) {
       logger.error('SiteContextDetector', 'Failed to get site context', error);
-
-      // Return basic context as fallback
       return {
         siteId: this.context.pageContext.site.id.toString(),
         webId: this.context.pageContext.web.id.toString(),
@@ -135,25 +133,13 @@ export class SiteContextDetector {
     }
   }
 
-  /**
-   * Get sites available for alert distribution
-   */
   public async getAvailableSites(includePermissionCheck: boolean = true): Promise<ISiteOption[]> {
     try {
       const currentContext = await this.getCurrentSiteContext();
-      // Will collect sites from different sources
-
-      // Get user's followed sites
       const followedSites = await this.getFollowedSites();
-
-      // Get hub associated sites if current site is a hub
       const hubSites = currentContext.isHubSite ?
         await this.getHubAssociatedSites(currentContext.siteId) : [];
-
-      // Get recently visited sites
       const recentSites = await this.getRecentSites();
-
-      // Combine and deduplicate sites
       const allSites = new Map<string, ISiteOption>();
 
       [...followedSites, ...hubSites, ...recentSites].forEach(site => {
@@ -161,8 +147,6 @@ export class SiteContextDetector {
           allSites.set(site.id, site);
         }
       });
-
-      // Add permission validation if requested
       if (includePermissionCheck) {
         const sitesWithPermissions = await Promise.all(
           Array.from(allSites.values()).map(async site => {
@@ -195,10 +179,6 @@ export class SiteContextDetector {
       return [];
     }
   }
-
-  /**
-   * Validate user permissions for multiple sites
-   */
   public async validateSiteAccess(siteIds: string[]): Promise<ISiteValidationResult[]> {
     const validationPromises = siteIds.map(async (siteId) => {
       try {
@@ -230,10 +210,6 @@ export class SiteContextDetector {
 
     return Promise.all(validationPromises);
   }
-
-  /**
-   * Get suggested distribution scopes based on current context
-   */
   public async getSuggestedDistributionScopes(): Promise<{
     currentSite: ISiteOption;
     hubSites?: ISiteOption[];
@@ -260,11 +236,10 @@ export class SiteContextDetector {
 
     const result: any = {
       currentSite,
-      recentSites: recentSites.slice(0, 5), // Limit to 5 most recent
-      followedSites: followedSites.slice(0, 10) // Limit to 10 most followed
+      recentSites: recentSites.slice(0, 5), 
+      followedSites: followedSites.slice(0, 10) 
     };
 
-    // Add hub sites if current site is a hub
     if (currentContext.isHubSite) {
       result.hubSites = await this.getHubAssociatedSites(currentContext.siteId);
     }
@@ -280,30 +255,28 @@ export class SiteContextDetector {
     return result;
   }
 
-  // Private helper methods
 
   private async checkIfHubSite(siteId: string): Promise<{ isHub: boolean; hubSiteId?: string }> {
     try {
-      // Check if site is associated with a hub by getting site details
       const siteDetails = await this.graphClient
         .api(`/sites/${siteId}`)
-        .select('sharepointIds,webUrl')
+        .select('sharepointIds,isHubSite')
         .get();
 
-      // Check if this site has a hub site ID (meaning it's associated with a hub)
-      if (siteDetails.sharepointIds?.hubSiteId) {
+      const hasHubSiteId = siteDetails.sharepointIds?.hubSiteId;
+      const isMarkedAsHub = siteDetails.isHubSite === true;
+
+      if (isMarkedAsHub) {
+        return { isHub: true, hubSiteId: siteId };
+      }
+
+      if (hasHubSiteId) {
         return { isHub: false, hubSiteId: siteDetails.sharepointIds.hubSiteId };
       }
 
-      // Skip hub site detection via Graph API filtering as it's not reliably supported
-      // We'll rely on other methods or SharePoint context for hub site detection
-      logger.debug('SiteContextDetector', 'Skipping Graph API hub site filtering - not supported in all tenants');
-
-      // Fallback: Use SharePoint REST API through the current context if available
       if (this.context.pageContext.site.id.toString() === siteId) {
-        // For the current site, we can use SPFx context information
-        // This would require additional SharePoint-specific properties
-        return { isHub: false };
+        const isHub = (this.context.pageContext.site as any).isHubSite === true;
+        return { isHub };
       }
 
       return { isHub: false };
@@ -315,16 +288,31 @@ export class SiteContextDetector {
 
   private async checkIfHomesite(siteUrl: string, tenantUrl: string): Promise<boolean> {
     try {
-      // Check if URL pattern suggests this is the homesite
       const url = new URL(siteUrl);
-      const isRootSite = url.pathname === '/' || url.pathname === '';
+      const tenant = new URL(tenantUrl);
 
-      if (isRootSite) {
-        // Additional verification could be done here
-        return true;
+      const isRootSite = url.hostname === tenant.hostname &&
+                        (url.pathname === '/' || url.pathname === '' || url.pathname === '/sites/root');
+
+      if (!isRootSite) {
+        return false;
       }
 
-      return false;
+      try {
+        const homesite = await this.graphClient
+          .api('/admin/sharepoint/settings')
+          .select('homeSiteUrl')
+          .get();
+
+        if (homesite?.homeSiteUrl) {
+          const homeSiteUrl = new URL(homesite.homeSiteUrl);
+          return url.hostname === homeSiteUrl.hostname && url.pathname === homeSiteUrl.pathname;
+        }
+      } catch (apiError) {
+        logger.debug('SiteContextDetector', 'Could not query homesite via Graph API, using fallback', apiError);
+      }
+
+      return isRootSite;
     } catch (error) {
       logger.warn('SiteContextDetector', 'Could not determine homesite status', error);
       return false;
@@ -333,11 +321,24 @@ export class SiteContextDetector {
 
   private async getAssociatedSites(hubSiteId: string): Promise<string[]> {
     try {
-      // Skip associated sites query via Graph API filtering as it's not supported in all tenants
-      logger.debug('SiteContextDetector', `Associated sites query skipped for hub ${hubSiteId} - Graph API filtering not reliable`);
+      const sites = await this.graphClient
+        .api('/sites')
+        .filter(`sharepointIds/hubSiteId eq '${hubSiteId}'`)
+        .select('id,displayName,webUrl')
+        .top(100)
+        .get();
+
+      if (sites?.value && Array.isArray(sites.value)) {
+        return sites.value.map((site: any) => site.id);
+      }
+
       return [];
     } catch (error) {
-      logger.warn('SiteContextDetector', 'Could not get associated sites', error);
+      if (error.statusCode === 400 || error.message?.includes('filter')) {
+        logger.debug('SiteContextDetector', `Hub site filtering not supported in this tenant for hub ${hubSiteId}`, error);
+      } else {
+        logger.warn('SiteContextDetector', 'Could not get associated sites', error);
+      }
       return [];
     }
   }
@@ -515,9 +516,43 @@ export class SiteContextDetector {
 
   private async getHubAssociatedSites(hubSiteId: string): Promise<ISiteOption[]> {
     try {
-      // Skip hub site filtering via Graph API as it's not supported in all tenants
-      logger.debug('SiteContextDetector', 'Hub associated sites query skipped - Graph API filtering not reliable');
-      return [];
+      const siteIds = await this.getAssociatedSites(hubSiteId);
+
+      if (siteIds.length === 0) {
+        return [];
+      }
+
+      const siteDetailsPromises = siteIds.map(async (siteId) => {
+        try {
+          const site = await this.graphClient
+            .api(`/sites/${siteId}`)
+            .select('id,displayName,webUrl,lastModifiedDateTime')
+            .get();
+
+          return {
+            id: site.id,
+            name: site.displayName,
+            url: site.webUrl,
+            type: 'regular' as const,
+            isHub: false,
+            isHomesite: false,
+            lastModified: site.lastModifiedDateTime,
+            userPermissions: {
+              canCreateAlerts: false,
+              canManageAlerts: false,
+              canViewAlerts: true,
+              permissionLevel: 'read' as const
+            },
+            parentHubId: hubSiteId
+          };
+        } catch (error) {
+          logger.warn('SiteContextDetector', `Could not get details for site ${siteId}`, error);
+          return null;
+        }
+      });
+
+      const siteDetails = await Promise.all(siteDetailsPromises);
+      return siteDetails.filter((site) => site !== null) as ISiteOption[];
     } catch (error) {
       logger.warn('SiteContextDetector', 'Could not get hub associated sites', error);
       return [];
@@ -526,31 +561,36 @@ export class SiteContextDetector {
 
   private async getRecentSites(): Promise<ISiteOption[]> {
     try {
-      // Get recent sites from user's activity
       const recentSites = await this.graphClient
         .api('/me/insights/used')
         .filter("resourceVisualization/type eq 'Web'")
         .top(10)
         .get();
 
-      return recentSites.value
-        .filter((item: any) => item.resourceReference?.webUrl)
-        .map((item: any) => ({
-          id: this.extractSiteIdFromUrl(item.resourceReference.webUrl),
-          name: item.resourceVisualization.title,
-          url: item.resourceReference.webUrl,
-          type: 'regular' as const,
-          isHub: false,
-          isHomesite: false,
-          lastModified: item.lastUsed.lastAccessedDateTime,
-          userPermissions: {
-            canCreateAlerts: false,
-            canManageAlerts: false,
-            canViewAlerts: true,
-            permissionLevel: 'read' as const
-          }
-        }))
-        .filter((site: ISiteOption) => site.id); // Filter out sites where ID extraction failed
+      const sitesWithUrls = recentSites.value.filter((item: any) => item.resourceReference?.webUrl);
+
+      const sitesWithIds = await Promise.all(
+        sitesWithUrls.map(async (item: any) => {
+          const siteId = await this.extractSiteIdFromUrl(item.resourceReference.webUrl);
+          return {
+            id: siteId,
+            name: item.resourceVisualization.title,
+            url: item.resourceReference.webUrl,
+            type: 'regular' as const,
+            isHub: false,
+            isHomesite: false,
+            lastModified: item.lastUsed.lastAccessedDateTime,
+            userPermissions: {
+              canCreateAlerts: false,
+              canManageAlerts: false,
+              canViewAlerts: true,
+              permissionLevel: 'read' as const
+            }
+          };
+        })
+      );
+
+      return sitesWithIds.filter((site: ISiteOption) => site.id);
     } catch (error) {
       logger.warn('SiteContextDetector', 'Could not get recent sites', error);
       return [];
@@ -589,13 +629,28 @@ export class SiteContextDetector {
     }
   }
 
-  private extractSiteIdFromUrl(url: string): string {
+  private async extractSiteIdFromUrl(url: string): Promise<string> {
     try {
-      // Extract site ID from SharePoint URL
-      // This is a simplified approach - in reality, you might need to make an API call
-      const match = url.match(/\/sites\/([^\/]+)/);
-      return match ? match[1] : '';
-    } catch {
+      if (!url) return '';
+
+      const hostname = new URL(url).hostname;
+      const pathname = new URL(url).pathname;
+
+      let apiPath = '';
+      if (pathname === '/' || pathname === '') {
+        apiPath = `/sites/${hostname}`;
+      } else {
+        apiPath = `/sites/${hostname}:${pathname}`;
+      }
+
+      const site = await this.graphClient
+        .api(apiPath)
+        .select('id')
+        .get();
+
+      return site.id || '';
+    } catch (error) {
+      logger.warn('SiteContextDetector', `Could not extract site ID from URL: ${url}`, error);
       return '';
     }
   }

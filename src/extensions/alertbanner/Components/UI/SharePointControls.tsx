@@ -1,13 +1,11 @@
 import * as React from "react";
 import styles from "./SharePointControls.module.scss";
 
-// Custom ID generator for React 17 compatibility
 const generateId = (() => {
   let counter = 0;
   return () => `sp-control-${counter++}`;
 })();
 
-// Button Component
 export interface ISharePointButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
@@ -42,7 +40,6 @@ export const SharePointButton: React.FC<ISharePointButtonProps> = ({
   );
 };
 
-// Input Field Component
 export interface ISharePointInputProps {
   label: string;
   value: string;
@@ -107,7 +104,6 @@ export const SharePointInput: React.FC<ISharePointInputProps> = ({
   );
 };
 
-// TextArea Component
 export interface ISharePointTextAreaProps {
   label: string;
   value: string;
@@ -172,7 +168,6 @@ export const SharePointTextArea: React.FC<ISharePointTextAreaProps> = ({
   );
 };
 
-// Select Dropdown Component
 export interface ISharePointSelectOption {
   value: string;
   label: string;
@@ -256,7 +251,6 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
   );
 };
 
-// Toggle Switch Component
 export interface ISharePointToggleProps {
   label: string;
   checked: boolean;
@@ -307,8 +301,7 @@ export const SharePointToggle: React.FC<ISharePointToggleProps> = ({
   );
 };
 
-// Section Component
-export interface ISharePointSectionProps {
+export interface ISharePointSectionProps{
   title: string;
   children: React.ReactNode;
   collapsed?: boolean;

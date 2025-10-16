@@ -3,7 +3,7 @@ import { Button, Text } from "@fluentui/react-components";
 import { ChevronDown24Regular, ChevronUp24Regular } from "@fluentui/react-icons";
 import { IAlertItem } from "../Services/SharePointAlertService";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
-import { getPriorityIcon } from "./utils"; // getPriorityIcon is exported from utils.tsx
+import { getPriorityIcon } from "./utils";
 import styles from "./AlertItem.module.scss";
 
 interface IAlertHeaderProps {
@@ -31,9 +31,9 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
           <div className={styles.alertDescription} id={ariaControlsId}>
             <div
               className={styles.truncatedHtml}
-              dangerouslySetInnerHTML={{ 
-                __html: React.useMemo(() => 
-                  htmlSanitizer.sanitizePreviewContent(item.description), 
+              dangerouslySetInnerHTML={{
+                __html: React.useMemo(() =>
+                  htmlSanitizer.sanitizePreviewContent(item.description),
                   [item.description]
                 )
               }}
@@ -58,5 +58,7 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
     </>
   );
 });
+
+AlertHeader.displayName = 'AlertHeader';
 
 export default AlertHeader;

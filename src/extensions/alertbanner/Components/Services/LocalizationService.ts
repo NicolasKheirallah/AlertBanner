@@ -123,7 +123,6 @@ export class LocalizationService {
       return key;
     }
 
-    // Simple string interpolation
     if (args && args.length > 0) {
       return this.formatString(value, ...args);
     }
@@ -219,7 +218,6 @@ export class LocalizationService {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
-    // Use relative time formatting if available
     if (Intl.RelativeTimeFormat) {
       try {
         const rtf = new Intl.RelativeTimeFormat(this._currentLanguage.replace('-', '-'), { numeric: 'auto' });
@@ -234,11 +232,9 @@ export class LocalizationService {
           return rtf.format(-Math.floor(diffInSeconds / 86400), 'day');
         }
       } catch (error) {
-        // Fallback to basic relative time
       }
     }
 
-    // Simple fallback relative time
     if (diffInSeconds < 60) {
       return this.getString('JustNow', diffInSeconds);
     } else if (diffInSeconds < 3600) {

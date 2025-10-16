@@ -794,9 +794,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
             {/* Preview Column */}
             {showPreview && (
               <div className={styles.formColumn}>
-                <div className={styles.alertCard}>
-                  <h3>Live Preview</h3>
-                  
+                <div className={styles.alertCard}>                  
                   {/* Multi-language preview mode selector */}
                   {useMultiLanguage && newAlert.languageContent.length > 0 && (
                     <div className={styles.previewLanguageSelector}>

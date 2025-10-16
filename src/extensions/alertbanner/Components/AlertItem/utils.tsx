@@ -7,13 +7,6 @@ import {
   CheckmarkCircle24Regular
 } from "@fluentui/react-icons";
 
-export const PRIORITY_COLORS = {
-  critical: { start: '#C0392B', end: '#E74C3C' }, // Dark Red to Brighter Red
-  high: { start: '#D35400', end: '#F39C12' },     // Dark Orange to Golden Orange
-  medium: { start: '#2980B9', end: '#3498DB' },    // Dark Blue to Sky Blue
-  low: { start: '#27AE60', end: '#2ECC71' }      // Forest Green to Emerald Green
-} as const;
-
 export const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
   const getIconColor = (priority: AlertPriority): string => {
     switch (priority) {
@@ -24,16 +17,16 @@ export const getPriorityIcon = (priority: AlertPriority): React.ReactElement => 
       default: return "#107c10";
     }
   };
-  
+
   const iconColor = getIconColor(priority);
-  
+
   const commonProps = {
     style: { color: iconColor },
     width: "20px",
     height: "20px",
     fill: "currentColor"
   };
-  
+
   switch (priority) {
     case "critical":
       return <ErrorCircle24Regular {...commonProps} />;

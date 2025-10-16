@@ -47,9 +47,8 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
     setRepairResult(null);
 
     try {
-      // Get the current site ID from context
       const siteId = alertService.getCurrentSiteId();
-      
+
       const result = await alertService.repairAlertsList(
         siteId,
         (message: string, progress: number) => {

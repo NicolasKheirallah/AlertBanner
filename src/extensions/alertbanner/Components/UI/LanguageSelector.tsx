@@ -15,11 +15,8 @@ import { useLocalization } from '../Hooks/useLocalization';
 import styles from './LanguageSelector.module.scss';
 
 export interface ILanguageSelectorProps {
-  /** Whether to show the language selector in compact mode (just icon) */
   compact?: boolean;
-  /** Custom CSS class */
   className?: string;
-  /** Callback when language changes */
   onLanguageChange?: (languageCode: string) => void;
 }
 

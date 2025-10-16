@@ -25,9 +25,6 @@ export interface IProgressIndicatorProps {
   variant?: 'horizontal' | 'vertical';
 }
 
-/**
- * Progress indicator component for multi-step operations
- */
 const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({ 
   steps, 
   title = 'Progress',
@@ -70,7 +67,6 @@ const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({
 
   return (
     <div className={`${styles.progressIndicator} ${styles[variant]}`}>
-      {/* Header with title and overall progress */}
       <div className={styles.header}>
         <div className={styles.titleSection}>
           <h3 className={styles.title}>{title}</h3>
@@ -86,8 +82,7 @@ const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({
             )}
           </div>
         </div>
-        
-        {/* Progress bar */}
+
         <div className={styles.progressBar}>
           <div 
             className={styles.progressFill} 
@@ -96,7 +91,6 @@ const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({
         </div>
       </div>
 
-      {/* Steps list */}
       <div className={styles.stepsList}>
         {steps.map((step, index) => (
           <div key={step.id} className={getStepClassName(step)}>

@@ -25,14 +25,12 @@ const SharePointDialog: React.FC<ISharePointDialogProps> = ({
 }) => {
   const dialogRef = React.useRef<HTMLDivElement>(null);
 
-  // Handle click outside to close
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  // Handle escape key
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -42,7 +40,6 @@ const SharePointDialog: React.FC<ISharePointDialogProps> = ({
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      // Prevent body scroll
       document.body.style.overflow = 'hidden';
     }
 
@@ -52,7 +49,6 @@ const SharePointDialog: React.FC<ISharePointDialogProps> = ({
     };
   }, [isOpen, onClose]);
 
-  // Focus management
   React.useEffect(() => {
     if (isOpen && dialogRef.current) {
       const focusableElement = dialogRef.current.querySelector('button, input, select, textarea, [tabindex]:not([tabindex="-1"])') as HTMLElement;

@@ -202,7 +202,6 @@ export class UserTargetingService {
 
   // Helper method to check if current user is in a group
   private isUserInGroup(group: IPersonField): boolean {
-    // Fixed: Explicitly check isGroup is true
     if (group.isGroup !== true) {
       return false;
     }

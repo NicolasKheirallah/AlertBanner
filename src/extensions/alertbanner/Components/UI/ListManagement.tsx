@@ -74,12 +74,8 @@ const ListManagement: React.FC<IListManagementProps> = ({
   const loadSiteInformation = async () => {
     try {
       setLoading(true);
-      
-      // Get site hierarchy
       const siteHierarchy = siteContextService.getSitesHierarchy();
       setSites(siteHierarchy);
-
-      // Check list status for each site
       const statuses: { [siteId: string]: IAlertListStatus } = {};
       for (const site of siteHierarchy) {
         try {
@@ -107,7 +103,6 @@ const ListManagement: React.FC<IListManagementProps> = ({
   const handleLanguageToggle = (languageCode: string) => {
     setSelectedLanguages(prev => {
       if (prev.includes(languageCode)) {
-        // Don't allow removing English as it's required
         if (languageCode === 'en-us') {
           return prev;
         }
@@ -120,20 +115,16 @@ const ListManagement: React.FC<IListManagementProps> = ({
 
   const handleOpenLanguageDialog = async (siteId: string, siteName: string) => {
     try {
-      // Check if the site already has an alerts list
       const status = listStatuses[siteId];
       if (status?.exists && status?.canAccess) {
-        // Load the actual configured languages from the existing list
         const configuredLanguages = await siteContextService.getSupportedLanguagesForSite(siteId);
         setSelectedLanguages(configuredLanguages);
       } else {
-        // Reset to default for new lists
         setSelectedLanguages(['en-us']);
       }
       
       setLanguageDialogOpen({ siteId, siteName });
     } catch (error) {
-      // Fallback to default if we can't load the configured languages
       setSelectedLanguages(['en-us']);
       setLanguageDialogOpen({ siteId, siteName });
     }
@@ -145,7 +136,6 @@ const ListManagement: React.FC<IListManagementProps> = ({
       setMessage(null);
       setLanguageDialogOpen(null);
 
-      // Update language support for the existing list
       const { SharePointAlertService } = await import('../Services/SharePointAlertService');
       const alertService = new SharePointAlertService(
         await siteContextService.getGraphClient(),
@@ -173,11 +163,9 @@ const ListManagement: React.FC<IListManagementProps> = ({
           text: getString('LanguagesUpdatedSuccessfully') || `Languages updated successfully for ${siteName}`
         });
 
-        // Refresh site context and list statuses
         await siteContextService.refresh();
         await loadSiteInformation();
       } finally {
-        // Restore original site context
         (siteContextService.getContext().pageContext.site as any).id = { toString: () => originalSiteId };
       }
     } catch (error) {

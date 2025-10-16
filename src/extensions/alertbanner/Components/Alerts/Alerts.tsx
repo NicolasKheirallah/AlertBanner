@@ -89,17 +89,39 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     };
   }, [carouselEnabled, carouselInterval, alerts.length]);
 
-  // ✅ STORAGE FIX: Use StorageService instead of direct localStorage access
   React.useEffect(() => {
     const savedCarouselEnabled = storageService.current.getFromLocalStorage<boolean>('carouselEnabled');
     const savedCarouselInterval = storageService.current.getFromLocalStorage<number>('carouselInterval');
-    
-    if (savedCarouselEnabled) {
+
+    if (savedCarouselEnabled !== null) {
       setCarouselEnabled(savedCarouselEnabled);
     }
     if (savedCarouselInterval && savedCarouselInterval >= 2000 && savedCarouselInterval <= 30000) {
       setCarouselInterval(savedCarouselInterval);
     }
+
+    // Listen for carousel settings changes from the settings panel
+    const handleCarouselSettingsChange = (event: CustomEvent): void => {
+      const { carouselEnabled: newEnabled, carouselInterval: newInterval } = event.detail;
+
+      if (newEnabled !== undefined && newEnabled !== null) {
+        setCarouselEnabled(newEnabled);
+      }
+      if (newInterval && newInterval >= 2000 && newInterval <= 30000) {
+        setCarouselInterval(newInterval);
+      }
+
+      logger.debug('Alerts', 'Carousel settings updated dynamically', {
+        carouselEnabled: newEnabled,
+        carouselInterval: newInterval
+      });
+    };
+
+    window.addEventListener('carouselSettingsChanged', handleCarouselSettingsChange as EventListener);
+
+    return () => {
+      window.removeEventListener('carouselSettingsChanged', handleCarouselSettingsChange as EventListener);
+    };
   }, []);
 
   const handleSettingsChange = React.useCallback((settings: ISettingsData) => {
@@ -108,15 +130,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     }
     // The context will handle reloading alert types if they changed via its own logic
   }, [props.onSettingsChange]);
-
-  // Save carousel settings when they change
-  React.useEffect(() => {
-    storageService.current.saveToLocalStorage('carouselEnabled', carouselEnabled);
-  }, [carouselEnabled]);
-
-  React.useEffect(() => {
-    storageService.current.saveToLocalStorage('carouselInterval', carouselInterval);
-  }, [carouselInterval]);
 
   // Carousel navigation with useCallback optimization
   const goToNext = React.useCallback(() => {

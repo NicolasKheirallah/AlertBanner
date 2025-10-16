@@ -15,19 +15,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #ffffff !important; // Always white text, never inherit
-  
+
   h4 {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #ffffff !important; // Always white text, never inherit
   }
 }
 
 .previewNote {
   font-size: 12px;
-  color: #ffffff !important; // Always white text, never inherit
   font-style: italic;
 }
 
@@ -164,49 +161,20 @@
   }
 }
 
-// Priority styles
 .critical {
-  background: linear-gradient(135deg, #ffffff 0%, #fef9f9 100%);
-  border: 1px solid #f3d6d8;
   border-left: 4px solid #d13438;
-  color: #323130;
-  
-  .alertTitle {
-    color: #d13438;
-  }
 }
 
 .high {
-  background: linear-gradient(135deg, #ffffff 0%, #fffaf7 100%);
-  border: 1px solid #f7e6d3;
   border-left: 4px solid #f7630c;
-  color: #323130;
-  
-  .alertTitle {
-    color: #f7630c;
-  }
 }
 
 .medium {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fcff 100%);
-  border: 1px solid #d1e7f0;
   border-left: 4px solid #0078d4;
-  color: #323130;
-  
-  .alertTitle {
-    color: #0078d4;
-  }
 }
 
 .low {
-  background: linear-gradient(135deg, #ffffff 0%, #f9fcf9 100%);
-  border: 1px solid #d3e7d3;
   border-left: 4px solid #107c10;
-  color: #323130;
-  
-  .alertTitle {
-    color: #107c10;
-  }
 }
 
 .pinned {

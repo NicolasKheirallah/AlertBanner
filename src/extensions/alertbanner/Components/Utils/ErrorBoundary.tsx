@@ -18,10 +18,6 @@ interface IErrorBoundaryProps {
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
-/**
- * Production-ready Error Boundary component
- * Catches JavaScript errors anywhere in the child component tree
- */
 export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBoundaryState> {
   private retryCount: number = 0;
   private maxRetries: number = 3;
@@ -34,7 +30,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
   }
 
   static getDerivedStateFromError(error: Error): IErrorBoundaryState {
-    // Update state so the next render will show the fallback UI
     return {
       hasError: true,
       error,
@@ -44,8 +39,7 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     const componentName = this.props.componentName || 'Unknown Component';
-    
-    // Log the error with full context
+
     logger.error(componentName, 'React component error boundary caught an error', error, {
       errorInfo: {
         componentStack: errorInfo.componentStack,
@@ -57,7 +51,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       state: this.state
     });
 
-    // Call custom error handler if provided
     if (this.props.onError) {
       try {
         this.props.onError(error, errorInfo);
@@ -66,7 +59,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       }
     }
 
-    // Update state with error info
     this.setState({
       error,
       errorInfo,
@@ -74,9 +66,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
     });
   }
 
-  /**
-   * Sanitize props to remove sensitive data before logging
-   */
   private sanitizeProps(props: IErrorBoundaryProps): any {
     const { children, onError, ...safeProps } = props;
     return {
@@ -86,9 +75,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
     };
   }
 
-  /**
-   * Reset error state and retry rendering
-   */
   private handleRetry = (): void => {
     if (this.retryCount < this.maxRetries) {
       this.retryCount++;
@@ -104,18 +90,12 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
     }
   };
 
-  /**
-   * Reset retry count (called when component successfully renders)
-   */
   private resetRetryCount(): void {
     if (this.retryCount > 0) {
       this.retryCount = 0;
     }
   }
 
-  /**
-   * Copy error details to clipboard for support
-   */
   private handleCopyErrorDetails = async (): Promise<void> => {
     try {
       const errorDetails = {
@@ -138,7 +118,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
 
   render(): React.ReactNode {
     if (this.state.hasError) {
-      // Custom fallback component
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
         return (
@@ -149,7 +128,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
         );
       }
 
-      // Default error UI
       const canRetry = this.retryCount < this.maxRetries;
       const componentName = this.props.componentName || 'Component';
 
@@ -170,14 +148,12 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
             </Text>
           </div>
 
-          {/* Error ID for support */}
           <div className={styles.errorId}>
             <Text size={200} className={styles.errorIdText}>
               Error ID: {this.state.errorId}
             </Text>
           </div>
 
-          {/* Action buttons */}
           <div className={styles.errorActions}>
             {canRetry && (
               <Button 
@@ -204,7 +180,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
             </Button>
           </div>
 
-          {/* Development-only error details */}
           {process.env.NODE_ENV === 'development' && (
             <details className={styles.errorDetails}>
               <summary className={styles.errorDetailsSummary}>
@@ -224,16 +199,11 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       );
     }
 
-    // Reset retry count on successful render
     this.resetRetryCount();
-
     return this.props.children;
   }
 }
 
-/**
- * HOC to wrap components with error boundary
- */
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   errorBoundaryProps?: Omit<IErrorBoundaryProps, 'children'>

@@ -33,7 +33,7 @@ const useStyles = makeStyles({
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: "12px",
     marginTop: "16px",
-    marginRight: "20px" // Prevent cutoff on right side
+    marginRight: "20px" 
   },
   languageItem: {
     padding: "12px 16px",

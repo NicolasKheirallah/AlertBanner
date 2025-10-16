@@ -83,7 +83,6 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     }
   };
 
-  // ✅ PERFORMANCE FIX: Memoize expensive filtering operations
   const filteredSites = React.useMemo(() => {
     let filtered = [...availableSites];
 

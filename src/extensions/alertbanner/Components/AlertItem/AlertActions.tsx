@@ -31,8 +31,6 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
   totalAlerts,
   onNext,
   onPrevious,
-  expanded,
-  toggleExpanded,
   remove,
   hideForever,
   stopPropagation
@@ -83,7 +81,6 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           <div className={styles.divider} />
         </>
       )}
-
       <Button
         appearance="subtle"
         icon={<Dismiss24Regular />}
@@ -109,5 +106,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
     </div>
   );
 });
+
+AlertActions.displayName = 'AlertActions';
 
 export default AlertActions;

@@ -176,7 +176,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
           icon={<Settings24Regular />}
           onClick={() => setIsOpen(true)}
         >
-          Alert Settings
+          Settings
         </SharePointButton>
       </div>
 

@@ -41,12 +41,10 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
   const [customColor, setCustomColor] = React.useState(value);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  // ✅ CRITICAL FIX: Sync internal state with prop changes
   React.useEffect(() => {
     setCustomColor(value);
   }, [value]);
 
-  // Close dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -69,15 +67,12 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
     setIsOpen(false);
   }, [onChange]);
 
-  // ✅ PERFORMANCE FIX: Use regex instead of DOM manipulation
   const isValidColor = React.useCallback((color: string): boolean => {
     if (!color) return false;
     
-    // Check hex color format
     const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
     if (hexPattern.test(color)) return true;
     
-    // Check common CSS color names
     const cssColors = [
       'red', 'green', 'blue', 'white', 'black', 'yellow', 'orange', 'purple',
       'pink', 'brown', 'gray', 'grey', 'cyan', 'magenta', 'lime', 'maroon',

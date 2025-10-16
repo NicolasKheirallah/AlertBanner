@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Text, tokens } from "@fluentui/react-components";
+import { Button, Text } from "@fluentui/react-components";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import styles from "./AlertItem.module.scss";
 
@@ -9,7 +9,7 @@ interface IDescriptionContentProps {
 
 const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ description }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const TRUNCATE_LENGTH = 200; // Character limit for truncation
+  const TRUNCATE_LENGTH = 200;
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -18,19 +18,17 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   let displayedDescription = description;
   let showReadMoreButton = false;
 
-  // Only truncate if it's not HTML and it's longer than the limit
   if (!/<[a-z][\s\S]*>/i.test(description) && description.length > TRUNCATE_LENGTH && !isExpanded) {
     displayedDescription = description.substring(0, TRUNCATE_LENGTH) + "...";
     showReadMoreButton = true;
   }
 
-  // If description contains HTML tags, sanitize and render it
   if (/<[a-z][\s\S]*>/i.test(description)) {
-    const sanitizedHtml = React.useMemo(() => 
-      htmlSanitizer.sanitizeAlertContent(description), 
+    const sanitizedHtml = React.useMemo(() =>
+      htmlSanitizer.sanitizeAlertContent(description),
       [description]
     );
-    
+
     return (
       <div
         className={styles.descriptionListContainer}
@@ -44,7 +42,6 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   return (
     <div className={styles.descriptionListContainer}>
       {paragraphs.map((paragraph, index) => {
-        // Handle lists
         if (paragraph.includes("\n- ") || paragraph.includes("\n* ")) {
           const [listTitle, ...listItems] = paragraph.split(/\n[-*]\s+/);
           return (
@@ -67,7 +64,6 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
           );
         }
 
-        // Handle bold text
         if (paragraph.includes("**") || paragraph.includes("__")) {
           const parts = paragraph.split(/(\**.*?\**|__.*?__)/g);
           return (
@@ -92,7 +88,6 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
           );
         }
 
-        // Simple paragraph
         return <Text key={`para-${index}`}>{paragraph}</Text>;
       })}
       {(showReadMoreButton || (description.length > TRUNCATE_LENGTH && isExpanded)) && (
@@ -108,5 +103,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
     </div>
   );
 });
+
+DescriptionContent.displayName = 'DescriptionContent';
 
 export default DescriptionContent;

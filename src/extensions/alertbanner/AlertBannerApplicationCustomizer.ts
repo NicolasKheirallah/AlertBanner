@@ -172,18 +172,16 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     userTargetingEnabled: boolean;
     notificationsEnabled: boolean;
   }): void => {
-    // Check if settings actually changed to prevent unnecessary re-renders
     const hasChanged =
       this._customProperties.alertTypesJson !== settings.alertTypesJson ||
       this._customProperties.userTargetingEnabled !== settings.userTargetingEnabled ||
       this._customProperties.notificationsEnabled !== settings.notificationsEnabled;
 
     if (!hasChanged) {
-      logger.debug('ApplicationCustomizer', 'Alert settings unchanged, skipping re-render');
+      logger.debug('ApplicationCustomizer', 'Alert settings unchanged, skipping persist');
       return;
     }
 
-    // Update the custom properties
     this._customProperties = {
       ...this._customProperties,
       alertTypesJson: settings.alertTypesJson,
@@ -191,12 +189,13 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       notificationsEnabled: settings.notificationsEnabled
     };
 
-    logger.debug('ApplicationCustomizer', 'Alert settings updated', settings);
+    logger.debug('ApplicationCustomizer', 'Alert settings updated and persisted', settings);
 
     this._persistCustomProperties();
 
-    // Re-render the component with new settings (but only if actually changed)
-    this._renderAlertsComponent();
+    // Don't re-render immediately to avoid closing dialogs
+    // Settings will take effect on next page load or manual refresh
+    logger.info('ApplicationCustomizer', 'Settings saved successfully. Refresh the page to apply changes.');
   };
 
   private async _renderAlertsComponent(): Promise<void> {

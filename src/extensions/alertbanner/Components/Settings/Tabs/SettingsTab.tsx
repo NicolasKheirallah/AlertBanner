@@ -137,21 +137,25 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const handleCarouselEnabledChange = React.useCallback((checked: boolean) => {
     setCarouselEnabled(checked);
     storageService.current.saveToLocalStorage('carouselEnabled', checked);
-    
-    // Trigger a page refresh to apply changes
-    setTimeout(() => window.location.reload(), 100);
-  }, []);
+
+    // Dispatch custom event to notify components about carousel settings change
+    window.dispatchEvent(new CustomEvent('carouselSettingsChanged', {
+      detail: { carouselEnabled: checked, carouselInterval: carouselInterval * 1000 }
+    }));
+  }, [carouselInterval]);
 
   const handleCarouselIntervalChange = React.useCallback((value: string) => {
     const seconds = parseInt(value);
     if (seconds >= 2 && seconds <= 30) {
       setCarouselInterval(seconds);
       storageService.current.saveToLocalStorage('carouselInterval', seconds * 1000);
-      
-      // Trigger a page refresh to apply changes
-      setTimeout(() => window.location.reload(), 100);
+
+      // Dispatch custom event to notify components about carousel settings change
+      window.dispatchEvent(new CustomEvent('carouselSettingsChanged', {
+        detail: { carouselEnabled, carouselInterval: seconds * 1000 }
+      }));
     }
-  }, []);
+  }, [carouselEnabled]);
 
   const handleSettingsChange = React.useCallback((newSettings: Partial<ISettingsData>) => {
     const updatedSettings = { ...settings, ...newSettings };

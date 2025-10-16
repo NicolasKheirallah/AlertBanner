@@ -1,7 +1,3 @@
-/**
- * Comprehensive Accessibility (a11y) Service for Alert Banner
- * Ensures WCAG 2.1 AA compliance and provides accessibility utilities
- */
 
 import { logger } from './LoggerService';
 
