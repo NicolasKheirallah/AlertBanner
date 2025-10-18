@@ -49,6 +49,36 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertTypesHelpText: string;
   SaveSettings: string;
   InvalidJSONError: string;
+  ManageAlerts: string;
+  AlertTypesTabTitle: string;
+  SettingsTabTitle: string;
+
+  // Create Alert Form
+  CreateAlertSectionContentClassificationTitle: string;
+  ContentTypeLabel: string;
+  CreateAlertSectionContentClassificationDescription: string;
+  CreateAlertLanguageConfigurationLabel: string;
+  CreateAlertSingleLanguageButton: string;
+  CreateAlertMultiLanguageButton: string;
+  CreateAlertSectionLanguageTargetingTitle: string;
+  CreateAlertTargetLanguageLabel: string;
+  CreateAlertSectionLanguageTargetingDescription: string;
+  CreateAlertSectionBasicInformationTitle: string;
+  CreateAlertTitlePlaceholder: string;
+  CreateAlertTitleDescription: string;
+  CreateAlertDescriptionPlaceholder: string;
+  CreateAlertDescriptionHelp: string;
+  CreateAlertPriorityLowDescription: string;
+  CreateAlertPriorityMediumDescription: string;
+  CreateAlertPriorityHighDescription: string;
+  CreateAlertPriorityCriticalDescription: string;
+  CreateAlertNotificationNoneDescription: string;
+  CreateAlertNotificationBrowserDescription: string;
+  CreateAlertNotificationEmailDescription: string;
+  CreateAlertNotificationBothDescription: string;
+  CreateAlertContentTypeAlertDescription: string;
+  CreateAlertContentTypeTemplateDescription: string;
+  CreateAlertTargetLanguageAll: string;
 
   // Alert Management
   CreateAlert: string;
@@ -159,6 +189,21 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertActions: string;
   PinAlert: string;
   UnpinAlert: string;
+
+  // Alert UI
+  AlertHeaderPriorityTooltip: string;
+  AttachmentsHeader: string;
+  FileSizeKilobytes: string;
+  FileSizeMegabytes: string;
+  AlertActionsOpenLink: string;
+  AlertActionsPrevious: string;
+  AlertActionsNext: string;
+  AlertActionsDismiss: string;
+  AlertActionsHideForever: string;
+  AlertCarouselCounter: string;
+  DefaultAlertTypeName: string;
+  AlertsLoadErrorTitle: string;
+  AlertsLoadErrorFallback: string;
 }
 
 declare module 'AlertBannerApplicationCustomizerStrings' {

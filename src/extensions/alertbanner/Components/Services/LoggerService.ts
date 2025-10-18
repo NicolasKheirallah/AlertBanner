@@ -91,23 +91,37 @@ export class LoggerService {
    * Setup global error handling
    */
   private setupGlobalErrorHandling(): void {
-    // Handle unhandled promise rejections
+    // Handle unhandled promise rejections - only log if from our code
     window.addEventListener('unhandledrejection', (event) => {
-      this.error('GlobalError', 'Unhandled promise rejection', {
-        reason: event.reason,
-        promise: event.promise?.toString()
-      });
+      // Check if error is from our Alert Banner code
+      const stack = event.reason?.stack || '';
+      const isOurCode = stack.includes('alert-banner') || stack.includes('AlertBanner');
+
+      if (isOurCode) {
+        this.error('GlobalError', 'Unhandled promise rejection', {
+          reason: event.reason,
+          promise: event.promise?.toString()
+        });
+        // Prevent default to avoid duplicate console errors
+        event.preventDefault();
+      }
     });
 
-    // Handle uncaught errors
+    // Handle uncaught errors - only log if from our code
     window.addEventListener('error', (event) => {
-      this.error('GlobalError', 'Uncaught error', {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-        error: event.error
-      });
+      // Check if error is from our Alert Banner code
+      const filename = event.filename || '';
+      const isOurCode = filename.includes('alert-banner') || filename.includes('AlertBanner');
+
+      if (isOurCode) {
+        this.error('GlobalError', 'Uncaught error', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error
+        });
+      }
     });
   }
 

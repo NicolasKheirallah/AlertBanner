@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createContext, useReducer, useContext, useCallback } from "react";
-import { IAlertType, AlertPriority, IPersonField, ITargetingRule, ContentType, TargetLanguage } from "../Alerts/IAlerts";
+import { IAlertType, AlertPriority, IPersonField, ITargetingRule, ContentType, TargetLanguage, NotificationType } from "../Alerts/IAlerts";
 import { IAlertItem } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
@@ -10,7 +10,6 @@ import StorageService from "../Services/StorageService";
 import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
 import { logger } from "../Services/LoggerService";
 
-// Define the shape of our state
 interface AlertsState {
   alerts: IAlertItem[];
   alertTypes: { [key: string]: IAlertType };
@@ -21,7 +20,6 @@ interface AlertsState {
   userHiddenAlerts: string[];
 }
 
-// Define the actions we can perform
 type AlertsAction =
   | { type: 'SET_ALERTS'; payload: IAlertItem[] }
   | { type: 'SET_ALERT_TYPES'; payload: { [key: string]: IAlertType } }
@@ -33,7 +31,6 @@ type AlertsAction =
   | { type: 'SET_HIDDEN_ALERTS'; payload: string[] }
   | { type: 'BATCH_UPDATE'; payload: Partial<AlertsState> };
 
-// Initial state
 const initialState: AlertsState = {
   alerts: [],
   alertTypes: {},
@@ -44,7 +41,6 @@ const initialState: AlertsState = {
   userHiddenAlerts: []
 };
 
-// Create the reducer
 const alertsReducer = (state: AlertsState, action: AlertsAction): AlertsState => {
   switch (action.type) {
     case 'SET_ALERTS':
@@ -103,7 +99,6 @@ interface AlertsContextProps {
 
 const AlertsContext = createContext<AlertsContextProps | undefined>(undefined);
 
-// Options for initializing the context
 export interface AlertsContextOptions {
   graphClient: MSGraphClientV3;
   context: ApplicationCustomizerContext;
@@ -113,16 +108,11 @@ export interface AlertsContextOptions {
   notificationsEnabled?: boolean;
 }
 
-// Using StorageService instead of direct localStorage access
-
-// Provider component
 export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(alertsReducer, initialState);
   
-  // Storage service instance
   const storageService = React.useMemo(() => StorageService.getInstance(), []);
 
-  // Services - Use refs to prevent recreating on every render
   const servicesRef = React.useRef<{
     graphClient?: MSGraphClientV3;
     userTargetingService?: UserTargetingService;
@@ -238,7 +228,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: `${siteId}-${item.id}`,
       title: item.fields.Title || "",
       description: item.fields.Description || "",
-      AlertType: item.fields.AlertType || "Default",
+      AlertType: item.fields.AlertType?.LookupValue || item.fields.AlertType || "Default",
       priority: priority,
       isPinned: item.fields.IsPinned || false,
       targetUsers: targetUsers,
@@ -313,7 +303,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
           .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,AvailableForAll,Metadata)")
+          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,AvailableForAll,Metadata,Attachments,AttachmentFiles)")
           .filter(filterQuery)
           .orderby("fields/ScheduledStart desc")
           .top(25) // Reduced from 50 to 25 for better performance
@@ -324,7 +314,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
-          .expand("fields($select=Title,Description,Created,Author)")
+          .expand("fields($select=Title,Description,Created,Author,Attachments,AttachmentFiles)")
           .orderby("fields/Created desc")
           .top(25) // Reduced from 50 to 25 for better performance
           .get();
@@ -422,6 +412,29 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newAlertsMap = new Map(newAlerts.map(alert => [alert.id, alert]));
     const cachedAlertsMap = new Map(cachedAlerts.map(alert => [alert.id, alert]));
 
+    const arraysMatch = (a: string[] = [], b: string[] = []): boolean => {
+      if (a.length !== b.length) {
+        return false;
+      }
+      return a.every((value, index) => value === b[index]);
+    };
+
+    const attachmentsMatch = (
+      a: NonNullable<IAlertItem['attachments']> = [],
+      b: NonNullable<IAlertItem['attachments']> = []
+    ): boolean => {
+      if (a.length !== b.length) {
+        return false;
+      }
+
+      return a.every((attachment, index) => {
+        const other = b[index];
+        return attachment.fileName === other.fileName &&
+          attachment.serverRelativeUrl === other.serverRelativeUrl &&
+          (attachment.size ?? null) === (other.size ?? null);
+      });
+    };
+
     // Check if all IDs match
     if (newAlerts.some(alert => !cachedAlertsMap.has(alert.id))) return true;
 
@@ -436,7 +449,20 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         newAlert.AlertType !== cachedAlert.AlertType ||
         newAlert.priority !== cachedAlert.priority ||
         newAlert.isPinned !== cachedAlert.isPinned ||
-        newAlert.linkUrl !== cachedAlert.linkUrl || newAlert.linkDescription !== cachedAlert.linkDescription
+        newAlert.linkUrl !== cachedAlert.linkUrl ||
+        newAlert.linkDescription !== cachedAlert.linkDescription ||
+        newAlert.status !== cachedAlert.status ||
+        newAlert.notificationType !== cachedAlert.notificationType ||
+        newAlert.contentType !== cachedAlert.contentType ||
+        newAlert.targetLanguage !== cachedAlert.targetLanguage ||
+        newAlert.languageGroup !== cachedAlert.languageGroup ||
+        newAlert.availableForAll !== cachedAlert.availableForAll ||
+        newAlert.scheduledStart !== cachedAlert.scheduledStart ||
+        newAlert.scheduledEnd !== cachedAlert.scheduledEnd ||
+        JSON.stringify(newAlert.metadata ?? null) !== JSON.stringify(cachedAlert.metadata ?? null) ||
+        !arraysMatch(newAlert.targetSites, cachedAlert.targetSites) ||
+        !attachmentsMatch(newAlert.attachments, cachedAlert.attachments) ||
+        JSON.stringify(newAlert.targetUsers ?? []) !== JSON.stringify(cachedAlert.targetUsers ?? [])
       ) {
         return true;
       }
@@ -505,6 +531,10 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!servicesRef.current.options?.notificationsEnabled || alertsToNotify.length === 0 || !servicesRef.current.notificationService) return;
 
     for (const alert of alertsToNotify) {
+      if (alert.notificationType !== NotificationType.Browser && alert.notificationType !== NotificationType.Both) {
+        continue;
+      }
+
       await servicesRef.current.notificationService.showInfo(`New alert: ${alert.title}`, 'Alert Notification');
     }
   }, []);
@@ -519,6 +549,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       servicesRef.current.userTargetingService = UserTargetingService.getInstance(servicesRef.current.graphClient);
       servicesRef.current.notificationService = NotificationService.getInstance(initOptions.context);
       servicesRef.current.languageAwarenessService = new LanguageAwarenessService(servicesRef.current.graphClient, initOptions.context);
+
+      alertCacheRef.current.clear();
 
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -725,15 +757,10 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     refreshAlerts
   }), [state, removeAlert, hideAlertForever, initializeAlerts, refreshAlerts]);
 
-  // Add cleanup function to clear cache and services
   const cleanup = useCallback(() => {
     logger.info('AlertsContext', 'Cleaning up AlertsContext resources');
-    
-    // Clear alert cache
     alertCacheRef.current.clear();
-    
-    // Clear services references
-    servicesRef.current = {};
+      servicesRef.current = {};
     
     // Dispatch final cleanup state
     dispatch({ type: 'SET_ALERTS', payload: [] });
@@ -741,7 +768,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     dispatch({ type: 'SET_ERROR', payload: { hasError: false } });
   }, []);
 
-  // Memory cleanup on unmount
   React.useEffect(() => {
     return cleanup;
   }, [cleanup]);
@@ -753,7 +779,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-// Custom hook for using the context
 export const useAlerts = () => {
   const context = useContext(AlertsContext);
   if (context === undefined) {

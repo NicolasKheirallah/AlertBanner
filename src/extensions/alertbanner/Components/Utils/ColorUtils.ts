@@ -11,6 +11,30 @@ export const getLuminance = (color: string): number => {
   // Convert color to RGB values
   let r: number, g: number, b: number;
 
+  const parseRgbValues = (value: string): [number, number, number] | null => {
+    const matches = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!matches) {
+      return null;
+    }
+
+    return [parseInt(matches[1], 10), parseInt(matches[2], 10), parseInt(matches[3], 10)];
+  };
+
+  const resolveCssColor = (value: string): [number, number, number] | null => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return null;
+    }
+
+    const element = document.createElement('span');
+    element.style.color = value;
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    const computedColor = window.getComputedStyle(element).color;
+    document.body.removeChild(element);
+
+    return parseRgbValues(computedColor);
+  };
+
   if (color.startsWith('#')) {
     // Hex color
     const hex = color.replace('#', '');
@@ -28,18 +52,25 @@ export const getLuminance = (color: string): number => {
   } else if (color.toLowerCase() === 'black' || color.toLowerCase() === '#000000') {
     r = g = b = 0;
   } else if (color.startsWith('rgb(')) {
-    // Handle RGB format
-    const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if (match) {
-      r = parseInt(match[1]);
-      g = parseInt(match[2]);
-      b = parseInt(match[3]);
-    } else {
-      return 0.5; // Fallback
+    const values = parseRgbValues(color);
+    if (!values) {
+      return 0;
     }
+    [r, g, b] = values;
+  } else if (color.startsWith('rgba(')) {
+    const values = parseRgbValues(color);
+    if (!values) {
+      return 0;
+    }
+    [r, g, b] = values;
   } else {
-    // For other colors, use a conservative approach
-    return 0.5; // Assume medium luminance
+    const resolved = resolveCssColor(color);
+    if (!resolved) {
+      // Default to dark luminance to ensure high-contrast fallback text
+      return 0;
+    }
+
+    [r, g, b] = resolved;
   }
 
   // Calculate relative luminance using WCAG formula

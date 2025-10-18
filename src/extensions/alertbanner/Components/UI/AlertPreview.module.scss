@@ -37,12 +37,14 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: relative;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  
+  background-color: #ffffff !important; // Always white background
+  color: #323130 !important; // Always dark grey text
+
   &:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
   }
-  
+
   // Type details within preview - inherits alert text color
   .typeDetails {
     display: flex;
@@ -50,7 +52,7 @@
     gap: 4px;
     font-size: 12px;
     margin-top: 8px;
-    /* Inherits the alert's text color dynamically */
+    color: #323130; // Dark grey text
   }
 }
 
@@ -100,6 +102,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  color: #323130 !important; // Always dark grey
 }
 
 .pinnedBadge {
@@ -115,19 +118,26 @@
   max-width: 100%;
   font-size: 14px;
   line-height: 1.4;
+  color: #323130 !important; // Always dark grey
   opacity: 0.9;
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
 .alertLink {
   margin-top: 8px;
-  
+
   a {
-    color: inherit;
+    color: #0078d4 !important; // Always blue link color
     text-decoration: underline;
     font-size: 13px;
-    
+
     &:hover {
       text-decoration: none;
+      color: #005a9e !important; // Darker blue on hover
     }
   }
 }

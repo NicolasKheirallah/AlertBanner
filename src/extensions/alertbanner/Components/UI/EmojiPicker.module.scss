@@ -1,0 +1,20 @@
+.emojiButton {
+  margin: 0 4px;
+  min-width: 32px;
+  height: 32px;
+
+  &:hover {
+    background-color: #f3f2f1;
+  }
+}
+
+.emojiPickerSurface {
+  padding: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  overflow: hidden;
+
+  aside {
+    border-radius: 8px;
+  }
+}

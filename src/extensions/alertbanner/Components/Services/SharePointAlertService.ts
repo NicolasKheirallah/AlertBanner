@@ -38,6 +38,12 @@ export interface IAlertItem {
   targetLanguage: TargetLanguage;
   languageGroup?: string;
   availableForAll?: boolean;
+  // Attachments support
+  attachments?: {
+    fileName: string;
+    serverRelativeUrl: string;
+    size?: number;
+  }[];
   // Store the original SharePoint list item for multi-language access
   _originalListItem?: IAlertListItem;
 }
@@ -119,6 +125,31 @@ export class SharePointAlertService {
     this.context = context;
   }
 
+  private getGraphSiteIdentifier(siteId: string): string {
+    if (!siteId) {
+      const currentUrl = new URL(this.context.pageContext.web.absoluteUrl);
+      const siteGuid = this.context.pageContext.site.id.toString().replace(/[{}]/g, '');
+      const webGuid = this.context.pageContext.web.id.toString().replace(/[{}]/g, '');
+      return `${currentUrl.hostname},${siteGuid},${webGuid}`;
+    }
+
+    if (siteId.includes(',') || siteId.includes(':')) {
+      return siteId;
+    }
+
+    if (siteId.startsWith('https://')) {
+      const siteUrl = new URL(siteId);
+      const path = siteUrl.pathname && siteUrl.pathname !== '/' ? siteUrl.pathname : '/';
+      return `${siteUrl.hostname}:${path}`;
+    }
+
+    const currentUrl = new URL(this.context.pageContext.web.absoluteUrl);
+    const normalizedSiteId = siteId.replace(/[{}]/g, '');
+    const webGuid = this.context.pageContext.web.id.toString().replace(/[{}]/g, '');
+
+    return `${currentUrl.hostname},${normalizedSiteId},${webGuid}`;
+  }
+
   private getListCacheKey(siteId: string, listTitle: string): string {
     return `${siteId}|${listTitle.toLowerCase()}`;
   }
@@ -147,22 +178,32 @@ export class SharePointAlertService {
     }
 
     try {
-      const response = await this.graphClient
-        .api(`/sites/${siteId}/lists`)
-        .select('id,displayName,name')
-        .top(200)
-        .get();
-
+      let requestPath = `/sites/${this.getGraphSiteIdentifier(siteId)}/lists`;
       const targetName = listTitle.toLowerCase();
-      const match = response.value.find((list: any) => {
-        const displayName = (list.displayName || '').toLowerCase();
-        const name = (list.name || '').toLowerCase();
-        return displayName === targetName || name === targetName;
-      });
 
-      if (match?.id) {
-        this.listIdCache.set(cacheKey, match.id);
-        return match.id;
+      while (requestPath) {
+        const response = await this.graphClient
+          .api(requestPath)
+          .select('id,displayName,name')
+          .top(200)
+          .get();
+
+        const match = response.value?.find((list: any) => {
+          const displayName = (list.displayName || '').toLowerCase();
+          const name = (list.name || '').toLowerCase();
+          return displayName === targetName || name === targetName;
+        });
+
+        if (match?.id) {
+          this.listIdCache.set(cacheKey, match.id);
+          return match.id;
+        }
+
+        if (response['@odata.nextLink']) {
+          requestPath = response['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0', '');
+        } else {
+          requestPath = '';
+        }
       }
     } catch (error) {
       logger.warn('SharePointAlertService', `Unable to enumerate lists while resolving ${listTitle}`, { siteId, error });
@@ -182,12 +223,12 @@ export class SharePointAlertService {
 
   private async getAlertsListApi(siteId: string): Promise<string> {
     const listId = await this.resolveListId(siteId, this.alertsListName);
-    return `/sites/${siteId}/lists/${listId}`;
+    return `/sites/${this.getGraphSiteIdentifier(siteId)}/lists/${listId}`;
   }
 
   private async getAlertTypesListApi(siteId: string): Promise<string> {
     const listId = await this.resolveListId(siteId, this.alertTypesListName);
-    return `/sites/${siteId}/lists/${listId}`;
+    return `/sites/${this.getGraphSiteIdentifier(siteId)}/lists/${listId}`;
   }
 
   private parseTargetSitesField(value: any): string[] {
@@ -434,7 +475,7 @@ export class SharePointAlertService {
 
     try {
       await this.graphClient
-        .api(`/sites/${siteId}/lists`)
+        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
         .select('id')
         .top(1)
         .get();
@@ -462,17 +503,22 @@ export class SharePointAlertService {
     const listDefinition = {
       displayName: this.alertsListName,
       list: {
-        template: 'genericList'
+        template: 'genericList',
+        contentTypesEnabled: false
       }
     };
 
     try {
       logger.debug('SharePointAlertService', 'Creating basic list structure');
       const createdList = await this.graphClient
-        .api(`/sites/${siteId}/lists`)
+        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
         .post(listDefinition);
       this.registerListId(siteId, this.alertsListName, createdList?.id);
       logger.info('SharePointAlertService', 'Basic list structure created successfully');
+
+      logger.debug('SharePointAlertService', 'Enabling attachments on Alerts list');
+      await this.enableListAttachments(siteId, createdList?.id);
+      logger.info('SharePointAlertService', 'Attachments enabled successfully');
 
       logger.debug('SharePointAlertService', 'Adding custom columns to Alerts list');
       await this.addAlertsListColumns(siteId);
@@ -495,6 +541,38 @@ export class SharePointAlertService {
         throw new Error(`LIST_INCOMPLETE: ${createError.message}`);
       }
       throw createError;
+    }
+  }
+
+  /**
+   * Enable attachments on the Alerts list
+   */
+  private async enableListAttachments(siteId: string, listId: string): Promise<void> {
+    try {
+      const siteUrl = await this.getSiteUrlFromIdentifier(siteId);
+      const updateUrl = `${siteUrl}/_api/web/lists(guid'${listId}')`;
+
+      await this.context.spHttpClient.post(
+        updateUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'Accept': 'application/json;odata=verbose',
+            'Content-Type': 'application/json;odata=verbose',
+            'X-HTTP-Method': 'MERGE',
+            'IF-MATCH': '*'
+          },
+          body: JSON.stringify({
+            '__metadata': { 'type': 'SP.List' },
+            'EnableAttachments': true
+          })
+        }
+      );
+
+      logger.info('SharePointAlertService', 'Attachments enabled on Alerts list');
+    } catch (error) {
+      logger.warn('SharePointAlertService', 'Failed to enable attachments (non-critical)', error);
+      // Don't throw - attachments are optional functionality
     }
   }
 
@@ -637,7 +715,7 @@ export class SharePointAlertService {
     for (const column of columns) {
       try {
         await this.graphClient
-          .api(`/sites/${siteId}/lists/${alertsListId}/columns`)
+          .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists/${alertsListId}/columns`)
           .post(column);
       } catch (error) {
         logger.warn('SharePointAlertService', `Failed to create Alerts column ${column.name}`, error);
@@ -647,6 +725,38 @@ export class SharePointAlertService {
         }
       }
     }
+  }
+
+  private async getSiteUrlFromIdentifier(siteId: string): Promise<string> {
+    if (!siteId) {
+      return this.context.pageContext.web.absoluteUrl;
+    }
+
+    if (siteId.startsWith('https://')) {
+      return siteId;
+    }
+
+    if (siteId.includes(':') && !siteId.includes(',')) {
+      const [hostname, path = '/'] = siteId.split(':');
+      return `https://${hostname}${path === '/' ? '' : path}`;
+    }
+
+    if (siteId.includes(',')) {
+      try {
+        const siteDetails = await this.graphClient
+          .api(`/sites/${siteId}`)
+          .select('webUrl')
+          .get();
+
+        if (siteDetails?.webUrl) {
+          return siteDetails.webUrl;
+        }
+      } catch (error) {
+        logger.warn('SharePointAlertService', 'Unable to resolve site URL from identifier', { siteId, error });
+      }
+    }
+
+    return this.context.pageContext.web.absoluteUrl;
   }
 
   /**
@@ -711,7 +821,7 @@ export class SharePointAlertService {
   public async getTemplateAlerts(siteId: string): Promise<IAlertItem[]> {
     try {
       const alertsListApi = await this.getAlertsListApi(siteId);
-      const response = await this.executeWithRetry(() => 
+      const response = await this.executeWithRetry(() =>
         this.graphClient
           .api(`${alertsListApi}/items`)
           .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
@@ -726,6 +836,57 @@ export class SharePointAlertService {
       logger.warn('SharePointAlertService', 'Could not fetch template alerts after retries', error);
       return [];
     }
+  }
+
+  /**
+   * Get draft alerts for the current user
+   */
+  public async getDraftAlerts(siteId: string): Promise<IAlertItem[]> {
+    try {
+      const alertsListApi = await this.getAlertsListApi(siteId);
+      const currentUser = this.context.pageContext.user.loginName;
+
+      const response = await this.executeWithRetry(() =>
+        this.graphClient
+          .api(`${alertsListApi}/items`)
+          .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+          .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Author,Modified)")
+          .filter(`fields/ItemType eq 'draft' and fields/Author/Email eq '${currentUser}'`)
+          .orderby("fields/Modified desc")
+          .get()
+      );
+
+      return response.value.map((item: any) => this.mapSharePointItemToAlert(item));
+    } catch (error) {
+      logger.warn('SharePointAlertService', 'Could not fetch draft alerts after retries', error);
+      return [];
+    }
+  }
+
+  /**
+   * Save alert as draft
+   */
+  public async saveDraft(draft: Partial<IAlertItem>): Promise<IAlertItem> {
+    const alertData: any = {
+      ...draft,
+      contentType: ContentType.Draft,
+      status: 'Draft'
+    };
+
+    if (draft.id && parseInt(draft.id) > 0) {
+      // Update existing draft
+      return this.updateAlert(draft.id, alertData);
+    } else {
+      // Create new draft
+      return this.createAlert(alertData);
+    }
+  }
+
+  /**
+   * Delete draft alert
+   */
+  public async deleteDraft(draftId: string): Promise<void> {
+    return this.deleteAlert(draftId);
   }
 
   /**
@@ -748,7 +909,7 @@ export class SharePointAlertService {
 
     try {
       await this.graphClient
-        .api(`/sites/${siteId}/lists`)
+        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
         .select('id')
         .top(1)
         .get();
@@ -770,7 +931,7 @@ export class SharePointAlertService {
 
     try {
       const createdList = await this.graphClient
-        .api(`/sites/${siteId}/lists`)
+        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
         .post(listDefinition);
       this.registerListId(siteId, this.alertTypesListName, createdList?.id);
 
@@ -922,11 +1083,36 @@ export class SharePointAlertService {
           const response = await this.graphClient
             .api(`${alertsListApi}/items`)
             .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-            .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author)")
+            .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author,Attachments,AttachmentFiles)")
+            .filter("fields/ItemType eq 'alert' and fields/Status ne 'Draft'")
             .orderby("fields/Created desc")
             .get();
 
-          const siteAlerts = response.value.map((item: any) => this.mapSharePointItemToAlert(item, siteId));
+          // Additional client-side filtering to exclude auto-saved drafts and templates
+          const siteAlerts = response.value
+            .filter((item: any) => {
+              const title = item.fields?.Title || '';
+              const itemType = item.fields?.ItemType || '';
+              const status = item.fields?.Status || '';
+
+              // Exclude drafts and templates
+              if (itemType === 'draft' || itemType === 'template') {
+                return false;
+              }
+
+              // Exclude auto-saved items
+              if (title.startsWith('[Auto-saved]')) {
+                return false;
+              }
+
+              // Exclude items with Draft status
+              if (status === 'Draft') {
+                return false;
+              }
+
+              return true;
+            })
+            .map((item: any) => this.mapSharePointItemToAlert(item, siteId));
           
           // Deduplicate alerts based on SharePoint item ID and site ID
           for (const alert of siteAlerts) {
@@ -1334,7 +1520,7 @@ export class SharePointAlertService {
    */
   private mapSharePointItemToAlert(item: any, siteId?: string): IAlertItem {
     const fields = item.fields;
-    
+
     // Debug log the raw SharePoint item to see what we're getting
     logger.debug('SharePointAlertService', 'Mapping SharePoint item to alert', {
       itemId: item.id,
@@ -1406,6 +1592,23 @@ export class SharePointAlertService {
         .reduce((acc, key) => ({ ...acc, [key]: fields[key] }), {})
     };
 
+    const safeParseMetadata = (value: any): any => {
+      if (!value) {
+        return undefined;
+      }
+
+      if (typeof value !== 'string') {
+        return value;
+      }
+
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        logger.warn('SharePointAlertService', 'Failed to parse alert metadata; ignoring value', { error, valueSnippet: value.slice(0, 100) });
+        return undefined;
+      }
+    };
+
     return {
       id: siteId ? `${siteId}-${item.id}` : item.id.toString(),
       title: fields.Title || '',
@@ -1422,13 +1625,18 @@ export class SharePointAlertService {
       createdBy: item.createdBy?.user?.displayName || item.author?.Title || 'Unknown',
       scheduledStart: fields.ScheduledStart || undefined,
       scheduledEnd: fields.ScheduledEnd || undefined,
-      metadata: fields.Metadata ? JSON.parse(fields.Metadata) : undefined,
+      metadata: safeParseMetadata(fields.Metadata),
       // Language and classification properties
       contentType: (fields.ItemType as ContentType) || ContentType.Alert,
       targetLanguage: (fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
       languageGroup: fields.LanguageGroup || undefined,
       availableForAll: fields.AvailableForAll || false,
       targetUsers: fields.TargetUsers || [],
+      attachments: fields.AttachmentFiles?.map((file: any) => ({
+        fileName: file.FileName || file.fileName || '',
+        serverRelativeUrl: file.ServerRelativeUrl || file.serverRelativeUrl || '',
+        size: file.Length || file.length || undefined
+      })) || [],
       _originalListItem: originalListItem
     };
   }

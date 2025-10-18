@@ -2,6 +2,7 @@ import * as React from "react";
 import { Button, Text } from "@fluentui/react-components";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import styles from "./AlertItem.module.scss";
+import { useLocalization } from "../Hooks/useLocalization";
 
 interface IDescriptionContentProps {
   description: string;
@@ -10,6 +11,16 @@ interface IDescriptionContentProps {
 const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ description }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const TRUNCATE_LENGTH = 200;
+  const { getString } = useLocalization();
+
+  const containsHtml = React.useMemo(() => /<[a-z][\s\S]*>/i.test(description), [description]);
+  const sanitizedHtml = React.useMemo(() => {
+    if (!containsHtml) {
+      return '';
+    }
+
+    return htmlSanitizer.sanitizeAlertContent(description);
+  }, [containsHtml, description]);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -18,17 +29,12 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   let displayedDescription = description;
   let showReadMoreButton = false;
 
-  if (!/<[a-z][\s\S]*>/i.test(description) && description.length > TRUNCATE_LENGTH && !isExpanded) {
+  if (!containsHtml && description.length > TRUNCATE_LENGTH && !isExpanded) {
     displayedDescription = description.substring(0, TRUNCATE_LENGTH) + "...";
     showReadMoreButton = true;
   }
 
-  if (/<[a-z][\s\S]*>/i.test(description)) {
-    const sanitizedHtml = React.useMemo(() =>
-      htmlSanitizer.sanitizeAlertContent(description),
-      [description]
-    );
-
+  if (containsHtml) {
     return (
       <div
         className={styles.descriptionListContainer}
@@ -97,7 +103,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
           onClick={toggleExpanded}
           className={styles.descriptionToggleButton}
         >
-          {isExpanded ? "Show Less" : "Read More"}
+          {isExpanded ? getString('ShowLess') : getString('ShowMore')}
         </Button>
       )}
     </div>

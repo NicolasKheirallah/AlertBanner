@@ -1,0 +1,185 @@
+.imageUploadContainer {
+  display: inline-block;
+  position: relative;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alignmentControls {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background-color: #f3f2f1;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadButton {
+  margin: 0 4px;
+  min-width: 32px;
+  height: 32px;
+
+  &:hover {
+    background-color: #f3f2f1;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.uploadedImagesList {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  max-width: 500px;
+}
+
+.uploadedImagesTitle {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #323130;
+}
+
+.uploadedImageItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background-color: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #8a8886;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:hover {
+    background-color: #f3f2f1;
+  }
+}
+
+.thumbnail {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #c8c6c4;
+}
+
+.imageInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.imageName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #323130;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.imageAlt {
+  font-size: 12px;
+  color: #605e5c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.removeButton {
+  flex-shrink: 0;
+  color: #a80000;
+
+  &:hover {
+    background-color: #fde7e9;
+  }
+}
+
+.existingImagesPopover {
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.existingImagesHeader {
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #323130;
+  }
+}
+
+.noImages {
+  font-size: 13px;
+  color: #605e5c;
+  font-style: italic;
+  margin: 0;
+}
+
+.existingImagesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.existingImageCard {
+  border: 1px solid #8a8886;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #ffffff;
+  transition: all 0.2s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+}
+
+.existingImageThumbnail {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 1px solid #c8c6c4;
+}
+
+.existingImageInfo {
+  margin-bottom: 8px;
+}
+
+.existingImageName {
+  font-size: 12px;
+  font-weight: 500;
+  color: #323130;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.existingImageMeta {
+  font-size: 11px;
+  color: #605e5c;
+}

@@ -1,12 +1,58 @@
-let DOMPurify: any = null;
-try {
-  DOMPurify = require('dompurify');
-} catch (error) {
-  logger.warn('HtmlSanitizer', 'DOMPurify not available in this environment', error);
-}
-
+import DOMPurifyFactory from 'dompurify';
 import { marked } from 'marked';
 import { logger } from '../Services/LoggerService';
+
+type DomPurifyInstance = ReturnType<typeof DOMPurifyFactory> | null;
+
+const createDomPurifyInstance = (): DomPurifyInstance => {
+  if (typeof window === 'undefined') {
+    logger.warn('HtmlSanitizer', 'DOMPurify not initialized because window is undefined');
+    return null;
+  }
+
+  try {
+    return DOMPurifyFactory(window as unknown as Window & typeof globalThis);
+  } catch (error) {
+    logger.warn('HtmlSanitizer', 'Failed to initialize DOMPurify', error);
+    return null;
+  }
+};
+
+const DOMPurify = createDomPurifyInstance();
+
+const DEFAULT_TRUSTED_DOMAIN_PATTERNS: RegExp[] = [
+  /(^|\.)sharepoint\.[a-z.]+$/i,
+  /(^|\.)office\.[a-z.]+$/i,
+  /(^|\.)microsoft\.[a-z.]+$/i,
+  /(^|\.)cdn\.jsdelivr\.net$/i,
+  /(^|\.)cdnjs\.cloudflare\.com$/i
+];
+
+const getConfiguredTrustedDomains = (): string[] => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  const configured = (window as any).__ALERT_BANNER_TRUSTED_DOMAINS;
+  if (!Array.isArray(configured)) {
+    return [];
+  }
+
+  return configured
+    .map(domain => (domain ?? '').toString().toLowerCase().trim())
+    .filter(domain => domain.length > 0);
+};
+
+const isTrustedHost = (hostname: string): boolean => {
+  const normalizedHost = hostname.toLowerCase();
+
+  const configuredDomains = getConfiguredTrustedDomains();
+  if (configuredDomains.some(domain => normalizedHost === domain || normalizedHost.endsWith(`.${domain}`))) {
+    return true;
+  }
+
+  return DEFAULT_TRUSTED_DOMAIN_PATTERNS.some(pattern => pattern.test(normalizedHost));
+};
 
 export class HtmlSanitizer {
   private static instance: HtmlSanitizer;
@@ -64,7 +110,8 @@ export class HtmlSanitizer {
     };
 
     try {
-      return DOMPurify.sanitize(html, config);
+      const sanitized = DOMPurify.sanitize(html, config);
+      return typeof sanitized === 'string' ? sanitized : sanitized?.toString() ?? '';
     } catch (error) {
       logger.error('HtmlSanitizer', 'DOMPurify sanitization failed, using fallback', error);
       return this.escapeHtml(html);
@@ -88,7 +135,7 @@ export class HtmlSanitizer {
 
     const html = marked(markdown);
 
-    return this.sanitizeHtml(html as string);
+    return this.sanitizeHtml(typeof html === 'string' ? html : html.toString());
   }
 
   public sanitizeAlertContent(content: string): string {
@@ -102,9 +149,9 @@ export class HtmlSanitizer {
       return this.sanitizeHtml(content, {
         ALLOWED_TAGS: [
           'div', 'span', 'p', 'br', 'strong', 'b', 'em', 'i', 'u',
-          'ul', 'ol', 'li', 'a'
+          'ul', 'ol', 'li', 'a', 'img'
         ],
-        ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'src', 'alt', 'title', 'width', 'height', 'style']
       });
     }
   }
@@ -126,10 +173,32 @@ export class HtmlSanitizer {
     if (!content) return '';
 
     return this.sanitizeHtml(content, {
-      ALLOWED_TAGS: ['strong', 'b', 'em', 'i', 'br', 'p'],
-      ALLOWED_ATTR: [],
+      ALLOWED_TAGS: ['strong', 'b', 'em', 'i', 'br', 'p', 'img'],
+      ALLOWED_ATTR: ['src', 'alt', 'width', 'height', 'style'],
       KEEP_CONTENT: true
     });
+  }
+
+  public sanitizeImageUrl(url: string): boolean {
+    if (!url) return false;
+
+    try {
+      const urlObj = new URL(url);
+
+      // Allow same origin
+      if (urlObj.origin === window.location.origin) {
+        return true;
+      }
+
+      // Allow https URLs from trusted domains
+    if (urlObj.protocol === 'https:') {
+      return isTrustedHost(urlObj.hostname);
+    }
+
+    return false;
+    } catch {
+      return false;
+    }
   }
 }
 

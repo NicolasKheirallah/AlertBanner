@@ -8,6 +8,7 @@ export interface ISiteInfo {
   name: string;
   type: 'current' | 'hub' | 'home';
   hasAlertsList?: boolean;
+  graphId?: string;
 }
 
 export interface IAlertListStatus {
@@ -65,7 +66,8 @@ export class SiteContextService {
         id: this._context.pageContext.site.id.toString(),
         url: this._context.pageContext.site.absoluteUrl,
         name: (this._context.pageContext.site as any).displayName || 'Current Site',
-        type: 'current'
+        type: 'current',
+        graphId: this.buildGraphSiteIdentifier(this._context.pageContext.web.absoluteUrl)
       };
 
       // Detect home site
@@ -109,7 +111,8 @@ export class SiteContextService {
               id: homeSiteResponse.id,
               url: homeSiteResponse.webUrl,
               name: (homeSiteResponse as any).displayName || (homeSiteResponse as any).name || 'Home Site',
-              type: 'home'
+              type: 'home',
+              graphId: homeSiteResponse.id
             };
           }
         } catch (rootError) {
@@ -159,7 +162,8 @@ export class SiteContextService {
               id: site.id || site.siteId,
               url: site.webUrl,
               name: site.displayName || site.name || 'Home Site',
-              type: 'home'
+              type: 'home',
+              graphId: site.id || site.siteId
             };
             break;
           }
@@ -172,7 +176,8 @@ export class SiteContextService {
             id: firstSite.id || firstSite.siteId,
             url: firstSite.webUrl,
             name: firstSite.displayName || firstSite.name || 'Tenant Root Site',
-            type: 'home'
+            type: 'home',
+            graphId: firstSite.id || firstSite.siteId
           };
         }
       }
@@ -201,7 +206,8 @@ export class SiteContextService {
               id: potentialHomeSite.id,
               url: potentialHomeSite.webUrl,
               name: potentialHomeSite.displayName || 'Home Site',
-              type: 'home'
+              type: 'home',
+              graphId: potentialHomeSite.id
             };
           }
         }
@@ -228,7 +234,8 @@ export class SiteContextService {
           id: hubSiteId,
           url: hubResponse.webUrl,
           name: (hubResponse as any).displayName || (hubResponse as any).name || 'Hub Site',
-          type: 'hub'
+          type: 'hub',
+          graphId: hubResponse.id
         };
       }
     } catch (error) {
@@ -240,12 +247,12 @@ export class SiteContextService {
    * Check if alert lists exist on all relevant sites
    */
   private async checkAlertLists(): Promise<void> {
-    const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo].filter(Boolean);
-    
+    const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo].filter(Boolean) as ISiteInfo[];
+
     for (const site of sites) {
       if (site) {
         try {
-          site.hasAlertsList = await this.checkAlertListExists(site.id);
+          site.hasAlertsList = await this.checkAlertListExists(site);
         } catch (error) {
           logger.warn('SiteContextService', `Failed to check alerts list for site ${site.name}`, error);
           site.hasAlertsList = false;
@@ -257,12 +264,17 @@ export class SiteContextService {
   /**
    * Check if alerts list exists on a specific site
    */
-  public async checkAlertListExists(siteId: string): Promise<boolean> {
+  public async checkAlertListExists(site: ISiteInfo): Promise<boolean> {
     try {
-      await this._graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}`)
+      const graphSiteId = site.graphId ?? this.buildGraphSiteIdentifier(site.url);
+      const response = await this._graphClient
+        .api(`/sites/${graphSiteId}/lists`)
+        .filter(`displayName eq '${this.alertsListName}'`)
+        .select('id')
+        .top(1)
         .get();
-      return true;
+
+      return Array.isArray(response?.value) && response.value.length > 0;
     } catch (error) {
       return false;
     }
@@ -271,13 +283,16 @@ export class SiteContextService {
   /**
    * Get detailed status of alerts list on a site
    */
-  public async getAlertListStatus(siteId: string): Promise<IAlertListStatus> {
+  public async getAlertListStatus(site: ISiteInfo): Promise<IAlertListStatus> {
     try {
+      const graphSiteId = site.graphId ?? this.buildGraphSiteIdentifier(site.url);
       // Try to access the list
       await this._graphClient
-        .api(`/sites/${siteId}/lists/${this.alertsListName}`)
+        .api(`/sites/${graphSiteId}/lists`)
+        .filter(`displayName eq '${this.alertsListName}'`)
+        .top(1)
         .get();
-      
+
       return {
         exists: true,
         canAccess: true,
@@ -289,7 +304,7 @@ export class SiteContextService {
         try {
           // Test permissions by trying to get all lists
           await this._graphClient
-            .api(`/sites/${siteId}/lists`)
+            .api(`/sites/${site.graphId ?? this.buildGraphSiteIdentifier(site.url)}/lists`)
             .select('id')
             .top(1)
             .get();
@@ -436,17 +451,17 @@ export class SiteContextService {
     
     // Always include home site alerts (shown everywhere)
     if (this._homeSiteInfo?.hasAlertsList) {
-      siteIds.push(this._homeSiteInfo.id);
+      siteIds.push(this._homeSiteInfo.graphId ?? this.buildGraphSiteIdentifier(this._homeSiteInfo.url));
     }
 
     // Include hub site alerts if current site is connected to hub
     if (this._hubSiteInfo?.hasAlertsList && this._context.pageContext.legacyPageContext.hubSiteId) {
-      siteIds.push(this._hubSiteInfo.id);
+      siteIds.push(this._hubSiteInfo.graphId ?? this.buildGraphSiteIdentifier(this._hubSiteInfo.url));
     }
 
     // Always include current site alerts
     if (this._currentSiteInfo?.hasAlertsList) {
-      siteIds.push(this._currentSiteInfo.id);
+      siteIds.push(this._currentSiteInfo.graphId ?? this.buildGraphSiteIdentifier(this._currentSiteInfo.url));
     }
 
     return siteIds;
@@ -487,10 +502,11 @@ export class SiteContextService {
     return this._graphClient;
   }
 
-  /**
-   * Utility methods
-   */
-  // Removed unused extractHostnameFromUrl and extractPathFromUrl methods
+  private buildGraphSiteIdentifier(siteUrl: string): string {
+    const normalizedUrl = new URL(siteUrl);
+    const path = normalizedUrl.pathname && normalizedUrl.pathname !== '/' ? normalizedUrl.pathname : '/';
+    return `${normalizedUrl.hostname}:${path}`;
+  }
 
   /**
    * Refresh site context (useful after list creation)

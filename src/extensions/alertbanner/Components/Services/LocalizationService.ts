@@ -1,6 +1,8 @@
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { logger } from './LoggerService';
-import { STATIC_STRINGS } from './StaticStrings';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable global-require */
 
 export interface ILanguageInfo {
   code: string;
@@ -12,6 +14,17 @@ export interface ILanguageInfo {
 export interface ILocalizationStrings {
   [key: string]: string;
 }
+
+const LANGUAGE_STRINGS: { [key: string]: ILocalizationStrings } = {
+  'en-us': require('../../loc/en-us.js') as ILocalizationStrings,
+  'fr-fr': require('../../loc/fr-fr.js') as ILocalizationStrings,
+  'de-de': require('../../loc/de-de.js') as ILocalizationStrings,
+  'es-es': require('../../loc/es-es.js') as ILocalizationStrings,
+  'sv-se': require('../../loc/sv-se.js') as ILocalizationStrings,
+  'fi-fi': require('../../loc/fi-fi.js') as ILocalizationStrings,
+  'da-dk': require('../../loc/da-dk.js') as ILocalizationStrings,
+  'nb-no': require('../../loc/nb-no.js') as ILocalizationStrings
+};
 
 export class LocalizationService {
   private static _instance: LocalizationService;
@@ -295,20 +308,17 @@ export class LocalizationService {
   }
 
   private async loadLanguageStrings(languageCode: string): Promise<void> {
-    // Use static strings directly - more reliable than dynamic imports
-    this._strings = this.getStaticStrings(languageCode);
-    logger.debug('LocalizationService', `Loaded static strings for ${languageCode}`);
+    this._strings = this.getLanguageStrings(languageCode);
+    logger.debug('LocalizationService', `Loaded localization strings for ${languageCode}`);
   }
 
-
-  private getStaticStrings(languageCode: string): ILocalizationStrings {
-    // Use comprehensive static strings with fallback
-    return STATIC_STRINGS[languageCode] || STATIC_STRINGS['en-us'] || {};
+  private getLanguageStrings(languageCode: string): ILocalizationStrings {
+    return LANGUAGE_STRINGS[languageCode] || LANGUAGE_STRINGS['en-us'] || {};
   }
 
   private async loadFallbackStrings(): Promise<void> {
     try {
-      this._fallbackStrings = this.getStaticStrings('en-us');
+      this._fallbackStrings = this.getLanguageStrings('en-us');
     } catch (error) {
       logger.warn('LocalizationService', 'Failed to load fallback language strings', error);
       this._fallbackStrings = {};

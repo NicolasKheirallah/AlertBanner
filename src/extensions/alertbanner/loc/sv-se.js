@@ -50,6 +50,36 @@ define([], function() {
     "AlertTypesHelpText": "Varje varningstyp bör ha: namn, ikonnamn, bakgrundsfärg, textfärg, ytterligare stilar och prioritetsstilar",
     "SaveSettings": "Spara inställningar",
     "InvalidJSONError": "Ogiltigt JSON-format i konfiguration av varningstyper. Kontrollera din syntax.",
+    "ManageAlerts": "Manage Alerts",
+    "AlertTypesTabTitle": "Alert Types",
+    "SettingsTabTitle": "Settings",
+
+    // Create Alert Form
+    "CreateAlertSectionContentClassificationTitle": "Content Classification",
+    "ContentTypeLabel": "Content Type",
+    "CreateAlertSectionContentClassificationDescription": "Choose how this alert content should be classified.",
+    "CreateAlertLanguageConfigurationLabel": "Language Configuration",
+    "CreateAlertSingleLanguageButton": "Single Language",
+    "CreateAlertMultiLanguageButton": "Multi-language",
+    "CreateAlertSectionLanguageTargetingTitle": "Language Targeting",
+    "CreateAlertTargetLanguageLabel": "Target Language",
+    "CreateAlertSectionLanguageTargetingDescription": "Select the language that should receive this alert.",
+    "CreateAlertSectionBasicInformationTitle": "Basic Information",
+    "CreateAlertTitlePlaceholder": "Enter alert title",
+    "CreateAlertTitleDescription": "Provide a short, descriptive title for your alert.",
+    "CreateAlertDescriptionPlaceholder": "Enter alert details",
+    "CreateAlertDescriptionHelp": "Use rich text to provide the full alert message. You can include links and formatting.",
+    "CreateAlertPriorityLowDescription": "Allmän uppdatering eller låg angelägenhet.",
+    "CreateAlertPriorityMediumDescription": "Viktig information som bör ses snart.",
+    "CreateAlertPriorityHighDescription": "Tidskritisk varning som kräver snabb uppmärksamhet.",
+    "CreateAlertPriorityCriticalDescription": "Kritisk incident eller avbrott som kräver omedelbar åtgärd.",
+    "CreateAlertNotificationNoneDescription": "Skicka ingen avisering – användarna ser endast bannern.",
+    "CreateAlertNotificationBrowserDescription": "Skicka en webbläsaravisering tillsammans med bannern.",
+    "CreateAlertNotificationEmailDescription": "Skicka ett e-postmeddelande till målgruppen när varningen publiceras.",
+    "CreateAlertNotificationBothDescription": "Skicka både webbläsar- och e-postaviseringar.",
+    "CreateAlertContentTypeAlertDescription": "Publicera en engångsvarning direkt i bannern.",
+    "CreateAlertContentTypeTemplateDescription": "Spara konfigurationen som en återanvändbar mall.",
+    "CreateAlertTargetLanguageAll": "Alla stödda språk",
     
     // Alert Management
     "CreateAlert": "Skapa varning",
@@ -159,6 +189,21 @@ define([], function() {
     "CollapseAlert": "Minimera varning",
     "AlertActions": "Varningsåtgärder",
     "PinAlert": "Fäst varning",
-    "UnpinAlert": "Ta bort fästning av varning"
+    "UnpinAlert": "Ta bort fästning av varning",
+
+    // Alert UI
+    "AlertHeaderPriorityTooltip": "Priority: {0}",
+    "AttachmentsHeader": "📎 Attachments ({0})",
+    "FileSizeKilobytes": "{0} KB",
+    "FileSizeMegabytes": "{0} MB",
+    "AlertActionsOpenLink": "Open link",
+    "AlertActionsPrevious": "Previous alert",
+    "AlertActionsNext": "Next alert",
+    "AlertActionsDismiss": "Dismiss alert",
+    "AlertActionsHideForever": "Hide alert forever",
+    "AlertCarouselCounter": "{0} of {1}",
+    "DefaultAlertTypeName": "Default",
+    "AlertsLoadErrorTitle": "Unable to load alerts",
+    "AlertsLoadErrorFallback": "An error occurred while loading alerts. Please try refreshing the page or contact your administrator if the problem persists."
   }
 });

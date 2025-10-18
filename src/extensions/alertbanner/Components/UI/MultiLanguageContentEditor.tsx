@@ -29,6 +29,8 @@ export interface IMultiLanguageContentEditorProps {
   errors?: { [key: string]: string };
   linkUrl?: string;
   tenantDefaultLanguage?: TargetLanguage;
+  context?: any; // ApplicationCustomizerContext for image uploads
+  imageFolderName?: string; // Shared folder name for all language variants
 }
 
 const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = ({
@@ -37,7 +39,9 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
   availableLanguages,
   errors = {},
   linkUrl,
-  tenantDefaultLanguage = TargetLanguage.EnglishUS
+  tenantDefaultLanguage = TargetLanguage.EnglishUS,
+  context,
+  imageFolderName
 }) => {
   const [selectedTab, setSelectedTab] = React.useState<string>('');
   
@@ -204,6 +208,8 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
                         value={contentItem.description}
                         onChange={(value) => updateContent(contentItem.language, 'description', value)}
                         placeholder={`Enter alert description in ${langInfo?.nativeName}...`}
+                        context={context}
+                        imageFolderName={imageFolderName}
                       />
                     </Field>
 

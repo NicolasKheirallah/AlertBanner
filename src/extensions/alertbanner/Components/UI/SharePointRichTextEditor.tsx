@@ -1,7 +1,10 @@
 import * as React from "react";
 import { RichText } from "@pnp/spfx-controls-react/lib/RichText";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+import EmojiPicker from './EmojiPicker';
+import ImageUpload from './ImageUpload';
 import styles from "./SharePointRichTextEditor.module.scss";
+import { createPortal } from "react-dom";
 
 export interface IRichTextStyleOptions {
   showBold?: boolean;
@@ -46,7 +49,45 @@ export interface ISharePointRichTextEditorProps {
   ariaDescribedBy?: string;
   // Performance options
   debounceMs?: number;
+  // Image upload folder customization
+  imageFolderName?: string; // Custom folder name for image uploads (e.g., alert title)
 }
+
+const escapeHtmlAttribute = (value: string): string => {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+};
+
+const MAX_IMAGE_WIDTH_PX = 300;
+
+let quillImageResizePromise: Promise<any> | null = null;
+const ensureQuillImageResizeModule = (): Promise<any> => {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Image resize module requires a browser environment.'));
+  }
+
+  if (!quillImageResizePromise) {
+    quillImageResizePromise = (async () => {
+      const globalAny = window as any;
+      const Quill = globalAny.Quill ?? (await import('quill')).default;
+
+      if (!(Quill as any).imports?.['modules/imageResize']) {
+        const ImageResizeModule = (await import('quill-image-resize-module')).default;
+        Quill.register('modules/imageResize', ImageResizeModule);
+      }
+
+      return Quill;
+    })().catch(error => {
+      quillImageResizePromise = null;
+      throw error;
+    });
+  }
+
+  return quillImageResizePromise;
+};
 
 const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
   label,
@@ -69,13 +110,54 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
   restrictedElements = ['script', 'iframe', 'object', 'embed'],
   ariaLabel,
   ariaDescribedBy,
-  debounceMs = 300
+  debounceMs = 300,
+  imageFolderName
 }) => {
   const [internalValue, setInternalValue] = React.useState(value);
   const [characterCount, setCharacterCount] = React.useState(0);
   const [validationError, setValidationError] = React.useState<string>('');
   const debounceRef = React.useRef<number>();
+  const richTextRef = React.useRef<RichText | null>(null);
   const uniqueId = React.useMemo(() => id || `richtext-${Math.random().toString(36).substring(2, 11)}`, [id]);
+  const [toolbarElement, setToolbarElement] = React.useState<HTMLElement | null>(null);
+
+  const clampImageElement = React.useCallback((image: HTMLImageElement): void => {
+    const parsePxWidth = (value: string): number | undefined => {
+      if (!value) {
+        return undefined;
+      }
+      const match = value.match(/([\d.]+)px/i);
+      if (!match) {
+        return undefined;
+      }
+      const parsed = parseFloat(match[1]);
+      return isNaN(parsed) ? undefined : parsed;
+    };
+
+    const inlineWidth = parsePxWidth(image.style.width);
+
+    let targetWidth = inlineWidth;
+    if (targetWidth === undefined || targetWidth <= 0) {
+      const naturalWidth = image.naturalWidth || image.width || MAX_IMAGE_WIDTH_PX;
+      targetWidth = naturalWidth;
+    }
+
+    targetWidth = Math.min(Math.max(targetWidth || MAX_IMAGE_WIDTH_PX, 1), MAX_IMAGE_WIDTH_PX);
+
+    image.style.width = `${targetWidth}px`;
+    image.style.height = 'auto';
+    image.removeAttribute('width');
+    image.removeAttribute('height');
+  }, []);
+
+  const clampAllImages = React.useCallback((root: HTMLElement | null) => {
+    if (!root) {
+      return;
+    }
+
+    const images = root.querySelectorAll('img');
+    images.forEach(img => clampImageElement(img as HTMLImageElement));
+  }, [clampImageElement]);
 
   // Update internal value when prop changes
   React.useEffect(() => {
@@ -179,6 +261,218 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
   const isOverLimit = characterCount > maxLength;
   const describedBy = ariaDescribedBy || (description ? `${uniqueId}-description` : undefined);
 
+  const handleInsertUploadedImage = React.useCallback((imageUrl: string, file: File, _requestedWidth?: number) => {
+    const editorInstance = richTextRef.current?.getEditor?.();
+    const defaultAltText = file.name
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[_\-]+/g, ' ')
+      .trim();
+
+    if (editorInstance) {
+      const selection = editorInstance.getSelection(true);
+      const insertIndex = selection ? selection.index : editorInstance.getLength();
+      editorInstance.insertEmbed(insertIndex, 'image', imageUrl, 'user');
+      editorInstance.setSelection(insertIndex + 1, 0);
+
+      window.setTimeout(() => {
+        const root = editorInstance.root as HTMLElement;
+        const images = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
+        const insertedImage = images.find(img => img.src === imageUrl) || images[images.length - 1];
+        if (insertedImage) {
+          insertedImage.alt = defaultAltText || file.name;
+          const ensureClamp = () => clampImageElement(insertedImage);
+          if (insertedImage.complete) {
+            ensureClamp();
+          } else {
+            insertedImage.addEventListener('load', ensureClamp, { once: true });
+          }
+        }
+        handleEditorChange(root.innerHTML);
+      }, 0);
+
+      return;
+    }
+
+    const altAttribute = escapeHtmlAttribute(defaultAltText || file.name);
+    const imageMarkup = `<p><img src="${imageUrl}" alt="${altAttribute}" style="width:${MAX_IMAGE_WIDTH_PX}px;height:auto;" /></p>`;
+    const newHtml = internalValue ? `${internalValue}${imageMarkup}` : imageMarkup;
+    handleEditorChange(newHtml);
+  }, [internalValue, handleEditorChange, clampImageElement]);
+
+  React.useEffect(() => {
+    let disposed = false;
+
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const attachModule = () => {
+      const editor = richTextRef.current?.getEditor?.();
+      if (!editor) {
+        if (!disposed) {
+          window.setTimeout(attachModule, 100);
+        }
+        return;
+      }
+
+      ensureQuillImageResizeModule()
+        .then(Quill => {
+          if (disposed) {
+            return;
+          }
+
+          const editorAny = editor as any;
+          const existing = editorAny.getModule?.('imageResize');
+          if (existing) {
+            return;
+          }
+
+          const options = {
+            modules: ['Resize', 'DisplaySize'],
+            displayStyles: {
+              backgroundColor: 'rgba(255,255,255,0.85)',
+              border: '1px solid #605e5c',
+              color: '#323130',
+              fontSize: '12px',
+              padding: '2px 4px',
+              borderRadius: '2px'
+            }
+          };
+
+          const currentOptions = editorAny.options || {};
+          const currentModules = currentOptions.modules || {};
+
+          editorAny.options = {
+            ...currentOptions,
+            modules: {
+              ...currentModules,
+              imageResize: {
+                ...(currentModules.imageResize || {}),
+                ...options
+              }
+            }
+          };
+
+          const ModuleCtor = Quill.import('modules/imageResize');
+          editorAny.modules = {
+            ...(editorAny.modules || {}),
+            imageResize: new ModuleCtor(editorAny, editorAny.options.modules.imageResize)
+          };
+        })
+        .catch(error => {
+          console.error('Failed to initialize Quill image resize module', error);
+        });
+    };
+
+    attachModule();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let cancelled = false;
+
+    const locateToolbar = () => {
+      const editorElement = document.getElementById(uniqueId);
+      if (!editorElement) {
+        if (!cancelled) {
+          window.setTimeout(locateToolbar, 100);
+        }
+        return;
+      }
+
+      const container = editorElement.closest('.ql-container');
+      const toolbar = container?.previousElementSibling as HTMLElement | null;
+
+      if (!toolbar) {
+        if (!cancelled) {
+          window.setTimeout(locateToolbar, 100);
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        setToolbarElement(toolbar);
+      }
+    };
+
+    locateToolbar();
+
+    return () => {
+      cancelled = true;
+      setToolbarElement(null);
+    };
+  }, [uniqueId]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+
+    const attachClamp = () => {
+      const editor = richTextRef.current?.getEditor?.();
+      if (!editor) {
+        if (!disposed) {
+          window.setTimeout(attachClamp, 100);
+        }
+        return;
+      }
+
+      const editorAny = editor as any;
+      const root = editor.root as HTMLElement;
+
+      const applyClamp = () => clampAllImages(root);
+      applyClamp();
+
+      const handler = () => applyClamp();
+      editorAny.on?.('text-change', handler);
+
+      cleanup = () => {
+        editorAny.off?.('text-change', handler);
+      };
+    };
+
+    attachClamp();
+
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, [clampAllImages]);
+
+  const renderMediaToolbar = React.useCallback(() => {
+    if (!context) {
+      return null;
+    }
+
+    return (
+      <div className={styles.mediaToolbar}>
+        <EmojiPicker
+          onEmojiSelect={(emoji) => {
+            const newValue = internalValue + emoji;
+            handleEditorChange(newValue);
+          }}
+          disabled={disabled}
+        />
+        <ImageUpload
+          context={context}
+          folderName={imageFolderName}
+          onImageUploaded={handleInsertUploadedImage}
+          disabled={disabled}
+        />
+      </div>
+    );
+  }, [context, disabled, handleEditorChange, handleInsertUploadedImage, imageFolderName, internalValue]);
+
   return (
     <div className={`${styles.field} ${className || ''} ${currentError ? styles.error : ''}`}>
       <div className={styles.labelContainer}>
@@ -210,6 +504,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
       <div className={`${styles.editorContainer} ${currentError ? styles.editorError : ''}`}>
         <RichText
           id={uniqueId}
+          ref={richTextRef}
           value={internalValue}
           onChange={handleEditorChange}
           placeholder={placeholder}
@@ -224,6 +519,12 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
           aria-required={required}
           aria-invalid={!!currentError}
         />
+
+        {context && (
+          toolbarElement
+            ? createPortal(renderMediaToolbar(), toolbarElement)
+            : renderMediaToolbar()
+        )}
       </div>
 
       {currentError && (

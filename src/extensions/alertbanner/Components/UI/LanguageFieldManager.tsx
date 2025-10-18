@@ -126,14 +126,14 @@ interface ILanguageFieldManagerProps {
 }
 
 const DEFAULT_LANGUAGES: ILanguage[] = [
-  { code: "en-us", name: "English (US)", nativeName: "English", flag: "🇺🇸", isAdded: true }, // Only English preselected
-  { code: "fr-fr", name: "French (France)", nativeName: "Français", flag: "🇫🇷", isAdded: false },
-  { code: "sv-se", name: "Swedish (Sweden)", nativeName: "Svenska", flag: "🇸🇪", isAdded: false },
-  { code: "de-de", name: "German (Germany)", nativeName: "Deutsch", flag: "🇩🇪", isAdded: false },
-  { code: "es-es", name: "Spanish (Spain)", nativeName: "Español", flag: "🇪🇸", isAdded: false },
-  { code: "fi-fi", name: "Finnish (Finland)", nativeName: "Suomi", flag: "🇫🇮", isAdded: false },
-  { code: "da-dk", name: "Danish (Denmark)", nativeName: "Dansk", flag: "🇩🇰", isAdded: false },
-  { code: "nb-no", name: "Norwegian (Norway)", nativeName: "Norsk", flag: "🇳🇴", isAdded: false }
+  { code: "en-us", name: "English", nativeName: "English", flag: "🇺🇸", isAdded: true }, // Only English preselected
+  { code: "fr-fr", name: "French", nativeName: "Français", flag: "🇫🇷", isAdded: false },
+  { code: "sv-se", name: "Swedish", nativeName: "Svenska", flag: "🇸🇪", isAdded: false },
+  { code: "de-de", name: "German", nativeName: "Deutsch", flag: "🇩🇪", isAdded: false },
+  { code: "es-es", name: "Spanish", nativeName: "Español", flag: "🇪🇸", isAdded: false },
+  { code: "fi-fi", name: "Finnish", nativeName: "Suomi", flag: "🇫🇮", isAdded: false },
+  { code: "da-dk", name: "Danish", nativeName: "Dansk", flag: "🇩🇰", isAdded: false },
+  { code: "nb-no", name: "Norwegian", nativeName: "Norsk", flag: "🇳🇴", isAdded: false }
 ];
 
 const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({

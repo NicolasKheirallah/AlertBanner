@@ -13,6 +13,7 @@ import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertSettings.module.scss";
 import { logger } from '../Services/LoggerService';
+import { useLocalization } from "../Hooks/useLocalization";
 
 export interface IAlertSettingsTabsProps {
   isInEditMode: boolean;
@@ -33,6 +34,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   context,
   onSettingsChange
 }) => {
+  const { getString } = useLocalization();
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"create" | "manage" | "types" | "settings">("create");
 
@@ -111,10 +113,16 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       try {
         const types = await alertService.current.getAlertTypes();
         setAlertTypes(types);
-        
-        // Set first alert type as default
-        if (types.length > 0 && !newAlert.AlertType) {
-          setNewAlert(prev => ({ ...prev, AlertType: types[0].name }));
+
+        // Set first alert type as default if none is selected
+        if (types.length > 0) {
+          setNewAlert(prev => {
+            // Only set default if AlertType is empty or invalid
+            if (!prev.AlertType || !types.find(t => t.name === prev.AlertType)) {
+              return { ...prev, AlertType: types[0].name };
+            }
+            return prev;
+          });
         }
       } catch (error) {
         logger.error('AlertSettingsTabs', 'Error loading alert types from SharePoint', error);
@@ -183,7 +191,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       <SharePointDialog
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Alert Banner Settings"
+        title={getString('AlertSettingsTitle')}
         width={1200}
         height={800}
       >
@@ -196,21 +204,21 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
               className={`${styles.tab} ${activeTab === "create" ? styles.activeTab : ""}`}
               icon={<Add24Regular />}
             >
-              Create Alert
+              {getString('CreateAlert')}
             </SharePointButton>
             <SharePointButton
               variant="secondary"
               onClick={() => setActiveTab("manage")}
               className={`${styles.tab} ${activeTab === "manage" ? styles.activeTab : ""}`}
             >
-              Manage Alerts
+              {getString('ManageAlerts')}
             </SharePointButton>
             <SharePointButton
               variant="secondary"
               onClick={() => setActiveTab("types")}
               className={`${styles.tab} ${activeTab === "types" ? styles.activeTab : ""}`}
             >
-              Alert Types
+              {getString('AlertTypesTabTitle')}
             </SharePointButton>
             <SharePointButton
               variant="secondary"
@@ -218,7 +226,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
               className={`${styles.tab} ${activeTab === "settings" ? styles.activeTab : ""}`}
               icon={<Settings24Regular />}
             >
-              Settings
+              {getString('SettingsTabTitle')}
             </SharePointButton>
           </div>
 

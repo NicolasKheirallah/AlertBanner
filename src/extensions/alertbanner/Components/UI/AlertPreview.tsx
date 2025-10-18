@@ -36,41 +36,47 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     }
   };
 
-  const calculatedTextColor = getContrastText(alertType.backgroundColor);
-  const textColor = calculatedTextColor;
-
+  // Always use white background for preview with dark text
   const containerStyle: React.CSSProperties = {
-    backgroundColor: alertType.backgroundColor,
-    color: textColor,
-    border: alertType.backgroundColor === '#ffffff' || alertType.backgroundColor.toLowerCase() === 'white' ? '1px solid #edebe9' : undefined,
+    backgroundColor: '#ffffff',
+    color: '#323130', // Dark grey text
+    border: '1px solid #edebe9',
   };
 
   const textStyle: React.CSSProperties = {
-    color: textColor,
-    textShadow: textColor === '#ffffff'
-      ? '0 1px 3px rgba(0, 0, 0, 0.5)'
-      : 'none', 
+    color: '#323130', // Dark grey text
+    textShadow: 'none',
     WebkitFontSmoothing: 'antialiased',
     MozOsxFontSmoothing: 'grayscale',
   };
 
-  // Header style using calculated text color for proper contrast
+  // Use the alert type's background color for priority indicators
+  const priorityColor = alertType.backgroundColor;
+  const priorityTextColor = getContrastText(priorityColor);
+
+  // Header style - uses alert type background color
   const headerStyle: React.CSSProperties = {
-    backgroundColor: alertType.backgroundColor,
-    color: textColor, 
-    border: alertType.backgroundColor === '#ffffff' || alertType.backgroundColor.toLowerCase() === 'white' ? '1px solid #edebe9' : undefined,
+    backgroundColor: priorityColor,
+    color: priorityTextColor,
+    border: '1px solid #edebe9',
+  };
+
+  // Container style with left border showing priority color
+  const alertContainerStyle: React.CSSProperties = {
+    ...containerStyle,
+    borderLeft: `4px solid ${priorityColor}`,
   };
 
   return (
     <div className={`${styles.previewContainer} ${className || ''}`}>
       <div className={styles.previewHeader} style={headerStyle}>
-        <h4 style={{ color: textColor }}>Live Preview</h4>
-        <span className={styles.previewNote} style={{ color: textColor, opacity: 0.8 }}>This is how your alert will appear</span>
+        <h4 style={{ color: priorityTextColor }}>Live Preview</h4>
+        <span className={styles.previewNote} style={{ color: priorityTextColor, opacity: 0.9 }}>This is how your alert will appear</span>
       </div>
 
       <div
         className={`${styles.alertPreview} ${getPriorityClass(priority)} ${isPinned ? styles.pinned : ''}`}
-        style={containerStyle}
+        style={alertContainerStyle}
       >
         <div className={styles.headerRow}>
           <div className={styles.iconSection}>

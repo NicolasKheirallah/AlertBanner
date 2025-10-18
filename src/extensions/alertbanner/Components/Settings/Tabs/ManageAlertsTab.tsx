@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Delete24Regular, Edit24Regular, Globe24Regular, Save24Regular, Eye24Regular, Filter24Regular, Search24Regular, Calendar24Regular, ChevronDown24Regular, ChevronUp24Regular } from "@fluentui/react-icons";
+import { Delete24Regular, Edit24Regular, Globe24Regular, Save24Regular, Eye24Regular, Filter24Regular, Search24Regular, Calendar24Regular, ChevronDown24Regular, ChevronUp24Regular, Drafts24Regular, Send24Regular } from "@fluentui/react-icons";
 import {
   SharePointButton,
   SharePointInput,
@@ -13,6 +13,8 @@ import SharePointDialog from "../../UI/SharePointDialog";
 import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
 import AlertPreview from "../../UI/AlertPreview";
 import SiteSelector from "../../UI/SiteSelector";
+import AttachmentManager from "../../UI/AttachmentManager";
+import ImageManager from "../../UI/ImageManager";
 import { AlertPriority, NotificationType, IAlertType, TargetLanguage, ContentType } from "../../Alerts/IAlerts";
 import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
 import { logger } from '../../Services/LoggerService';
@@ -20,7 +22,7 @@ import { NotificationService } from '../../Services/NotificationService';
 import { SiteContextDetector } from "../../Utils/SiteContextDetector";
 import { SharePointAlertService, IAlertItem } from "../../Services/SharePointAlertService";
 import { htmlSanitizer } from "../../Utils/HtmlSanitizer";
-import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
 
@@ -147,20 +149,21 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   // Content type options (matching CreateAlerts)
   const contentTypeOptions: ISharePointSelectOption[] = [
     { value: ContentType.Alert, label: "📢 Alert - Live content for users" },
-    { value: ContentType.Template, label: "📄 Template - Reusable template for future alerts" }
+    { value: ContentType.Template, label: "📄 Template - Reusable template for future alerts" },
+    { value: ContentType.Draft, label: "✏️ Draft - Work in progress" }
   ];
 
   // Language options (matching CreateAlerts)  
   const languageOptions: ISharePointSelectOption[] = [
     { value: TargetLanguage.All, label: "🌐 All Languages" },
-    { value: TargetLanguage.EnglishUS, label: "🇺🇸 English (US)" },
-    { value: TargetLanguage.FrenchFR, label: "🇫🇷 French (France)" },
-    { value: TargetLanguage.GermanDE, label: "🇩🇪 German (Germany)" },
-    { value: TargetLanguage.SpanishES, label: "🇪🇸 Spanish (Spain)" },
-    { value: TargetLanguage.SwedishSE, label: "🇸🇪 Swedish (Sweden)" },
-    { value: TargetLanguage.FinnishFI, label: "🇫🇮 Finnish (Finland)" },
-    { value: TargetLanguage.DanishDK, label: "🇩🇰 Danish (Denmark)" },
-    { value: TargetLanguage.NorwegianNO, label: "🇳🇴 Norwegian (Norway)" }
+    { value: TargetLanguage.EnglishUS, label: "🇺🇸 English" },
+    { value: TargetLanguage.FrenchFR, label: "🇫🇷 French" },
+    { value: TargetLanguage.GermanDE, label: "🇩🇪 German" },
+    { value: TargetLanguage.SpanishES, label: "🇪🇸 Spanish" },
+    { value: TargetLanguage.SwedishSE, label: "🇸🇪 Swedish" },
+    { value: TargetLanguage.FinnishFI, label: "🇫🇮 Finnish" },
+    { value: TargetLanguage.DanishDK, label: "🇩🇰 Danish" },
+    { value: TargetLanguage.NorwegianNO, label: "🇳🇴 Norwegian" }
   ];
 
   // Load supported languages and tenant default on component mount
@@ -286,14 +289,73 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     }
 
     try {
+      // Find the alert to get its folder name
+      const alert = existingAlerts.find(a => a.id === alertId);
+      const folderName = alert?.languageGroup || alertTitle;
+
+      // Delete the alert from SharePoint list
       await alertService.deleteAlert(alertId);
+
+      // Delete the associated image folder
+      try {
+        const siteUrl = context.pageContext.web.absoluteUrl;
+        const serverRelativeUrl = context.pageContext.web.serverRelativeUrl;
+        const cleanServerRelativeUrl = serverRelativeUrl.startsWith('/')
+          ? serverRelativeUrl.substring(1)
+          : serverRelativeUrl;
+
+        const folderPath = cleanServerRelativeUrl
+          ? `/${cleanServerRelativeUrl}/SiteAssets/AlertBannerImages/${folderName}`
+          : `/SiteAssets/AlertBannerImages/${folderName}`;
+
+        const deleteFolderUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderPath)}')`;
+
+        await context.spHttpClient.post(
+          deleteFolderUrl,
+          SPHttpClient.configurations.v1,
+          {
+            headers: {
+              'X-HTTP-Method': 'DELETE',
+              'IF-MATCH': '*'
+            }
+          }
+        );
+
+        logger.info('ManageAlertsTab', 'Image folder deleted successfully', { folderName });
+      } catch (folderError) {
+        // Folder deletion is optional - log warning if it fails but don't block the alert deletion
+        logger.warn('ManageAlertsTab', 'Could not delete image folder (may not exist)', { folderName, error: folderError });
+      }
+
       await loadExistingAlerts();
       notificationService.showSuccess(`Successfully deleted "${alertTitle}"`, 'Alert Deleted');
     } catch (error) {
       logger.error('ManageAlertsTab', 'Error deleting alert', error);
       notificationService.showError('Failed to delete alert. Please try again.', 'Deletion Failed');
     }
-  }, [alertService, loadExistingAlerts]);
+  }, [alertService, loadExistingAlerts, notificationService, existingAlerts, context]);
+
+  const handlePublishDraft = React.useCallback(async (draft: IAlertItem) => {
+    if (!confirm(`Publish "${draft.title}" as a live alert? It will be visible to users immediately.`)) {
+      return;
+    }
+
+    try {
+      // Update the draft to convert it to an alert
+      const publishedAlert: Partial<IAlertItem> = {
+        ...draft,
+        contentType: ContentType.Alert,
+        status: 'Active' as any
+      };
+
+      await alertService.updateAlert(draft.id, publishedAlert);
+      await loadExistingAlerts();
+      notificationService.showSuccess(`Successfully published "${draft.title}"`, 'Draft Published');
+    } catch (error) {
+      logger.error('ManageAlertsTab', 'Error publishing draft', error);
+      notificationService.showError('Failed to publish draft. Please try again.', 'Publish Failed');
+    }
+  }, [alertService, loadExistingAlerts, notificationService]);
 
   const validateEditForm = React.useCallback((): boolean => {
     if (!editingAlert) return false;
@@ -697,13 +759,41 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 </div>
               </div>
 
+              {/* Quick Content Type Tabs */}
+              <div className={styles.templateActions} style={{ marginBottom: '12px' }}>
+                <SharePointButton
+                  variant={contentTypeFilter === ContentType.Alert ? "primary" : "secondary"}
+                  onClick={() => setContentTypeFilter(ContentType.Alert)}
+                >
+                  📢 Alerts ({existingAlerts.filter(a => a.contentType === ContentType.Alert).length})
+                </SharePointButton>
+                <SharePointButton
+                  variant={contentTypeFilter === ContentType.Draft ? "primary" : "secondary"}
+                  onClick={() => setContentTypeFilter(ContentType.Draft)}
+                >
+                  ✏️ Drafts ({existingAlerts.filter(a => a.contentType === ContentType.Draft).length})
+                </SharePointButton>
+                <SharePointButton
+                  variant={contentTypeFilter === ContentType.Template ? "primary" : "secondary"}
+                  onClick={() => setContentTypeFilter(ContentType.Template)}
+                >
+                  📄 Templates ({existingAlerts.filter(a => a.contentType === ContentType.Template).length})
+                </SharePointButton>
+                <SharePointButton
+                  variant={contentTypeFilter === 'all' ? "primary" : "secondary"}
+                  onClick={() => setContentTypeFilter('all')}
+                >
+                  📋 All ({existingAlerts.length})
+                </SharePointButton>
+              </div>
+
               {/* Search Bar - Always Visible */}
               <div className={styles.searchBar}>
                 <SharePointInput
                   label=""
                   value={searchTerm}
                   onChange={setSearchTerm}
-                  placeholder="🔍 Search alerts and templates by title, description, type, priority, or author..."
+                  placeholder="🔍 Search alerts, drafts, and templates by title, description, type, priority, or author..."
                   className={styles.searchInput}
                 />
               </div>
@@ -718,7 +808,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                       value={contentTypeFilter}
                       onChange={(value) => setContentTypeFilter(value as 'all' | ContentType)}
                       options={[
+                        { value: 'all', label: '📋 All Types' },
                         { value: ContentType.Alert, label: '📢 Alerts' },
+                        { value: ContentType.Draft, label: '✏️ Drafts' },
                         { value: ContentType.Template, label: '📄 Templates' }
                       ]}
                     />
@@ -985,24 +1077,58 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   </div>
 
                   <div className={styles.alertCardActions}>
-                    <SharePointButton
-                      variant="secondary"
-                      icon={<Edit24Regular />}
-                      onClick={() => {
-                        handleEditAlert(alert);
-                      }}
-                    >
-                      Edit
-                    </SharePointButton>
-                    <SharePointButton
-                      variant="danger"
-                      icon={<Delete24Regular />}
-                      onClick={() => {
-                        handleDeleteAlert(alert.id, alert.title);
-                      }}
-                    >
-                      Delete
-                    </SharePointButton>
+                    {alert.contentType === ContentType.Draft ? (
+                      <>
+                        <SharePointButton
+                          variant="primary"
+                          icon={<Send24Regular />}
+                          onClick={() => {
+                            handlePublishDraft(alert);
+                          }}
+                        >
+                          Publish
+                        </SharePointButton>
+                        <SharePointButton
+                          variant="secondary"
+                          icon={<Edit24Regular />}
+                          onClick={() => {
+                            handleEditAlert(alert);
+                          }}
+                        >
+                          Edit
+                        </SharePointButton>
+                        <SharePointButton
+                          variant="danger"
+                          icon={<Delete24Regular />}
+                          onClick={() => {
+                            handleDeleteAlert(alert.id, alert.title);
+                          }}
+                        >
+                          Delete
+                        </SharePointButton>
+                      </>
+                    ) : (
+                      <>
+                        <SharePointButton
+                          variant="secondary"
+                          icon={<Edit24Regular />}
+                          onClick={() => {
+                            handleEditAlert(alert);
+                          }}
+                        >
+                          Edit
+                        </SharePointButton>
+                        <SharePointButton
+                          variant="danger"
+                          icon={<Delete24Regular />}
+                          onClick={() => {
+                            handleDeleteAlert(alert.id, alert.title);
+                          }}
+                        >
+                          Delete
+                        </SharePointButton>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -1016,7 +1142,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         <SharePointDialog
           isOpen={!!editingAlert}
           onClose={handleCancelEdit}
-          title={`Edit ${editingAlert.contentType === ContentType.Template ? 'Template' : 'Alert'}: ${editingAlert.title}`}
+          title={`Edit ${editingAlert.contentType === ContentType.Template ? 'Template' : editingAlert.contentType === ContentType.Draft ? 'Draft' : 'Alert'}: ${editingAlert.title}`}
           width={1200}
           height={800}
         >
@@ -1086,10 +1212,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                           setEditingAlert(prev => prev ? { ...prev, description: value } : null);
                           if (editErrors.description) setEditErrors(prev => ({ ...prev, description: undefined }));
                         }}
+                        context={context}
                         placeholder="Provide detailed information about the alert..."
                         required
                         error={editErrors.description}
-                        description="Use the toolbar to format your message with rich text, links, lists, and more."
+                        description="Use the toolbar to format your message with rich text, links, lists, emojis, and images (including animated GIFs). Manage file attachments below."
+                        imageFolderName={editingAlert.languageGroup || editingAlert.title || 'Untitled_Alert'}
                       />
                     </SharePointSection>
                   </>
@@ -1104,9 +1232,34 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                       errors={editErrors}
                       linkUrl={editingAlert.linkUrl}
                       tenantDefaultLanguage={tenantDefaultLanguage}
+                      context={context}
+                      imageFolderName={editingAlert.languageGroup}
                     />
                   </SharePointSection>
                 )}
+
+                {/* Attachment Manager */}
+                <AttachmentManager
+                  context={context}
+                  listId={editingAlert._originalListItem?.['odata.id']?.match(/lists\(guid'([^']+)'\)/)?.[1] || ''}
+                  itemId={parseInt(editingAlert.id)}
+                  attachments={editingAlert.attachments || []}
+                  onAttachmentsChange={(attachments) => {
+                    setEditingAlert(prev => prev ? { ...prev, attachments } : null);
+                  }}
+                />
+
+                {/* Image Manager */}
+                <SharePointSection title="Uploaded Images">
+                  <ImageManager
+                    context={context}
+                    folderName={editingAlert.languageGroup || editingAlert.title}
+                    onImageDeleted={() => {
+                      // Optional: Refresh or notify on image deletion
+                      logger.info('ManageAlertsTab', 'Image deleted from alert folder');
+                    }}
+                  />
+                </SharePointSection>
 
                 <SharePointSection title="Alert Configuration">
                   <SharePointSelect

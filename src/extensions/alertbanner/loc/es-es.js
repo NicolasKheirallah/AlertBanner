@@ -50,6 +50,36 @@ define([], function() {
     "AlertTypesHelpText": "Cada tipo de alerta debe tener: nombre, nombreIcono, colorFondo, colorTexto, estilosAdicionales y estilosPrioridad",
     "SaveSettings": "Guardar configuración",
     "InvalidJSONError": "Formato JSON no válido en la configuración de tipos de alerta. Por favor revise su sintaxis.",
+    "ManageAlerts": "Manage Alerts",
+    "AlertTypesTabTitle": "Alert Types",
+    "SettingsTabTitle": "Settings",
+
+    // Create Alert Form
+    "CreateAlertSectionContentClassificationTitle": "Content Classification",
+    "ContentTypeLabel": "Content Type",
+    "CreateAlertSectionContentClassificationDescription": "Choose how this alert content should be classified.",
+    "CreateAlertLanguageConfigurationLabel": "Language Configuration",
+    "CreateAlertSingleLanguageButton": "Single Language",
+    "CreateAlertMultiLanguageButton": "Multi-language",
+    "CreateAlertSectionLanguageTargetingTitle": "Language Targeting",
+    "CreateAlertTargetLanguageLabel": "Target Language",
+    "CreateAlertSectionLanguageTargetingDescription": "Select the language that should receive this alert.",
+    "CreateAlertSectionBasicInformationTitle": "Basic Information",
+    "CreateAlertTitlePlaceholder": "Enter alert title",
+    "CreateAlertTitleDescription": "Provide a short, descriptive title for your alert.",
+    "CreateAlertDescriptionPlaceholder": "Enter alert details",
+    "CreateAlertDescriptionHelp": "Use rich text to provide the full alert message. You can include links and formatting.",
+    "CreateAlertPriorityLowDescription": "Actualizaciones generales o elementos de baja urgencia.",
+    "CreateAlertPriorityMediumDescription": "Información importante que debe verse pronto.",
+    "CreateAlertPriorityHighDescription": "Alerta sensible que requiere atención rápida.",
+    "CreateAlertPriorityCriticalDescription": "Incidente crítico o caída que necesita acción inmediata.",
+    "CreateAlertNotificationNoneDescription": "No enviar notificación; los usuarios solo verán la banner.",
+    "CreateAlertNotificationBrowserDescription": "Enviar una notificación del navegador junto con la banner.",
+    "CreateAlertNotificationEmailDescription": "Enviar un correo electrónico a los usuarios objetivo cuando se publique la alerta.",
+    "CreateAlertNotificationBothDescription": "Enviar notificaciones tanto del navegador como por correo electrónico.",
+    "CreateAlertContentTypeAlertDescription": "Publicar una alerta única directamente en la banner.",
+    "CreateAlertContentTypeTemplateDescription": "Guardar la configuración como plantilla reutilizable para alertas futuras.",
+    "CreateAlertTargetLanguageAll": "Todos los idiomas compatibles",
     
     // Alert Management
     "CreateAlert": "Crear alerta",
@@ -159,6 +189,21 @@ define([], function() {
     "CollapseAlert": "Contraer alerta",
     "AlertActions": "Acciones de alerta",
     "PinAlert": "Fijar alerta",
-    "UnpinAlert": "Desfijar alerta"
+    "UnpinAlert": "Desfijar alerta",
+
+    // Alert UI
+    "AlertHeaderPriorityTooltip": "Priority: {0}",
+    "AttachmentsHeader": "📎 Attachments ({0})",
+    "FileSizeKilobytes": "{0} KB",
+    "FileSizeMegabytes": "{0} MB",
+    "AlertActionsOpenLink": "Open link",
+    "AlertActionsPrevious": "Previous alert",
+    "AlertActionsNext": "Next alert",
+    "AlertActionsDismiss": "Dismiss alert",
+    "AlertActionsHideForever": "Hide alert forever",
+    "AlertCarouselCounter": "{0} of {1}",
+    "DefaultAlertTypeName": "Default",
+    "AlertsLoadErrorTitle": "Unable to load alerts",
+    "AlertsLoadErrorFallback": "An error occurred while loading alerts. Please try refreshing the page or contact your administrator if the problem persists."
   }
 });

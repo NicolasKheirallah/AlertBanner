@@ -2,8 +2,10 @@ import * as React from "react";
 import { Button, Text } from "@fluentui/react-components";
 import { ChevronDown24Regular, ChevronUp24Regular } from "@fluentui/react-icons";
 import { IAlertItem } from "../Services/SharePointAlertService";
+import { AlertPriority } from "../Alerts/IAlerts";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import { getPriorityIcon } from "./utils";
+import { useLocalization } from "../Hooks/useLocalization";
 import styles from "./AlertItem.module.scss";
 
 interface IAlertHeaderProps {
@@ -14,10 +16,39 @@ interface IAlertHeaderProps {
 }
 
 const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, toggleExpanded, ariaControlsId }) => {
+  const { getString } = useLocalization();
+
+  const priorityLabel = React.useMemo(() => {
+    switch (item.priority) {
+      case AlertPriority.Critical:
+        return getString('PriorityCritical');
+      case AlertPriority.High:
+        return getString('PriorityHigh');
+      case AlertPriority.Medium:
+        return getString('PriorityMedium');
+      case AlertPriority.Low:
+      default:
+        return getString('PriorityLow');
+    }
+  }, [getString, item.priority]);
+
+  const previewContent = React.useMemo(() => {
+    if (!item.description) {
+      return '';
+    }
+
+    return htmlSanitizer.sanitizePreviewContent(item.description);
+  }, [item.description]);
+
+  const priorityTooltip = React.useMemo(
+    () => getString('AlertHeaderPriorityTooltip', priorityLabel),
+    [getString, priorityLabel]
+  );
+
   return (
     <>
       <div className={styles.iconSection}>
-        <div className={styles.alertIcon} title={`Priority: ${item.priority}`}>
+        <div className={styles.alertIcon} title={priorityTooltip}>
           {getPriorityIcon(item.priority)}
         </div>
       </div>
@@ -32,10 +63,7 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
             <div
               className={styles.truncatedHtml}
               dangerouslySetInnerHTML={{
-                __html: React.useMemo(() =>
-                  htmlSanitizer.sanitizePreviewContent(item.description),
-                  [item.description]
-                )
+                __html: previewContent
               }}
             />
           </div>
@@ -51,7 +79,7 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
           }}
           aria-expanded={expanded}
           aria-controls={ariaControlsId}
-          aria-label={expanded ? "Collapse Alert" : "Expand Alert"}
+          aria-label={expanded ? getString('CollapseAlert') : getString('ExpandAlert')}
           size="small"
         />
       </div>

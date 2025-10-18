@@ -45,11 +45,29 @@ export class UserTargetingService {
       this.storageService.setUserId(this.currentUser.id);
 
       // Get user group memberships
-      const groupsResponse = await this.graphClient.api('/me/memberOf').select('id,displayName').get();
+      const groups: any[] = [];
+      let requestPath = '/me/memberOf?$select=id,displayName&$top=100';
 
-      if (groupsResponse && groupsResponse.value) {
-        this.userGroups = groupsResponse.value.map((group: any) => group.displayName);
-        this.userGroupIds = groupsResponse.value.map((group: any) => group.id);
+      while (requestPath) {
+        const response = await this.graphClient.api(requestPath).get();
+        if (Array.isArray(response?.value)) {
+          groups.push(...response.value);
+        }
+
+        if (response['@odata.nextLink']) {
+          requestPath = response['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0', '');
+        } else {
+          requestPath = '';
+        }
+      }
+
+      if (groups.length > 0) {
+        this.userGroups = groups
+          .map((group: any) => group.displayName)
+          .filter(Boolean);
+        this.userGroupIds = groups
+          .map((group: any) => group.id)
+          .filter(Boolean);
         this.currentUser.userGroups = this.userGroups;
       }
 

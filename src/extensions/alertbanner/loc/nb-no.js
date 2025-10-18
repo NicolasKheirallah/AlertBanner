@@ -50,6 +50,36 @@ define([], function() {
     "AlertTypesHelpText": "Hver varseltype bør ha: navn, ikonnavn, bakgrunnsfarge, tekstfarge, tilleggsstiler og prioritetsstiler",
     "SaveSettings": "Lagre innstillinger",
     "InvalidJSONError": "Ugyldig JSON-format i konfigurasjon av varseltyper. Sjekk syntaksen din.",
+    "ManageAlerts": "Manage Alerts",
+    "AlertTypesTabTitle": "Alert Types",
+    "SettingsTabTitle": "Settings",
+
+    // Create Alert Form
+    "CreateAlertSectionContentClassificationTitle": "Content Classification",
+    "ContentTypeLabel": "Content Type",
+    "CreateAlertSectionContentClassificationDescription": "Choose how this alert content should be classified.",
+    "CreateAlertLanguageConfigurationLabel": "Language Configuration",
+    "CreateAlertSingleLanguageButton": "Single Language",
+    "CreateAlertMultiLanguageButton": "Multi-language",
+    "CreateAlertSectionLanguageTargetingTitle": "Language Targeting",
+    "CreateAlertTargetLanguageLabel": "Target Language",
+    "CreateAlertSectionLanguageTargetingDescription": "Select the language that should receive this alert.",
+    "CreateAlertSectionBasicInformationTitle": "Basic Information",
+    "CreateAlertTitlePlaceholder": "Enter alert title",
+    "CreateAlertTitleDescription": "Provide a short, descriptive title for your alert.",
+    "CreateAlertDescriptionPlaceholder": "Enter alert details",
+    "CreateAlertDescriptionHelp": "Use rich text to provide the full alert message. You can include links and formatting.",
+    "CreateAlertPriorityLowDescription": "Generell oppdatering eller lav hast.",
+    "CreateAlertPriorityMediumDescription": "Viktig informasjon som bør vises snart.",
+    "CreateAlertPriorityHighDescription": "Tidskritisk varsel som krever rask oppmerksomhet.",
+    "CreateAlertPriorityCriticalDescription": "Kritisk hendelse eller driftsstans som krever umiddelbar handling.",
+    "CreateAlertNotificationNoneDescription": "Ikke send varsling – brukerne ser bare banneret.",
+    "CreateAlertNotificationBrowserDescription": "Send en nettleservarsling sammen med banneret.",
+    "CreateAlertNotificationEmailDescription": "Send e-post til målgruppen når varslet publiseres.",
+    "CreateAlertNotificationBothDescription": "Send både nettleser- og e-postvarsler.",
+    "CreateAlertContentTypeAlertDescription": "Publiser et engangsvarsel direkte i banneret.",
+    "CreateAlertContentTypeTemplateDescription": "Lagre konfigurasjonen som en gjenbrukbar mal.",
+    "CreateAlertTargetLanguageAll": "Alle støttede språk",
     
     // Alert Management
     "CreateAlert": "Opprett varsel",
@@ -159,6 +189,21 @@ define([], function() {
     "CollapseAlert": "Kollaps varsel",
     "AlertActions": "Varselhandlinger",
     "PinAlert": "Fest varsel",
-    "UnpinAlert": "Løsne varsel"
+    "UnpinAlert": "Løsne varsel",
+
+    // Alert UI
+    "AlertHeaderPriorityTooltip": "Priority: {0}",
+    "AttachmentsHeader": "📎 Attachments ({0})",
+    "FileSizeKilobytes": "{0} KB",
+    "FileSizeMegabytes": "{0} MB",
+    "AlertActionsOpenLink": "Open link",
+    "AlertActionsPrevious": "Previous alert",
+    "AlertActionsNext": "Next alert",
+    "AlertActionsDismiss": "Dismiss alert",
+    "AlertActionsHideForever": "Hide alert forever",
+    "AlertCarouselCounter": "{0} of {1}",
+    "DefaultAlertTypeName": "Default",
+    "AlertsLoadErrorTitle": "Unable to load alerts",
+    "AlertsLoadErrorFallback": "An error occurred while loading alerts. Please try refreshing the page or contact your administrator if the problem persists."
   }
 });

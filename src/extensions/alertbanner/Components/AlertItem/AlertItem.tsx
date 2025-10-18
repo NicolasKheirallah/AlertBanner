@@ -39,6 +39,7 @@ export interface IAlertItemProps {
   totalAlerts?: number;
   onNext?: () => void;
   onPrevious?: () => void;
+  userTargetingEnabled?: boolean;
 }
 
 
@@ -52,7 +53,8 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   currentIndex = 1,
   totalAlerts = 1,
   onNext,
-  onPrevious
+  onPrevious,
+  userTargetingEnabled = false
 }) => {
   const [expanded, setExpanded] = React.useState(false);
   const ariaControlsId = `alert-description-${item.id}`;
@@ -172,6 +174,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
             remove={handlers.remove}
             hideForever={handlers.hideForever}
             stopPropagation={handlers.stopPropagation}
+            userTargetingEnabled={userTargetingEnabled}
           />
         </div>
         <AlertContent

@@ -50,6 +50,36 @@ define([], function() {
     "AlertTypesHelpText": "Jokaisella hälytystyypillä tulee olla: nimi, kuvakenimi, taustavan väri, tekstin väri, lisätyylit ja prioriteettityylit",
     "SaveSettings": "Tallenna asetukset",
     "InvalidJSONError": "Virheellinen JSON-muoto hälytystyyppien määrityksessä. Tarkista syntaksi.",
+    "ManageAlerts": "Manage Alerts",
+    "AlertTypesTabTitle": "Alert Types",
+    "SettingsTabTitle": "Settings",
+
+    // Create Alert Form
+    "CreateAlertSectionContentClassificationTitle": "Content Classification",
+    "ContentTypeLabel": "Content Type",
+    "CreateAlertSectionContentClassificationDescription": "Choose how this alert content should be classified.",
+    "CreateAlertLanguageConfigurationLabel": "Language Configuration",
+    "CreateAlertSingleLanguageButton": "Single Language",
+    "CreateAlertMultiLanguageButton": "Multi-language",
+    "CreateAlertSectionLanguageTargetingTitle": "Language Targeting",
+    "CreateAlertTargetLanguageLabel": "Target Language",
+    "CreateAlertSectionLanguageTargetingDescription": "Select the language that should receive this alert.",
+    "CreateAlertSectionBasicInformationTitle": "Basic Information",
+    "CreateAlertTitlePlaceholder": "Enter alert title",
+    "CreateAlertTitleDescription": "Provide a short, descriptive title for your alert.",
+    "CreateAlertDescriptionPlaceholder": "Enter alert details",
+    "CreateAlertDescriptionHelp": "Use rich text to provide the full alert message. You can include links and formatting.",
+    "CreateAlertPriorityLowDescription": "Yleinen päivitys tai matalan kiireellisyyden tieto.",
+    "CreateAlertPriorityMediumDescription": "Tärkeä tieto, joka tulisi nähdä pian.",
+    "CreateAlertPriorityHighDescription": "Aikakriittinen hälytys, joka vaatii nopeaa huomiota.",
+    "CreateAlertPriorityCriticalDescription": "Kriittinen tapaus tai katkos, joka vaatii välitöntä toimintaa.",
+    "CreateAlertNotificationNoneDescription": "Älä lähetä ilmoitusta – käyttäjät näkevät vain bannerin.",
+    "CreateAlertNotificationBrowserDescription": "Lähetä bannerin lisäksi selaimen ilmoitus.",
+    "CreateAlertNotificationEmailDescription": "Lähetä sähköposti kohdekäyttäjille, kun hälytys julkaistaan.",
+    "CreateAlertNotificationBothDescription": "Lähetä sekä selaimen että sähköpostin ilmoitukset.",
+    "CreateAlertContentTypeAlertDescription": "Julkaise kertaluonteinen hälytys suoraan bannerissa.",
+    "CreateAlertContentTypeTemplateDescription": "Tallenna määritys uudelleenkäytettäväksi malliksi.",
+    "CreateAlertTargetLanguageAll": "Kaikki tuetut kielet",
     
     // Alert Management
     "CreateAlert": "Luo hälytys",
@@ -159,6 +189,21 @@ define([], function() {
     "CollapseAlert": "Tiivistä hälytys",
     "AlertActions": "Hälytystoiminnot",
     "PinAlert": "Kiinnitä hälytys",
-    "UnpinAlert": "Poista hälytyksen kiinnitys"
+    "UnpinAlert": "Poista hälytyksen kiinnitys",
+
+    // Alert UI
+    "AlertHeaderPriorityTooltip": "Priority: {0}",
+    "AttachmentsHeader": "📎 Attachments ({0})",
+    "FileSizeKilobytes": "{0} KB",
+    "FileSizeMegabytes": "{0} MB",
+    "AlertActionsOpenLink": "Open link",
+    "AlertActionsPrevious": "Previous alert",
+    "AlertActionsNext": "Next alert",
+    "AlertActionsDismiss": "Dismiss alert",
+    "AlertActionsHideForever": "Hide alert forever",
+    "AlertCarouselCounter": "{0} of {1}",
+    "DefaultAlertTypeName": "Default",
+    "AlertsLoadErrorTitle": "Unable to load alerts",
+    "AlertsLoadErrorFallback": "An error occurred while loading alerts. Please try refreshing the page or contact your administrator if the problem persists."
   }
 });

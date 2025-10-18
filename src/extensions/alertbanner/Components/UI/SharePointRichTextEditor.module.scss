@@ -65,16 +65,118 @@
   border: 1px solid #8a8886;
   border-radius: 2px;
   background: #ffffff;
-  position: relative;
+  position: relative; // For absolute positioning of media toolbar
   transition: border-color 0.1s ease-out;
-  
+
   &:focus-within {
     border-color: #0078d4;
     box-shadow: inset 0 0 0 1px #0078d4;
   }
-  
+
   &:hover:not(:focus-within) {
     border-color: #323130;
+  }
+
+  :global {
+    .ql-toolbar {
+      display: flex !important;
+      align-items: center !important;
+      flex-wrap: wrap !important;
+      gap: 6px !important;
+      min-height: 48px !important;
+      height: auto !important;
+      overflow: visible !important;
+      padding: 8px 12px !important;
+      border-bottom: 1px solid #edebe9 !important;
+    }
+
+    .ql-toolbar .ql-formats {
+      margin-right: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 2px !important;
+    }
+
+    .ql-editor img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .ql-image-resize-overlay {
+      border: 1px solid #0078d4 !important;
+      box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.15);
+    }
+
+    .ql-image-resize-handle {
+      width: 10px !important;
+      height: 10px !important;
+      background-color: #0078d4 !important;
+      border: 1px solid #ffffff !important;
+      border-radius: 50% !important;
+    }
+
+    .ql-image-resize-display {
+      background-color: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid #605e5c !important;
+      color: #323130 !important;
+      font-size: 12px !important;
+      padding: 2px 4px !important;
+      border-radius: 2px !important;
+    }
+  }
+}
+
+.mediaToolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+
+  // Make buttons look like they're part of the PnP toolbar
+  :global {
+    button {
+      min-width: 32px !important;
+      width: 32px !important;
+      height: 32px !important;
+      padding: 4px !important;
+      margin: 0 !important;
+      border: 1px solid transparent !important;
+      background: transparent !important;
+      border-radius: 2px !important;
+      flex-shrink: 0;
+      cursor: pointer !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: all 0.1s ease-out !important;
+
+      &:hover {
+        background-color: #f3f2f1 !important;
+        border-color: #c8c6c4 !important;
+      }
+
+      &:active {
+        background-color: #edebe9 !important;
+      }
+
+      &:focus {
+        outline: 2px solid #0078d4 !important;
+        outline-offset: -2px !important;
+      }
+
+      // Icon only - no text
+      span:not([class*="icon"]) {
+        display: none !important;
+      }
+
+      svg {
+        width: 20px !important;
+        height: 20px !important;
+        margin: 0 auto;
+        pointer-events: none;
+      }
+    }
   }
 }
 
@@ -99,19 +201,26 @@
   align-items: center !important;
   gap: 6px !important;
   flex-wrap: wrap !important;
+  min-height: 48px !important; // Ensure consistent height
   font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif !important;
-  
+
+  // Ensure all direct children are vertically centered
+  > * {
+    display: flex !important;
+    align-items: center !important;
+  }
+
   // Fix ugly spacing and alignment
   .ql-formats {
     margin-right: 12px !important;
     display: flex !important;
     align-items: center !important;
     gap: 2px !important;
-    
+
     &:last-child {
       margin-right: 0 !important;
     }
-    
+
     // Add separator between format groups
     &:not(:last-child)::after {
       content: '';
@@ -120,6 +229,7 @@
       background: #c8c6c4;
       margin: 0 8px 0 4px;
       flex-shrink: 0;
+      align-self: center;
     }
   }
 }
@@ -204,33 +314,43 @@
   
   // Style dropdowns (Fluent UI components)
   .ms-Dropdown {
-    min-width: 80px !important;
+    min-width: auto !important; // Let dropdowns size to content
+    width: auto !important;
     height: 32px !important;
-    
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+
     .ms-Dropdown-title {
       height: 32px !important;
-      line-height: 30px !important;
-      padding: 0 8px !important;
+      line-height: 32px !important;
+      padding: 0 24px 0 8px !important; // Space for caret
       border: 1px solid #8a8886 !important;
       border-radius: 2px !important;
       background: #ffffff !important;
       font-size: 14px !important;
       color: #323130 !important;
-      
+      white-space: nowrap !important;
+      display: flex !important;
+      align-items: center !important;
+
       &:hover {
         border-color: #323130 !important;
         background: #f3f2f1 !important;
       }
-      
+
       &:focus {
         border-color: #0078d4 !important;
         box-shadow: inset 0 0 0 1px #0078d4 !important;
       }
     }
-    
+
     .ms-Dropdown-caretDownWrapper {
       right: 8px !important;
-      
+      height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+
       .ms-Icon {
         font-size: 12px !important;
         color: #605e5c !important;
@@ -310,7 +430,13 @@
     align-items: center !important;
     gap: 6px !important;
     flex-wrap: wrap !important;
-    
+
+    // Override any dropdown width constraints
+    :global(.ms-Dropdown) {
+      min-width: auto !important;
+      width: auto !important;
+    }
+
     :global(.ql-picker-label) {
       color: #605e5c !important;
     }
@@ -318,34 +444,45 @@
     // Fix specific PnP RichText toolbar dropdown styling issues
     .headerDropDown_81a853a1,
     .toolbarDropDown_81a853a1 {
+      display: inline-flex !important;
+      align-items: center !important;
+      vertical-align: middle !important;
+
       :global(.ms-Dropdown) {
-        min-width: 120px !important;
-        
+        min-width: auto !important; // Let dropdowns size to content
+        width: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+
         :global(.dropdown-540) {
           height: 32px !important;
           border: 1px solid #8a8886 !important;
           border-radius: 2px !important;
           background: #ffffff !important;
-          
+          display: flex !important;
+          align-items: center !important;
+
           &:hover {
             border-color: #323130 !important;
             background: #f3f2f1 !important;
           }
-          
+
           &:focus,
           &[aria-expanded="true"] {
             border-color: #0078d4 !important;
             box-shadow: inset 0 0 0 1px #0078d4 !important;
           }
         }
-        
+
         :global(.title-367),
         :global(.title-337) {
           padding: 0 24px 0 8px !important;
-          height: 30px !important;
-          line-height: 30px !important;
+          height: 32px !important;
+          line-height: 32px !important;
           font-size: 14px !important;
           color: #323130 !important;
+          display: flex !important;
+          align-items: center !important;
           
           :global(.toolbarSubmenuDisplayButton_81a853a1) {
             display: flex !important;
@@ -672,5 +809,26 @@
   
   .srOnly {
     display: none;
+  }
+}
+
+// Resizable image styling
+:global(.resizable-image) {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  resize: both;
+  overflow: hidden;
+  display: inline-block;
+  position: relative;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    outline: 2px dashed #0078d4;
+    outline-offset: 2px;
+  }
+
+  &:focus {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
   }
 }

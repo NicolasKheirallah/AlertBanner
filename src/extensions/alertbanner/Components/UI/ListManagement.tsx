@@ -43,14 +43,14 @@ export interface IListManagementProps {
 
 // Available languages for selection
 const AVAILABLE_LANGUAGES = [
-  { code: 'en-us', name: 'English (US)', nativeName: 'English' },
-  { code: 'fr-fr', name: 'French (France)', nativeName: 'Français' },
-  { code: 'de-de', name: 'German (Germany)', nativeName: 'Deutsch' },
-  { code: 'es-es', name: 'Spanish (Spain)', nativeName: 'Español' },
-  { code: 'sv-se', name: 'Swedish (Sweden)', nativeName: 'Svenska' },
-  { code: 'fi-fi', name: 'Finnish (Finland)', nativeName: 'Suomi' },
-  { code: 'da-dk', name: 'Danish (Denmark)', nativeName: 'Dansk' },
-  { code: 'nb-no', name: 'Norwegian (Norway)', nativeName: 'Norsk' }
+  { code: 'en-us', name: 'English', nativeName: 'English' },
+  { code: 'fr-fr', name: 'French', nativeName: 'Français' },
+  { code: 'de-de', name: 'German', nativeName: 'Deutsch' },
+  { code: 'es-es', name: 'Spanish', nativeName: 'Español' },
+  { code: 'sv-se', name: 'Swedish', nativeName: 'Svenska' },
+  { code: 'fi-fi', name: 'Finnish', nativeName: 'Suomi' },
+  { code: 'da-dk', name: 'Danish', nativeName: 'Dansk' },
+  { code: 'nb-no', name: 'Norwegian', nativeName: 'Norsk' }
 ];
 
 const ListManagement: React.FC<IListManagementProps> = ({
@@ -79,7 +79,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
       const statuses: { [siteId: string]: IAlertListStatus } = {};
       for (const site of siteHierarchy) {
         try {
-          statuses[site.id] = await siteContextService.getAlertListStatus(site.id);
+          statuses[site.id] = await siteContextService.getAlertListStatus(site);
         } catch (error) {
           statuses[site.id] = {
             exists: false,

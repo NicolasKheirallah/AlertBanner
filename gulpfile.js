@@ -18,6 +18,5 @@ build.rig.getTasks = function () {
   return result;
 };
 
-require("./spfx-versioning")(build);
 build.tslintCmd.enabled = false;
 build.initialize(require("gulp"));

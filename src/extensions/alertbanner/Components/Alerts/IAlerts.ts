@@ -1,5 +1,6 @@
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+export type { IAlertItem } from "../Services/SharePointAlertService";
 
 export enum AlertPriority {
   Low = "low",
@@ -17,7 +18,8 @@ export enum NotificationType {
 
 export enum ContentType {
   Alert = "alert",
-  Template = "template"
+  Template = "template",
+  Draft = "draft"
 }
 
 export enum TargetLanguage {
@@ -93,33 +95,6 @@ export interface IUser {
   jobTitle?: string;
   department?: string;
   userGroups?: string[];
-}
-
-export interface IAlertItem {
-  Id: number;
-  title: string;
-  description: string;
-  AlertType: string;
-  priority: AlertPriority;
-  isPinned: boolean;
-  targetUsers?: IPersonField[]; // People/Groups who can see this alert. If empty, everyone sees it
-  notificationType: NotificationType;
-  linkUrl?: string;
-  linkDescription?: string;
-  quickActions?: IQuickAction[];
-  createdDate: string;
-  createdBy: string;
-  // New language and classification properties
-  contentType: ContentType; // Alert or Template
-  targetLanguage: TargetLanguage; // Specific language or 'all'
-  languageGroup?: string; // Groups related language variants (same content, different languages)
-  // Additional SharePoint properties
-  targetSites?: string[];
-  scheduledStart?: string | Date;
-  scheduledEnd?: string | Date;
-  metadata?: any;
-  status?: string;
-  availableForAll?: boolean;
 }
 
 // IAlertRichMedia removed - using description field for all content

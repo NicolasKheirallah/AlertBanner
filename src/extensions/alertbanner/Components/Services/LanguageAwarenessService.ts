@@ -65,14 +65,14 @@ export class LanguageAwarenessService {
    */
   public static getSupportedLanguages(): ISupportedLanguage[] {
     return [
-      { code: TargetLanguage.EnglishUS, name: 'English (US)', nativeName: 'English', flag: '🇺🇸', isSupported: true, columnExists: false },
-      { code: TargetLanguage.FrenchFR, name: 'French (France)', nativeName: 'Français', flag: '🇫🇷', isSupported: false, columnExists: false },
-      { code: TargetLanguage.GermanDE, name: 'German (Germany)', nativeName: 'Deutsch', flag: '🇩🇪', isSupported: false, columnExists: false },
-      { code: TargetLanguage.SpanishES, name: 'Spanish (Spain)', nativeName: 'Español', flag: '🇪🇸', isSupported: false, columnExists: false },
-      { code: TargetLanguage.SwedishSE, name: 'Swedish (Sweden)', nativeName: 'Svenska', flag: '🇸🇪', isSupported: false, columnExists: false },
-      { code: TargetLanguage.FinnishFI, name: 'Finnish (Finland)', nativeName: 'Suomi', flag: '🇫🇮', isSupported: false, columnExists: false },
-      { code: TargetLanguage.DanishDK, name: 'Danish (Denmark)', nativeName: 'Dansk', flag: '🇩🇰', isSupported: false, columnExists: false },
-      { code: TargetLanguage.NorwegianNO, name: 'Norwegian (Norway)', nativeName: 'Norsk', flag: '🇳🇴', isSupported: false, columnExists: false }
+      { code: TargetLanguage.EnglishUS, name: 'English', nativeName: 'English', flag: '🇺🇸', isSupported: true, columnExists: false },
+      { code: TargetLanguage.FrenchFR, name: 'French', nativeName: 'Français', flag: '🇫🇷', isSupported: false, columnExists: false },
+      { code: TargetLanguage.GermanDE, name: 'German', nativeName: 'Deutsch', flag: '🇩🇪', isSupported: false, columnExists: false },
+      { code: TargetLanguage.SpanishES, name: 'Spanish', nativeName: 'Español', flag: '🇪🇸', isSupported: false, columnExists: false },
+      { code: TargetLanguage.SwedishSE, name: 'Swedish', nativeName: 'Svenska', flag: '🇸🇪', isSupported: false, columnExists: false },
+      { code: TargetLanguage.FinnishFI, name: 'Finnish', nativeName: 'Suomi', flag: '🇫🇮', isSupported: false, columnExists: false },
+      { code: TargetLanguage.DanishDK, name: 'Danish', nativeName: 'Dansk', flag: '🇩🇰', isSupported: false, columnExists: false },
+      { code: TargetLanguage.NorwegianNO, name: 'Norwegian', nativeName: 'Norsk', flag: '🇳🇴', isSupported: false, columnExists: false }
     ];
   }
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Save24Regular, Eye24Regular, Dismiss24Regular } from "@fluentui/react-icons";
+import { Save24Regular, Eye24Regular, Dismiss24Regular, Drafts24Regular, DocumentArrowLeft24Regular } from "@fluentui/react-icons";
 import {
   SharePointButton,
   SharePointInput,
@@ -16,11 +16,12 @@ import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
 import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage } from "../../Alerts/IAlerts";
 import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
 import { SiteContextDetector, ISiteValidationResult } from "../../Utils/SiteContextDetector";
-import { SharePointAlertService } from "../../Services/SharePointAlertService";
+import { SharePointAlertService, IAlertItem } from "../../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { logger } from '../../Services/LoggerService';
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
+import { useLocalization } from "../../Hooks/useLocalization";
 
 export interface INewAlert {
   title: string;
@@ -34,10 +35,10 @@ export interface INewAlert {
   targetSites: string[];
   scheduledStart?: Date;
   scheduledEnd?: Date;
-  // New language and classification properties
   contentType: ContentType;
   targetLanguage: TargetLanguage;
-  languageContent: ILanguageContent[]; // Content for multiple languages
+  languageContent: ILanguageContent[];
+  languageGroup?: string; // For multi-language alerts to share resources
 }
 
 export interface IFormErrors {
@@ -98,33 +99,22 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   setShowTemplates,
   languageUpdateTrigger
 }) => {
+  const { getString } = useLocalization();
   // Priority options
-  const priorityOptions: ISharePointSelectOption[] = [
-    { value: AlertPriority.Low, label: "Low Priority - Informational updates" },
-    { value: AlertPriority.Medium, label: "Medium Priority - General announcements" },
-    { value: AlertPriority.High, label: "High Priority - Important updates" },
-    { value: AlertPriority.Critical, label: "Critical Priority - Urgent action required" }
-  ];
+  const priorityOptions: ISharePointSelectOption[] = React.useMemo(() => ([
+    { value: AlertPriority.Low, label: getString('CreateAlertPriorityLowDescription') },
+    { value: AlertPriority.Medium, label: getString('CreateAlertPriorityMediumDescription') },
+    { value: AlertPriority.High, label: getString('CreateAlertPriorityHighDescription') },
+    { value: AlertPriority.Critical, label: getString('CreateAlertPriorityCriticalDescription') }
+  ]), [getString]);
 
   // Notification type options with detailed descriptions
-  const notificationOptions: ISharePointSelectOption[] = [
-    { 
-      value: NotificationType.None, 
-      label: "None - Display only in banner (no notifications)" 
-    },
-    { 
-      value: NotificationType.Browser, 
-      label: "Browser - Banner display only" 
-    },
-    { 
-      value: NotificationType.Email, 
-      label: "Email only - Sends email to selected audience (no banner display)" 
-    },
-    { 
-      value: NotificationType.Both, 
-      label: "Browser + Email - Banner display + Email notifications to selected audience" 
-    }
-  ];
+  const notificationOptions: ISharePointSelectOption[] = React.useMemo(() => ([
+    { value: NotificationType.None, label: getString('CreateAlertNotificationNoneDescription') },
+    { value: NotificationType.Browser, label: getString('CreateAlertNotificationBrowserDescription') },
+    { value: NotificationType.Email, label: getString('CreateAlertNotificationEmailDescription') },
+    { value: NotificationType.Both, label: getString('CreateAlertNotificationBothDescription') }
+  ]), [getString]);
 
   // Alert type options
   const alertTypeOptions: ISharePointSelectOption[] = alertTypes.map(type => ({
@@ -133,20 +123,27 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   }));
 
   // Content type options
-  const contentTypeOptions: ISharePointSelectOption[] = [
-    { value: ContentType.Alert, label: "Alert - Live content for users" },
-    { value: ContentType.Template, label: "Template - Reusable template for future alerts" }
-  ];
+  const contentTypeOptions: ISharePointSelectOption[] = React.useMemo(() => ([
+    { value: ContentType.Alert, label: getString('CreateAlertContentTypeAlertDescription') },
+    { value: ContentType.Template, label: getString('CreateAlertContentTypeTemplateDescription') }
+  ]), [getString]);
 
   // Language awareness state
   const [languageService] = React.useState(() => new LanguageAwarenessService(graphClient, context));
   const [supportedLanguages, setSupportedLanguages] = React.useState<ISupportedLanguage[]>([]);
   const [useMultiLanguage, setUseMultiLanguage] = React.useState(false);
 
+  // Draft state
+  const [drafts, setDrafts] = React.useState<IAlertItem[]>([]);
+  const [showDrafts, setShowDrafts] = React.useState(false);
+  const [autoSaveDraftId, setAutoSaveDraftId] = React.useState<string | null>(null);
+  const [lastAutoSave, setLastAutoSave] = React.useState<Date | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = React.useState(false);
+
   // Language targeting options - only show enabled languages
   const languageOptions: ISharePointSelectOption[] = React.useMemo(() => {
     const enabledOptions = [
-      { value: TargetLanguage.All, label: "All Languages - Show to everyone" }
+      { value: TargetLanguage.All, label: getString('CreateAlertTargetLanguageAll') }
     ];
     
     // Add only enabled languages (those with columnExists: true OR English which is always available)
@@ -161,7 +158,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     });
     
     return enabledOptions;
-  }, [supportedLanguages]);
+  }, [getString, supportedLanguages]);
 
   // Load supported languages from SharePoint (actual enabled ones)
   const loadSupportedLanguages = React.useCallback(async () => {
@@ -199,10 +196,49 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     loadSupportedLanguages();
   }, [loadSupportedLanguages, languageUpdateTrigger]);
 
+  // Load drafts
+  const loadDrafts = React.useCallback(async () => {
+    try {
+      const siteId = alertService.getCurrentSiteId();
+      const userDrafts = await alertService.getDraftAlerts(siteId);
+      setDrafts(userDrafts);
+    } catch (error) {
+      logger.warn('CreateAlertTab', 'Could not load drafts', error);
+      setDrafts([]);
+    }
+  }, [alertService]);
+
+  React.useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
+
+  // Load from draft
+  const handleLoadDraft = React.useCallback((draft: IAlertItem) => {
+    setNewAlert({
+      title: draft.title,
+      description: draft.description,
+      AlertType: draft.AlertType,
+      priority: draft.priority,
+      isPinned: draft.isPinned,
+      notificationType: draft.notificationType,
+      linkUrl: draft.linkUrl || "",
+      linkDescription: draft.linkDescription || "",
+      targetSites: draft.targetSites || [],
+      scheduledStart: draft.scheduledStart ? new Date(draft.scheduledStart) : undefined,
+      scheduledEnd: draft.scheduledEnd ? new Date(draft.scheduledEnd) : undefined,
+      contentType: ContentType.Alert, // Convert draft to alert
+      targetLanguage: draft.targetLanguage,
+      languageContent: [],
+      languageGroup: draft.languageGroup
+    });
+    setShowDrafts(false);
+    setShowTemplates(false);
+  }, [setNewAlert, setShowTemplates]);
+
   // Initialize language content when multi-language is enabled
   React.useEffect(() => {
     if (useMultiLanguage && newAlert.languageContent.length === 0) {
-      // Start with English by default
+      // Start with English by default and generate a languageGroup ID
       setNewAlert(prev => {
         const englishContent: ILanguageContent = {
           language: TargetLanguage.EnglishUS,
@@ -210,7 +246,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           description: prev.description,
           linkDescription: prev.linkUrl ? prev.linkDescription : undefined
         };
-        return { ...prev, languageContent: [englishContent] };
+        // Generate a unique languageGroup ID for sharing resources (images) across language variants
+        const languageGroup = prev.languageGroup || `lg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        return { ...prev, languageContent: [englishContent], languageGroup };
       });
     } else if (!useMultiLanguage && newAlert.languageContent.length > 0) {
       // When switching back to single language, use the first language's content
@@ -222,7 +260,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
             title: firstLang.title,
             description: firstLang.description,
             linkDescription: firstLang.linkDescription || '',
-            languageContent: []
+            languageContent: [],
+            languageGroup: undefined // Clear languageGroup for single language
           };
         }
         return prev;
@@ -319,60 +358,60 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     if (useMultiLanguage) {
       // Validate multi-language content
       if (newAlert.languageContent.length === 0) {
-        newErrors.title = 'At least one language must be configured';
+        newErrors.title = getString('CreateAlertLanguageRequired');
       } else {
         newAlert.languageContent.forEach(content => {
           if (!content.title.trim()) {
-            newErrors.title = `Title is required for ${content.language}`;
+            newErrors.title = getString('CreateAlertLanguageTitleRequired', content.language);
           }
           if (!content.description.trim()) {
-            newErrors.description = `Description is required for ${content.language}`;
+            newErrors.description = getString('CreateAlertLanguageDescriptionRequired', content.language);
           }
           if (newAlert.linkUrl && !content.linkDescription?.trim()) {
-            newErrors.linkDescription = `Link description is required for ${content.language} when URL is provided`;
+            newErrors.linkDescription = getString('CreateAlertLanguageLinkDescriptionRequired', content.language);
           }
         });
       }
     } else {
       // Validate single language content
       if (!newAlert.title?.trim()) {
-        newErrors.title = "Title is required";
+        newErrors.title = getString('TitleRequired');
       } else if (newAlert.title.length < 3) {
-        newErrors.title = "Title must be at least 3 characters";
+        newErrors.title = getString('TitleMinLength');
       } else if (newAlert.title.length > 100) {
-        newErrors.title = "Title cannot exceed 100 characters";
+        newErrors.title = getString('TitleMaxLength');
       }
 
       if (!newAlert.description?.trim()) {
-        newErrors.description = "Description is required";
+        newErrors.description = getString('DescriptionRequired');
       } else if (newAlert.description.length < 10) {
-        newErrors.description = "Description must be at least 10 characters";
+        newErrors.description = getString('DescriptionMinLength');
       }
 
       if (newAlert.linkUrl && !newAlert.linkDescription?.trim()) {
-        newErrors.linkDescription = "Link description is required when URL is provided";
+        newErrors.linkDescription = getString('LinkDescriptionRequired');
       }
     }
 
     if (!newAlert.AlertType) {
-      newErrors.AlertType = "Alert type is required";
+      newErrors.AlertType = getString('AlertTypeRequired');
     }
 
     if (newAlert.linkUrl && newAlert.linkUrl.trim()) {
       try {
         new URL(newAlert.linkUrl);
       } catch {
-        newErrors.linkUrl = "Please enter a valid URL";
+        newErrors.linkUrl = getString('InvalidUrlFormat');
       }
     }
 
     if (newAlert.targetSites.length === 0) {
-      newErrors.targetSites = "At least one target site must be selected";
+      newErrors.targetSites = getString('AtLeastOneSiteRequired');
     }
 
     if (newAlert.scheduledStart && newAlert.scheduledEnd) {
       if (newAlert.scheduledStart >= newAlert.scheduledEnd) {
-        newErrors.scheduledEnd = "End date must be after start date";
+        newErrors.scheduledEnd = getString('EndDateMustBeAfterStartDate');
       }
     }
 
@@ -489,6 +528,127 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     }
   }, [validateForm, setIsCreatingAlert, setCreationProgress, alertService, newAlert, setNewAlert, alertTypes, setShowTemplates, useMultiLanguage, languageService, context.pageContext.user.displayName]);
 
+  const handleSaveAsDraft = React.useCallback(async () => {
+    // Basic validation for drafts (less strict than full validation)
+    if (!newAlert.title || newAlert.title.trim().length < 3) {
+      setErrors({ title: "Draft must have a title (at least 3 characters)" });
+      return;
+    }
+
+    // Ensure AlertType is set (required field even for drafts)
+    if (!newAlert.AlertType || !alertTypes.find(t => t.name === newAlert.AlertType)) {
+      setErrors({ AlertType: "Please select an alert type before saving draft" });
+      return;
+    }
+
+    setIsCreatingAlert(true);
+    try {
+      const draftData: Partial<IAlertItem> = {
+        title: newAlert.title,
+        description: newAlert.description,
+        AlertType: newAlert.AlertType,
+        priority: newAlert.priority,
+        isPinned: newAlert.isPinned,
+        notificationType: newAlert.notificationType,
+        linkUrl: newAlert.linkUrl,
+        linkDescription: newAlert.linkDescription,
+        targetSites: newAlert.targetSites,
+        scheduledStart: newAlert.scheduledStart?.toISOString(),
+        scheduledEnd: newAlert.scheduledEnd?.toISOString(),
+        contentType: ContentType.Draft,
+        targetLanguage: newAlert.targetLanguage,
+        languageGroup: newAlert.languageGroup,
+        createdDate: new Date().toISOString(),
+        createdBy: context.pageContext.user.displayName
+      };
+
+      await alertService.saveDraft(draftData);
+
+      setCreationProgress([{
+        siteId: "success",
+        siteName: "Draft Saved Successfully",
+        hasAccess: true,
+        canCreateAlerts: true,
+        permissionLevel: "success",
+        error: ""
+      }]);
+
+      // Reload drafts and reset form after saving
+      await loadDrafts();
+      setTimeout(() => {
+        resetForm();
+        setCreationProgress([]);
+      }, 2000);
+    } catch (error) {
+      logger.error('CreateAlertTab', 'Error saving draft', error);
+      setCreationProgress([{
+        siteId: "error",
+        siteName: "Draft Save Error",
+        hasAccess: false,
+        canCreateAlerts: false,
+        permissionLevel: "error",
+        error: error instanceof Error ? error.message : "Unknown error occurred"
+      }]);
+    } finally {
+      setIsCreatingAlert(false);
+    }
+  }, [newAlert, alertService, context.pageContext.user.displayName, setErrors, setIsCreatingAlert, setCreationProgress, loadDrafts, alertTypes]);
+
+  // Auto-save draft functionality
+  const autoSaveDraft = React.useCallback(async () => {
+    // Only auto-save if there's meaningful content and AlertType is selected
+    if (!newAlert.title || newAlert.title.trim().length < 3 || !newAlert.AlertType) {
+      return;
+    }
+
+    // Don't auto-save if currently creating/saving
+    if (isCreatingAlert || isAutoSaving) {
+      return;
+    }
+
+    setIsAutoSaving(true);
+    try {
+      const draftData: Partial<IAlertItem> = {
+        id: autoSaveDraftId || undefined,
+        title: `[Auto-saved] ${newAlert.title}`,
+        description: newAlert.description,
+        AlertType: newAlert.AlertType,
+        priority: newAlert.priority,
+        isPinned: newAlert.isPinned,
+        notificationType: newAlert.notificationType,
+        linkUrl: newAlert.linkUrl,
+        linkDescription: newAlert.linkDescription,
+        targetSites: newAlert.targetSites,
+        scheduledStart: newAlert.scheduledStart?.toISOString(),
+        scheduledEnd: newAlert.scheduledEnd?.toISOString(),
+        contentType: ContentType.Draft,
+        targetLanguage: newAlert.targetLanguage,
+        languageGroup: newAlert.languageGroup,
+        createdDate: new Date().toISOString(),
+        createdBy: context.pageContext.user.displayName
+      };
+
+      const savedDraft = await alertService.saveDraft(draftData);
+      setAutoSaveDraftId(savedDraft.id);
+      setLastAutoSave(new Date());
+      logger.debug('CreateAlertTab', 'Auto-saved draft', { id: savedDraft.id, title: savedDraft.title });
+    } catch (error) {
+      logger.warn('CreateAlertTab', 'Auto-save failed', error);
+      // Don't show error to user for auto-save failures
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [newAlert, alertService, context.pageContext.user.displayName, isCreatingAlert, isAutoSaving, autoSaveDraftId]);
+
+  // Auto-save effect - runs every 30 seconds
+  React.useEffect(() => {
+    const autoSaveInterval = setInterval(() => {
+      autoSaveDraft();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [autoSaveDraft]);
+
   const resetForm = React.useCallback(() => {
     setNewAlert({
       title: "",
@@ -509,6 +669,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     setErrors({});
     setUseMultiLanguage(false);
     setShowTemplates(true);
+    setAutoSaveDraftId(null);
+    setLastAutoSave(null);
   }, [setNewAlert, alertTypes, setErrors, setShowTemplates]);
 
   const getCurrentAlertType = React.useCallback((): IAlertType | undefined => {
@@ -517,19 +679,70 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
   return (
     <div className={styles.tabContent}>
-      {showTemplates && (
+      {(showTemplates || showDrafts) && (
         <div className={styles.templatesSection}>
-          <AlertTemplates
-            onSelectTemplate={handleTemplateSelect}
-            graphClient={graphClient}
-            context={context}
-            alertService={alertService}
-            className={styles.templates}
-          />
+          <div className={styles.templateActions}>
+            <SharePointButton
+              variant={showTemplates && !showDrafts ? "primary" : "secondary"}
+              onClick={() => { setShowTemplates(true); setShowDrafts(false); }}
+            >
+              Templates
+            </SharePointButton>
+            <SharePointButton
+              variant={showDrafts ? "primary" : "secondary"}
+              onClick={() => { setShowTemplates(false); setShowDrafts(true); }}
+            >
+              My Drafts ({drafts.length})
+            </SharePointButton>
+          </div>
+
+          {showTemplates && !showDrafts && (
+            <AlertTemplates
+              onSelectTemplate={handleTemplateSelect}
+              graphClient={graphClient}
+              context={context}
+              alertService={alertService}
+              className={styles.templates}
+            />
+          )}
+
+          {showDrafts && (
+            <div className={styles.alertsList}>
+              {drafts.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <p>No drafts found. Save your work as a draft to continue later!</p>
+                </div>
+              ) : (
+                drafts.map(draft => (
+                  <div key={draft.id} className={styles.alertCard}>
+                    <div className={styles.alertCardHeader}>
+                      <h4>{draft.title}</h4>
+                      <small>
+                        {new Date(draft.createdDate).toLocaleDateString()}
+                      </small>
+                    </div>
+                    <div className={styles.alertCardContent}>
+                      <div dangerouslySetInnerHTML={{ __html: draft.description.substring(0, 100) + '...' }} />
+                    </div>
+                    <div className={styles.alertCardActions}>
+                      <SharePointButton
+                        variant="primary"
+                        onClick={() => handleLoadDraft(draft)}
+                        icon={<DocumentArrowLeft24Regular />}
+                      >
+                        Load Draft
+                      </SharePointButton>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
           <div className={styles.templateActions}>
             <SharePointButton
               variant="secondary"
-              onClick={() => setShowTemplates(false)}
+              onClick={() => { setShowTemplates(false); setShowDrafts(false); }}
             >
               Start from Scratch
             </SharePointButton>
@@ -537,34 +750,34 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         </div>
       )}
 
-      {!showTemplates && (
+      {!showTemplates && !showDrafts && (
         <div className={styles.alertForm}>
           <div className={styles.formWithPreview}>
             <div className={styles.formColumn}>
-              <SharePointSection title="Content Classification">
+              <SharePointSection title={getString('CreateAlertSectionContentClassificationTitle')}>
                 <SharePointSelect
-                  label="Content Type"
+                  label={getString('ContentTypeLabel')}
                   value={newAlert.contentType}
                   onChange={(value) => setNewAlert(prev => ({ ...prev, contentType: value as ContentType }))}
                   options={contentTypeOptions}
                   required
-                  description="Choose whether this is a live alert or a reusable template"
+                  description={getString('CreateAlertSectionContentClassificationDescription')}
                 />
 
                 <div className={styles.languageModeSelector}>
-                  <label className={styles.fieldLabel}>Language Configuration</label>
+                  <label className={styles.fieldLabel}>{getString('CreateAlertLanguageConfigurationLabel')}</label>
                   <div className={styles.languageOptions}>
                     <SharePointButton
                       variant={!useMultiLanguage ? "primary" : "secondary"}
                       onClick={() => setUseMultiLanguage(false)}
                     >
-                      🌐 Single Language
+                      {getString('CreateAlertSingleLanguageButton')}
                     </SharePointButton>
                     <SharePointButton
                       variant={useMultiLanguage ? "primary" : "secondary"}
                       onClick={() => setUseMultiLanguage(true)}
                     >
-                      🗣️ Multi-Language
+                      {getString('CreateAlertMultiLanguageButton')}
                     </SharePointButton>
                   </div>
                 </div>
@@ -572,53 +785,57 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
               {!useMultiLanguage ? (
                 <>
-                  <SharePointSection title="Language Targeting">
+                  <SharePointSection title={getString('CreateAlertSectionLanguageTargetingTitle')}>
                     <SharePointSelect
-                      label="Target Language"
+                      label={getString('CreateAlertTargetLanguageLabel')}
                       value={newAlert.targetLanguage}
                       onChange={(value) => setNewAlert(prev => ({ ...prev, targetLanguage: value as TargetLanguage }))}
                       options={languageOptions}
                       required
-                      description="Choose which language audience this alert targets"
+                      description={getString('CreateAlertSectionLanguageTargetingDescription')}
                     />
                   </SharePointSection>
 
-                  <SharePointSection title="Basic Information">
+                  <SharePointSection title={getString('CreateAlertSectionBasicInformationTitle')}>
                     <SharePointInput
-                      label="Alert Title"
+                      label={getString('AlertTitle')}
                       value={newAlert.title}
                       onChange={(value) => {
                         setNewAlert(prev => ({ ...prev, title: value }));
                         setErrors(prev => prev.title ? { ...prev, title: undefined } : prev);
                       }}
-                      placeholder="Enter a clear, concise title"
+                      placeholder={getString('CreateAlertTitlePlaceholder')}
                       required
                       error={errors.title}
-                      description="This will be the main heading of your alert (3-100 characters)"
+                      description={getString('CreateAlertTitleDescription')}
                     />
 
                     <SharePointRichTextEditor
-                      label="Alert Description"
+                      label={getString('AlertDescription')}
                       value={newAlert.description}
                       onChange={(value) => {
                         setNewAlert(prev => ({ ...prev, description: value }));
                         if (errors.description) setErrors(prev => ({ ...prev, description: undefined }));
                       }}
-                      placeholder="Provide detailed information about the alert..."
+                      context={context}
+                      placeholder={getString('CreateAlertDescriptionPlaceholder')}
                       required
                       error={errors.description}
-                      description="Use the toolbar to format your message with rich text, links, lists, and more."
+                      description={getString('CreateAlertDescriptionHelp')}
+                      imageFolderName={newAlert.languageGroup || newAlert.title || 'Untitled_Alert'}
                     />
                   </SharePointSection>
                 </>
               ) : (
-                <SharePointSection title="Multi-Language Content">
+                <SharePointSection title={getString('MultiLanguageContent')}>
                   <MultiLanguageContentEditor
                     content={newAlert.languageContent}
                     onContentChange={(content) => setNewAlert(prev => ({ ...prev, languageContent: content }))}
                     availableLanguages={supportedLanguages}
                     errors={errors}
                     linkUrl={newAlert.linkUrl}
+                    context={context}
+                    imageFolderName={newAlert.languageGroup}
                   />
                 </SharePointSection>
               )}
@@ -759,6 +976,15 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
                 <SharePointButton
                   variant="secondary"
+                  onClick={handleSaveAsDraft}
+                  disabled={isCreatingAlert || alertTypes.length === 0}
+                  icon={<Drafts24Regular />}
+                >
+                  Save as Draft
+                </SharePointButton>
+
+                <SharePointButton
+                  variant="secondary"
                   onClick={resetForm}
                   disabled={isCreatingAlert}
                   icon={<Dismiss24Regular />}
@@ -773,6 +999,14 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                 >
                   {showPreview ? "Hide Preview" : "Show Preview"}
                 </SharePointButton>
+
+                {/* Auto-save indicator */}
+                <div style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>
+                  {isAutoSaving && <span>💾 Auto-saving...</span>}
+                  {!isAutoSaving && lastAutoSave && (
+                    <span>✓ Auto-saved at {lastAutoSave.toLocaleTimeString()}</span>
+                  )}
+                </div>
               </div>
 
               {/* Creation Progress */}

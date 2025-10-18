@@ -234,10 +234,41 @@ export class SiteContextDetector {
       this.getFollowedSites()
     ]);
 
+    const enrichWithPermissions = async (sites: ISiteOption[]): Promise<ISiteOption[]> => {
+      const enhancedSites = await Promise.all(sites.map(async site => {
+        try {
+          const permissions = await this.getUserPermissions(site.id);
+          return { ...site, userPermissions: permissions };
+        } catch (error) {
+          logger.warn('SiteContextDetector', `Failed to evaluate permissions for site ${site.id}`, error);
+          return {
+            ...site,
+            userPermissions: {
+              canCreateAlerts: false,
+              canManageAlerts: false,
+              canViewAlerts: false,
+              permissionLevel: 'none' as const
+            }
+          };
+        }
+      }));
+
+      return enhancedSites.filter(site => site.userPermissions.canViewAlerts);
+    };
+
+    const [recentSitesWithPermissions, followedSitesWithPermissions] = await Promise.all([
+      enrichWithPermissions(recentSites),
+      enrichWithPermissions(followedSites)
+    ]);
+
     const result: any = {
       currentSite,
-      recentSites: recentSites.slice(0, 5), 
-      followedSites: followedSites.slice(0, 10) 
+      recentSites: recentSitesWithPermissions
+        .filter(site => site.userPermissions.canCreateAlerts)
+        .slice(0, 5),
+      followedSites: followedSitesWithPermissions
+        .filter(site => site.userPermissions.canCreateAlerts)
+        .slice(0, 10)
     };
 
     if (currentContext.isHubSite) {
@@ -299,17 +330,17 @@ export class SiteContextDetector {
       }
 
       try {
-        const homesite = await this.graphClient
-          .api('/admin/sharepoint/settings')
-          .select('homeSiteUrl')
+        const rootSite = await this.graphClient
+          .api('/sites/root')
+          .select('webUrl')
           .get();
 
-        if (homesite?.homeSiteUrl) {
-          const homeSiteUrl = new URL(homesite.homeSiteUrl);
+        if (rootSite?.webUrl) {
+          const homeSiteUrl = new URL(rootSite.webUrl);
           return url.hostname === homeSiteUrl.hostname && url.pathname === homeSiteUrl.pathname;
         }
       } catch (apiError) {
-        logger.debug('SiteContextDetector', 'Could not query homesite via Graph API, using fallback', apiError);
+        logger.debug('SiteContextDetector', 'Could not query root site via Graph API, using fallback', apiError);
       }
 
       return isRootSite;
@@ -367,16 +398,13 @@ export class SiteContextDetector {
       let permissionLevel: 'none' | 'read' | 'contribute' | 'design' | 'fullControl' | 'owner' = 'read';
 
       try {
-        // First, try to get the current user's effective permissions
+        // First, try to get basic site information - if successful, user has at least read access
         await this.graphClient
-          .api(`/sites/${siteId}/drive/root`)
-          .select('permissions')
+          .api(`/sites/${siteId}`)
+          .select('id,displayName')
           .get();
 
-        // If we can access the drive root, user likely has write permissions
-        hasWritePermission = true;
-
-        // Try to check if user has elevated permissions by testing list creation capability
+        // Try to access lists to determine write permissions
         try {
           await this.graphClient
             .api(`/sites/${siteId}/lists`)
@@ -385,8 +413,9 @@ export class SiteContextDetector {
             .get();
 
           // If we can read lists, user likely has contribute or higher permissions
+          hasWritePermission = true;
           permissionLevel = 'contribute';
-          
+
           // Additional check: try to access site columns (requires design or full control)
           try {
             await this.graphClient
@@ -394,41 +423,31 @@ export class SiteContextDetector {
               .select('id')
               .top(1)
               .get();
-            
+
             hasOwnerPermission = true;
             permissionLevel = 'fullControl';
           } catch (columnError) {
             // Can't read site columns, stick with contribute level
+            // This is expected for non-admin users - don't log as error
           }
-        } catch (permError) {
-          // Can't read lists, but can access content
-          permissionLevel = 'contribute';
+        } catch (listError) {
+          // Can only read basic site info
+          permissionLevel = 'read';
         }
-      } catch (driveError) {
-        // Can't access drive, try other methods
-        try {
-          // Try to get site information - if successful, user has at least read access
-          await this.graphClient
-            .api(`/sites/${siteId}`)
-            .select('id,displayName')
-            .get();
 
-          // Try to access lists to determine write permissions
-          try {
-            await this.graphClient
-              .api(`/sites/${siteId}/lists`)
-              .top(1)
-              .get();
-
-            hasWritePermission = true;
-            permissionLevel = 'contribute';
-          } catch (listError) {
-            // Can only read basic site info
-            permissionLevel = 'read';
-          }
-        } catch (siteError) {
-          // No access at all
-          permissionLevel = 'none';
+        return {
+          canCreateAlerts: hasWritePermission,
+          canManageAlerts: hasOwnerPermission,
+          canViewAlerts: true,
+          permissionLevel
+        };
+      } catch (siteError: any) {
+        // Check if it's a 403 or 404 error - these are expected when user doesn't have access
+        const statusCode = siteError?.statusCode || siteError?.status;
+        if (statusCode === 403 || statusCode === 404) {
+          // User doesn't have access to this site - return 'none' permissions
+          // Don't log as warning since this is expected behavior
+          logger.debug('SiteContextDetector', `User does not have access to site ${siteId} (${statusCode})`);
           return {
             canCreateAlerts: false,
             canManageAlerts: false,
@@ -436,42 +455,49 @@ export class SiteContextDetector {
             permissionLevel: 'none'
           };
         }
-      }
 
-      // Additional check: if this is the current site and user is logged in, 
-      // assume they have at least read access
-      const currentSiteId = this.context.pageContext.site.id.toString();
-      if (siteId === currentSiteId) {
-        // User is on the current site, so they must have access
-        hasWritePermission = true; // Assume write permission for current site
-        permissionLevel = hasOwnerPermission ? 'owner' : 'contribute';
-      }
+        // For other errors, log as warning
+        logger.warn('SiteContextDetector', `Unexpected error checking permissions for site ${siteId}`, siteError);
 
-      return {
-        canCreateAlerts: hasWritePermission,
-        canManageAlerts: hasOwnerPermission,
-        canViewAlerts: true,
-        permissionLevel
-      };
+        // For the current site, assume user has read permissions since they're viewing it
+        const currentSiteId = this.context.pageContext.site.id.toString();
+        if (siteId === currentSiteId) {
+          return {
+            canCreateAlerts: false,
+            canManageAlerts: false,
+            canViewAlerts: true,
+            permissionLevel: 'read'
+          };
+        }
+
+        // For other sites with unexpected errors, return no access
+        return {
+          canCreateAlerts: false,
+          canManageAlerts: false,
+          canViewAlerts: false,
+          permissionLevel: 'none'
+        };
+      }
     } catch (error) {
-      logger.warn('SiteContextDetector', `Could not get user permissions for site ${siteId}`, error);
+      // This outer catch is for any unexpected errors in the function itself
+      logger.warn('SiteContextDetector', `Failed to check permissions for site ${siteId}`, error);
 
-      // For the current site, assume user has permissions since they're viewing it
+      // For the current site, assume user has read permissions since they're viewing it
       const currentSiteId = this.context.pageContext.site.id.toString();
       if (siteId === currentSiteId) {
         return {
-          canCreateAlerts: true,
-          canManageAlerts: true,
+          canCreateAlerts: false,
+          canManageAlerts: false,
           canViewAlerts: true,
-          permissionLevel: 'contribute'
+          permissionLevel: 'read'
         };
       }
 
       return {
         canCreateAlerts: false,
         canManageAlerts: false,
-        canViewAlerts: true,
-        permissionLevel: 'read'
+        canViewAlerts: false,
+        permissionLevel: 'none'
       };
     }
   }
@@ -561,16 +587,29 @@ export class SiteContextDetector {
 
   private async getRecentSites(): Promise<ISiteOption[]> {
     try {
+      // Get recent items - we'll filter out files ourselves since Graph API filter doesn't work reliably
       const recentSites = await this.graphClient
         .api('/me/insights/used')
-        .filter("resourceVisualization/type eq 'Web'")
-        .top(10)
+        .top(20) // Get more items since we'll filter out files
         .get();
 
-      const sitesWithUrls = recentSites.value.filter((item: any) => item.resourceReference?.webUrl);
+      // Filter to only include site/web URLs (not files)
+      const sitesWithUrls = recentSites.value.filter((item: any) => {
+        const webUrl = item.resourceReference?.webUrl;
+        if (!webUrl) return false;
+
+        // Check if it's a file URL
+        try {
+          const pathname = new URL(webUrl).pathname;
+          const isFile = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|stl|exe|jpg|jpeg|png|gif|bmp|svg|webp|sppkg|aspx|html|css|js|json|xml|csv|mp4|avi|mov|wmv|flv|wav|mp3|wma)$/i.test(pathname);
+          return !isFile;
+        } catch {
+          return false;
+        }
+      });
 
       const sitesWithIds = await Promise.all(
-        sitesWithUrls.map(async (item: any) => {
+        sitesWithUrls.slice(0, 10).map(async (item: any) => { // Limit to 10 after filtering
           const siteId = await this.extractSiteIdFromUrl(item.resourceReference.webUrl);
           return {
             id: siteId,
@@ -599,12 +638,8 @@ export class SiteContextDetector {
 
   private async getHomesite(): Promise<ISiteOption | null> {
     try {
-      // Try to get the organization's home site
-      const tenantUrl = this.currentSiteContext?.tenantUrl ||
-        `https://${new URL(this.context.pageContext.web.absoluteUrl).hostname}`;
-
       const homeSite = await this.graphClient
-        .api(`/sites/${tenantUrl}:/`)
+        .api('/sites/root')
         .select('id,displayName,webUrl')
         .get();
 
@@ -633,8 +668,16 @@ export class SiteContextDetector {
     try {
       if (!url) return '';
 
-      const hostname = new URL(url).hostname;
+      // Check if URL points to a file (has file extension)
       const pathname = new URL(url).pathname;
+      const isFileUrl = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|stl|exe|jpg|jpeg|png|gif|bmp|svg|webp|sppkg|aspx|html|css|js|json|xml|csv|mp4|avi|mov|wmv|flv|wav|mp3|wma)$/i.test(pathname);
+
+      if (isFileUrl) {
+        logger.debug('SiteContextDetector', `Skipping file URL: ${url}`);
+        return '';
+      }
+
+      const hostname = new URL(url).hostname;
 
       let apiPath = '';
       if (pathname === '/' || pathname === '') {

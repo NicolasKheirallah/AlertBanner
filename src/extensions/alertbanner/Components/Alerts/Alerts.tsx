@@ -9,10 +9,12 @@ import { ISettingsData } from "../Settings/Tabs/SettingsTab";
 import { EditModeDetector } from "../Utils/EditModeDetector";
 import { useAlerts } from "../Context/AlertsContext";
 import { StorageService } from "../Services/StorageService";
+import { useLocalization } from "../Hooks/useLocalization";
 
 const Alerts: React.FC<IAlertsProps> = (props) => {
   const { state, initializeAlerts, removeAlert, hideAlertForever } = useAlerts();
   const { alerts, alertTypes, isLoading, hasError, errorMessage } = state;
+  const { getString } = useLocalization();
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInEditMode, setIsInEditMode] = React.useState(false);
@@ -23,43 +25,87 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   const carouselTimer = React.useRef<number | null>(null);
   const storageService = React.useRef<StorageService>(StorageService.getInstance());
 
+  const defaultAlertType = React.useMemo<IAlertType>(() => ({
+    name: getString('DefaultAlertTypeName'),
+    iconName: "Info",
+    backgroundColor: "#ffffff",
+    textColor: "#000000",
+    additionalStyles: "",
+    priorityStyles: {
+      [AlertPriority.Critical]: "border: 2px solid #E81123;",
+      [AlertPriority.High]: "border: 1px solid #EA4300;",
+      [AlertPriority.Medium]: "",
+      [AlertPriority.Low]: ""
+    }
+  }), [getString]);
+
   // Store initial props to prevent unnecessary re-initialization
-  const initialPropsRef = React.useRef<{
+  const previousInitPropsRef = React.useRef<{
     siteIds: string[];
     alertTypesJson: string;
     userTargetingEnabled: boolean;
     notificationsEnabled: boolean;
+    graphClient: typeof props.graphClient;
+    context: typeof props.context;
   } | null>(null);
 
   // Initialize alerts and edit mode detection on mount
   React.useEffect(() => {
-    const currentProps = {
-      siteIds: props.siteIds || [],
+    const normalizedSiteIds = (props.siteIds ?? [])
+      .map(id => (id ?? '').toString().trim())
+      .filter(id => id.length > 0);
+    const uniqueSortedSiteIds = Array.from(new Set(normalizedSiteIds)).sort();
+
+    const nextInitProps = {
+      siteIds: uniqueSortedSiteIds,
       alertTypesJson: props.alertTypesJson,
-      userTargetingEnabled: props.userTargetingEnabled,
-      notificationsEnabled: props.notificationsEnabled,
+      userTargetingEnabled: !!props.userTargetingEnabled,
+      notificationsEnabled: !!props.notificationsEnabled,
+      graphClient: props.graphClient,
+      context: props.context
     };
 
-    // Only initialize if props have actually changed
-    if (!initialPropsRef.current || 
-        JSON.stringify(initialPropsRef.current) !== JSON.stringify(currentProps)) {
-      
-      logger.debug('Alerts', 'Initializing alerts with props', currentProps);
-      initialPropsRef.current = currentProps;
-      
+    const prevInitProps = previousInitPropsRef.current;
+    const hasInitPropsChanged = !prevInitProps ||
+      prevInitProps.graphClient !== nextInitProps.graphClient ||
+      prevInitProps.context !== nextInitProps.context ||
+      prevInitProps.alertTypesJson !== nextInitProps.alertTypesJson ||
+      prevInitProps.userTargetingEnabled !== nextInitProps.userTargetingEnabled ||
+      prevInitProps.notificationsEnabled !== nextInitProps.notificationsEnabled ||
+      prevInitProps.siteIds.length !== nextInitProps.siteIds.length ||
+      prevInitProps.siteIds.some((id, index) => id !== nextInitProps.siteIds[index]);
+
+    if (hasInitPropsChanged) {
+      logger.debug('Alerts', 'Initializing alerts with updated props', nextInitProps);
+      previousInitPropsRef.current = {
+        ...nextInitProps,
+        siteIds: [...nextInitProps.siteIds]
+      };
+
       initializeAlerts({
         graphClient: props.graphClient,
         context: props.context,
-        ...currentProps
+        siteIds: uniqueSortedSiteIds,
+        alertTypesJson: props.alertTypesJson,
+        userTargetingEnabled: !!props.userTargetingEnabled,
+        notificationsEnabled: !!props.notificationsEnabled
       });
     } else {
-      logger.debug('Alerts', 'Props unchanged, skipping alert re-initialization');
+      logger.debug('Alerts', 'Initialization props unchanged, skipping alert re-initialization');
     }
 
     setIsInEditMode(EditModeDetector.isPageInEditMode());
     const cleanup = EditModeDetector.onEditModeChange(setIsInEditMode);
     return cleanup;
-  }, [props.graphClient, JSON.stringify(props.siteIds), props.alertTypesJson, props.userTargetingEnabled, props.notificationsEnabled, initializeAlerts]);
+  }, [
+    props.graphClient,
+    props.context,
+    props.alertTypesJson,
+    props.userTargetingEnabled,
+    props.notificationsEnabled,
+    props.siteIds && props.siteIds.join('|'),
+    initializeAlerts
+  ]);
 
   // Effect to reset index when alerts change
   React.useEffect(() => {
@@ -186,14 +232,14 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
               fontWeight: tokens.fontWeightSemibold,
               fontSize: tokens.fontSizeBase300
             }}>
-              Unable to Load Alerts
+              {getString('AlertsLoadErrorTitle')}
             </MessageBarTitle>
             <div style={{
               marginTop: tokens.spacingVerticalXS,
               fontSize: tokens.fontSizeBase200,
               lineHeight: tokens.lineHeightBase200,
             }}>
-              {errorMessage || "An error occurred while loading alerts. Please try refreshing the page or contact your administrator if the problem persists."}
+              {errorMessage || getString('AlertsLoadErrorFallback')}
             </div>
           </MessageBarBody>
         </MessageBar>
@@ -226,6 +272,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
             totalAlerts={alerts.length}
             onNext={goToNext}
             onPrevious={goToPrevious}
+            userTargetingEnabled={props.userTargetingEnabled || false}
           />
         </div>
       )}
@@ -242,21 +289,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       )}
     </div>
   );
-};
-
-// Define a default alert type in case an alert type is missing
-const defaultAlertType: IAlertType = {
-  name: "Default",
-  iconName: "Info",
-  backgroundColor: "#ffffff",
-  textColor: "#000000",
-  additionalStyles: "",
-  priorityStyles: {
-    [AlertPriority.Critical]: "border: 2px solid #E81123;",
-    [AlertPriority.High]: "border: 1px solid #EA4300;",
-    [AlertPriority.Medium]: "",
-    [AlertPriority.Low]: "",
-  },
 };
 
 export default Alerts;

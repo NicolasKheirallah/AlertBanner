@@ -29,7 +29,6 @@
   }
 }
 
-// Global animation classes for Fluent UI components
 :global(.modern-alert-enter) {
   animation: modernSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -42,21 +41,19 @@
   animation: criticalAttention 3s ease-in-out infinite;
 }
 
-// Global icon fixes for Fluent UI v9
-:global(svg) {
+// Icon fixes scoped to alert banner elements
+.alertItem :global(svg) {
   display: inline-block !important;
   vertical-align: middle;
 }
 
-// Ensure all Fluent UI icons are visible
-:global([data-icon-name]) {
+.alertItem :global([data-icon-name]) {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
 }
 
-// Fix for Fluent UI React Components buttons
-:global(.fui-Button) {
+.alertItem :global(.fui-Button) {
   svg {
     display: inline-block !important;
     width: 1em;
@@ -332,8 +329,8 @@
 .alertContentContainer {
   display: flex;
   flex-direction: column;
-  gap: var(--spacingVerticalM);
-  padding-top: var(--spacingVerticalM);
+  gap: var(--spacingVerticalM, 16px);
+  padding-top: var(--spacingVerticalM, 16px);
   border-top: 1px solid var(--colorNeutralStroke2);
 }
 
@@ -342,13 +339,18 @@
 .descriptionParagraph {
   display: flex;
   flex-direction: column;
-  gap: var(--spacingVerticalS);
+  gap: var(--spacingVerticalS, 8px);
 }
 
 .descriptionListContainer {
   display: flex;
   flex-direction: column;
-  gap: var(--spacingVerticalXS);
+  gap: var(--spacingVerticalXS, 4px);
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
 .descriptionListItem {
@@ -363,5 +365,94 @@
 
 .descriptionToggleButton {
   align-self: flex-start;
-  margin-top: var(--spacingVerticalS);
+  margin-top: var(--spacingVerticalS, 8px);
+}
+
+// Attachments Section Styles
+.attachmentsSection {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.attachmentsTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #323130;
+  margin-bottom: 12px;
+}
+
+.attachmentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attachmentItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background-color: #ffffff;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #323130;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #f3f2f1;
+    border-color: #c8c6c4;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+
+    .downloadIcon {
+      color: #0078d4;
+    }
+  }
+
+  &:focus {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
+  }
+
+  &:active {
+    background-color: #edebe9;
+  }
+}
+
+.attachmentIcon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: #0078d4;
+}
+
+.attachmentInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachmentName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #323130;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachmentSize {
+  font-size: 11px;
+  color: #605e5c;
+  margin-top: 2px;
+}
+
+.downloadIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: #605e5c;
+  transition: color 0.2s ease;
 }

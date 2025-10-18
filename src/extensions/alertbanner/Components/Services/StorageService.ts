@@ -122,26 +122,26 @@ export class StorageService {
     return this.getFromLocalStorage<IAlertItem[]>("AllAlerts");
   }
 
-  public saveDismissedAlerts(alertIds: number[]): void {
-    this.saveToSessionStorage<number[]>("DismissedAlerts", alertIds, {
+  public saveDismissedAlerts(alertIds: string[]): void {
+    this.saveToSessionStorage<string[]>("DismissedAlerts", alertIds, {
       userSpecific: true
     });
   }
 
-  public getDismissedAlerts(): number[] {
-    return this.getFromSessionStorage<number[]>("DismissedAlerts", {
+  public getDismissedAlerts(): string[] {
+    return this.getFromSessionStorage<string[]>("DismissedAlerts", {
       userSpecific: true
     }) || [];
   }
 
-  public saveHiddenAlerts(alertIds: number[]): void {
-    this.saveToLocalStorage<number[]>("HiddenAlerts", alertIds, {
+  public saveHiddenAlerts(alertIds: string[]): void {
+    this.saveToLocalStorage<string[]>("HiddenAlerts", alertIds, {
       userSpecific: true
     });
   }
 
-  public getHiddenAlerts(): number[] {
-    return this.getFromLocalStorage<number[]>("HiddenAlerts", {
+  public getHiddenAlerts(): string[] {
+    return this.getFromLocalStorage<string[]>("HiddenAlerts", {
       userSpecific: true
     }) || [];
   }

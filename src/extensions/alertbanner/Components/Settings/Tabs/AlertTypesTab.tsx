@@ -23,7 +23,7 @@ export interface IAlertTypesTabProps {
   setIsCreatingType: React.Dispatch<React.SetStateAction<boolean>>;
   alertService: SharePointAlertService;
   onSettingsChange: (settings: any) => void;
-  context?: any; // ApplicationCustomizerContext for notifications
+  context?: any;
 }
 
 const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
