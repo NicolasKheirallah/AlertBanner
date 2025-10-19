@@ -1286,7 +1286,7 @@ export class SharePointAlertService {
   /**
    * Extract site ID and item ID from composite alert ID
    */
-  private parseAlertId(alertId: string): { siteId: string; itemId: string } {
+  public parseAlertId(alertId: string): { siteId: string; itemId: string } {
     const lastHyphenIndex = alertId.lastIndexOf('-');
     if (lastHyphenIndex > 0 && lastHyphenIndex < alertId.length - 1) {
       const siteId = alertId.substring(0, lastHyphenIndex);
@@ -1298,6 +1298,10 @@ export class SharePointAlertService {
     }
     // For backward compatibility, assume current site if no composite ID
     return { siteId: this.context.pageContext.site.id.toString(), itemId: alertId };
+  }
+
+  public getAlertSiteId(alertId: string): string {
+    return this.parseAlertId(alertId).siteId;
   }
 
   /**
@@ -1371,9 +1375,11 @@ export class SharePointAlertService {
   /**
    * Get alert types from SharePoint
    */
-  public async getAlertTypes(): Promise<IAlertType[]> {
+  public async getAlertTypes(siteIdOverride?: string): Promise<IAlertType[]> {
     try {
-      const siteId = this.context.pageContext.site.id.toString();
+      const siteId = siteIdOverride && siteIdOverride.trim().length > 0
+        ? siteIdOverride
+        : this.context.pageContext.site.id.toString();
 
       // Try to ensure the alert types list exists
       try {

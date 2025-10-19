@@ -449,6 +449,28 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
     };
   }, [clampAllImages]);
 
+  const handleInsertEmoji = React.useCallback((emoji: string) => {
+    const editorInstance = richTextRef.current?.getEditor?.();
+
+    if (editorInstance) {
+      const selection = editorInstance.getSelection(true);
+      const insertIndex = selection ? selection.index : editorInstance.getLength();
+
+      editorInstance.insertText(insertIndex, emoji, 'user');
+      editorInstance.setSelection(insertIndex + emoji.length, 0);
+
+      window.setTimeout(() => {
+        const root = editorInstance.root as HTMLElement;
+        handleEditorChange(root.innerHTML);
+      }, 0);
+
+      return;
+    }
+
+    const newValue = (internalValue || '') + emoji;
+    handleEditorChange(newValue);
+  }, [handleEditorChange, internalValue]);
+
   const renderMediaToolbar = React.useCallback(() => {
     if (!context) {
       return null;
@@ -457,10 +479,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
     return (
       <div className={styles.mediaToolbar}>
         <EmojiPicker
-          onEmojiSelect={(emoji) => {
-            const newValue = internalValue + emoji;
-            handleEditorChange(newValue);
-          }}
+          onEmojiSelect={handleInsertEmoji}
           disabled={disabled}
         />
         <ImageUpload
@@ -471,7 +490,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
         />
       </div>
     );
-  }, [context, disabled, handleEditorChange, handleInsertUploadedImage, imageFolderName, internalValue]);
+  }, [context, disabled, handleInsertEmoji, handleInsertUploadedImage, imageFolderName]);
 
   return (
     <div className={`${styles.field} ${className || ''} ${currentError ? styles.error : ''}`}>

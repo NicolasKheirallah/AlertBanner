@@ -88,6 +88,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [useMultiLanguage, setUseMultiLanguage] = React.useState(false);
   const [tenantDefaultLanguage, setTenantDefaultLanguage] = React.useState<TargetLanguage>(TargetLanguage.EnglishUS);
   const [showPreview, setShowPreview] = React.useState(true);
+  const [supplementalAlertTypes, setSupplementalAlertTypes] = React.useState<IAlertType[]>([]);
   
   // Enhanced filter states
   const [priorityFilter, setPriorityFilter] = React.useState<'all' | AlertPriority>('all');
@@ -140,11 +141,25 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     }
   ];
 
-  // Alert type options
-  const alertTypeOptions: ISharePointSelectOption[] = alertTypes.map(type => ({
-    value: type.name,
-    label: type.name
-  }));
+  // Alert type options (include legacy/custom values that might not exist locally)
+  const alertTypeOptions: ISharePointSelectOption[] = React.useMemo(() => {
+    const optionMap = new Map<string, ISharePointSelectOption>();
+
+    [...alertTypes, ...supplementalAlertTypes].forEach(type => {
+      if (type?.name && !optionMap.has(type.name)) {
+        optionMap.set(type.name, { value: type.name, label: type.name });
+      }
+    });
+
+    if (editingAlert?.AlertType && !optionMap.has(editingAlert.AlertType)) {
+      optionMap.set(editingAlert.AlertType, {
+        value: editingAlert.AlertType,
+        label: `${editingAlert.AlertType} (from source site)`
+      });
+    }
+
+    return Array.from(optionMap.values());
+  }, [alertTypes, supplementalAlertTypes, editingAlert?.AlertType]);
 
   // Content type options (matching CreateAlerts)
   const contentTypeOptions: ISharePointSelectOption[] = [
@@ -152,6 +167,19 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     { value: ContentType.Template, label: "📄 Template - Reusable template for future alerts" },
     { value: ContentType.Draft, label: "✏️ Draft - Work in progress" }
   ];
+
+  // Ensure we always have a persisted alert type selected
+  React.useEffect(() => {
+    if (
+      editingAlert &&
+      (!editingAlert.AlertType || editingAlert.AlertType.trim() === "") &&
+      alertTypeOptions.length > 0
+    ) {
+      setEditingAlert(prev =>
+        prev ? { ...prev, AlertType: alertTypeOptions[0].value } : null
+      );
+    }
+  }, [editingAlert, alertTypeOptions, setEditingAlert]);
 
   // Language options (matching CreateAlerts)  
   const languageOptions: ISharePointSelectOption[] = [
@@ -236,18 +264,20 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   }, [selectedAlerts, alertService, loadExistingAlerts]);
 
   const handleEditAlert = React.useCallback((alert: IAlertItem) => {
-    logger.info('ManageAlertsTab', 'Opening edit dialog for alert', { id: alert.id, title: alert.title });
+    logger.info('ManageAlertsTab', 'Opening edit dialog for alert', {
+      id: alert.id,
+      title: alert.title,
+      AlertType: alert.AlertType
+    });
 
     try {
-      // Validate AlertType - if it doesn't exist in current alert types, use the first available one
-      const validAlertTypes = alertTypes.map(t => t.name);
-      const alertType = validAlertTypes.includes(alert.AlertType)
-        ? alert.AlertType
-        : (alertTypes.length > 0 ? alertTypes[0].name : 'Information');
-
-      if (!validAlertTypes.includes(alert.AlertType)) {
-        logger.warn('ManageAlertsTab', `Alert type "${alert.AlertType}" not found in current alert types, defaulting to "${alertType}"`);
-      }
+      setSupplementalAlertTypes([]);
+      const siteIdForAlert = alertService.getAlertSiteId(alert.id);
+      alertService.getAlertTypes(siteIdForAlert)
+        .then(types => setSupplementalAlertTypes(types))
+        .catch(error => {
+          logger.warn('ManageAlertsTab', 'Failed to load alert types for alert site', { siteIdForAlert, error });
+        });
 
       // Check if this is a multi-language alert (has languageGroup)
       const isMultiLang = !!alert.languageGroup;
@@ -263,28 +293,31 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
         const editingData: IEditingAlert = {
           ...alert,
-          AlertType: alertType,
           scheduledStart: alert.scheduledStart ? new Date(alert.scheduledStart) : undefined,
           scheduledEnd: alert.scheduledEnd ? new Date(alert.scheduledEnd) : undefined,
           languageContent
         };
 
+        logger.info('ManageAlertsTab', 'Multi-language edit mode activated', {
+          languageVariants: languageVariants.length,
+          editingAlertType: editingData.AlertType
+        });
         setEditingAlert(editingData);
         setUseMultiLanguage(true);
-        logger.info('ManageAlertsTab', 'Multi-language edit mode activated', { languageVariants: languageVariants.length });
       } else {
         // Single language alert
         const editingData: IEditingAlert = {
           ...alert,
-          AlertType: alertType,
           scheduledStart: alert.scheduledStart ? new Date(alert.scheduledStart) : undefined,
           scheduledEnd: alert.scheduledEnd ? new Date(alert.scheduledEnd) : undefined,
           languageContent: undefined
         };
 
+        logger.info('ManageAlertsTab', 'Single-language edit mode activated', {
+          editingAlertType: editingData.AlertType
+        });
         setEditingAlert(editingData);
         setUseMultiLanguage(false);
-        logger.info('ManageAlertsTab', 'Single-language edit mode activated');
       }
       
       setEditErrors({});
@@ -293,7 +326,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       logger.error('ManageAlertsTab', 'Error opening edit dialog', error);
       notificationService.showError('Failed to open edit dialog. Please try again.', 'Edit Failed');
     }
-  }, [setEditingAlert, existingAlerts, languageService, notificationService]);
+  }, [setEditingAlert, existingAlerts, languageService, notificationService, alertService, setSupplementalAlertTypes]);
 
   const handleDeleteAlert = React.useCallback(async (alertId: string, alertTitle: string) => {
     if (!confirm(`Are you sure you want to delete "${alertTitle}"? This action cannot be undone.`)) {
@@ -412,7 +445,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       }
     }
 
-    if (!editingAlert.AlertType) {
+    if (!editingAlert.AlertType || !editingAlert.AlertType.trim()) {
       newErrors.AlertType = "Alert type is required";
     }
 
@@ -542,7 +575,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     setEditingAlert(null);
     setEditErrors({});
     setUseMultiLanguage(false);
-  }, [setEditingAlert]);
+    setSupplementalAlertTypes([]);
+  }, [setEditingAlert, setSupplementalAlertTypes]);
 
   // Helper function to get current alert type for preview (matching CreateAlerts)
   const getCurrentAlertType = React.useCallback((): IAlertType | undefined => {
