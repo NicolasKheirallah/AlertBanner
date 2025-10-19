@@ -252,10 +252,7 @@ export class SharePointAlertService {
           return parsed.map(entry => String(entry)).filter(Boolean);
         }
       } catch (error) {
-        logger.debug('SharePointAlertService', 'TargetSites JSON parse failed, falling back to CSV parsing', {
-          rawValue: value,
-          error: error instanceof Error ? error.message : error
-        });
+        // JSON parse failed, fall back to CSV parsing
       }
 
       return trimmed.split(',').map(site => site.trim()).filter(Boolean);
@@ -394,51 +391,28 @@ export class SharePointAlertService {
   public async initializeLists(): Promise<void> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
-      logger.info('SharePointAlertService', `Initializing lists for site ${siteId}`);
-
-      // Determine if this is the home site
       const isHomeSite = await this.isHomeSite(siteId);
-      logger.info('SharePointAlertService', `Site ${siteId} is home site: ${isHomeSite}`);
 
-      // Check if alerts list exists or can be created
-      let alertsListCreated = false;
-      let typesListCreated = false;
-      
       try {
-        alertsListCreated = await this.ensureAlertsList(siteId);
-        if (alertsListCreated) {
-          logger.info('SharePointAlertService', 'Alert Banner alerts list created successfully');
-        } else {
-          logger.debug('SharePointAlertService', 'Alert Banner alerts list already exists');
-        }
+        await this.ensureAlertsList(siteId);
       } catch (alertsError) {
         if (alertsError.message?.includes('PERMISSION_DENIED')) {
-          logger.warn('SharePointAlertService', 'Cannot create alerts list due to insufficient permissions. Alert functionality may be limited.');
-          // Don't throw here, continue with types list
+          logger.warn('SharePointAlertService', 'Cannot create alerts list due to insufficient permissions');
         } else {
           throw alertsError;
         }
       }
 
-      // Only create AlertBannerTypes list on the home site
       if (isHomeSite) {
         try {
-          typesListCreated = await this.ensureAlertTypesList(siteId);
-          if (typesListCreated) {
-            logger.info('SharePointAlertService', 'Alert Banner types list created successfully on home site');
-          } else {
-            logger.debug('SharePointAlertService', 'Alert Banner types list already exists on home site');
-          }
+          await this.ensureAlertTypesList(siteId);
         } catch (typesError) {
           if (typesError.message?.includes('PERMISSION_DENIED')) {
-            logger.warn('SharePointAlertService', 'Cannot create types list on home site due to insufficient permissions. Alert types may need to be managed by a tenant administrator.');
-            // Don't throw here as this is not critical for basic alert functionality
+            logger.warn('SharePointAlertService', 'Cannot create types list on home site due to insufficient permissions');
           } else {
             throw typesError;
           }
         }
-      } else {
-        logger.debug('SharePointAlertService', 'AlertBannerTypes list creation skipped - not on home site. Types list should be managed from the home site.');
       }
     } catch (error) {
       // Enhanced error handling for common permission issues
@@ -498,8 +472,6 @@ export class SharePointAlertService {
       }
     }
 
-    logger.info('SharePointAlertService', 'Creating alerts list');
-
     const listDefinition = {
       displayName: this.alertsListName,
       list: {
@@ -509,26 +481,15 @@ export class SharePointAlertService {
     };
 
     try {
-      logger.debug('SharePointAlertService', 'Creating basic list structure');
       const createdList = await this.graphClient
         .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
         .post(listDefinition);
       this.registerListId(siteId, this.alertsListName, createdList?.id);
-      logger.info('SharePointAlertService', 'Basic list structure created successfully');
 
-      logger.debug('SharePointAlertService', 'Enabling attachments on Alerts list');
       await this.enableListAttachments(siteId, createdList?.id);
-      logger.info('SharePointAlertService', 'Attachments enabled successfully');
-
-      logger.debug('SharePointAlertService', 'Adding custom columns to Alerts list');
       await this.addAlertsListColumns(siteId);
-      logger.info('SharePointAlertService', 'All custom columns added successfully');
-
       await this.seedDefaultAlertTypes(siteId);
-
-      logger.debug('SharePointAlertService', 'Creating template alert items');
       await this.createTemplateAlerts(siteId);
-      logger.info('SharePointAlertService', 'Template alert items created successfully');
 
       return true;
     } catch (createError) {
@@ -1047,7 +1008,6 @@ export class SharePointAlertService {
         }
       }
 
-      logger.info('SharePointAlertService', 'Seeded default alert types for site', { siteId });
     } catch (error) {
       logger.warn('SharePointAlertService', 'Unable to seed default alert types', { siteId, error });
     }
@@ -1170,15 +1130,6 @@ export class SharePointAlertService {
         
         const columnNames = listInfo.columns.map((col: any) => col.name);
         const alertTypeColumn = listInfo.columns.find((col: any) => col.name === 'AlertType');
-        
-        logger.debug('SharePointAlertService', 'Available list columns', { 
-          columns: columnNames,
-          alertTypeColumn: alertTypeColumn ? {
-            name: alertTypeColumn.name,
-            type: Object.keys(alertTypeColumn).filter(key => key !== 'name' && alertTypeColumn[key] != null)
-          } : null
-        });
-        
         const requiredColumns = ['Title', 'Description', 'AlertType', 'Priority', 'IsPinned'];
         const missingColumns = requiredColumns.filter(col => !columnNames.includes(col));
         if (missingColumns.length > 0) {
@@ -1242,7 +1193,7 @@ export class SharePointAlertService {
 
       const listItem = { fields };
 
-      logger.debug('SharePointAlertService', 'Creating alert with data', { 
+      logger.debug('SharePointAlertService', 'Creating alert', {
         alert, 
         listItem: { ...listItem, fields: { ...listItem.fields, Description: listItem.fields.Description?.substring(0, 100) + '...' } }
       });

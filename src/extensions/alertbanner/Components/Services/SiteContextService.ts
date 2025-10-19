@@ -116,7 +116,7 @@ export class SiteContextService {
             };
           }
         } catch (rootError) {
-          logger.debug('SiteContextService', 'Root site not accessible or not home site');
+          // Root site not accessible or not home site
         }
       }
 
@@ -356,21 +356,15 @@ export class SiteContextService {
       try {
         await alertService.initializeLists();
         
-        // Add language columns if specific languages were selected
         if (selectedLanguages && selectedLanguages.length > 0) {
-          logger.debug('SiteContextService', `Adding language columns for: ${selectedLanguages.join(', ')}`);
           for (const languageCode of selectedLanguages) {
             try {
               await alertService.addLanguageSupport(languageCode);
-              logger.debug('SiteContextService', `Added language columns for ${languageCode}`);
             } catch (langError) {
               logger.warn('SiteContextService', `Failed to add language columns for ${languageCode}`, langError);
-              // Continue with other languages
             }
           }
         }
-        
-        logger.info('SiteContextService', `Successfully created alerts list on site ${siteId}`);
         
         // Update the hasAlertsList flag for the site
         const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo];

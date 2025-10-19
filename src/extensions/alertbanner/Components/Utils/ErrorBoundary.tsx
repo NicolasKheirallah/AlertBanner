@@ -78,10 +78,7 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
   private handleRetry = (): void => {
     if (this.retryCount < this.maxRetries) {
       this.retryCount++;
-      const componentName = this.props.componentName || 'Unknown Component';
-      
-      logger.info(componentName, `Retrying component render (attempt ${this.retryCount}/${this.maxRetries})`);
-      
+
       this.setState({
         hasError: false
       });
@@ -110,7 +107,6 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       };
 
       await navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2));
-      logger.info('ErrorBoundary', 'Error details copied to clipboard');
     } catch (clipboardError) {
       logger.warn('ErrorBoundary', 'Failed to copy error details to clipboard', clipboardError);
     }

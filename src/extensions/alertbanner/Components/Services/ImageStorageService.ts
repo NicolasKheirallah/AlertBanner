@@ -24,14 +24,10 @@ export class ImageStorageService {
     const uniqueFileName = this.getUniqueFileName(file);
 
     try {
-      const url = await this.uploadViaGraph(file, uniqueFileName, sanitizedFolder);
-      logger.info('ImageStorageService', 'Uploaded image via Microsoft Graph', { url, sanitizedFolder });
-      return url;
+      return await this.uploadViaGraph(file, uniqueFileName, sanitizedFolder);
     } catch (graphError) {
       logger.warn('ImageStorageService', 'Graph upload failed; falling back to SharePoint REST', graphError);
-      const url = await this.uploadViaRest(file, uniqueFileName, sanitizedFolder);
-      logger.info('ImageStorageService', 'Uploaded image via SharePoint REST', { url, sanitizedFolder });
-      return url;
+      return await this.uploadViaRest(file, uniqueFileName, sanitizedFolder);
     }
   }
 

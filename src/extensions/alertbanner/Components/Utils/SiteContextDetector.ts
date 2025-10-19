@@ -340,7 +340,7 @@ export class SiteContextDetector {
           return url.hostname === homeSiteUrl.hostname && url.pathname === homeSiteUrl.pathname;
         }
       } catch (apiError) {
-        logger.debug('SiteContextDetector', 'Could not query root site via Graph API, using fallback', apiError);
+        // Could not query root site via Graph API, using fallback
       }
 
       return isRootSite;
@@ -365,9 +365,7 @@ export class SiteContextDetector {
 
       return [];
     } catch (error) {
-      if (error.statusCode === 400 || error.message?.includes('filter')) {
-        logger.debug('SiteContextDetector', `Hub site filtering not supported in this tenant for hub ${hubSiteId}`, error);
-      } else {
+      if (!(error.statusCode === 400 || error.message?.includes('filter'))) {
         logger.warn('SiteContextDetector', 'Could not get associated sites', error);
       }
       return [];
@@ -446,8 +444,6 @@ export class SiteContextDetector {
         const statusCode = siteError?.statusCode || siteError?.status;
         if (statusCode === 403 || statusCode === 404) {
           // User doesn't have access to this site - return 'none' permissions
-          // Don't log as warning since this is expected behavior
-          logger.debug('SiteContextDetector', `User does not have access to site ${siteId} (${statusCode})`);
           return {
             canCreateAlerts: false,
             canManageAlerts: false,
@@ -673,7 +669,6 @@ export class SiteContextDetector {
       const isFileUrl = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|stl|exe|jpg|jpeg|png|gif|bmp|svg|webp|sppkg|aspx|html|css|js|json|xml|csv|mp4|avi|mov|wmv|flv|wav|mp3|wma)$/i.test(pathname);
 
       if (isFileUrl) {
-        logger.debug('SiteContextDetector', `Skipping file URL: ${url}`);
         return '';
       }
 
