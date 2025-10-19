@@ -27,7 +27,7 @@ export interface IAlertItem {
   linkUrl?: string;
   linkDescription?: string;
   targetSites: string[];
-  status: 'Active' | 'Expired' | 'Scheduled';
+  status: 'Active' | 'Expired' | 'Scheduled' | 'Draft';
   createdDate: string;
   createdBy: string;
   scheduledStart?: string;
@@ -1074,54 +1074,46 @@ export class SharePointAlertService {
         }
       }
       const allAlerts: IAlertItem[] = [];
-      const seenAlerts = new Map<string, IAlertItem>(); // Track alerts by title+description to avoid duplicates
+      const seenAlerts = new Map<string, IAlertItem>(); // Track alerts by unique ID to avoid duplicates
+
+      // Normalize and deduplicate site IDs
+      const normalizedSiteIds = sitesToQuery.map(siteId =>
+        siteId.includes(',') ? siteId : this.getGraphSiteIdentifier(siteId)
+      );
+      const uniqueSiteIds = [...new Set(normalizedSiteIds)];
 
       // Query alerts from each site
-      for (const siteId of sitesToQuery) {
+      for (const siteId of uniqueSiteIds) {
         try {
           const alertsListApi = await this.getAlertsListApi(siteId);
           const response = await this.graphClient
             .api(`${alertsListApi}/items`)
             .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
             .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author,Attachments,AttachmentFiles)")
-            .filter("fields/ItemType eq 'alert' and fields/Status ne 'Draft'")
             .orderby("fields/Created desc")
             .get();
 
-          // Additional client-side filtering to exclude auto-saved drafts and templates
+          // Filter and map alerts
           const siteAlerts = response.value
             .filter((item: any) => {
               const title = item.fields?.Title || '';
-              const itemType = item.fields?.ItemType || '';
-              const status = item.fields?.Status || '';
+              const itemType = (item.fields?.ItemType || '').toLowerCase();
+              const status = (item.fields?.Status || '').toLowerCase();
 
-              // Exclude drafts and templates
-              if (itemType === 'draft' || itemType === 'template') {
-                return false;
-              }
-
-              // Exclude auto-saved items
-              if (title.startsWith('[Auto-saved]')) {
-                return false;
-              }
-
-              // Exclude items with Draft status
-              if (status === 'Draft') {
-                return false;
-              }
-
-              return true;
+              // Exclude drafts, templates, and auto-saved items
+              return itemType !== 'draft' &&
+                     itemType !== 'template' &&
+                     status !== 'draft' &&
+                     !title.startsWith('[Auto-saved]') &&
+                     !title.startsWith('[auto-saved]');
             })
             .map((item: any) => this.mapSharePointItemToAlert(item, siteId));
-          
-          // Deduplicate alerts based on SharePoint item ID and site ID
+
+          // Add alerts, skipping duplicates
           for (const alert of siteAlerts) {
-            const dedupeKey = `${siteId}-${alert.id.split('-').pop()}`; // Use actual SharePoint item ID
-            if (!seenAlerts.has(dedupeKey)) {
-              seenAlerts.set(dedupeKey, alert);
+            if (!seenAlerts.has(alert.id)) {
+              seenAlerts.set(alert.id, alert);
               allAlerts.push(alert);
-            } else {
-              logger.debug('SharePointAlertService', `Duplicate alert detected and skipped: ${alert.title} (ID: ${alert.id})`);
             }
           }
         } catch (error) {
@@ -1149,7 +1141,7 @@ export class SharePointAlertService {
   /**
    * Create a new alert
    */
-  public async createAlert(alert: Omit<IAlertItem, 'id' | 'createdDate' | 'createdBy' | 'status'>): Promise<IAlertItem> {
+  public async createAlert(alert: Omit<IAlertItem, 'id' | 'createdDate' | 'createdBy' | 'status'> & Partial<Pick<IAlertItem, 'status'>>): Promise<IAlertItem> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
 
@@ -1220,9 +1212,9 @@ export class SharePointAlertService {
       if (alert.targetSites && alert.targetSites.length > 0) {
         fields.TargetSites = JSON.stringify(alert.targetSites);
       }
-      
-      // Add status and scheduling
-      fields.Status = alert.scheduledStart && new Date(alert.scheduledStart) > new Date() ? 'Scheduled' : 'Active';
+
+      // Set status: use provided status or auto-determine from scheduling
+      fields.Status = alert.status || (alert.scheduledStart && new Date(alert.scheduledStart) > new Date() ? 'Scheduled' : 'Active');
       
       if (alert.scheduledStart) {
         fields.ScheduledStart = new Date(alert.scheduledStart).toISOString();

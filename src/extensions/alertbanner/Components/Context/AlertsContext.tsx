@@ -278,7 +278,26 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const alertCacheRef = React.useRef<Map<string, { alerts: IAlertItem[]; timestamp: number }>>(new Map());
-  const CACHE_DURATION = 5 * 60 * 1000; 
+  const CACHE_DURATION = 5 * 60 * 1000;
+
+  // Normalize site ID to extract the site GUID for consistent deduplication
+  const normalizeSiteId = useCallback((siteId: string): string => {
+    // If it's in Graph format (hostname,siteGuid,webGuid), extract just the site GUID
+    if (siteId.includes(',')) {
+      const parts = siteId.split(',');
+      // Return the middle part (site GUID)
+      return parts.length >= 2 ? parts[1] : siteId;
+    }
+
+    // If it contains a colon (hostname:path format), we can't easily extract GUID
+    // Return as-is and let Graph API handle it
+    if (siteId.includes(':')) {
+      return siteId;
+    }
+
+    // Otherwise, it's already a GUID - return as-is
+    return siteId;
+  }, []);
 
   const fetchAlerts = useCallback(async (siteId: string): Promise<IAlertItem[]> => {
     // Check cache first
@@ -298,7 +317,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // First, try to get list with custom fields
       let response;
       try {
-        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null) and (fields/ItemType ne 'template')`;
+        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null) and (fields/ItemType ne 'template') and (fields/ItemType ne 'draft')`;
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
@@ -306,54 +325,36 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,AvailableForAll,Metadata,Attachments,AttachmentFiles)")
           .filter(filterQuery)
           .orderby("fields/ScheduledStart desc")
-          .top(25) // Reduced from 50 to 25 for better performance
+          .top(25)
           .get();
       } catch (customFieldError) {
         logger.warn('AlertsContext', 'Custom fields not found, falling back to basic fields', customFieldError);
-        // Fall back to basic SharePoint fields only - no filtering since we don't have ScheduledStart field
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
           .api(`/sites/${siteId}/lists/Alerts/items`)
           .expand("fields($select=Title,Description,Created,Author,Attachments,AttachmentFiles)")
           .orderby("fields/Created desc")
-          .top(25) // Reduced from 50 to 25 for better performance
+          .top(25)
           .get();
       }
 
       let alerts = response.value.map((item: any) => mapSharePointItemToAlert(item, siteId));
       
-      // Log raw data for debugging
-      logger.debug('AlertsContext', `Raw SharePoint items fetched`, { 
-        count: response.value.length,
-        items: response.value.map((item: any) => ({
-          id: item.id,
-          title: item.fields.Title,
-          itemType: item.fields.ItemType,
-          contentType: item.fields.ContentType
-        }))
-      });
-      
-      // Client-side filter to ensure templates are never shown (additional safety measure)
-      const alertsBeforeFilter = alerts.length;
+      // Filter out templates, drafts, and auto-saved items
       alerts = alerts.filter((alert: IAlertItem) => {
-        const isTemplate = alert.contentType === ContentType.Template || 
+        const isTemplate = alert.contentType === ContentType.Template ||
                           alert.AlertType?.toLowerCase().includes('template') ||
                           alert.title?.toLowerCase().includes('template');
-        return !isTemplate;
+        const isDraft = alert.contentType === ContentType.Draft ||
+                       alert.status?.toLowerCase() === 'draft';
+        const isAutoSaved = alert.title?.startsWith('[Auto-saved]') || alert.title?.startsWith('[auto-saved]');
+
+        return !isTemplate && !isDraft && !isAutoSaved;
       });
-      
-      logger.debug('AlertsContext', `Filtered out templates`, { 
-        beforeFilter: alertsBeforeFilter,
-        afterFilter: alerts.length,
-        filtered: alertsBeforeFilter - alerts.length
-      });
-      
+
       // Cache the results
       alertCacheRef.current.set(siteId, { alerts, timestamp: now });
-      logger.info('AlertsContext', `Fetched and cached alerts for site ${siteId}`, { 
-        alertCount: alerts.length,
-        siteId
-      });
+      logger.info('AlertsContext', `Fetched and cached ${alerts.length} alerts for site ${siteId}`);
       
       return alerts;
     } catch (error) {
@@ -605,12 +606,13 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const batchSize = 3;
       const siteIds = servicesRef.current.options.siteIds || [];
 
-      // Remove duplicate site IDs
-      const uniqueSiteIds = [...new Set(siteIds)];
-      logger.info('AlertsContext', 'Processing sites for alert refresh', { 
-        totalSiteIds: siteIds.length, 
-        uniqueSiteIds: uniqueSiteIds.length,
-        sites: uniqueSiteIds
+      // Normalize site IDs and remove duplicates
+      const normalizedSiteIds = siteIds.map(normalizeSiteId);
+      const uniqueSiteIds = [...new Set(normalizedSiteIds)];
+
+      logger.info('AlertsContext', 'Processing sites for alert refresh', {
+        totalSiteIds: siteIds.length,
+        uniqueSiteIds: uniqueSiteIds.length
       });
 
       for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
@@ -641,19 +643,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // Debug logging for duplicates
-      logger.debug('AlertsContext', `Total alerts fetched: ${allAlerts.length}`);
-      if (allAlerts.length > 0) {
-        const alertIds = allAlerts.map(a => `${a.id} (${a.title})`);
-        const duplicateIds = alertIds.filter((id, index) => alertIds.indexOf(id) !== index);
-        if (duplicateIds.length > 0) {
-          logger.warn('AlertsContext', 'Duplicate alerts detected', { duplicateIds });
-        }
-      }
-
-      // Process alerts
+      // Remove duplicates
       const uniqueAlerts = removeDuplicateAlerts(allAlerts);
-      logger.debug('AlertsContext', `Unique alerts after deduplication: ${uniqueAlerts.length}`);
 
       // Compare with cached alerts
       const cachedAlerts = storageService.getFromLocalStorage<IAlertItem[]>('AllAlerts');
@@ -724,7 +715,9 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     sortAlertsByPriority,
     areAlertsDifferent,
     sendNotifications,
-    fetchAlerts
+    fetchAlerts,
+    normalizeSiteId,
+    applyLanguageAwareFiltering
   ]);
 
   // Handle removing an alert

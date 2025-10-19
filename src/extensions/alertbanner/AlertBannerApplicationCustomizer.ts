@@ -178,7 +178,6 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       this._customProperties.notificationsEnabled !== settings.notificationsEnabled;
 
     if (!hasChanged) {
-      logger.debug('ApplicationCustomizer', 'Alert settings unchanged, skipping persist');
       return;
     }
 
@@ -189,19 +188,11 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       notificationsEnabled: settings.notificationsEnabled
     };
 
-    logger.debug('ApplicationCustomizer', 'Alert settings updated and persisted', settings);
-
     this._persistCustomProperties();
-
-    // Don't re-render immediately to avoid closing dialogs
-    // Settings will take effect on next page load or manual refresh
-    logger.info('ApplicationCustomizer', 'Settings saved successfully. Refresh the page to apply changes.');
   };
 
   private async _renderAlertsComponent(): Promise<void> {
-    // Prevent concurrent rendering
     if (this._isRendering) {
-      logger.debug('ApplicationCustomizer', 'Render already in progress, skipping');
       return;
     }
 
@@ -224,20 +215,16 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         const currentSiteId = this.context.pageContext.site.id.toString();
 
         if (this._lastRenderedSiteId && this._lastRenderedSiteId !== currentSiteId) {
-          logger.info('ApplicationCustomizer', `Detected site navigation from ${this._lastRenderedSiteId} to ${currentSiteId}; resetting cached site scope`);
           this._siteIds = null;
         }
 
         this._lastRenderedSiteId = currentSiteId;
 
-        // Use cached site IDs if available, otherwise calculate them once
         if (!this._siteIds) {
-          // Get the current site ID (already captured above)
           this._siteIds = [currentSiteId];
 
           try {
-            // Get the hub site ID, if available
-            const siteContext = this.context.pageContext as any; // Cast to any to access hubSiteId
+            const siteContext = this.context.pageContext as any;
             const hubSiteId: string = siteContext.site.hubSiteId
               ? siteContext.site.hubSiteId.toString()
               : "";
@@ -251,7 +238,6 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
               this._siteIds.push(hubSiteId);
             }
 
-            // Get the SharePoint home site ID
             try {
               const homeSiteResponse = await msGraphClient
                 .api("/sites/root")
@@ -273,10 +259,6 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           } catch (siteError) {
             logger.warn('ApplicationCustomizer', 'Error gathering site IDs, falling back to current site only', siteError);
           }
-
-          logger.debug('ApplicationCustomizer', `Site IDs calculated and cached: ${this._siteIds.join(', ')}`);
-        } else {
-          logger.debug('ApplicationCustomizer', `Using cached site IDs: ${this._siteIds.join(', ')}`);
         }
 
         // Get alert types from our custom properties

@@ -76,7 +76,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       prevInitProps.siteIds.some((id, index) => id !== nextInitProps.siteIds[index]);
 
     if (hasInitPropsChanged) {
-      logger.debug('Alerts', 'Initializing alerts with updated props', nextInitProps);
       previousInitPropsRef.current = {
         ...nextInitProps,
         siteIds: [...nextInitProps.siteIds]
@@ -90,8 +89,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
         userTargetingEnabled: !!props.userTargetingEnabled,
         notificationsEnabled: !!props.notificationsEnabled
       });
-    } else {
-      logger.debug('Alerts', 'Initialization props unchanged, skipping alert re-initialization');
     }
 
     setIsInEditMode(EditModeDetector.isPageInEditMode());
@@ -156,11 +153,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       if (newInterval && newInterval >= 2000 && newInterval <= 30000) {
         setCarouselInterval(newInterval);
       }
-
-      logger.debug('Alerts', 'Carousel settings updated dynamically', {
-        carouselEnabled: newEnabled,
-        carouselInterval: newInterval
-      });
     };
 
     window.addEventListener('carouselSettingsChanged', handleCarouselSettingsChange as EventListener);

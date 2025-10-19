@@ -87,7 +87,6 @@ export class LanguageAwarenessService {
         if (userProfile.preferredLanguage) {
           const graphLanguage = this.mapLanguageCode(userProfile.preferredLanguage);
           if (graphLanguage !== TargetLanguage.EnglishUS) {
-            logger.info('LanguageAwarenessService', `User preferred language from Graph: ${graphLanguage}`);
             return graphLanguage;
           }
         }
@@ -95,28 +94,22 @@ export class LanguageAwarenessService {
         logger.warn('LanguageAwarenessService', 'Could not retrieve user language from Graph', error);
       }
 
-      // 2. Try SharePoint context language
       const spLanguage = (window as any).SPClientContext?.web?.language;
       if (spLanguage) {
         const mappedLanguage = this.mapSharePointLCID(spLanguage);
         if (mappedLanguage !== TargetLanguage.EnglishUS) {
-          logger.info('LanguageAwarenessService', `User language from SharePoint LCID ${spLanguage}: ${mappedLanguage}`);
           return mappedLanguage;
         }
       }
 
-      // 3. Try browser language
       const browserLanguage = navigator.language?.toLowerCase();
       if (browserLanguage) {
         const mappedLanguage = this.mapLanguageCode(browserLanguage);
         if (mappedLanguage !== TargetLanguage.EnglishUS) {
-          logger.info('LanguageAwarenessService', `User language from browser: ${mappedLanguage}`);
           return mappedLanguage;
         }
       }
 
-      // 4. Default to English
-      logger.info('LanguageAwarenessService', 'Using default language: English');
       return TargetLanguage.EnglishUS;
 
     } catch (error) {
