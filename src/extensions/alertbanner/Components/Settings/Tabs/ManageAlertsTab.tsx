@@ -237,27 +237,38 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
   const handleEditAlert = React.useCallback((alert: IAlertItem) => {
     logger.info('ManageAlertsTab', 'Opening edit dialog for alert', { id: alert.id, title: alert.title });
-    
+
     try {
+      // Validate AlertType - if it doesn't exist in current alert types, use the first available one
+      const validAlertTypes = alertTypes.map(t => t.name);
+      const alertType = validAlertTypes.includes(alert.AlertType)
+        ? alert.AlertType
+        : (alertTypes.length > 0 ? alertTypes[0].name : 'Information');
+
+      if (!validAlertTypes.includes(alert.AlertType)) {
+        logger.warn('ManageAlertsTab', `Alert type "${alert.AlertType}" not found in current alert types, defaulting to "${alertType}"`);
+      }
+
       // Check if this is a multi-language alert (has languageGroup)
       const isMultiLang = !!alert.languageGroup;
-      
+
       if (isMultiLang && alert.languageGroup) {
         // Load all language variants for this group
         const languageVariants = existingAlerts.filter(a => a.languageGroup === alert.languageGroup);
-        logger.debug('ManageAlertsTab', 'Found language variants', { 
-          languageGroup: alert.languageGroup, 
-          variantCount: languageVariants.length 
+        logger.debug('ManageAlertsTab', 'Found language variants', {
+          languageGroup: alert.languageGroup,
+          variantCount: languageVariants.length
         });
         const languageContent = languageService?.getLanguageContent(languageVariants, alert.languageGroup) || [];
-        
+
         const editingData: IEditingAlert = {
           ...alert,
+          AlertType: alertType,
           scheduledStart: alert.scheduledStart ? new Date(alert.scheduledStart) : undefined,
           scheduledEnd: alert.scheduledEnd ? new Date(alert.scheduledEnd) : undefined,
           languageContent
         };
-        
+
         setEditingAlert(editingData);
         setUseMultiLanguage(true);
         logger.info('ManageAlertsTab', 'Multi-language edit mode activated', { languageVariants: languageVariants.length });
@@ -265,11 +276,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         // Single language alert
         const editingData: IEditingAlert = {
           ...alert,
+          AlertType: alertType,
           scheduledStart: alert.scheduledStart ? new Date(alert.scheduledStart) : undefined,
           scheduledEnd: alert.scheduledEnd ? new Date(alert.scheduledEnd) : undefined,
           languageContent: undefined
         };
-        
+
         setEditingAlert(editingData);
         setUseMultiLanguage(false);
         logger.info('ManageAlertsTab', 'Single-language edit mode activated');
