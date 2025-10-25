@@ -1,5 +1,6 @@
 
 import { logger } from './LoggerService';
+import { getContrastRatio } from '../Utils/ColorUtils';
 
 export interface IAccessibilityReport {
   violations: IAccessibilityViolation[];
@@ -47,6 +48,7 @@ export class AccessibilityService {
   private observers: Map<string, MutationObserver> = new Map();
   private focusStack: HTMLElement[] = [];
   private announcer: HTMLElement | null = null;
+  private devMode: boolean = false;
 
   // WCAG AA minimum contrast ratios
   private readonly contrastRatios = {
@@ -109,15 +111,48 @@ export class AccessibilityService {
   }
 
   /**
+   * Enable development mode for accessibility auditing
+   * Call this in development environments to enable audit features
+   */
+  public enableDevMode(): void {
+    this.devMode = true;
+    logger.info('AccessibilityService', 'Development mode enabled - accessibility auditing active');
+  }
+
+  /**
+   * Disable development mode
+   */
+  public disableDevMode(): void {
+    this.devMode = false;
+    logger.info('AccessibilityService', 'Development mode disabled');
+  }
+
+  /**
+   * Check if dev mode is enabled
+   */
+  public isDevMode(): boolean {
+    return this.devMode;
+  }
+
+  /**
    * Setup global accessibility monitoring
+   * Note: Only active in dev mode
    */
   private setupGlobalAccessibilityMonitoring(): void {
-    // Monitor for dynamically added content
+    if (!this.devMode) {
+      logger.debug('AccessibilityService', 'Global accessibility monitoring disabled (dev mode off)');
+      return;
+    }
+
+    // Monitor for dynamically added content in dev mode
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            this.auditElement(node as HTMLElement);
+            const report = this.auditElement(node as HTMLElement);
+            if (report && report.violations.length > 0) {
+              logger.warn('AccessibilityService', 'Accessibility violations detected', report);
+            }
           }
         });
       });
@@ -129,6 +164,7 @@ export class AccessibilityService {
     });
 
     this.observers.set('global', observer);
+    logger.debug('AccessibilityService', 'Global accessibility monitoring enabled');
   }
 
   /**
@@ -161,32 +197,18 @@ export class AccessibilityService {
   /**
    * Calculate color contrast ratio
    */
+  /**
+   * Calculate contrast ratio using ColorUtils (consolidated implementation)
+   */
   public calculateContrastRatio(color1: string, color2: string): IColorContrastResult {
     try {
-      const rgb1 = this.parseColor(color1);
-      const rgb2 = this.parseColor(color2);
-
-      if (!rgb1 || !rgb2) {
-        return {
-          ratio: 0,
-          isAACompliant: false,
-          isAAACompliant: false,
-          recommendation: 'Unable to parse colors'
-        };
-      }
-
-      const luminance1 = this.calculateLuminance(rgb1);
-      const luminance2 = this.calculateLuminance(rgb2);
-
-      const lighter = Math.max(luminance1, luminance2);
-      const darker = Math.min(luminance1, luminance2);
-      const ratio = (lighter + 0.05) / (darker + 0.05);
+      const ratio = getContrastRatio(color1, color2);
 
       return {
         ratio: Math.round(ratio * 100) / 100,
         isAACompliant: ratio >= this.contrastRatios.normal,
         isAAACompliant: ratio >= this.contrastRatios.AAA_normal,
-        recommendation: ratio < this.contrastRatios.normal 
+        recommendation: ratio < this.contrastRatios.normal
           ? `Increase contrast ratio to at least ${this.contrastRatios.normal}:1 for WCAG AA compliance`
           : undefined
       };
@@ -199,55 +221,6 @@ export class AccessibilityService {
         recommendation: 'Error calculating contrast'
       };
     }
-  }
-
-  /**
-   * Parse color string to RGB values
-   */
-  private parseColor(color: string): { r: number; g: number; b: number } | null {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    ctx.fillStyle = color;
-    const computedColor = ctx.fillStyle;
-
-    // Parse hex color
-    const hexMatch = computedColor.match(/^#([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
-    if (hexMatch) {
-      return {
-        r: parseInt(hexMatch[1], 16),
-        g: parseInt(hexMatch[2], 16),
-        b: parseInt(hexMatch[3], 16)
-      };
-    }
-
-    // Parse rgb color
-    const rgbMatch = computedColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-    if (rgbMatch) {
-      return {
-        r: parseInt(rgbMatch[1], 10),
-        g: parseInt(rgbMatch[2], 10),
-        b: parseInt(rgbMatch[3], 10)
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Calculate relative luminance
-   */
-  private calculateLuminance(rgb: { r: number; g: number; b: number }): number {
-    const rsRGB = rgb.r / 255;
-    const gsRGB = rgb.g / 255;
-    const bsRGB = rgb.b / 255;
-
-    const r = rsRGB <= 0.03928 ? rsRGB / 12.92 : Math.pow((rsRGB + 0.055) / 1.055, 2.4);
-    const g = gsRGB <= 0.03928 ? gsRGB / 12.92 : Math.pow((gsRGB + 0.055) / 1.055, 2.4);
-    const b = bsRGB <= 0.03928 ? bsRGB / 12.92 : Math.pow((bsRGB + 0.055) / 1.055, 2.4);
-
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }
 
   /**
@@ -355,9 +328,15 @@ export class AccessibilityService {
   }
 
   /**
-   * Audit element for accessibility issues
+   * Audit element for accessibility issues (DEV MODE ONLY)
+   * Performs comprehensive WCAG compliance checks
    */
-  public auditElement(element: HTMLElement): IAccessibilityReport {
+  public auditElement(element: HTMLElement): IAccessibilityReport | null {
+    if (!this.devMode) {
+      logger.debug('AccessibilityService', 'Audit skipped - dev mode disabled');
+      return null;
+    }
+
     const violations: IAccessibilityViolation[] = [];
     const warnings: IAccessibilityWarning[] = [];
     const recommendations: IAccessibilityRecommendation[] = [];
@@ -399,10 +378,10 @@ export class AccessibilityService {
       // Check for buttons without accessible names
       const buttons = element.querySelectorAll('button');
       buttons.forEach(button => {
-        const hasAccessibleName = button.textContent?.trim() || 
+        const hasAccessibleName = button.textContent?.trim() ||
                                  button.getAttribute('aria-label') ||
                                  button.getAttribute('aria-labelledby');
-        
+
         if (!hasAccessibleName) {
           violations.push({
             type: 'aria',
@@ -421,7 +400,7 @@ export class AccessibilityService {
         const hasLabel = input.getAttribute('aria-label') ||
                         input.getAttribute('aria-labelledby') ||
                         element.querySelector(`label[for="${input.id}"]`);
-        
+
         if (!hasLabel && input.getAttribute('type') !== 'hidden') {
           violations.push({
             type: 'aria',
@@ -485,8 +464,13 @@ export class AccessibilityService {
     }
   }
 
+
   /**
-   * Add keyboard navigation support
+   * Add keyboard navigation support to a container
+   * Useful for custom components that need enhanced keyboard interaction
+   * @param container - Container element to add keyboard navigation to
+   * @param options - Navigation options (arrow keys, enter activation, escape handling)
+   * @returns Cleanup function to remove event listeners
    */
   public addKeyboardNavigation(container: HTMLElement, options: {
     arrowKeys?: boolean;
@@ -516,10 +500,10 @@ export class AccessibilityService {
       if (options.arrowKeys && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         const focusableElements = this.findFocusableElements(container);
         const currentIndex = focusableElements.indexOf(target);
-        
+
         if (currentIndex !== -1) {
           let nextIndex = currentIndex;
-          
+
           switch (e.key) {
             case 'ArrowUp':
             case 'ArrowLeft':

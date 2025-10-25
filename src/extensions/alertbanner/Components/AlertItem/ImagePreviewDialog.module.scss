@@ -1,0 +1,25 @@
+.dialogSurface {
+  max-width: 90vw;
+  max-height: 90vh;
+  width: auto;
+  padding: 0;
+}
+
+.dialogContent {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  overflow: auto;
+  max-height: calc(90vh - 80px);
+}
+
+.fullSizeImage {
+  max-width: 100%;
+  max-height: calc(90vh - 80px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: default;
+  display: block;
+}

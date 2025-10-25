@@ -22,6 +22,10 @@ import { logger } from '../../Services/LoggerService';
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
 import { useLocalization } from "../../Hooks/useLocalization";
+import { validateAlertData, IFormErrors as IValidationErrors } from "../../Utils/AlertValidation";
+import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
+import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
+import { DateUtils } from "../../Utils/DateUtils";
 
 export interface INewAlert {
   title: string;
@@ -100,13 +104,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   languageUpdateTrigger
 }) => {
   const { getString } = useLocalization();
-  // Priority options
-  const priorityOptions: ISharePointSelectOption[] = React.useMemo(() => ([
-    { value: AlertPriority.Low, label: getString('CreateAlertPriorityLowDescription') },
-    { value: AlertPriority.Medium, label: getString('CreateAlertPriorityMediumDescription') },
-    { value: AlertPriority.High, label: getString('CreateAlertPriorityHighDescription') },
-    { value: AlertPriority.Critical, label: getString('CreateAlertPriorityCriticalDescription') }
-  ]), [getString]);
+
+  // Priority options - using shared hook
+  const priorityOptions = usePriorityOptions(getString);
 
   // Notification type options with detailed descriptions
   const notificationOptions: ISharePointSelectOption[] = React.useMemo(() => ([
@@ -140,25 +140,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   const [lastAutoSave, setLastAutoSave] = React.useState<Date | null>(null);
   const [isAutoSaving, setIsAutoSaving] = React.useState(false);
 
-  // Language targeting options - only show enabled languages
-  const languageOptions: ISharePointSelectOption[] = React.useMemo(() => {
-    const enabledOptions = [
-      { value: TargetLanguage.All, label: getString('CreateAlertTargetLanguageAll') }
-    ];
-    
-    // Add only enabled languages (those with columnExists: true OR English which is always available)
-    const enabledLanguages = supportedLanguages.filter(lang => 
-      (lang.isSupported && lang.columnExists) || lang.code === TargetLanguage.EnglishUS
-    );
-    enabledLanguages.forEach(lang => {
-      enabledOptions.push({
-        value: lang.code,
-        label: `${lang.flag} ${lang.nativeName} (${lang.name})`
-      });
-    });
-    
-    return enabledOptions;
-  }, [getString, supportedLanguages]);
+  // Language targeting options - using shared hook
+  const languageOptions = useLanguageOptions(supportedLanguages);
 
   // Load supported languages from SharePoint (actual enabled ones)
   const loadSupportedLanguages = React.useCallback(async () => {
@@ -352,72 +335,16 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     setShowTemplates(false);
   }, [alertService, setNewAlert, setShowTemplates, useMultiLanguage]);
 
+  // Validation using shared utility
   const validateForm = React.useCallback((): boolean => {
-    const newErrors: IFormErrors = {};
+    const validationErrors = validateAlertData(newAlert, {
+      useMultiLanguage,
+      getString
+    });
 
-    if (useMultiLanguage) {
-      // Validate multi-language content
-      if (newAlert.languageContent.length === 0) {
-        newErrors.title = getString('CreateAlertLanguageRequired');
-      } else {
-        newAlert.languageContent.forEach(content => {
-          if (!content.title.trim()) {
-            newErrors.title = getString('CreateAlertLanguageTitleRequired', content.language);
-          }
-          if (!content.description.trim()) {
-            newErrors.description = getString('CreateAlertLanguageDescriptionRequired', content.language);
-          }
-          if (newAlert.linkUrl && !content.linkDescription?.trim()) {
-            newErrors.linkDescription = getString('CreateAlertLanguageLinkDescriptionRequired', content.language);
-          }
-        });
-      }
-    } else {
-      // Validate single language content
-      if (!newAlert.title?.trim()) {
-        newErrors.title = getString('TitleRequired');
-      } else if (newAlert.title.length < 3) {
-        newErrors.title = getString('TitleMinLength');
-      } else if (newAlert.title.length > 100) {
-        newErrors.title = getString('TitleMaxLength');
-      }
-
-      if (!newAlert.description?.trim()) {
-        newErrors.description = getString('DescriptionRequired');
-      } else if (newAlert.description.length < 10) {
-        newErrors.description = getString('DescriptionMinLength');
-      }
-
-      if (newAlert.linkUrl && !newAlert.linkDescription?.trim()) {
-        newErrors.linkDescription = getString('LinkDescriptionRequired');
-      }
-    }
-
-    if (!newAlert.AlertType) {
-      newErrors.AlertType = getString('AlertTypeRequired');
-    }
-
-    if (newAlert.linkUrl && newAlert.linkUrl.trim()) {
-      try {
-        new URL(newAlert.linkUrl);
-      } catch {
-        newErrors.linkUrl = getString('InvalidUrlFormat');
-      }
-    }
-
-    if (newAlert.targetSites.length === 0) {
-      newErrors.targetSites = getString('AtLeastOneSiteRequired');
-    }
-
-    if (newAlert.scheduledStart && newAlert.scheduledEnd) {
-      if (newAlert.scheduledStart >= newAlert.scheduledEnd) {
-        newErrors.scheduledEnd = getString('EndDateMustBeAfterStartDate');
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [newAlert, setErrors, useMultiLanguage]);
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
+  }, [newAlert, useMultiLanguage, getString]);
 
   const handleCreateAlert = React.useCallback(async () => {
     if (!validateForm()) return;
@@ -936,7 +863,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                 <SharePointInput
                   label="Start Date & Time"
                   type="datetime-local"
-                  value={newAlert.scheduledStart ? new Date(newAlert.scheduledStart.getTime() - newAlert.scheduledStart.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                  value={DateUtils.toDateTimeLocalValue(newAlert.scheduledStart)}
                   onChange={(value) => {
                     setNewAlert(prev => ({ 
                       ...prev, 
@@ -951,7 +878,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                 <SharePointInput
                   label="End Date & Time"
                   type="datetime-local"
-                  value={newAlert.scheduledEnd ? new Date(newAlert.scheduledEnd.getTime() - newAlert.scheduledEnd.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                  value={DateUtils.toDateTimeLocalValue(newAlert.scheduledEnd)}
                   onChange={(value) => {
                     setNewAlert(prev => ({ 
                       ...prev, 

@@ -77,8 +77,9 @@ define([], function() {
     "CreateAlertNotificationBrowserDescription": "Skicka en webbläsaravisering tillsammans med bannern.",
     "CreateAlertNotificationEmailDescription": "Skicka ett e-postmeddelande till målgruppen när varningen publiceras.",
     "CreateAlertNotificationBothDescription": "Skicka både webbläsar- och e-postaviseringar.",
-    "CreateAlertContentTypeAlertDescription": "Publicera en engångsvarning direkt i bannern.",
-    "CreateAlertContentTypeTemplateDescription": "Spara konfigurationen som en återanvändbar mall.",
+    "CreateAlertContentTypeAlertDescription": "📢 Varning - Live-innehåll för användare",
+    "CreateAlertContentTypeTemplateDescription": "📄 Mall - Återanvändbar mall för framtida varningar",
+    "CreateAlertContentTypeDraftDescription": "✏️ Utkast - Pågående arbete",
     "CreateAlertTargetLanguageAll": "Alla stödda språk",
     
     // Alert Management

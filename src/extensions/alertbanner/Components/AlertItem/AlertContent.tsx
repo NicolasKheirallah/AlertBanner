@@ -49,7 +49,7 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, expanded,
       className={styles.alertContentContainer}
       onClick={stopPropagation}
     >
-      {item.description && <DescriptionContent description={item.description} />}
+      {item.description && <DescriptionContent description={item.description} isAlertExpanded={expanded} />}
 
       {item.attachments && item.attachments.length > 0 && (
         <div className={styles.attachmentsSection}>

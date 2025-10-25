@@ -3,28 +3,94 @@ import { Button, Text } from "@fluentui/react-components";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import styles from "./AlertItem.module.scss";
 import { useLocalization } from "../Hooks/useLocalization";
+import { ImagePreviewDialog } from "./ImagePreviewDialog";
 
 interface IDescriptionContentProps {
   description: string;
+  isAlertExpanded?: boolean;
 }
 
-const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ description }) => {
+const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ description, isAlertExpanded = true }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState<{ url: string; alt: string }>({ url: "", alt: "" });
   const TRUNCATE_LENGTH = 200;
   const { getString } = useLocalization();
-
-  const containsHtml = React.useMemo(() => /<[a-z][\s\S]*>/i.test(description), [description]);
-  const sanitizedHtml = React.useMemo(() => {
-    if (!containsHtml) {
-      return '';
-    }
-
-    return htmlSanitizer.sanitizeAlertContent(description);
-  }, [containsHtml, description]);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
   };
+
+  const handleImageClick = React.useCallback((url: string, alt: string) => {
+    setSelectedImage({ url, alt });
+    setImageDialogOpen(true);
+  }, []);
+
+  const handleCloseDialog = React.useCallback(() => {
+    setImageDialogOpen(false);
+  }, []);
+
+  const containsHtml = React.useMemo(() => /<[a-z][\s\S]*>/i.test(description), [description]);
+
+  const sanitizedHtml = React.useMemo(() => {
+    if (!containsHtml) {
+      return '';
+    }
+    return htmlSanitizer.sanitizeAlertContent(description);
+  }, [containsHtml, description]);
+
+  // Enhanced HTML component that adds click handlers to images
+  const HtmlContent: React.FC<{ html: string }> = React.memo(({ html }) => {
+    const contentRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+      if (!contentRef.current || !isAlertExpanded) return;
+
+      const images = contentRef.current.querySelectorAll('img');
+
+      const handleClick = (e: Event) => {
+        const img = e.currentTarget as HTMLImageElement;
+        e.preventDefault();
+        e.stopPropagation();
+        handleImageClick(img.src, img.alt || "Image");
+      };
+
+      images.forEach(img => {
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', handleClick);
+      });
+
+      return () => {
+        images.forEach(img => {
+          img.removeEventListener('click', handleClick);
+        });
+      };
+    }, [html]);
+
+    return (
+      <div
+        ref={contentRef}
+        className={styles.descriptionListContainer}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  });
+
+  HtmlContent.displayName = 'HtmlContent';
+
+  if (containsHtml) {
+    return (
+      <>
+        <HtmlContent html={sanitizedHtml} />
+        <ImagePreviewDialog
+          isOpen={imageDialogOpen}
+          imageUrl={selectedImage.url}
+          imageAlt={selectedImage.alt}
+          onClose={handleCloseDialog}
+        />
+      </>
+    );
+  }
 
   let displayedDescription = description;
   let showReadMoreButton = false;
@@ -32,15 +98,6 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   if (!containsHtml && description.length > TRUNCATE_LENGTH && !isExpanded) {
     displayedDescription = description.substring(0, TRUNCATE_LENGTH) + "...";
     showReadMoreButton = true;
-  }
-
-  if (containsHtml) {
-    return (
-      <div
-        className={styles.descriptionListContainer}
-        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-      />
-    );
   }
 
   const paragraphs = displayedDescription.split("\n\n");
@@ -77,7 +134,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
               {parts.map((part, partIndex) => {
                 const isBold = (part.startsWith("**") && part.endsWith("**")) ||
                               (part.startsWith("__") && part.endsWith("__"));
-                
+
                 if (isBold) {
                   return (
                     <span

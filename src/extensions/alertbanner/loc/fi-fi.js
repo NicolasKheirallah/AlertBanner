@@ -77,8 +77,9 @@ define([], function() {
     "CreateAlertNotificationBrowserDescription": "Lähetä bannerin lisäksi selaimen ilmoitus.",
     "CreateAlertNotificationEmailDescription": "Lähetä sähköposti kohdekäyttäjille, kun hälytys julkaistaan.",
     "CreateAlertNotificationBothDescription": "Lähetä sekä selaimen että sähköpostin ilmoitukset.",
-    "CreateAlertContentTypeAlertDescription": "Julkaise kertaluonteinen hälytys suoraan bannerissa.",
-    "CreateAlertContentTypeTemplateDescription": "Tallenna määritys uudelleenkäytettäväksi malliksi.",
+    "CreateAlertContentTypeAlertDescription": "📢 Hälytys - Live-sisältö käyttäjille",
+    "CreateAlertContentTypeTemplateDescription": "📄 Malli - Uudelleenkäytettävä malli tuleville hälytyksille",
+    "CreateAlertContentTypeDraftDescription": "✏️ Luonnos - Keskeneräinen työ",
     "CreateAlertTargetLanguageAll": "Kaikki tuetut kielet",
     
     // Alert Management

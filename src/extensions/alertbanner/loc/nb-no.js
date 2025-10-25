@@ -77,8 +77,9 @@ define([], function() {
     "CreateAlertNotificationBrowserDescription": "Send en nettleservarsling sammen med banneret.",
     "CreateAlertNotificationEmailDescription": "Send e-post til målgruppen når varslet publiseres.",
     "CreateAlertNotificationBothDescription": "Send både nettleser- og e-postvarsler.",
-    "CreateAlertContentTypeAlertDescription": "Publiser et engangsvarsel direkte i banneret.",
-    "CreateAlertContentTypeTemplateDescription": "Lagre konfigurasjonen som en gjenbrukbar mal.",
+    "CreateAlertContentTypeAlertDescription": "📢 Varsel - Direkteinnhold for brukere",
+    "CreateAlertContentTypeTemplateDescription": "📄 Mal - Gjenbrukbar mal for fremtidige varsler",
+    "CreateAlertContentTypeDraftDescription": "✏️ Utkast - Pågående arbeid",
     "CreateAlertTargetLanguageAll": "Alle støttede språk",
     
     // Alert Management

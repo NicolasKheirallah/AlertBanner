@@ -2,6 +2,8 @@ import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { AlertPriority, NotificationType, IAlertType, IPersonField, ContentType, TargetLanguage } from "../Alerts/IAlerts";
 import { logger } from './LoggerService';
+import { AlertTransformers } from '../Utils/AlertTransformers';
+import { DateUtils } from '../Utils/DateUtils';
 
 export interface IRepairResult {
   success: boolean;
@@ -231,35 +233,6 @@ export class SharePointAlertService {
     return `/sites/${this.getGraphSiteIdentifier(siteId)}/lists/${listId}`;
   }
 
-  private parseTargetSitesField(value: any): string[] {
-    if (!value) {
-      return [];
-    }
-
-    if (Array.isArray(value)) {
-      return value.map(entry => String(entry)).filter(Boolean);
-    }
-
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return [];
-      }
-
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          return parsed.map(entry => String(entry)).filter(Boolean);
-        }
-      } catch (error) {
-        // JSON parse failed, fall back to CSV parsing
-      }
-
-      return trimmed.split(',').map(site => site.trim()).filter(Boolean);
-    }
-
-    return [];
-  }
 
   /**
    * Execute SharePoint API call with retry logic for transient failures
@@ -758,21 +731,21 @@ export class SharePointAlertService {
   }
 
   /**
-   * Get appropriate end date for template based on alert type
+   * Get appropriate end date for template based on alert type using DateUtils
    */
   private getTemplateEndDate(alertType: string): string {
-    const now = Date.now();
+    const now = new Date();
     switch (alertType.toLowerCase()) {
       case 'maintenance':
-        return new Date(now + 24 * 60 * 60 * 1000).toISOString(); // 1 day
+        return DateUtils.addDurationISO(now, 1, 'days');
       case 'warning':
-        return new Date(now + 3 * 24 * 60 * 60 * 1000).toISOString(); // 3 days
+        return DateUtils.addDurationISO(now, 3, 'days');
       case 'interruption':
-        return new Date(now + 12 * 60 * 60 * 1000).toISOString(); // 12 hours
+        return DateUtils.addDurationISO(now, 12, 'hours');
       case 'info':
-        return new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString(); // 1 week
+        return DateUtils.addDurationISO(now, 1, 'weeks');
       default:
-        return new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString(); // 1 month
+        return DateUtils.addDurationISO(now, 1, 'months');
     }
   }
 
@@ -1465,7 +1438,7 @@ export class SharePointAlertService {
   }
 
   /**
-   * Map SharePoint list item to alert object
+   * Map SharePoint list item to alert object using consolidated transformer
    */
   private mapSharePointItemToAlert(item: any, siteId?: string): IAlertItem {
     const fields = item.fields;
@@ -1479,115 +1452,13 @@ export class SharePointAlertService {
       alertType: fields.AlertType,
       rawFields: fields
     });
-    
-    // Create the original list item for multi-language support
-    const originalListItem: IAlertListItem = {
-      Id: parseInt(item.id.toString()),
-      Title: fields.Title || '',
-      Description: fields.Description || '',
-      AlertType: fields.AlertType?.LookupValue || fields.AlertType || '',
-      Priority: fields.Priority || AlertPriority.Medium,
-      IsPinned: fields.IsPinned || false,
-      NotificationType: fields.NotificationType || NotificationType.None,
-      LinkUrl: fields.LinkUrl || '',
-      LinkDescription: fields.LinkDescription || '',
-      TargetSites: fields.TargetSites || '',
-      Status: fields.Status || 'Active',
-      Created: fields.Created || item.createdDateTime,
-      Author: {
-        Title: item.createdBy?.user?.displayName || item.author?.Title || 'Unknown'
-      },
-      ScheduledStart: fields.ScheduledStart || undefined,
-      ScheduledEnd: fields.ScheduledEnd || undefined,
-      Metadata: fields.Metadata || undefined,
-      
-      // Add all multi-language fields
-      Title_EN: fields.Title_EN || '',
-      Title_FR: fields.Title_FR || '',
-      Title_DE: fields.Title_DE || '',
-      Title_ES: fields.Title_ES || '',
-      Title_SV: fields.Title_SV || '',
-      Title_FI: fields.Title_FI || '',
-      Title_DA: fields.Title_DA || '',
-      Title_NO: fields.Title_NO || '',
-      
-      Description_EN: fields.Description_EN || '',
-      Description_FR: fields.Description_FR || '',
-      Description_DE: fields.Description_DE || '',
-      Description_ES: fields.Description_ES || '',
-      Description_SV: fields.Description_SV || '',
-      Description_FI: fields.Description_FI || '',
-      Description_DA: fields.Description_DA || '',
-      Description_NO: fields.Description_NO || '',
-      
-      LinkDescription_EN: fields.LinkDescription_EN || '',
-      LinkDescription_FR: fields.LinkDescription_FR || '',
-      LinkDescription_DE: fields.LinkDescription_DE || '',
-      LinkDescription_ES: fields.LinkDescription_ES || '',
-      LinkDescription_SV: fields.LinkDescription_SV || '',
-      LinkDescription_FI: fields.LinkDescription_FI || '',
-      LinkDescription_DA: fields.LinkDescription_DA || '',
-      LinkDescription_NO: fields.LinkDescription_NO || '',
 
-      // Language and classification properties
-      ItemType: fields.ItemType || '',
-      TargetLanguage: fields.TargetLanguage || '',
-      LanguageGroup: fields.LanguageGroup || '',
-      AvailableForAll: fields.AvailableForAll || false,
-      
-      // Include any additional dynamic language fields
-      ...Object.keys(fields)
-        .filter(key => key.match(/^(Title|Description|LinkDescription)_[A-Z]{2}$/))
-        .reduce((acc, key) => ({ ...acc, [key]: fields[key] }), {})
-    };
-
-    const safeParseMetadata = (value: any): any => {
-      if (!value) {
-        return undefined;
-      }
-
-      if (typeof value !== 'string') {
-        return value;
-      }
-
-      try {
-        return JSON.parse(value);
-      } catch (error) {
-        logger.warn('SharePointAlertService', 'Failed to parse alert metadata; ignoring value', { error, valueSnippet: value.slice(0, 100) });
-        return undefined;
-      }
-    };
-
-    return {
-      id: siteId ? `${siteId}-${item.id}` : item.id.toString(),
-      title: fields.Title || '',
-      description: fields.Description || '',
-      AlertType: fields.AlertType?.LookupValue || fields.AlertType || '',
-      priority: fields.Priority || AlertPriority.Medium,
-      isPinned: fields.IsPinned || false,
-      notificationType: fields.NotificationType || NotificationType.None,
-      linkUrl: fields.LinkUrl || '',
-      linkDescription: fields.LinkDescription || '',
-      targetSites: this.parseTargetSitesField(fields.TargetSites),
-      status: fields.Status || 'Active',
-      createdDate: fields.Created || item.createdDateTime,
-      createdBy: item.createdBy?.user?.displayName || item.author?.Title || 'Unknown',
-      scheduledStart: fields.ScheduledStart || undefined,
-      scheduledEnd: fields.ScheduledEnd || undefined,
-      metadata: safeParseMetadata(fields.Metadata),
-      // Language and classification properties
-      contentType: (fields.ItemType as ContentType) || ContentType.Alert,
-      targetLanguage: (fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
-      languageGroup: fields.LanguageGroup || undefined,
-      availableForAll: fields.AvailableForAll || false,
-      targetUsers: fields.TargetUsers || [],
-      attachments: fields.AttachmentFiles?.map((file: any) => ({
-        fileName: file.FileName || file.fileName || '',
-        serverRelativeUrl: file.ServerRelativeUrl || file.serverRelativeUrl || '',
-        size: file.Length || file.length || undefined
-      })) || [],
-      _originalListItem: originalListItem
-    };
+    // Use AlertTransformers with _originalListItem included for multi-language support
+    return AlertTransformers.mapSharePointItemToAlert(
+      item,
+      siteId || item.id.toString(),
+      true // Include _originalListItem for SharePointAlertService
+    );
   }
 
   /**
@@ -1913,143 +1784,6 @@ export class SharePointAlertService {
     }
   }
 
-  /**
-   * Get localized content for a specific field and language
-   */
-  public getLocalizedField(item: IAlertListItem, fieldName: string, languageCode: string): string {
-    // Convert language code to uppercase format for field names (e.g., 'en-us' -> 'EN')
-    const languageSuffix = languageCode.split('-')[0].toUpperCase();
-    const localizedFieldName = `${fieldName}_${languageSuffix}`;
-
-    // Try localized field first, then fall back to English, then original field
-    return item[localizedFieldName] || 
-           item[`${fieldName}_EN`] || 
-           item[fieldName] || 
-           '';
-  }
-
-  /**
-   * Get all available languages for multi-language content
-   */
-  public getAvailableContentLanguages(item: IAlertListItem): string[] {
-    const languages: string[] = [];
-    const fieldPrefixes = ['Title_', 'Description_', 'LinkDescription_'];
-    
-    // Check which language fields have content
-    Object.keys(item).forEach(key => {
-      fieldPrefixes.forEach(prefix => {
-        if (key.startsWith(prefix)) {
-          const languageCode = key.substring(prefix.length).toLowerCase();
-          const fullLanguageCode = this.mapLanguageCodeToFull(languageCode);
-          if (item[key] && !languages.includes(fullLanguageCode)) {
-            languages.push(fullLanguageCode);
-          }
-        }
-      });
-    });
-
-    return languages;
-  }
-
-  /**
-   * Map short language codes to full codes (e.g., 'EN' -> 'en-us')
-   */
-  private mapLanguageCodeToFull(shortCode: string): string {
-    const languageMap: { [key: string]: string } = {
-      'EN': 'en-us',
-      'FR': 'fr-fr',
-      'DE': 'de-de',
-      'ES': 'es-es',
-      'SV': 'sv-se',
-      'FI': 'fi-fi',
-      'DA': 'da-dk',
-      'NO': 'nb-no'
-    };
-
-    return languageMap[shortCode.toUpperCase()] || shortCode.toLowerCase();
-  }
-
-
-  /**
-   * Get localized content from an alert item
-   */
-  public getLocalizedAlertContent(alertItem: IAlertItem, languageCode: string): {
-    title: string;
-    description: string;
-    linkDescription: string;
-  } {
-    if (!alertItem._originalListItem) {
-      // Fallback to default fields if no original list item
-      return {
-        title: alertItem.title,
-        description: alertItem.description,
-        linkDescription: alertItem.linkDescription || ''
-      };
-    }
-
-    return {
-      title: this.getLocalizedField(alertItem._originalListItem, 'Title', languageCode),
-      description: this.getLocalizedField(alertItem._originalListItem, 'Description', languageCode),
-      linkDescription: this.getLocalizedField(alertItem._originalListItem, 'LinkDescription', languageCode)
-    };
-  }
-
-  /**
-   * Check if alert has content in specific language
-   */
-  public alertHasLanguageContent(alertItem: IAlertItem, languageCode: string): boolean {
-    if (!alertItem._originalListItem) return false;
-
-    const content = this.getLocalizedAlertContent(alertItem, languageCode);
-    return !!(content.title || content.description || content.linkDescription);
-  }
-
-  /**
-   * Get all languages that have content for a specific alert
-   */
-  public getAlertContentLanguages(alertItem: IAlertItem): string[] {
-    if (!alertItem._originalListItem) return [];
-    
-    return this.getAvailableContentLanguages(alertItem._originalListItem);
-  }
-
-  /**
-   * Update multi-language content for an alert
-   */
-  public async updateAlertMultiLanguageContent(
-    alertId: string, 
-    multiLanguageContent: { [languageCode: string]: { title?: string; description?: string; linkDescription?: string } }
-  ): Promise<void> {
-    try {
-      const { siteId, itemId } = this.parseAlertId(alertId);
-      const alertsListApi = await this.getAlertsListApi(siteId);
-      const updateFields: any = {};
-
-      // Convert multi-language content to SharePoint field format
-      Object.entries(multiLanguageContent).forEach(([languageCode, content]) => {
-        const languageSuffix = languageCode.split('-')[0].toUpperCase();
-        
-        if (content.title !== undefined) {
-          updateFields[`Title_${languageSuffix}`] = content.title;
-        }
-        if (content.description !== undefined) {
-          updateFields[`Description_${languageSuffix}`] = content.description;
-        }
-        if (content.linkDescription !== undefined) {
-          updateFields[`LinkDescription_${languageSuffix}`] = content.linkDescription;
-        }
-      });
-
-      await this.graphClient
-        .api(`${alertsListApi}/items/${itemId}/fields`)
-        .patch(updateFields);
-
-      logger.debug('SharePointAlertService', `Updated multi-language content for alert ${alertId}`);
-    } catch (error) {
-      logger.error('SharePointAlertService', 'Failed to update multi-language content', error);
-      throw error;
-    }
-  }
 
   /**
    * Get supported languages from TargetLanguage choice field

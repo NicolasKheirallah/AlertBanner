@@ -77,8 +77,9 @@ define([], function() {
     "CreateAlertNotificationBrowserDescription": "Envoyer une notification du navigateur en plus de la bannière.",
     "CreateAlertNotificationEmailDescription": "Envoyer un e-mail aux utilisateurs ciblés lors de la publication.",
     "CreateAlertNotificationBothDescription": "Envoyer à la fois des notifications navigateur et e-mail.",
-    "CreateAlertContentTypeAlertDescription": "Publier une alerte unique directement sur la bannière.",
-    "CreateAlertContentTypeTemplateDescription": "Enregistrer la configuration comme modèle réutilisable.",
+    "CreateAlertContentTypeAlertDescription": "📢 Alerte - Contenu en direct pour les utilisateurs",
+    "CreateAlertContentTypeTemplateDescription": "📄 Modèle - Modèle réutilisable pour futures alertes",
+    "CreateAlertContentTypeDraftDescription": "✏️ Brouillon - Travail en cours",
     "CreateAlertTargetLanguageAll": "Toutes les langues prises en charge",
     
     // Alert Management

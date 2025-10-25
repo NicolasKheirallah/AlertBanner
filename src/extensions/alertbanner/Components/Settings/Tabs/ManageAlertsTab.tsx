@@ -25,6 +25,10 @@ import { htmlSanitizer } from "../../Utils/HtmlSanitizer";
 import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
+import { validateAlertData, IFormErrors as IValidationErrors } from "../../Utils/AlertValidation";
+import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
+import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
+import { useLocalization } from "../../Hooks/useLocalization";
 
 export interface IEditingAlert extends Omit<IAlertItem, 'scheduledStart' | 'scheduledEnd'> {
   scheduledStart?: Date;
@@ -101,45 +105,43 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [customDateTo, setCustomDateTo] = React.useState<string>('');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const [showFilters, setShowFilters] = React.useState(false);
-  
+
+  // Localization
+  const { getString } = useLocalization();
+
   // Initialize services with useMemo to prevent recreation
-  const languageService = React.useMemo(() => 
-    new LanguageAwarenessService(graphClient, context), 
+  const languageService = React.useMemo(() =>
+    new LanguageAwarenessService(graphClient, context),
     [graphClient, context]
   );
-  
-  const notificationService = React.useMemo(() => 
-    NotificationService.getInstance(context), 
+
+  const notificationService = React.useMemo(() =>
+    NotificationService.getInstance(context),
     [context]
   );
 
-  // Priority options
-  const priorityOptions: ISharePointSelectOption[] = [
-    { value: AlertPriority.Low, label: "Low Priority - Informational updates" },
-    { value: AlertPriority.Medium, label: "Medium Priority - General announcements" },
-    { value: AlertPriority.High, label: "High Priority - Important updates" },
-    { value: AlertPriority.Critical, label: "Critical Priority - Urgent action required" }
-  ];
+  // Priority options - using shared hook with localization
+  const priorityOptions = usePriorityOptions(getString);
 
-  // Notification type options with detailed descriptions
-  const notificationOptions: ISharePointSelectOption[] = [
-    { 
-      value: NotificationType.None, 
-      label: "None - Display only in banner (no notifications)" 
+  // Notification type options with detailed descriptions - memoized and localized
+  const notificationOptions: ISharePointSelectOption[] = React.useMemo(() => ([
+    {
+      value: NotificationType.None,
+      label: getString('CreateAlertNotificationNoneDescription')
     },
-    { 
-      value: NotificationType.Browser, 
-      label: "Browser - Banner display only" 
+    {
+      value: NotificationType.Browser,
+      label: getString('CreateAlertNotificationBrowserDescription')
     },
-    { 
-      value: NotificationType.Email, 
-      label: "Email only - Sends email to selected audience (no banner display)" 
+    {
+      value: NotificationType.Email,
+      label: getString('CreateAlertNotificationEmailDescription')
     },
-    { 
-      value: NotificationType.Both, 
-      label: "Browser + Email - Banner display + Email notifications to selected audience" 
+    {
+      value: NotificationType.Both,
+      label: getString('CreateAlertNotificationBothDescription')
     }
-  ];
+  ]), [getString]);
 
   // Alert type options (include legacy/custom values that might not exist locally)
   const alertTypeOptions: ISharePointSelectOption[] = React.useMemo(() => {
@@ -161,12 +163,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     return Array.from(optionMap.values());
   }, [alertTypes, supplementalAlertTypes, editingAlert?.AlertType]);
 
-  // Content type options (matching CreateAlerts)
-  const contentTypeOptions: ISharePointSelectOption[] = [
-    { value: ContentType.Alert, label: "📢 Alert - Live content for users" },
-    { value: ContentType.Template, label: "📄 Template - Reusable template for future alerts" },
-    { value: ContentType.Draft, label: "✏️ Draft - Work in progress" }
-  ];
+  // Content type options - memoized and localized (matching CreateAlerts)
+  const contentTypeOptions: ISharePointSelectOption[] = React.useMemo(() => ([
+    { value: ContentType.Alert, label: getString('CreateAlertContentTypeAlertDescription') },
+    { value: ContentType.Template, label: getString('CreateAlertContentTypeTemplateDescription') },
+    { value: ContentType.Draft, label: getString('CreateAlertContentTypeDraftDescription') }
+  ]), [getString]);
 
   // Ensure we always have a persisted alert type selected
   React.useEffect(() => {
@@ -181,18 +183,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     }
   }, [editingAlert, alertTypeOptions, setEditingAlert]);
 
-  // Language options (matching CreateAlerts)  
-  const languageOptions: ISharePointSelectOption[] = [
-    { value: TargetLanguage.All, label: "🌐 All Languages" },
-    { value: TargetLanguage.EnglishUS, label: "🇺🇸 English" },
-    { value: TargetLanguage.FrenchFR, label: "🇫🇷 French" },
-    { value: TargetLanguage.GermanDE, label: "🇩🇪 German" },
-    { value: TargetLanguage.SpanishES, label: "🇪🇸 Spanish" },
-    { value: TargetLanguage.SwedishSE, label: "🇸🇪 Swedish" },
-    { value: TargetLanguage.FinnishFI, label: "🇫🇮 Finnish" },
-    { value: TargetLanguage.DanishDK, label: "🇩🇰 Danish" },
-    { value: TargetLanguage.NorwegianNO, label: "🇳🇴 Norwegian" }
-  ];
+  // Language options - using shared hook
+  const languageOptions = useLanguageOptions(supportedLanguages);
 
   // Load supported languages and tenant default on component mount
   React.useEffect(() => {
@@ -402,75 +394,18 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     }
   }, [alertService, loadExistingAlerts, notificationService]);
 
+  // Validation using shared utility with localization
   const validateEditForm = React.useCallback((): boolean => {
     if (!editingAlert) return false;
 
-    const newErrors: IFormErrors = {};
+    const validationErrors = validateAlertData(editingAlert, {
+      useMultiLanguage,
+      getString
+    });
 
-    if (useMultiLanguage && editingAlert.languageContent) {
-      // Validate multi-language content
-      if (editingAlert.languageContent.length === 0) {
-        newErrors.title = 'At least one language must be configured';
-      } else {
-        editingAlert.languageContent.forEach(content => {
-          if (!content.title.trim()) {
-            newErrors[`title_${content.language}`] = `Title is required for ${content.language}`;
-          }
-          if (!content.description.trim()) {
-            newErrors[`description_${content.language}`] = `Description is required for ${content.language}`;
-          }
-          if (editingAlert.linkUrl && !content.linkDescription?.trim()) {
-            newErrors[`linkDescription_${content.language}`] = `Link description is required for ${content.language} when URL is provided`;
-          }
-        });
-      }
-    } else {
-      // Validate single language content
-      if (!editingAlert.title?.trim()) {
-        newErrors.title = "Title is required";
-      } else if (editingAlert.title.length < 3) {
-        newErrors.title = "Title must be at least 3 characters";
-      } else if (editingAlert.title.length > 100) {
-        newErrors.title = "Title cannot exceed 100 characters";
-      }
-
-      if (!editingAlert.description?.trim()) {
-        newErrors.description = "Description is required";
-      } else if (editingAlert.description.length < 10) {
-        newErrors.description = "Description must be at least 10 characters";
-      }
-
-      if (editingAlert.linkUrl && !editingAlert.linkDescription?.trim()) {
-        newErrors.linkDescription = "Link description is required when URL is provided";
-      }
-    }
-
-    if (!editingAlert.AlertType || !editingAlert.AlertType.trim()) {
-      newErrors.AlertType = "Alert type is required";
-    }
-
-    if (editingAlert.linkUrl && editingAlert.linkUrl.trim()) {
-      try {
-        new URL(editingAlert.linkUrl);
-      } catch {
-        newErrors.linkUrl = "Please enter a valid URL";
-      }
-    }
-
-    // Validate site targeting
-    if (!editingAlert.targetSites || editingAlert.targetSites.length === 0) {
-      newErrors.targetSites = "At least one target site must be selected";
-    }
-
-    if (editingAlert.scheduledStart && editingAlert.scheduledEnd) {
-      if (editingAlert.scheduledStart >= editingAlert.scheduledEnd) {
-        newErrors.scheduledEnd = "End date must be after start date";
-      }
-    }
-
-    setEditErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [editingAlert, useMultiLanguage]);
+    setEditErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
+  }, [editingAlert, useMultiLanguage, getString]);
 
   const handleSaveEdit = React.useCallback(async () => {
     if (!editingAlert || !validateEditForm()) return;

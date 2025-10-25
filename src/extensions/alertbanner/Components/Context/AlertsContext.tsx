@@ -9,6 +9,9 @@ import { NotificationService } from "../Services/NotificationService";
 import StorageService from "../Services/StorageService";
 import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
 import { logger } from "../Services/LoggerService";
+import { validationService } from "../Services/ValidationService";
+import { AlertTransformers } from "../Utils/AlertTransformers";
+import { AlertFilters } from "../Utils/AlertFilters";
 
 interface AlertsState {
   alerts: IAlertItem[];
@@ -124,160 +127,46 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Load alert types from JSON
   const loadAlertTypes = useCallback((alertTypesJson: string) => {
     const endPerformanceTracking = logger.startPerformanceTracking('loadAlertTypes');
-    
+
     try {
-      const alertTypesData: IAlertType[] = JSON.parse(alertTypesJson);
+      // Validate JSON with security checks before parsing
+      const validation = validationService.validateJson(alertTypesJson, 10);
+
+      if (!validation.isValid) {
+        logger.error("AlertsContext", "Invalid alert types JSON - security validation failed", {
+          errors: validation.errors,
+          jsonPreview: alertTypesJson.substring(0, 100)
+        });
+        dispatch({ type: 'SET_ALERT_TYPES', payload: {} });
+        return;
+      }
+
+      // Use sanitized/validated JSON data
+      const alertTypesData: IAlertType[] = validation.sanitizedValue;
       const alertTypesMap: { [key: string]: IAlertType } = {};
-      
+
       alertTypesData.forEach((type) => {
         alertTypesMap[type.name] = type;
       });
 
       dispatch({ type: 'SET_ALERT_TYPES', payload: alertTypesMap });
-      logger.info('AlertsContext', `Loaded ${alertTypesData.length} alert types`);
-      
+      logger.info('AlertsContext', `Loaded ${alertTypesData.length} alert types (validated)`);
+
     } catch (error) {
-      logger.error("AlertsContext", "Error parsing alert types JSON", error, { alertTypesJson });
+      logger.error("AlertsContext", "Error processing alert types JSON", error, { alertTypesJson });
       dispatch({ type: 'SET_ALERT_TYPES', payload: {} });
     } finally {
       endPerformanceTracking();
     }
   }, []);
 
-  // Map SharePoint item to alert
+  // Map SharePoint item to alert using consolidated transformer
   const mapSharePointItemToAlert = useCallback((item: any, siteId: string): IAlertItem => {
-    let priority = AlertPriority.Medium; // Default
-    if (item.fields.Priority) {
-      try {
-        priority = AlertPriority[item.fields.Priority as keyof typeof AlertPriority];
-      } catch {
-        priority = AlertPriority.Medium;
-      }
-    }
-
-    // Get target users directly from SharePoint People field
-    let targetUsers: IPersonField[] = [];
-    try {
-      if (item.fields.TargetUsers) {
-        if (Array.isArray(item.fields.TargetUsers)) {
-          targetUsers = item.fields.TargetUsers.map((user: any) => mapPersonFieldData(user, user.isGroup || false));
-        } else {
-          // Handle single user case
-          targetUsers = [mapPersonFieldData(item.fields.TargetUsers, item.fields.TargetUsers.isGroup || false)];
-        }
-      }
-    } catch (error) {
-      logger.warn('AlertsContext', `Error processing target users for alert: ${item.id}`, error);
-    }
-
-    // Determine content type - check multiple possible fields
-    let contentType = ContentType.Alert; // Default to alert
-    if (item.fields.ItemType) {
-      if (item.fields.ItemType.toLowerCase() === 'template') {
-        contentType = ContentType.Template;
-      } else if (item.fields.ItemType.toLowerCase() === 'alert') {
-        contentType = ContentType.Alert;
-      }
-    } else if (item.fields.ContentType) {
-      if (item.fields.ContentType.toLowerCase() === 'template') {
-        contentType = ContentType.Template;
-      }
-    }
-
-    const createdDate = item.createdDateTime || item.fields?.CreatedDateTime || item.fields?.Created || "";
-    const createdBy =
-      item.createdBy?.user?.displayName ||
-      item.fields?.CreatedBy?.LookupValue ||
-      item.fields?.Author?.LookupValue ||
-      "Unknown";
-
-    const targetSites: string[] = (() => {
-      const raw = item.fields.TargetSites;
-
-      if (!raw) {
-        return [];
-      }
-
-      if (Array.isArray(raw)) {
-        return raw.map(String).filter(Boolean);
-      }
-
-      if (typeof raw === 'string') {
-        const trimmed = raw.trim();
-        if (!trimmed) {
-          return [];
-        }
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (Array.isArray(parsed)) {
-            return parsed.map((entry) => String(entry)).filter(Boolean);
-          }
-        } catch (parseError) {
-          logger.warn('AlertsContext', 'Failed to parse TargetSites JSON, falling back to CSV parsing', {
-            value: trimmed,
-            error: parseError instanceof Error ? parseError.message : parseError
-          });
-        }
-        return trimmed.split(',').map(site => site.trim()).filter(Boolean);
-      }
-
-      return [];
-    })();
-
-    return {
-      id: `${siteId}-${item.id}`,
-      title: item.fields.Title || "",
-      description: item.fields.Description || "",
-      AlertType: item.fields.AlertType?.LookupValue || item.fields.AlertType || "Default",
-      priority: priority,
-      isPinned: item.fields.IsPinned || false,
-      targetUsers: targetUsers,
-      notificationType: item.fields.NotificationType || "none",
-      linkUrl: item.fields.LinkUrl || "",
-      linkDescription: item.fields.LinkDescription || "Learn More",
-      targetSites: targetSites,
-      status: item.fields.Status || 'Active',
-      createdDate,
-      createdBy,
-      contentType: contentType,
-      targetLanguage: (item.fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
-      languageGroup: item.fields.LanguageGroup || undefined,
-      availableForAll: typeof item.fields.AvailableForAll === 'boolean'
-        ? item.fields.AvailableForAll
-        : Boolean(item.fields.AvailableForAll)
-    };
+    return AlertTransformers.mapSharePointItemToAlert(item, siteId, false);
   }, []);
 
-
-  // Helper to map Person field data
-  const mapPersonFieldData = (personField: any, isGroup: boolean): IPersonField => {
-    if (personField.LookupId && personField.LookupValue) {
-      return {
-        id: personField.LookupId,
-        displayName: personField.LookupValue,
-        isGroup: isGroup
-      };
-    }
-
-    if (personField.ID || personField.id) {
-      return {
-        id: personField.ID || personField.id,
-        displayName: personField.Title || personField.displayName,
-        email: personField.EMail || personField.email,
-        loginName: personField.Name || personField.loginName,
-        isGroup: isGroup
-      };
-    }
-    return {
-      id: personField.id || "",
-      displayName: personField.displayName || personField.title || "",
-      email: personField.email || personField.mail || "",
-      loginName: personField.loginName || personField.userPrincipalName || "",
-      isGroup: isGroup
-    };
-  };
-
   const alertCacheRef = React.useRef<Map<string, { alerts: IAlertItem[]; timestamp: number }>>(new Map());
+  const pendingRequestsRef = React.useRef<Map<string, Promise<IAlertItem[]>>>(new Map());
   const CACHE_DURATION = 5 * 60 * 1000;
 
   // Normalize site ID to extract the site GUID for consistent deduplication
@@ -300,20 +189,29 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const fetchAlerts = useCallback(async (siteId: string): Promise<IAlertItem[]> => {
-    // Check cache first
+    // Check for pending request first (request deduplication)
+    const pendingRequest = pendingRequestsRef.current.get(siteId);
+    if (pendingRequest) {
+      logger.debug('AlertsContext', `Reusing pending request for site ${siteId}`);
+      return pendingRequest;
+    }
+
+    // Check cache
     const cached = alertCacheRef.current.get(siteId);
     const now = Date.now();
     if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-      logger.debug('AlertsContext', `Using cached alerts for site ${siteId}`, { 
+      logger.debug('AlertsContext', `Using cached alerts for site ${siteId}`, {
         alertCount: cached.alerts.length,
-        cacheAge: now - cached.timestamp 
+        cacheAge: now - cached.timestamp
       });
       return cached.alerts;
     }
 
     const dateTimeNow = new Date().toISOString();
 
-    try {
+    // Create new request and store it in pending map
+    const requestPromise = (async () => {
+      try {
       // First, try to get list with custom fields
       let response;
       try {
@@ -339,28 +237,27 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       let alerts = response.value.map((item: any) => mapSharePointItemToAlert(item, siteId));
-      
-      // Filter out templates, drafts, and auto-saved items
-      alerts = alerts.filter((alert: IAlertItem) => {
-        const isTemplate = alert.contentType === ContentType.Template ||
-                          alert.AlertType?.toLowerCase().includes('template') ||
-                          alert.title?.toLowerCase().includes('template');
-        const isDraft = alert.contentType === ContentType.Draft ||
-                       alert.status?.toLowerCase() === 'draft';
-        const isAutoSaved = alert.title?.startsWith('[Auto-saved]') || alert.title?.startsWith('[auto-saved]');
 
-        return !isTemplate && !isDraft && !isAutoSaved;
-      });
+      // Filter out templates, drafts, and auto-saved items using AlertFilters utility
+      alerts = AlertFilters.excludeNonPublicAlerts(alerts);
 
-      // Cache the results
-      alertCacheRef.current.set(siteId, { alerts, timestamp: now });
-      logger.info('AlertsContext', `Fetched and cached ${alerts.length} alerts for site ${siteId}`);
-      
-      return alerts;
-    } catch (error) {
-      logger.error('AlertsContext', `Error fetching alerts from site ${siteId}`, error, { siteId });
-      return [];
-    }
+        // Cache the results
+        alertCacheRef.current.set(siteId, { alerts, timestamp: now });
+        logger.info('AlertsContext', `Fetched and cached ${alerts.length} alerts for site ${siteId}`);
+
+        return alerts;
+      } catch (error) {
+        logger.error('AlertsContext', `Error fetching alerts from site ${siteId}`, error, { siteId });
+        return [];
+      } finally {
+        // Remove from pending requests map when done
+        pendingRequestsRef.current.delete(siteId);
+      }
+    })();
+
+    // Store the promise in pending requests
+    pendingRequestsRef.current.set(siteId, requestPromise);
+    return requestPromise;
   }, [mapSharePointItemToAlert]);
 
   // Sort alerts by priority
@@ -382,26 +279,9 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   }, []);
 
-  // Remove duplicates
+  // Remove duplicates using AlertFilters utility
   const removeDuplicateAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
-    const seenIds = new Set<string>();
-    const duplicates: IAlertItem[] = [];
-    
-    const unique = alertsToFilter.filter((alert) => {
-      if (seenIds.has(alert.id)) {
-        duplicates.push(alert);
-        return false;
-      } else {
-        seenIds.add(alert.id);
-        return true;
-      }
-    });
-
-    if (duplicates.length > 0) {
-      logger.debug('AlertsContext', `Removed ${duplicates.length} duplicate alerts`, { duplicates: duplicates.map(a => `${a.id} (${a.title})`) });
-    }
-
-    return unique;
+    return AlertFilters.removeDuplicates(alertsToFilter);
   }, []);
 
   // Check if alerts have changed
@@ -472,36 +352,19 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return false;
   }, []);
 
-  // Filter alerts based on user preferences - optimized with Sets for faster lookups
+  // Filter alerts based on user preferences using AlertFilters utility
   const filterAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
-    if (state.userDismissedAlerts.length === 0 && state.userHiddenAlerts.length === 0) {
-      return alertsToFilter; // No filtering needed
-    }
-    
-    const dismissedSet = new Set(state.userDismissedAlerts);
-    const hiddenSet = new Set(state.userHiddenAlerts);
-    
-    return alertsToFilter.filter(alert =>
-      !dismissedSet.has(alert.id) && !hiddenSet.has(alert.id)
+    return AlertFilters.filterDismissedAndHidden(
+      alertsToFilter,
+      state.userDismissedAlerts,
+      state.userHiddenAlerts
     );
   }, [state.userDismissedAlerts, state.userHiddenAlerts]);
 
+  // Filter alerts by target sites using AlertFilters utility
   const filterAlertsByTargetSites = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
     const scopedSiteIds = servicesRef.current.options?.siteIds || [];
-
-    if (scopedSiteIds.length === 0) {
-      return alertsToFilter;
-    }
-
-    const scopeSet = new Set(scopedSiteIds.map(site => String(site).toLowerCase()));
-
-    return alertsToFilter.filter(alert => {
-      if (!alert.targetSites || alert.targetSites.length === 0) {
-        return true;
-      }
-
-      return alert.targetSites.some(targetSiteId => scopeSet.has(String(targetSiteId).toLowerCase()));
-    });
+    return AlertFilters.filterByTargetSites(alertsToFilter, scopedSiteIds);
   }, []);
 
   // Apply language-aware filtering to show appropriate language variants
@@ -750,11 +613,35 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     refreshAlerts
   }), [state, removeAlert, hideAlertForever, initializeAlerts, refreshAlerts]);
 
+  // Periodic cleanup of expired cache entries
+  const cleanupExpiredCache = useCallback(() => {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    alertCacheRef.current.forEach((value, key) => {
+      if (now - value.timestamp > CACHE_DURATION) {
+        alertCacheRef.current.delete(key);
+        cleanedCount++;
+      }
+    });
+
+    if (cleanedCount > 0) {
+      logger.debug('AlertsContext', `Cleaned up ${cleanedCount} expired cache entries`);
+    }
+  }, []);
+
+  // Set up periodic cache cleanup
+  React.useEffect(() => {
+    const cleanupInterval = setInterval(cleanupExpiredCache, CACHE_DURATION);
+    return () => clearInterval(cleanupInterval);
+  }, [cleanupExpiredCache]);
+
   const cleanup = useCallback(() => {
     logger.info('AlertsContext', 'Cleaning up AlertsContext resources');
     alertCacheRef.current.clear();
-      servicesRef.current = {};
-    
+    pendingRequestsRef.current.clear();
+    servicesRef.current = {};
+
     // Dispatch final cleanup state
     dispatch({ type: 'SET_ALERTS', payload: [] });
     dispatch({ type: 'SET_LOADING', payload: false });

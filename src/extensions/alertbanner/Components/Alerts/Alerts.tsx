@@ -92,8 +92,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     }
 
     setIsInEditMode(EditModeDetector.isPageInEditMode());
-    const cleanup = EditModeDetector.onEditModeChange(setIsInEditMode);
-    return cleanup;
+    // Edit mode detection is now static - no need for change listener
   }, [
     props.graphClient,
     props.context,

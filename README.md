@@ -4,13 +4,122 @@
 
 The **Alert Banner SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display alert notifications prominently in the Banner of Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
 
-![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-31%20kl.%2016.03.29.png)
-![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-31%20kl.%2016.03.59.png)
-![screenshot](https://github.com/NicolasKheirallah/alertbanner/blob/main/Assets/Skärmavbild%202025-08-31%20kl.%2016.04.04.png)
 
-This project draws inspiration from the work of Thomas Daly. Special thanks to Thomas Daly for the original concept!
+## Screenshots
 
-[Thomas Daly alert banner](https://github.com/tom-daly/alerts-banner)
+### Alert Display
+
+**Collapsed Alert Banner**
+
+![Collapsed Alert Banner](Assets/01-alert-banner-collapsed-view.png)
+
+**Alert Banner with Settings Button**
+
+![Alert with Settings](Assets/02-alert-banner-with-settings-button.png)
+
+### Alert Management
+
+**Alert Templates Selection**
+
+Choose from pre-configured templates to quickly create alerts.
+
+![Alert Templates](Assets/03-create-alert-templates-view.png)
+
+**Manage Alerts List View**
+
+View and manage all your alerts in one place.
+
+![Manage Alerts](Assets/04-manage-alerts-list-view.png)
+
+**Alert Details (Expanded)**
+
+View detailed information for each alert including scheduling and targeting.
+
+![Alert Details](Assets/05-manage-alerts-expanded-detail.png)
+
+### Configuration & Settings
+
+**Alert Types Management**
+
+Create and customize alert types with custom icons, colors, and styling.
+
+![Alert Types](Assets/06-alert-types-management.png)
+
+**Feature Settings**
+
+Configure user targeting, browser notifications, and carousel settings.
+
+![Feature Settings](Assets/07-settings-feature-carousel.png)
+
+**Multi-Language Support Setup**
+
+Configure multi-language support with automatic SharePoint list field management.
+
+![Language Support](Assets/08-settings-multi-language-support.png)
+
+**Language Selection**
+
+Choose from 8 built-in languages or add custom languages.
+
+![Language Selection](Assets/09-settings-language-selection.png)
+
+### Creating Alerts
+
+**Create Alert with Live Preview**
+
+See how your alert will look as you create it.
+
+![Create Alert Preview](Assets/10-create-alert-live-preview.png)
+
+**Description Editor**
+
+Rich text editor with formatting options and emoji support.
+
+![Description Editor](Assets/11-create-alert-description-editor.png)
+
+**Alert Configuration**
+
+Configure alert type, priority, notification settings, and more.
+
+![Alert Configuration](Assets/12-create-alert-configuration.png)
+
+**Target Sites Selection**
+
+Choose which sites should display the alert (current site, hub site, or home site).
+
+![Target Sites](Assets/13-create-alert-target-sites.png)
+
+**Scheduling Options**
+
+Set start and end dates for time-based alert display.
+
+![Scheduling](Assets/14-create-alert-scheduling.png)
+
+### Multi-Language Features
+
+**Multi-Language Content Editor (English)**
+
+Create content in English and other languages.
+
+![English Content](Assets/15-multi-language-content-english.png)
+
+**Multi-Language Content Editor (French)**
+
+Switch between languages to provide translations.
+
+![French Content](Assets/16-multi-language-content-french.png)
+
+**Multi-Language Content Summary**
+
+View completion status for all configured languages.
+
+![Content Summary](Assets/17-multi-language-content-summary.png)
+
+**Manage Alerts with Filters**
+
+Filter and search alerts by content type, priority, alert type, status, language, and more.
+
+![Alerts with Filters](Assets/18-manage-alerts-with-filters.png)
 
 ## Goal of this Project
 
@@ -20,7 +129,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 ## Used SharePoint Framework Version
 
-![version](https://img.shields.io/badge/version-1.19.0-green.svg)
+![version](https://img.shields.io/badge/version-1.21.1-green.svg)
 
 ## Applies to
 
@@ -31,7 +140,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 ## Prerequisites
 
-- Node.js (v18.x or later)
+- Node.js (v22.14.0 or later)
 - React 17
 - SPFx (v1.21.1 or later)
 - A SharePoint Online site collection
@@ -47,7 +156,7 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 | Version | Date               | Comments                                        |
 | ------- | ------------------ | ----------------------------------------------- |
-| 4.0 | October 16, 2025 | Redesign,Fixed critical carousel settings page reload/crash bug with event-based state management, implemented proper color contrast for alert previews (WCAG AAA compliance), fixed SiteContextDetector with proper Graph API site ID extraction and hub site detection, comprehensive code cleanup, , enhanced error handling in multi-site operations, production-ready TypeScript improvements with explicit typing |
+| 4.0 | October 16, 2025 | Redesign,Added Image support, Fixed critical carousel settings page reload/crash bug with event-based state management, implemented proper color contrast for alert previews (WCAG AAA compliance), fixed SiteContextDetector with proper Graph API site ID extraction and hub site detection, comprehensive code cleanup, , enhanced error handling in multi-site operations, production-ready TypeScript improvements with explicit typing |
 | 3.1 | October 10, 2025 | Code quality improvements: Removed dark mode support, fixed deprecated JavaScript methods (.substr), eliminated @ts-ignore directives for better TypeScript safety, browser notifications disabled by default (can be enabled in settings), comprehensive code cleanup and production readiness enhancements |
 | 3.0 | August 31, 2025 |  Enhanced multi-language support with persistent language selection, improved UI/UX with proper input field containment, streamlined codebase, and robust API consistency improvements |
 | 2.4 | August 30, 2025 | Simplified user targeting with SharePoint People/Groups fields (replacing JSON-based rules), removed rich media complexity in favor of HTML description field, enhanced template with better SharePoint integration, comprehensive CRUD operations, and  better logging and error handling |

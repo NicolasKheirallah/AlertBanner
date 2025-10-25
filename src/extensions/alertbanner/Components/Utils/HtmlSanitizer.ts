@@ -172,9 +172,10 @@ export class HtmlSanitizer {
   public sanitizePreviewContent(content: string): string {
     if (!content) return '';
 
+    // Strip images from preview content - only show text
     return this.sanitizeHtml(content, {
-      ALLOWED_TAGS: ['strong', 'b', 'em', 'i', 'br', 'p', 'img'],
-      ALLOWED_ATTR: ['src', 'alt', 'width', 'height', 'style'],
+      ALLOWED_TAGS: ['strong', 'b', 'em', 'i', 'br', 'p'],
+      ALLOWED_ATTR: [],
       KEEP_CONTENT: true
     });
   }

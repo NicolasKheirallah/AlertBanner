@@ -77,8 +77,9 @@ define([], function() {
     "CreateAlertNotificationBrowserDescription": "Send a browser notification alongside the banner.",
     "CreateAlertNotificationEmailDescription": "Send an email to targeted users when the alert publishes.",
     "CreateAlertNotificationBothDescription": "Send both browser and email notifications.",
-    "CreateAlertContentTypeAlertDescription": "Publish a one-time alert directly to the banner.",
-    "CreateAlertContentTypeTemplateDescription": "Save configuration as a reusable template for future alerts.",
+    "CreateAlertContentTypeAlertDescription": "📢 Alert - Live content for users",
+    "CreateAlertContentTypeTemplateDescription": "📄 Template - Reusable template for future alerts",
+    "CreateAlertContentTypeDraftDescription": "✏️ Draft - Work in progress",
     "CreateAlertTargetLanguageAll": "All supported languages",
     
     // Alert Management

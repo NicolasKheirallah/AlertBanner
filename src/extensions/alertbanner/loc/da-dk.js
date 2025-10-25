@@ -77,8 +77,9 @@ define([], function() {
     "CreateAlertNotificationBrowserDescription": "Send en browsernotifikation sammen med banneret.",
     "CreateAlertNotificationEmailDescription": "Send en e-mail til målgruppen når advarslen udgives.",
     "CreateAlertNotificationBothDescription": "Send både browser- og e-mailnotifikationer.",
-    "CreateAlertContentTypeAlertDescription": "Publicer en engangsadvarsel direkte i banneret.",
-    "CreateAlertContentTypeTemplateDescription": "Gem konfigurationen som en genanvendelig skabelon.",
+    "CreateAlertContentTypeAlertDescription": "📢 Advarsel - Live-indhold til brugere",
+    "CreateAlertContentTypeTemplateDescription": "📄 Skabelon - Genanvendelig skabelon til fremtidige advarsler",
+    "CreateAlertContentTypeDraftDescription": "✏️ Kladde - Igangværende arbejde",
     "CreateAlertTargetLanguageAll": "Alle understøttede sprog",
     
     // Alert Management

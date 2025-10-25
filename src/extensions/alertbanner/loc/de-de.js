@@ -77,8 +77,9 @@ define([], function() {
     "CreateAlertNotificationBrowserDescription": "Neben dem Banner eine Browserbenachrichtigung senden.",
     "CreateAlertNotificationEmailDescription": "Beim Veröffentlichen eine E-Mail an Zielbenutzer senden.",
     "CreateAlertNotificationBothDescription": "Browser- und E-Mail-Benachrichtigungen senden.",
-    "CreateAlertContentTypeAlertDescription": "Einmalige Benachrichtigung direkt im Banner veröffentlichen.",
-    "CreateAlertContentTypeTemplateDescription": "Konfiguration als wiederverwendbare Vorlage speichern.",
+    "CreateAlertContentTypeAlertDescription": "📢 Warnung - Live-Inhalte für Benutzer",
+    "CreateAlertContentTypeTemplateDescription": "📄 Vorlage - Wiederverwendbare Vorlage für zukünftige Warnungen",
+    "CreateAlertContentTypeDraftDescription": "✏️ Entwurf - Laufende Arbeit",
     "CreateAlertTargetLanguageAll": "Alle unterstützten Sprachen",
     
     // Alert Management

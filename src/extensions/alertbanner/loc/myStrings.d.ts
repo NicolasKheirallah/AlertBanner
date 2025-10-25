@@ -78,6 +78,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CreateAlertNotificationBothDescription: string;
   CreateAlertContentTypeAlertDescription: string;
   CreateAlertContentTypeTemplateDescription: string;
+  CreateAlertContentTypeDraftDescription: string;
   CreateAlertTargetLanguageAll: string;
 
   // Alert Management

@@ -4,6 +4,7 @@
  */
 
 import { logger } from './LoggerService';
+import { htmlSanitizer } from '../Utils/HtmlSanitizer';
 
 export interface IValidationResult {
   isValid: boolean;
@@ -198,32 +199,6 @@ export class ValidationService {
   }
 
   /**
-   * Validate SharePoint site ID
-   */
-  public validateSiteId(siteId: string): IValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!siteId || typeof siteId !== 'string') {
-      errors.push('Site ID is required and must be a string');
-      return { isValid: false, errors, warnings };
-    }
-
-    const trimmedSiteId = siteId.trim();
-
-    if (!this.patterns.guid.test(trimmedSiteId)) {
-      errors.push('Site ID must be a valid GUID format');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-      sanitizedValue: trimmedSiteId
-    };
-  }
-
-  /**
    * Validate date range
    */
   public validateDateRange(startDate?: Date | string, endDate?: Date | string): IValidationResult {
@@ -278,8 +253,10 @@ export class ValidationService {
     };
   }
 
+
   /**
-   * Validate JSON data
+   * Validate JSON data with security checks
+   * Prevents prototype pollution and validates structure
    */
   public validateJson(jsonString: string, maxDepth: number = 10): IValidationResult {
     const errors: string[] = [];
@@ -292,7 +269,7 @@ export class ValidationService {
 
     try {
       const parsed = JSON.parse(jsonString);
-      
+
       // Check depth to prevent prototype pollution attacks
       if (this.getObjectDepth(parsed) > maxDepth) {
         errors.push(`JSON structure is too deeply nested (max depth: ${maxDepth})`);
@@ -317,7 +294,9 @@ export class ValidationService {
   }
 
   /**
-   * Validate email address
+   * Validate email address (for future email notification features)
+   * @param email - Email address to validate
+   * @returns Validation result with RFC 5321 compliance
    */
   public validateEmail(email: string): IValidationResult {
     const errors: string[] = [];
@@ -338,7 +317,7 @@ export class ValidationService {
     }
 
     if (trimmedEmail.length > 320) { // RFC 5321 limit
-      errors.push('Email address is too long');
+      errors.push('Email address is too long (maximum 320 characters)');
     }
 
     return {
@@ -367,38 +346,11 @@ export class ValidationService {
   }
 
   /**
-   * Sanitize HTML content (comprehensive protection against XSS)
+   * Sanitize HTML content using HtmlSanitizer (DOMPurify-based for industry-standard XSS protection)
    */
   private sanitizeHtml(input: string): string {
-    // Enhanced sanitizer with comprehensive XSS protection
-    let sanitized = input
-      // Remove all script tags and content
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      // Remove dangerous protocols
-      .replace(/javascript:/gi, '')
-      .replace(/vbscript:/gi, '')
-      .replace(/data:/gi, '')
-      .replace(/file:/gi, '')
-      // Remove all event handlers
-      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-      .replace(/on\w+\s*=\s*[^"'\s>]*/gi, '')
-      // Remove dangerous tags
-      .replace(/<(iframe|object|embed|form|input|button|textarea|select|option|meta|link|style|base|applet|bgsound|blink|body|frame|frameset|head|html|ilayer|layer|plaintext|title|xml)[^>]*>/gi, '')
-      // Remove HTML comments that could contain malicious code
-      .replace(/<!--[\s\S]*?-->/g, '')
-      // Remove CSS expressions
-      .replace(/expression\s*\(/gi, '')
-      .replace(/url\s*\(/gi, 'url_blocked(')
-      // Remove potentially dangerous attributes
-      .replace(/\s(style|class|id)\s*=\s*["'][^"']*["']/gi, '')
-      // Encode remaining special characters
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;')
-      .replace(/\//g, '&#x2F;')
-      .trim();
+    // Use centralized HtmlSanitizer for consistent, industry-standard sanitization
+    const sanitized = htmlSanitizer.sanitizeHtml(input);
 
     // Log potential XSS attempts for security monitoring
     if (sanitized !== input) {
@@ -448,80 +400,6 @@ export class ValidationService {
     return false;
   }
 
-  /**
-   * Validate complete alert object
-   */
-  public validateAlert(alert: any): IValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    try {
-      // Validate title
-      const titleResult = this.validateAlertTitle(alert.title);
-      errors.push(...titleResult.errors);
-      warnings.push(...titleResult.warnings);
-
-      // Validate description
-      const descResult = this.validateAlertDescription(alert.description);
-      errors.push(...descResult.errors);
-      warnings.push(...descResult.warnings);
-
-      // Validate URL if provided
-      if (alert.linkUrl) {
-        const urlResult = this.validateUrl(alert.linkUrl);
-        errors.push(...urlResult.errors);
-        warnings.push(...urlResult.warnings);
-      }
-
-      // Validate date range if provided
-      if (alert.scheduledStart || alert.scheduledEnd) {
-        const dateResult = this.validateDateRange(alert.scheduledStart, alert.scheduledEnd);
-        errors.push(...dateResult.errors);
-        warnings.push(...dateResult.warnings);
-      }
-
-      // Validate target users if provided
-      if (alert.targetUsers && Array.isArray(alert.targetUsers)) {
-        if (alert.targetUsers.length > this.limits.maxArrayLength) {
-          errors.push(`Too many target users specified (max: ${this.limits.maxArrayLength})`);
-        }
-        
-        // Validate each target user object
-        for (const user of alert.targetUsers) {
-          if (!user.id || typeof user.id !== 'string') {
-            errors.push('Target user must have a valid ID');
-          }
-          if (!user.displayName || typeof user.displayName !== 'string') {
-            errors.push('Target user must have a valid display name');
-          }
-        }
-      }
-
-      const sanitizedValue = {
-        title: titleResult.sanitizedValue,
-        description: descResult.sanitizedValue,
-        linkUrl: alert.linkUrl ? this.validateUrl(alert.linkUrl).sanitizedValue : undefined,
-        // ... other sanitized fields
-      };
-
-      return {
-        isValid: errors.length === 0,
-        errors,
-        warnings,
-        sanitizedValue
-      };
-
-    } catch (error) {
-      logger.error('ValidationService', 'Error validating alert object', error);
-      errors.push('Validation failed due to unexpected error');
-      
-      return {
-        isValid: false,
-        errors,
-        warnings
-      };
-    }
-  }
 }
 
 // Export singleton instance
