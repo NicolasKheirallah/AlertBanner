@@ -1,4 +1,5 @@
 import { IAlertItem } from "../Alerts/IAlerts";
+import { JsonUtils } from '../Utils/JsonUtils';
 
 export interface IStorageOptions {
   expirationTime?: number; // In milliseconds
@@ -48,7 +49,8 @@ export class StorageService {
 
       if (!data) return null;
 
-      const parsedData = JSON.parse(data);
+      const parsedData = JsonUtils.safeParse(data);
+      if (!parsedData) return null;
 
       // Check if data has expired
       if (this.isDataExpired(parsedData)) {
@@ -94,8 +96,8 @@ export class StorageService {
 
       if (!data) return null;
 
-      const parsedData = JSON.parse(data);
-      return parsedData.data as T;
+      const parsedData = JsonUtils.safeParse(data);
+      return parsedData ? (parsedData.data as T) : null;
     } catch (error) {
       // Silent fail for storage operations
       return null;

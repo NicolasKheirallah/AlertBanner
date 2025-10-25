@@ -1,6 +1,7 @@
 import { IAlertItem, IAlertListItem } from '../Services/SharePointAlertService';
 import { AlertPriority, NotificationType, ContentType, TargetLanguage, IPersonField } from '../Alerts/IAlerts';
 import { logger } from '../Services/LoggerService';
+import { JsonUtils } from './JsonUtils';
 
 /**
  * Utility class for transforming SharePoint items to alert objects
@@ -27,15 +28,9 @@ export class AlertTransformers {
       }
 
       // Try parsing as JSON first
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          return parsed.map((entry) => String(entry)).filter(Boolean);
-        }
-      } catch (parseError) {
-        logger.debug('AlertTransformers', 'Failed to parse TargetSites as JSON, falling back to CSV parsing', {
-          value: trimmed.substring(0, 50) + '...'
-        });
+      const parsed = JsonUtils.safeParse<string[]>(trimmed);
+      if (parsed && Array.isArray(parsed)) {
+        return parsed.map((entry) => String(entry)).filter(Boolean);
       }
 
       // Fall back to CSV parsing
@@ -184,15 +179,13 @@ export class AlertTransformers {
       return value;
     }
 
-    try {
-      return JSON.parse(value);
-    } catch (error) {
+    const parsed = JsonUtils.safeParse(value);
+    if (parsed === null) {
       logger.warn('AlertTransformers', 'Failed to parse alert metadata; ignoring value', {
-        error,
         valueSnippet: value.slice(0, 100)
       });
-      return undefined;
     }
+    return parsed || undefined;
   }
 
   /**

@@ -12,6 +12,7 @@ import { logger } from "../Services/LoggerService";
 import { validationService } from "../Services/ValidationService";
 import { AlertTransformers } from "../Utils/AlertTransformers";
 import { AlertFilters } from "../Utils/AlertFilters";
+import { LIST_NAMES, CACHE_CONFIG, API_CONFIG } from "../Utils/AppConstants";
 
 interface AlertsState {
   alerts: IAlertItem[];
@@ -167,7 +168,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const alertCacheRef = React.useRef<Map<string, { alerts: IAlertItem[]; timestamp: number }>>(new Map());
   const pendingRequestsRef = React.useRef<Map<string, Promise<IAlertItem[]>>>(new Map());
-  const CACHE_DURATION = 5 * 60 * 1000;
+  const CACHE_DURATION = CACHE_CONFIG.ALERTS_CACHE_DURATION;
 
   // Normalize site ID to extract the site GUID for consistent deduplication
   const normalizeSiteId = useCallback((siteId: string): string => {
@@ -218,7 +219,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null) and (fields/ItemType ne 'template') and (fields/ItemType ne 'draft')`;
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
-          .api(`/sites/${siteId}/lists/Alerts/items`)
+          .api(`/sites/${siteId}/lists/${LIST_NAMES.ALERTS}/items`)
           .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
           .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,AvailableForAll,Metadata,Attachments,AttachmentFiles)")
           .filter(filterQuery)
@@ -229,7 +230,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         logger.warn('AlertsContext', 'Custom fields not found, falling back to basic fields', customFieldError);
         if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
         response = await servicesRef.current.graphClient
-          .api(`/sites/${siteId}/lists/Alerts/items`)
+          .api(`/sites/${siteId}/lists/${LIST_NAMES.ALERTS}/items`)
           .expand("fields($select=Title,Description,Created,Author,Attachments,AttachmentFiles)")
           .orderby("fields/Created desc")
           .top(25)

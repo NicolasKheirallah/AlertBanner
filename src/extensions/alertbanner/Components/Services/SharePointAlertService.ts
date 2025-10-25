@@ -4,6 +4,12 @@ import { AlertPriority, NotificationType, IAlertType, IPersonField, ContentType,
 import { logger } from './LoggerService';
 import { AlertTransformers } from '../Utils/AlertTransformers';
 import { DateUtils } from '../Utils/DateUtils';
+import { LIST_NAMES, VALIDATION_LIMITS, API_CONFIG } from '../Utils/AppConstants';
+import { JsonUtils } from '../Utils/JsonUtils';
+import { ErrorUtils } from '../Utils/ErrorUtils';
+import { AlertFilters } from '../Utils/AlertFilters';
+import { ArrayUtils } from '../Utils/ArrayUtils';
+import { RetryUtils } from '../Utils/RetryUtils';
 
 export interface IRepairResult {
   success: boolean;
@@ -118,8 +124,8 @@ export interface IAlertListItem {
 export class SharePointAlertService {
   private graphClient: MSGraphClientV3;
   private context: ApplicationCustomizerContext;
-  private alertsListName = 'Alerts';
-  private alertTypesListName = 'AlertBannerTypes';
+  private alertsListName = LIST_NAMES.ALERTS;
+  private alertTypesListName = LIST_NAMES.ALERT_TYPES;
   private listIdCache: Map<string, string> = new Map();
 
   constructor(graphClient: MSGraphClientV3, context: ApplicationCustomizerContext) {
@@ -156,21 +162,6 @@ export class SharePointAlertService {
     return `${siteId}|${listTitle.toLowerCase()}`;
   }
 
-  private isAccessDeniedError(error: any): boolean {
-    if (!error) {
-      return false;
-    }
-    const message = (error.message || String(error)).toLowerCase();
-    return message.includes('access denied') || message.includes('403');
-  }
-
-  private isListNotFoundError(error: any): boolean {
-    if (!error) {
-      return false;
-    }
-    const message = (error.message || String(error)).toLowerCase();
-    return message.includes('list_not_found') || message.includes('404') || message.includes('not found');
-  }
 
   private async resolveListId(siteId: string, listTitle: string): Promise<string> {
     const cacheKey = this.getListCacheKey(siteId, listTitle);
@@ -242,55 +233,15 @@ export class SharePointAlertService {
     maxRetries: number = 3,
     baseDelay: number = 1000
   ): Promise<T> {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error: any) {
-        const isRetryable = this.isRetryableError(error);
-        const isLastAttempt = attempt === maxRetries;
-
-        if (!isRetryable || isLastAttempt) {
-          logger.error('SharePointAlertService', `Operation failed after ${attempt} attempts`, error);
-          throw error;
-        }
-
-        // Exponential backoff with jitter
-        const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-        logger.warn('SharePointAlertService', `Attempt ${attempt} failed, retrying in ${delay}ms`, error);
-        
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    throw new Error('Maximum retry attempts exceeded');
+    return RetryUtils.executeWithRetry(operation, {
+      maxRetries,
+      baseDelay,
+      useExponentialBackoff: true,
+      useJitter: true,
+      shouldRetry: (error) => ErrorUtils.isRetryableError(error)
+    });
   }
 
-  /**
-   * Determine if an error is retryable (transient)
-   */
-  private isRetryableError(error: any): boolean {
-    if (!error) return false;
-    
-    const retryableStatusCodes = [429, 500, 502, 503, 504];
-    const retryableMessages = [
-      'timeout',
-      'network',
-      'throttled',
-      'temporarily unavailable',
-      'service unavailable'
-    ];
-
-    // Check status code
-    if (error.status || error.code) {
-      const statusCode = parseInt(error.status || error.code);
-      if (retryableStatusCodes.includes(statusCode)) {
-        return true;
-      }
-    }
-
-    // Check error message
-    const errorMessage = (error.message || error.toString()).toLowerCase();
-    return retryableMessages.some(msg => errorMessage.includes(msg));
-  }
 
   /**
    * Check if the current site is the SharePoint home site
@@ -331,9 +282,9 @@ export class SharePointAlertService {
     try {
       await this.resolveListId(currentSiteId, this.alertsListName);
     } catch (error: any) {
-      if (this.isListNotFoundError(error)) {
+      if (ErrorUtils.isListNotFoundError(error)) {
         needsAlerts = true;
-      } else if (!this.isAccessDeniedError(error)) {
+      } else if (!ErrorUtils.isAccessDeniedError(error)) {
         throw error;
       }
     }
@@ -343,9 +294,9 @@ export class SharePointAlertService {
       try {
         await this.resolveListId(currentSiteId, this.alertTypesListName);
       } catch (error: any) {
-        if (this.isListNotFoundError(error)) {
+        if (ErrorUtils.isListNotFoundError(error)) {
           needsTypes = true;
-        } else if (!this.isAccessDeniedError(error)) {
+        } else if (!ErrorUtils.isAccessDeniedError(error)) {
           throw error;
         }
       }
@@ -410,12 +361,12 @@ export class SharePointAlertService {
       await this.resolveListId(siteId, this.alertsListName);
       return false;
     } catch (error: any) {
-      if (this.isAccessDeniedError(error)) {
+      if (ErrorUtils.isAccessDeniedError(error)) {
         logger.warn('SharePointAlertService', 'Cannot access or create alerts list due to insufficient permissions');
         throw new Error('PERMISSION_DENIED: User lacks permissions to access or create SharePoint lists.');
       }
 
-      if (!this.isListNotFoundError(error)) {
+      if (!ErrorUtils.isListNotFoundError(error)) {
         throw error;
       }
     }
@@ -466,7 +417,7 @@ export class SharePointAlertService {
 
       return true;
     } catch (createError) {
-      if (this.isAccessDeniedError(createError)) {
+      if (ErrorUtils.isAccessDeniedError(createError)) {
         logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
         throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
       }
@@ -831,12 +782,12 @@ export class SharePointAlertService {
       await this.resolveListId(siteId, this.alertTypesListName);
       return false;
     } catch (error: any) {
-      if (this.isAccessDeniedError(error)) {
+      if (ErrorUtils.isAccessDeniedError(error)) {
         logger.warn('SharePointAlertService', 'Cannot access or create alert types list due to insufficient permissions');
         throw new Error('PERMISSION_DENIED: User lacks permissions to access or create SharePoint lists.');
       }
 
-      if (!this.isListNotFoundError(error)) {
+      if (!ErrorUtils.isListNotFoundError(error)) {
         throw error;
       }
     }
@@ -848,7 +799,7 @@ export class SharePointAlertService {
         .top(1)
         .get();
     } catch (permissionError) {
-      if (this.isAccessDeniedError(permissionError)) {
+      if (ErrorUtils.isAccessDeniedError(permissionError)) {
         logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
         throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
       }
@@ -874,7 +825,7 @@ export class SharePointAlertService {
 
       return true;
     } catch (createError) {
-      if (this.isAccessDeniedError(createError)) {
+      if (ErrorUtils.isAccessDeniedError(createError)) {
         logger.warn('SharePointAlertService', 'User lacks permissions to create SharePoint lists');
         throw new Error('PERMISSION_DENIED: User lacks permissions to create SharePoint lists.');
       }
@@ -1007,13 +958,12 @@ export class SharePointAlertService {
         }
       }
       const allAlerts: IAlertItem[] = [];
-      const seenAlerts = new Map<string, IAlertItem>(); // Track alerts by unique ID to avoid duplicates
 
       // Normalize and deduplicate site IDs
       const normalizedSiteIds = sitesToQuery.map(siteId =>
         siteId.includes(',') ? siteId : this.getGraphSiteIdentifier(siteId)
       );
-      const uniqueSiteIds = [...new Set(normalizedSiteIds)];
+      const uniqueSiteIds = ArrayUtils.unique(normalizedSiteIds);
 
       // Query alerts from each site
       for (const siteId of uniqueSiteIds) {
@@ -1042,20 +992,17 @@ export class SharePointAlertService {
             })
             .map((item: any) => this.mapSharePointItemToAlert(item, siteId));
 
-          // Add alerts, skipping duplicates
-          for (const alert of siteAlerts) {
-            if (!seenAlerts.has(alert.id)) {
-              seenAlerts.set(alert.id, alert);
-              allAlerts.push(alert);
-            }
-          }
+          // Add alerts from this site
+          allAlerts.push(...siteAlerts);
         } catch (error) {
           logger.warn('SharePointAlertService', `Failed to get alerts from site ${siteId}`, error);
           // Continue with other sites
         }
       }
 
-      return allAlerts.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+      // Remove duplicates and sort by creation date
+      const uniqueAlerts = AlertFilters.removeDuplicates(allAlerts);
+      return uniqueAlerts.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
     } catch (error) {
       // Enhanced error handling for permission and access issues
       if (error.message?.includes('Access denied') || error.message?.includes('403')) {
@@ -1658,7 +1605,7 @@ export class SharePointAlertService {
       backgroundColor: fields.BackgroundColor || '#0078d4',
       textColor: fields.TextColor || '#ffffff',
       additionalStyles: fields.AdditionalStyles || '',
-      priorityStyles: fields.PriorityStyles ? JSON.parse(fields.PriorityStyles) : {}
+      priorityStyles: JsonUtils.safeParse(fields.PriorityStyles) || {}
     };
   }
 

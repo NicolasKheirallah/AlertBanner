@@ -5,6 +5,9 @@
 
 import { logger } from './LoggerService';
 import { htmlSanitizer } from '../Utils/HtmlSanitizer';
+import { StringUtils } from '../Utils/StringUtils';
+import { JsonUtils } from '../Utils/JsonUtils';
+import { VALIDATION_LIMITS, REGEX_PATTERNS, SANITIZATION_CONFIG } from '../Utils/AppConstants';
 
 export interface IValidationResult {
   isValid: boolean;
@@ -23,12 +26,11 @@ export interface IValidationRule {
 export class ValidationService {
   private static _instance: ValidationService;
 
-  // Common validation patterns
+  // Common validation patterns - using centralized REGEX_PATTERNS where applicable
   private readonly patterns = {
-    email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-    url: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
-    sharePointUrl: /^https:\/\/[a-zA-Z0-9-]+\.sharepoint\.com\/.*$/,
-    guid: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    email: REGEX_PATTERNS.EMAIL,
+    url: REGEX_PATTERNS.URL,
+    guid: REGEX_PATTERNS.GUID,
     htmlTag: /<[^>]*>/g,
     script: /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
     maliciousPatterns: [
@@ -41,14 +43,6 @@ export class ValidationService {
     ]
   };
 
-  // Security-focused constants
-  private readonly limits = {
-    maxTextLength: 10000,
-    maxTitleLength: 255,
-    maxUrlLength: 2083,
-    maxFileSize: 5 * 1024 * 1024, // 5MB
-    maxArrayLength: 1000
-  };
 
   private constructor() {}
 
@@ -66,23 +60,19 @@ export class ValidationService {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    if (!title || typeof title !== 'string') {
-      errors.push('Title is required and must be a string');
+    if (StringUtils.isEmpty(title)) {
+      errors.push('Title is required');
       return { isValid: false, errors, warnings };
     }
 
-    const trimmedTitle = title.trim();
+    const trimmedTitle = StringUtils.trimOrDefault(title);
 
-    if (trimmedTitle.length === 0) {
-      errors.push('Title cannot be empty');
+    if (trimmedTitle.length > VALIDATION_LIMITS.TITLE_MAX_LENGTH) {
+      errors.push(`Title cannot exceed ${VALIDATION_LIMITS.TITLE_MAX_LENGTH} characters`);
     }
 
-    if (trimmedTitle.length > this.limits.maxTitleLength) {
-      errors.push(`Title cannot exceed ${this.limits.maxTitleLength} characters`);
-    }
-
-    if (trimmedTitle.length < 3) {
-      warnings.push('Title should be at least 3 characters long');
+    if (trimmedTitle.length < VALIDATION_LIMITS.TITLE_MIN_LENGTH) {
+      warnings.push(`Title should be at least ${VALIDATION_LIMITS.TITLE_MIN_LENGTH} characters long`);
     }
 
     if (this.containsMaliciousContent(trimmedTitle)) {
@@ -117,8 +107,8 @@ export class ValidationService {
       errors.push('Description cannot be empty');
     }
 
-    if (trimmedDescription.length > this.limits.maxTextLength) {
-      errors.push(`Description cannot exceed ${this.limits.maxTextLength} characters`);
+    if (trimmedDescription.length > VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH) {
+      errors.push(`Description cannot exceed ${VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH} characters`);
     }
 
     if (trimmedDescription.length < 10) {
@@ -156,8 +146,8 @@ export class ValidationService {
       return { isValid: true, errors, warnings, sanitizedValue: '' };
     }
 
-    if (trimmedUrl.length > this.limits.maxUrlLength) {
-      errors.push(`URL cannot exceed ${this.limits.maxUrlLength} characters`);
+    if (trimmedUrl.length > VALIDATION_LIMITS.URL_MAX_LENGTH) {
+      errors.push(`URL cannot exceed ${VALIDATION_LIMITS.URL_MAX_LENGTH} characters`);
     }
 
     if (!this.patterns.url.test(trimmedUrl)) {
@@ -255,42 +245,21 @@ export class ValidationService {
 
 
   /**
-   * Validate JSON data with security checks
+   * Validate JSON data with security checks using JsonUtils
    * Prevents prototype pollution and validates structure
    */
-  public validateJson(jsonString: string, maxDepth: number = 10): IValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
+  public validateJson(jsonString: string, maxDepth: number = VALIDATION_LIMITS.JSON_MAX_DEPTH): IValidationResult {
+    const result = JsonUtils.parseWithValidation(jsonString, {
+      maxDepth,
+      checkDangerousKeys: true
+    });
 
-    if (!jsonString || typeof jsonString !== 'string') {
-      errors.push('JSON data is required and must be a string');
-      return { isValid: false, errors, warnings };
-    }
-
-    try {
-      const parsed = JSON.parse(jsonString);
-
-      // Check depth to prevent prototype pollution attacks
-      if (this.getObjectDepth(parsed) > maxDepth) {
-        errors.push(`JSON structure is too deeply nested (max depth: ${maxDepth})`);
-      }
-
-      // Check for potentially dangerous keys
-      if (this.containsDangerousKeys(parsed)) {
-        errors.push('JSON contains potentially dangerous property names');
-      }
-
-      return {
-        isValid: errors.length === 0,
-        errors,
-        warnings,
-        sanitizedValue: parsed
-      };
-
-    } catch (parseError) {
-      errors.push('Invalid JSON format');
-      return { isValid: false, errors, warnings };
-    }
+    return {
+      isValid: result.success,
+      errors: result.errors,
+      warnings: [],
+      sanitizedValue: result.data
+    };
   }
 
   /**
@@ -363,42 +332,7 @@ export class ValidationService {
     return sanitized;
   }
 
-  /**
-   * Get object depth for preventing prototype pollution
-   */
-  private getObjectDepth(obj: any, depth: number = 0): number {
-    if (depth > 100) return depth; // Prevent stack overflow
-
-    if (!obj || typeof obj !== 'object') return depth;
-
-    let maxChildDepth = depth;
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        const childDepth = this.getObjectDepth(obj[key], depth + 1);
-        maxChildDepth = Math.max(maxChildDepth, childDepth);
-      }
-    }
-
-    return maxChildDepth;
-  }
-
-  /**
-   * Check for dangerous property names
-   */
-  private containsDangerousKeys(obj: any): boolean {
-    const dangerousKeys = ['__proto__', 'prototype', 'constructor'];
-    
-    if (!obj || typeof obj !== 'object') return false;
-
-    for (const key in obj) {
-      if (dangerousKeys.includes(key)) return true;
-      if (typeof obj[key] === 'object' && this.containsDangerousKeys(obj[key])) {
-        return true;
-      }
-    }
-
-    return false;
-  }
+  // getObjectDepth and containsDangerousKeys methods moved to JsonUtils for reusability
 
 }
 
