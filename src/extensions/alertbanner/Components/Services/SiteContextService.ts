@@ -142,7 +142,9 @@ export class SiteContextService {
         .post({
           requests: [{
             entityTypes: ['site'],
-            query: 'IsHomeSite:true OR SiteTemplate:SITEPAGEPUBLISHING',
+            query: {
+              queryString: 'IsHomeSite:true OR SiteTemplate:SITEPAGEPUBLISHING'
+            },
             from: 0,
             size: 5
           }]
@@ -187,9 +189,7 @@ export class SiteContextService {
       // Final fallback: try to find sites the user can access and look for patterns
       try {
         const sitesResponse = await this._graphClient
-          .api('/sites')
-          .filter("siteCollection/root ne null")
-          .top(10)
+          .api('/sites?search=*')
           .get();
 
         if (sitesResponse?.value?.length > 0) {
@@ -498,7 +498,18 @@ export class SiteContextService {
 
   private buildGraphSiteIdentifier(siteUrl: string): string {
     const normalizedUrl = new URL(siteUrl);
-    const path = normalizedUrl.pathname && normalizedUrl.pathname !== '/' ? normalizedUrl.pathname : '/';
+    let path = normalizedUrl.pathname || '';
+
+    // Normalize redundant slashes and remove trailing slash except for root
+    path = path.replace(/\/+/g, '/');
+    if (path !== '/' && path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
+
+    if (!path || path === '/') {
+      return normalizedUrl.hostname;
+    }
+
     return `${normalizedUrl.hostname}:${path}`;
   }
 

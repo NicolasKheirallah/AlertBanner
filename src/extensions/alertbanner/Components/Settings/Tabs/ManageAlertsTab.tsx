@@ -418,8 +418,18 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         // Update multi-language alert - need to update all language variants
         if (editingAlert.languageGroup) {
           // Get all alerts in this language group
-          const groupAlerts = existingAlerts.filter(a => a.languageGroup === editingAlert.languageGroup);
-          
+          const allGroupAlerts = existingAlerts.filter(a => a.languageGroup === editingAlert.languageGroup);
+
+          // Deduplicate by language - keep only unique language variants (in case of duplicates in existingAlerts)
+          const seenLanguages = new Set<string>();
+          const groupAlerts = allGroupAlerts.filter(alert => {
+            if (seenLanguages.has(alert.targetLanguage)) {
+              return false;
+            }
+            seenLanguages.add(alert.targetLanguage);
+            return true;
+          });
+
           // Create updated alert items
           const updatedAlerts = editingAlert.languageContent.map(content => ({
             ...editingAlert,
@@ -434,7 +444,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           for (let i = 0; i < updatedAlerts.length; i++) {
             const updatedAlert = updatedAlerts[i];
             const existingAlert = groupAlerts.find(a => a.targetLanguage === updatedAlert.targetLanguage);
-            
+
             if (existingAlert) {
               // Update existing language variant
               await alertService.updateAlert(existingAlert.id, {
@@ -475,8 +485,39 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           // Delete language variants that were removed
           const updatedLanguages = editingAlert.languageContent.map(c => c.language);
           const toDelete = groupAlerts.filter(a => !updatedLanguages.includes(a.targetLanguage));
+
+          logger.info('ManageAlertsTab', 'Processing language variant deletions', {
+            currentLanguages: groupAlerts.map(a => a.targetLanguage),
+            updatedLanguages,
+            toDelete: toDelete.map(a => ({ id: a.id, language: a.targetLanguage }))
+          });
+
           for (const alertToDelete of toDelete) {
-            await alertService.deleteAlert(alertToDelete.id);
+            try {
+              await alertService.deleteAlert(alertToDelete.id);
+              logger.info('ManageAlertsTab', `Successfully deleted language variant for ${alertToDelete.targetLanguage}`);
+            } catch (deleteError: any) {
+              // Check multiple possible status code locations in the error object
+              const statusCode = deleteError?.statusCode || deleteError?.status || deleteError?.response?.status || deleteError?.code;
+              const errorMessage = deleteError?.message || String(deleteError);
+
+              // If item doesn't exist (404 or "not found" message), log warning but continue
+              const isNotFound = statusCode === 404 ||
+                                statusCode === '404' ||
+                                errorMessage.toLowerCase().includes('not found') ||
+                                errorMessage.toLowerCase().includes('does not exist');
+
+              if (isNotFound) {
+                logger.warn('ManageAlertsTab', `Language variant ${alertToDelete.id} already deleted or not found - continuing`, {
+                  language: alertToDelete.targetLanguage,
+                  errorMessage
+                });
+              } else {
+                // For other errors, rethrow to trigger main error handler
+                logger.error('ManageAlertsTab', `Failed to delete language variant ${alertToDelete.id}`, deleteError);
+                throw deleteError;
+              }
+            }
           }
         }
       } else {

@@ -8,7 +8,6 @@ import { LIST_NAMES, VALIDATION_LIMITS, API_CONFIG } from '../Utils/AppConstants
 import { JsonUtils } from '../Utils/JsonUtils';
 import { ErrorUtils } from '../Utils/ErrorUtils';
 import { AlertFilters } from '../Utils/AlertFilters';
-import { ArrayUtils } from '../Utils/ArrayUtils';
 import { RetryUtils } from '../Utils/RetryUtils';
 import { StringUtils } from '../Utils/StringUtils';
 
@@ -128,51 +127,101 @@ export class SharePointAlertService {
   private alertsListName = LIST_NAMES.ALERTS;
   private alertTypesListName = LIST_NAMES.ALERT_TYPES;
   private listIdCache: Map<string, string> = new Map();
+  private graphSiteIdentifierCache: Map<string, string> = new Map();
+  private validatedListSchemas: Set<string> = new Set();
 
   constructor(graphClient: MSGraphClientV3, context: ApplicationCustomizerContext) {
     this.graphClient = graphClient;
     this.context = context;
   }
 
-  private getGraphSiteIdentifier(siteId: string): string {
+  private getGraphSiteIdentifierFromContext(siteId: string): string {
+    const currentUrl = new URL(this.context.pageContext.web.absoluteUrl);
+    const siteGuid = (siteId || this.context.pageContext.site.id.toString()).replace(/[{}]/g, '');
+    const webGuid = this.context.pageContext.web.id.toString().replace(/[{}]/g, '');
+    return `${currentUrl.hostname},${siteGuid},${webGuid}`;
+  }
+
+  private isCurrentSite(siteId: string): boolean {
     if (!siteId) {
-      const currentUrl = new URL(this.context.pageContext.web.absoluteUrl);
-      const siteGuid = this.context.pageContext.site.id.toString().replace(/[{}]/g, '');
-      const webGuid = this.context.pageContext.web.id.toString().replace(/[{}]/g, '');
-      return `${currentUrl.hostname},${siteGuid},${webGuid}`;
+      return true;
     }
 
-    if (siteId.includes(',') || siteId.includes(':')) {
+    const normalized = siteId.replace(/[{}]/g, '').toLowerCase();
+    const currentSiteId = this.context.pageContext.site.id.toString().replace(/[{}]/g, '').toLowerCase();
+    return normalized === currentSiteId;
+  }
+
+  private async ensureGraphSiteIdentifier(siteId: string): Promise<string> {
+    if (!siteId) {
+      return this.getGraphSiteIdentifierFromContext(siteId);
+    }
+
+    if (siteId.includes(',')) {
       return siteId;
     }
 
-    if (siteId.startsWith('https://')) {
-      const siteUrl = new URL(siteId);
-      const path = siteUrl.pathname && siteUrl.pathname !== '/' ? siteUrl.pathname : '/';
-      return `${siteUrl.hostname}:${path}`;
+    if (siteId.startsWith('https://') || siteId.startsWith('http://')) {
+      try {
+        const siteUrl = new URL(siteId);
+        const rawPath = siteUrl.pathname || '';
+        const normalizedPath = rawPath.replace(/\/+/g, '/').replace(/\/$/, '');
+        return normalizedPath ? `${siteUrl.hostname}:${normalizedPath || '/'}` : siteUrl.hostname;
+      } catch (error) {
+        logger.warn('SharePointAlertService', 'Invalid site URL provided, falling back to context identifier', { siteId, error });
+        return this.getGraphSiteIdentifierFromContext(siteId);
+      }
     }
 
-    const currentUrl = new URL(this.context.pageContext.web.absoluteUrl);
-    const normalizedSiteId = siteId.replace(/[{}]/g, '');
-    const webGuid = this.context.pageContext.web.id.toString().replace(/[{}]/g, '');
+    if (siteId.includes(':')) {
+      return siteId;
+    }
 
-    return `${currentUrl.hostname},${normalizedSiteId},${webGuid}`;
+    const normalized = siteId.replace(/[{}]/g, '').toLowerCase();
+    if (this.graphSiteIdentifierCache.has(normalized)) {
+      return this.graphSiteIdentifierCache.get(normalized)!;
+    }
+
+    if (this.isCurrentSite(siteId)) {
+      const identifier = this.getGraphSiteIdentifierFromContext(siteId);
+      this.graphSiteIdentifierCache.set(normalized, identifier);
+      return identifier;
+    }
+
+    try {
+      const siteResponse = await this.graphClient
+        .api(`/sites/${normalized}`)
+        .select('id')
+        .get();
+
+      if (siteResponse?.id) {
+        this.graphSiteIdentifierCache.set(normalized, siteResponse.id);
+        return siteResponse.id;
+      }
+    } catch (error) {
+      logger.warn('SharePointAlertService', 'Unable to resolve graph site identifier, falling back to context derived value', { siteId, error });
+    }
+
+    const fallback = this.getGraphSiteIdentifierFromContext(siteId);
+    this.graphSiteIdentifierCache.set(normalized, fallback);
+    return fallback;
   }
 
-  private getListCacheKey(siteId: string, listTitle: string): string {
-    return `${siteId}|${listTitle.toLowerCase()}`;
+  private getListCacheKey(siteIdentifier: string, listTitle: string): string {
+    return `${siteIdentifier}|${listTitle.toLowerCase()}`;
   }
 
 
   private async resolveListId(siteId: string, listTitle: string): Promise<string> {
-    const cacheKey = this.getListCacheKey(siteId, listTitle);
+    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
+    const cacheKey = this.getListCacheKey(graphSiteIdentifier, listTitle);
     const cachedId = this.listIdCache.get(cacheKey);
     if (cachedId) {
       return cachedId;
     }
 
     try {
-      let requestPath = `/sites/${this.getGraphSiteIdentifier(siteId)}/lists`;
+      let requestPath = `/sites/${graphSiteIdentifier}/lists`;
       const targetName = listTitle.toLowerCase();
 
       while (requestPath) {
@@ -209,20 +258,25 @@ export class SharePointAlertService {
     throw notFoundError;
   }
 
-  private registerListId(siteId: string, listTitle: string, listId?: string): void {
-    if (listId) {
-      this.listIdCache.set(this.getListCacheKey(siteId, listTitle), listId);
+  private async registerListId(siteId: string, listTitle: string, listId?: string): Promise<void> {
+    if (!listId) {
+      return;
     }
+
+    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
+    this.listIdCache.set(this.getListCacheKey(graphSiteIdentifier, listTitle), listId);
   }
 
   private async getAlertsListApi(siteId: string): Promise<string> {
+    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
     const listId = await this.resolveListId(siteId, this.alertsListName);
-    return `/sites/${this.getGraphSiteIdentifier(siteId)}/lists/${listId}`;
+    return `/sites/${graphSiteIdentifier}/lists/${listId}`;
   }
 
   private async getAlertTypesListApi(siteId: string): Promise<string> {
+    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
     const listId = await this.resolveListId(siteId, this.alertTypesListName);
-    return `/sites/${this.getGraphSiteIdentifier(siteId)}/lists/${listId}`;
+    return `/sites/${graphSiteIdentifier}/lists/${listId}`;
   }
 
 
@@ -372,9 +426,11 @@ export class SharePointAlertService {
       }
     }
 
+    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
+
     try {
       await this.graphClient
-        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
+        .api(`/sites/${graphSiteIdentifier}/lists`)
         .select('id')
         .top(1)
         .get();
@@ -407,9 +463,9 @@ export class SharePointAlertService {
 
     try {
       const createdList = await this.graphClient
-        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
+        .api(`/sites/${graphSiteIdentifier}/lists`)
         .post(listDefinition);
-      this.registerListId(siteId, this.alertsListName, createdList?.id);
+      await this.registerListId(siteId, this.alertsListName, createdList?.id);
 
       await this.enableListAttachments(siteId, createdList?.id);
       await this.addAlertsListColumns(siteId);
@@ -474,6 +530,8 @@ export class SharePointAlertService {
     }
 
     const alertsListId = await this.resolveListId(siteId, this.alertsListName);
+
+    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
 
     const columns = [
       alertTypesListId ? {
@@ -601,7 +659,7 @@ export class SharePointAlertService {
     for (const column of columns) {
       try {
         await this.graphClient
-          .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists/${alertsListId}/columns`)
+          .api(`/sites/${graphSiteIdentifier}/lists/${alertsListId}/columns`)
           .post(column);
       } catch (error) {
         logger.warn('SharePointAlertService', `Failed to create Alerts column ${column.name}`, error);
@@ -793,9 +851,11 @@ export class SharePointAlertService {
       }
     }
 
+    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
+
     try {
       await this.graphClient
-        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
+        .api(`/sites/${graphSiteIdentifier}/lists`)
         .select('id')
         .top(1)
         .get();
@@ -817,9 +877,9 @@ export class SharePointAlertService {
 
     try {
       const createdList = await this.graphClient
-        .api(`/sites/${this.getGraphSiteIdentifier(siteId)}/lists`)
+        .api(`/sites/${graphSiteIdentifier}/lists`)
         .post(listDefinition);
-      this.registerListId(siteId, this.alertTypesListName, createdList?.id);
+      await this.registerListId(siteId, this.alertTypesListName, createdList?.id);
 
       await this.addAlertTypesListColumns(siteId);
       await this.seedDefaultAlertTypes(siteId);
@@ -958,47 +1018,31 @@ export class SharePointAlertService {
           sitesToQuery = [this.context.pageContext.site.id.toString()];
         }
       }
-      const allAlerts: IAlertItem[] = [];
-
-      // Normalize and deduplicate site IDs
-      const normalizedSiteIds = sitesToQuery.map(siteId =>
-        siteId.includes(',') ? siteId : this.getGraphSiteIdentifier(siteId)
-      );
-      const uniqueSiteIds = ArrayUtils.unique(normalizedSiteIds);
-
-      // Query alerts from each site
-      for (const siteId of uniqueSiteIds) {
-        try {
-          const alertsListApi = await this.getAlertsListApi(siteId);
-          const response = await this.graphClient
-            .api(`${alertsListApi}/items`)
-            .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-            .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author,Attachments,AttachmentFiles)")
-            .orderby("fields/Created desc")
-            .get();
-
-          // Filter and map alerts
-          const siteAlerts = response.value
-            .filter((item: any) => {
-              const title = item.fields?.Title || '';
-              const itemType = (item.fields?.ItemType || '').toLowerCase();
-              const status = (item.fields?.Status || '').toLowerCase();
-
-              // Exclude drafts, templates, and auto-saved items
-              return itemType !== 'draft' &&
-                     itemType !== 'template' &&
-                     status !== 'draft' &&
-                     !title.startsWith('[Auto-saved]') &&
-                     !title.startsWith('[auto-saved]');
-            })
-            .map((item: any) => this.mapSharePointItemToAlert(item, siteId));
-
-          // Add alerts from this site
-          allAlerts.push(...siteAlerts);
-        } catch (error) {
-          logger.warn('SharePointAlertService', `Failed to get alerts from site ${siteId}`, error);
-          // Continue with other sites
+      const dedupMap = new Map<string, string>();
+      sitesToQuery.forEach(siteId => {
+        const normalized = siteId.includes(',')
+          ? siteId.split(',')[1] || siteId
+          : siteId.replace(/[{}]/g, '').toLowerCase();
+        if (!dedupMap.has(normalized)) {
+          dedupMap.set(normalized, siteId);
         }
+      });
+
+      const uniqueSiteIds = Array.from(dedupMap.values());
+      const allAlerts: IAlertItem[] = [];
+      const batchSize = 3;
+
+      for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
+        const batch = uniqueSiteIds.slice(i, i + batchSize);
+        const batchResults = await Promise.allSettled(batch.map(siteId => this.fetchAlertsForSite(siteId)));
+
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            allAlerts.push(...result.value);
+          } else {
+            logger.warn('SharePointAlertService', `Failed to get alerts from site ${batch[index]}`, result.reason);
+          }
+        });
       }
 
       // Remove duplicates and sort by creation date
@@ -1016,6 +1060,35 @@ export class SharePointAlertService {
         logger.error('SharePointAlertService', 'Failed to get alerts', error);
         throw new Error(`GET_ALERTS_FAILED: ${error.message || 'Unknown error when retrieving alerts'}`);
       }
+    }
+  }
+
+  private async fetchAlertsForSite(siteId: string): Promise<IAlertItem[]> {
+    try {
+      const alertsListApi = await this.getAlertsListApi(siteId);
+      const response = await this.graphClient
+        .api(`${alertsListApi}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author,Attachments,AttachmentFiles)")
+        .orderby("fields/Created desc")
+        .get();
+
+      return response.value
+        .filter((item: any) => {
+          const title = item.fields?.Title || '';
+          const itemType = (item.fields?.ItemType || '').toLowerCase();
+          const status = (item.fields?.Status || '').toLowerCase();
+
+          return itemType !== 'draft' &&
+            itemType !== 'template' &&
+            status !== 'draft' &&
+            !title.startsWith('[Auto-saved]') &&
+            !title.startsWith('[auto-saved]');
+        })
+        .map((item: any) => this.mapSharePointItemToAlert(item, siteId));
+    } catch (error) {
+      logger.warn('SharePointAlertService', `Failed to get alerts from site ${siteId}`, error);
+      return [];
     }
   }
 
@@ -1042,26 +1115,29 @@ export class SharePointAlertService {
 
       const alertsListApi = await this.getAlertsListApi(siteId);
 
-      // Validate list exists and has required columns
-      try {
-        const listInfo = await this.graphClient
-          .api(alertsListApi)
-          .expand('columns')
-          .get();
-        
-        const columnNames = listInfo.columns.map((col: any) => col.name);
-        const alertTypeColumn = listInfo.columns.find((col: any) => col.name === 'AlertType');
-        const requiredColumns = ['Title', 'Description', 'AlertType', 'Priority', 'IsPinned'];
-        const missingColumns = requiredColumns.filter(col => !columnNames.includes(col));
-        if (missingColumns.length > 0) {
-          throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+      const schemaCacheKey = `${siteId}:${alertsListApi}`;
+      if (!this.validatedListSchemas.has(schemaCacheKey)) {
+        try {
+          const listInfo = await this.graphClient
+            .api(alertsListApi)
+            .expand('columns')
+            .get();
+          
+          const columnNames = listInfo.columns.map((col: any) => col.name);
+          const requiredColumns = ['Title', 'Description', 'AlertType', 'Priority', 'IsPinned'];
+          const missingColumns = requiredColumns.filter(col => !columnNames.includes(col));
+          if (missingColumns.length > 0) {
+            throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+          }
+
+          this.validatedListSchemas.add(schemaCacheKey);
+        } catch (listError: any) {
+          logger.error('SharePointAlertService', 'Failed to validate list structure', listError);
+          if (listError.message?.includes('Missing required columns')) {
+            throw listError;
+          }
+          // Continue if we can't check the list structure
         }
-      } catch (listError: any) {
-        logger.error('SharePointAlertService', 'Failed to validate list structure', listError);
-        if (listError.message?.includes('Missing required columns')) {
-          throw listError;
-        }
-        // Continue if we can't check the list structure
       }
 
       // Build the list item carefully with proper data types

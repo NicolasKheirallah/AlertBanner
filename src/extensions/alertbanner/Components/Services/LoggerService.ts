@@ -73,15 +73,23 @@ export class LoggerService {
    * Detect if running in development mode
    */
   private detectDevelopmentMode(): boolean {
+    if (typeof process !== 'undefined' && typeof process.env !== 'undefined' && process.env.NODE_ENV === 'development') {
+      return true;
+    }
+
     try {
-      // Check for development indicators
-      const isDev = 
-        window.location.hostname.includes('localhost') ||
-        window.location.hostname.includes('127.0.0.1') ||
-        window.location.hostname.includes('sharepoint.com') === false ||
-        document.location.search.includes('debug=true');
-      
-      return isDev;
+      const hostname = window.location?.hostname || '';
+      const queryString = window.location?.search || document.location?.search || '';
+      const explicitDebugFlag = (window as any).__ALERT_BANNER_DEBUG === true;
+
+      if (explicitDebugFlag) {
+        return true;
+      }
+
+      const isLocalHost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+      const debugQuery = queryString.includes('debug=true');
+
+      return isLocalHost || debugQuery;
     } catch {
       return false;
     }

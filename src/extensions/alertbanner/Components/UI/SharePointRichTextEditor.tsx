@@ -72,9 +72,19 @@ const ensureQuillImageResizeModule = (): Promise<any> => {
   if (!quillImageResizePromise) {
     quillImageResizePromise = (async () => {
       const globalAny = window as any;
-      const Quill = globalAny.Quill ?? (await import('quill')).default;
+      let Quill = globalAny.Quill;
 
-      if (!(Quill as any).imports?.['modules/imageResize']) {
+      if (!Quill) {
+        const quillModule: any = await import('quill');
+        Quill = quillModule?.default || quillModule;
+        if (!Quill) {
+          throw new Error('Unable to load Quill editor');
+        }
+        globalAny.Quill = Quill;
+      }
+
+      const quillWithImports: any = Quill;
+      if (!quillWithImports.imports || !quillWithImports.imports['modules/imageResize']) {
         const ImageResizeModule = (await import('quill-image-resize-module')).default;
         Quill.register('modules/imageResize', ImageResizeModule);
       }

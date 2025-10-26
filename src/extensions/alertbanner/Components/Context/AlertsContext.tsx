@@ -13,7 +13,7 @@ import { validationService } from "../Services/ValidationService";
 import { AlertTransformers } from "../Utils/AlertTransformers";
 import { AlertFilters } from "../Utils/AlertFilters";
 import { LIST_NAMES, CACHE_CONFIG, API_CONFIG } from "../Utils/AppConstants";
-import { ArrayUtils } from "../Utils/ArrayUtils";
+import { JsonUtils } from "../Utils/JsonUtils";
 
 interface AlertsState {
   alerts: IAlertItem[];
@@ -172,22 +172,52 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const CACHE_DURATION = CACHE_CONFIG.ALERTS_CACHE_DURATION;
 
   // Normalize site ID to extract the site GUID for consistent deduplication
-  const normalizeSiteId = useCallback((siteId: string): string => {
-    // If it's in Graph format (hostname,siteGuid,webGuid), extract just the site GUID
+  const createSiteDedupKey = useCallback((siteId: string): string => {
+    if (!siteId) {
+      return "";
+    }
+
     if (siteId.includes(',')) {
-      const parts = siteId.split(',');
-      // Return the middle part (site GUID)
-      return parts.length >= 2 ? parts[1] : siteId;
+      const [, siteGuid = siteId] = siteId.split(',');
+      return siteGuid;
     }
 
-    // If it contains a colon (hostname:path format), we can't easily extract GUID
-    // Return as-is and let Graph API handle it
     if (siteId.includes(':')) {
-      return siteId;
+      return siteId.toLowerCase();
     }
 
-    // Otherwise, it's already a GUID - return as-is
-    return siteId;
+    return siteId.replace(/[{}]/g, '').toLowerCase();
+  }, []);
+
+  const createAlertSignature = useCallback((alert: IAlertItem): string => {
+    const signaturePayload = {
+      id: alert.id,
+      title: alert.title,
+      description: alert.description,
+      type: alert.AlertType,
+      priority: alert.priority,
+      pinned: alert.isPinned,
+      linkUrl: alert.linkUrl,
+      linkDescription: alert.linkDescription,
+      status: alert.status,
+      notificationType: alert.notificationType,
+      contentType: alert.contentType,
+      targetLanguage: alert.targetLanguage,
+      languageGroup: alert.languageGroup,
+      availableForAll: alert.availableForAll,
+      scheduledStart: alert.scheduledStart,
+      scheduledEnd: alert.scheduledEnd,
+      metadata: alert.metadata ?? null,
+      targetSites: alert.targetSites ?? [],
+      attachments: (alert.attachments || []).map(attachment => ({
+        fileName: attachment.fileName,
+        url: attachment.serverRelativeUrl,
+        size: attachment.size ?? null
+      })),
+      targetUsers: alert.targetUsers ?? []
+    };
+
+    return JsonUtils.safeStringify(signaturePayload) || '';
   }, []);
 
   const fetchAlerts = useCallback(async (siteId: string): Promise<IAlertItem[]> => {
@@ -291,68 +321,25 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!cachedAlerts) return true;
     if (newAlerts.length !== cachedAlerts.length) return true;
 
-    // Create maps for faster comparison
-    const newAlertsMap = new Map(newAlerts.map(alert => [alert.id, alert]));
-    const cachedAlertsMap = new Map(cachedAlerts.map(alert => [alert.id, alert]));
+    const cachedSignatures = new Map<string, string>();
+    cachedAlerts.forEach(alert => {
+      cachedSignatures.set(alert.id, createAlertSignature(alert));
+    });
 
-    const arraysMatch = (a: string[] = [], b: string[] = []): boolean => {
-      if (a.length !== b.length) {
-        return false;
-      }
-      return a.every((value, index) => value === b[index]);
-    };
-
-    const attachmentsMatch = (
-      a: NonNullable<IAlertItem['attachments']> = [],
-      b: NonNullable<IAlertItem['attachments']> = []
-    ): boolean => {
-      if (a.length !== b.length) {
-        return false;
+    for (const alert of newAlerts) {
+      const cachedSignature = cachedSignatures.get(alert.id);
+      if (!cachedSignature) {
+        return true;
       }
 
-      return a.every((attachment, index) => {
-        const other = b[index];
-        return attachment.fileName === other.fileName &&
-          attachment.serverRelativeUrl === other.serverRelativeUrl &&
-          (attachment.size ?? null) === (other.size ?? null);
-      });
-    };
-
-    // Check if all IDs match
-    if (newAlerts.some(alert => !cachedAlertsMap.has(alert.id))) return true;
-
-    // Check if any alert properties have changed
-    for (const [id, newAlert] of newAlertsMap.entries()) {
-      const cachedAlert = cachedAlertsMap.get(id);
-      if (!cachedAlert) return true;
-
-      if (
-        newAlert.title !== cachedAlert.title ||
-        newAlert.description !== cachedAlert.description ||
-        newAlert.AlertType !== cachedAlert.AlertType ||
-        newAlert.priority !== cachedAlert.priority ||
-        newAlert.isPinned !== cachedAlert.isPinned ||
-        newAlert.linkUrl !== cachedAlert.linkUrl ||
-        newAlert.linkDescription !== cachedAlert.linkDescription ||
-        newAlert.status !== cachedAlert.status ||
-        newAlert.notificationType !== cachedAlert.notificationType ||
-        newAlert.contentType !== cachedAlert.contentType ||
-        newAlert.targetLanguage !== cachedAlert.targetLanguage ||
-        newAlert.languageGroup !== cachedAlert.languageGroup ||
-        newAlert.availableForAll !== cachedAlert.availableForAll ||
-        newAlert.scheduledStart !== cachedAlert.scheduledStart ||
-        newAlert.scheduledEnd !== cachedAlert.scheduledEnd ||
-        JSON.stringify(newAlert.metadata ?? null) !== JSON.stringify(cachedAlert.metadata ?? null) ||
-        !arraysMatch(newAlert.targetSites, cachedAlert.targetSites) ||
-        !attachmentsMatch(newAlert.attachments, cachedAlert.attachments) ||
-        JSON.stringify(newAlert.targetUsers ?? []) !== JSON.stringify(cachedAlert.targetUsers ?? [])
-      ) {
+      const currentSignature = createAlertSignature(alert);
+      if (currentSignature !== cachedSignature) {
         return true;
       }
     }
 
     return false;
-  }, []);
+  }, [createAlertSignature]);
 
   // Filter alerts based on user preferences using AlertFilters utility
   const filterAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
@@ -472,8 +459,15 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const siteIds = servicesRef.current.options.siteIds || [];
 
       // Normalize site IDs and remove duplicates
-      const normalizedSiteIds = siteIds.map(normalizeSiteId);
-      const uniqueSiteIds = ArrayUtils.unique(normalizedSiteIds);
+      const dedupMap = new Map<string, string>();
+      (siteIds || []).forEach(siteId => {
+        const dedupKey = createSiteDedupKey(siteId);
+        if (dedupKey && !dedupMap.has(dedupKey)) {
+          dedupMap.set(dedupKey, siteId);
+        }
+      });
+
+      const uniqueSiteIds = Array.from(dedupMap.values());
 
       logger.info('AlertsContext', 'Processing sites for alert refresh', {
         totalSiteIds: siteIds.length,
@@ -580,7 +574,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     areAlertsDifferent,
     sendNotifications,
     fetchAlerts,
-    normalizeSiteId,
+    createSiteDedupKey,
     applyLanguageAwareFiltering
   ]);
 

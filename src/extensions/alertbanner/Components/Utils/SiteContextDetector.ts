@@ -291,11 +291,11 @@ export class SiteContextDetector {
     try {
       const siteDetails = await this.graphClient
         .api(`/sites/${siteId}`)
-        .select('sharepointIds,isHubSite')
+        .select('sharepointIds')
         .get();
 
       const hasHubSiteId = siteDetails.sharepointIds?.hubSiteId;
-      const isMarkedAsHub = siteDetails.isHubSite === true;
+      const isMarkedAsHub = Boolean(hasHubSiteId && hasHubSiteId === siteId);
 
       if (isMarkedAsHub) {
         return { isHub: true, hubSiteId: siteId };

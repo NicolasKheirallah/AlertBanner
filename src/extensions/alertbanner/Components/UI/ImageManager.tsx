@@ -28,56 +28,61 @@ const ImageManager: React.FC<IImageManagerProps> = ({
 }) => {
   const [images, setImages] = React.useState<IImageFile[]>([]);
 
-  const { loading: isLoading, error, execute: loadImages } = useAsyncOperation(
-    async () => {
-      const siteUrl = context.pageContext.web.absoluteUrl;
-      const serverRelativeUrl = context.pageContext.web.serverRelativeUrl;
-      const cleanServerRelativeUrl = serverRelativeUrl.startsWith('/')
-        ? serverRelativeUrl.substring(1)
-        : serverRelativeUrl;
+  const fetchFolderImages = React.useCallback(async (): Promise<IImageFile[]> => {
+    const siteUrl = context.pageContext.web.absoluteUrl;
+    const serverRelativeUrl = context.pageContext.web.serverRelativeUrl;
+    const cleanServerRelativeUrl = serverRelativeUrl.startsWith('/')
+      ? serverRelativeUrl.substring(1)
+      : serverRelativeUrl;
 
-      const folderPath = cleanServerRelativeUrl
-        ? `/${cleanServerRelativeUrl}/SiteAssets/AlertBannerImages/${folderName}`
-        : `/SiteAssets/AlertBannerImages/${folderName}`;
+    const folderPath = cleanServerRelativeUrl
+      ? `/${cleanServerRelativeUrl}/SiteAssets/AlertBannerImages/${folderName}`
+      : `/SiteAssets/AlertBannerImages/${folderName}`;
 
-      // Get files from folder
-      const filesUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderPath)}')/Files?$select=Name,ServerRelativeUrl,TimeCreated,Length`;
+    const filesUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderPath)}')/Files?$select=Name,ServerRelativeUrl,TimeCreated,Length`;
 
-      const response: SPHttpClientResponse = await context.spHttpClient.get(
-        filesUrl,
-        SPHttpClient.configurations.v1
-      );
+    const response: SPHttpClientResponse = await context.spHttpClient.get(
+      filesUrl,
+      SPHttpClient.configurations.v1
+    );
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Folder doesn't exist yet - no images
-          return [];
-        }
-        throw new Error(`Failed to load images: ${response.statusText}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
       }
+      throw new Error(`Failed to load images: ${response.statusText}`);
+    }
 
-      const data = await response.json();
-      const imageFiles: IImageFile[] = data.value
-        .filter((file: any) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file.Name))
-        .map((file: any) => ({
-          name: file.Name,
-          serverRelativeUrl: file.ServerRelativeUrl,
-          timeCreated: file.TimeCreated,
-          length: file.Length
-        }));
+    const data = await response.json();
+    const imageFiles: IImageFile[] = data.value
+      .filter((file: any) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file.Name))
+      .map((file: any) => ({
+        name: file.Name,
+        serverRelativeUrl: file.ServerRelativeUrl,
+        timeCreated: file.TimeCreated,
+        length: file.Length
+      }));
 
-      logger.info('ImageManager', 'Loaded images', { count: imageFiles.length, folder: folderName });
-      return imageFiles;
-    },
+    logger.info('ImageManager', 'Loaded images', { count: imageFiles.length, folder: folderName });
+    return imageFiles;
+  }, [context.pageContext.web.absoluteUrl, context.pageContext.web.serverRelativeUrl, context.spHttpClient, folderName]);
+
+  const { loading: isLoading, error, execute: loadImages } = useAsyncOperation(
+    fetchFolderImages,
     {
       onSuccess: (imageFiles) => setImages(imageFiles || []),
       logErrors: true
     }
   );
 
+  const loadImagesRef = React.useRef(loadImages);
   React.useEffect(() => {
-    loadImages();
+    loadImagesRef.current = loadImages;
   }, [loadImages]);
+
+  React.useEffect(() => {
+    loadImagesRef.current();
+  }, [folderName, fetchFolderImages]);
 
   const { execute: deleteImage } = useAsyncOperation(
     async (image: IImageFile) => {

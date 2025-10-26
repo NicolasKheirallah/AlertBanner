@@ -33,6 +33,8 @@ export interface IMultiLanguageAlert {
 export class LanguageAwarenessService {
   private graphClient: MSGraphClientV3;
   private context: ApplicationCustomizerContext;
+  private cachedPreferredLanguage: TargetLanguage | null = null;
+  private preferredLanguagePromise: Promise<TargetLanguage> | null = null;
 
   constructor(graphClient: MSGraphClientV3, context: ApplicationCustomizerContext) {
     this.graphClient = graphClient;
@@ -80,42 +82,84 @@ export class LanguageAwarenessService {
    * Detect user's preferred language from browser, Azure AD, or SharePoint profile
    */
   public async getUserPreferredLanguage(): Promise<TargetLanguage> {
+    if (this.cachedPreferredLanguage) {
+      return this.cachedPreferredLanguage;
+    }
+
+    if (this.preferredLanguagePromise) {
+      return this.preferredLanguagePromise;
+    }
+
+    this.preferredLanguagePromise = this.resolveUserPreferredLanguage()
+      .then(language => {
+        this.cachedPreferredLanguage = language;
+        return language;
+      })
+      .finally(() => {
+        this.preferredLanguagePromise = null;
+      });
+
+    return this.preferredLanguagePromise;
+  }
+
+  private async resolveUserPreferredLanguage(): Promise<TargetLanguage> {
     try {
-      // 1. Try to get from Microsoft Graph user profile
-      try {
-        const userProfile = await this.graphClient.api('/me').select('preferredLanguage,mailboxSettings').get();
-        if (userProfile.preferredLanguage) {
-          const graphLanguage = this.mapLanguageCode(userProfile.preferredLanguage);
-          if (graphLanguage !== TargetLanguage.EnglishUS) {
-            return graphLanguage;
-          }
-        }
-      } catch (error) {
-        logger.warn('LanguageAwarenessService', 'Could not retrieve user language from Graph', error);
-      }
-
-      const spLanguage = (window as any).SPClientContext?.web?.language;
-      if (spLanguage) {
-        const mappedLanguage = this.mapSharePointLCID(spLanguage);
-        if (mappedLanguage !== TargetLanguage.EnglishUS) {
-          return mappedLanguage;
-        }
-      }
-
-      const browserLanguage = navigator.language?.toLowerCase();
+      const browserLanguage = this.getBrowserLanguage();
       if (browserLanguage) {
-        const mappedLanguage = this.mapLanguageCode(browserLanguage);
-        if (mappedLanguage !== TargetLanguage.EnglishUS) {
-          return mappedLanguage;
-        }
+        return browserLanguage;
       }
 
-      return TargetLanguage.EnglishUS;
+      const userLanguage = await this.getGraphUserLanguage();
+      if (userLanguage) {
+        return userLanguage;
+      }
 
+      const sharePointLanguage = this.getSharePointLanguage();
+      if (sharePointLanguage) {
+        return sharePointLanguage;
+      }
+
+      return this.getTenantDefaultLanguage();
     } catch (error) {
       logger.error('LanguageAwarenessService', 'Error detecting user preferred language', error);
       return TargetLanguage.EnglishUS;
     }
+  }
+
+  private getBrowserLanguage(): TargetLanguage | null {
+    const browserLanguage = navigator.language?.toLowerCase();
+    if (!browserLanguage) {
+      return null;
+    }
+
+    const mappedLanguage = this.mapLanguageCode(browserLanguage);
+    return mappedLanguage || null;
+  }
+
+  private async getGraphUserLanguage(): Promise<TargetLanguage | null> {
+    try {
+      const userProfile = await this.graphClient
+        .api('/me')
+        .select('preferredLanguage,mailboxSettings')
+        .get();
+
+      if (userProfile.preferredLanguage) {
+        return this.mapLanguageCode(userProfile.preferredLanguage);
+      }
+    } catch (error) {
+      logger.warn('LanguageAwarenessService', 'Could not retrieve user language from Graph', error);
+    }
+
+    return null;
+  }
+
+  private getSharePointLanguage(): TargetLanguage | null {
+    const spLanguage = (window as any).SPClientContext?.web?.language;
+    if (spLanguage) {
+      return this.mapSharePointLCID(spLanguage);
+    }
+
+    return null;
   }
 
   /**
@@ -263,8 +307,18 @@ export class LanguageAwarenessService {
    */
   public getLanguageContent(alerts: IAlertItem[], languageGroup: string): ILanguageContent[] {
     const groupAlerts = alerts.filter(alert => alert.languageGroup === languageGroup);
-    
-    return groupAlerts.map(alert => ({
+
+    // Deduplicate by language - keep only unique language variants
+    const seenLanguages = new Set<string>();
+    const uniqueAlerts = groupAlerts.filter(alert => {
+      if (seenLanguages.has(alert.targetLanguage)) {
+        return false;
+      }
+      seenLanguages.add(alert.targetLanguage);
+      return true;
+    });
+
+    return uniqueAlerts.map(alert => ({
       language: alert.targetLanguage,
       title: alert.title,
       description: alert.description,
