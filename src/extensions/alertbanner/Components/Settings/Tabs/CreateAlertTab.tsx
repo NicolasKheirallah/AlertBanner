@@ -255,10 +255,10 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
   const handleTemplateSelect = React.useCallback(async (template: IAlertTemplate) => {
     try {
-      // First, try to get the full alert data from SharePoint to include all fields
+      // Get all templates from current site to include all fields
       const templateAlerts = await alertService.getTemplateAlerts(alertService.getCurrentSiteId());
       const fullTemplate = templateAlerts.find(t => t.id === template.id);
-      
+
       if (fullTemplate) {
         // Use the full template data
         setNewAlert(prev => ({
@@ -274,16 +274,14 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           contentType: ContentType.Alert, // New alert should be Alert, not Template
         }));
 
-        // If multi-language is enabled, try to load language variants of the template
+        // If multi-language is enabled, load language variants of the template
         if (useMultiLanguage && fullTemplate.languageGroup) {
           try {
-            // Get all language variants of this template
-            const allAlerts = await alertService.getAlerts([alertService.getCurrentSiteId()]);
-            const languageVariants = allAlerts.filter(a => 
-              a.languageGroup === fullTemplate.languageGroup && 
-              a.contentType === ContentType.Template
+            // Filter the already-loaded templates for language variants
+            const languageVariants = templateAlerts.filter(a =>
+              a.languageGroup === fullTemplate.languageGroup
             );
-            
+
             // Convert to language content format
             const languageContent: ILanguageContent[] = languageVariants.map(variant => ({
               language: variant.targetLanguage,

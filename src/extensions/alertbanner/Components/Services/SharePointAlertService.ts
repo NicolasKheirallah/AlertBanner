@@ -775,7 +775,7 @@ export class SharePointAlertService {
           .get()
       );
 
-      return response.value.map((item: any) => this.mapSharePointItemToAlert(item));
+      return response.value.map((item: any) => this.mapSharePointItemToAlert(item, siteId));
     } catch (error) {
       logger.warn('SharePointAlertService', 'Could not fetch template alerts after retries', error);
       return [];
@@ -800,7 +800,7 @@ export class SharePointAlertService {
           .get()
       );
 
-      return response.value.map((item: any) => this.mapSharePointItemToAlert(item));
+      return response.value.map((item: any) => this.mapSharePointItemToAlert(item, siteId));
     } catch (error) {
       logger.warn('SharePointAlertService', 'Could not fetch draft alerts after retries', error);
       return [];
@@ -1047,6 +1047,7 @@ export class SharePointAlertService {
 
       // Remove duplicates and sort by creation date
       const uniqueAlerts = AlertFilters.removeDuplicates(allAlerts);
+
       return uniqueAlerts.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
     } catch (error) {
       // Enhanced error handling for permission and access issues
@@ -1060,6 +1061,104 @@ export class SharePointAlertService {
         logger.error('SharePointAlertService', 'Failed to get alerts', error);
         throw new Error(`GET_ALERTS_FAILED: ${error.message || 'Unknown error when retrieving alerts'}`);
       }
+    }
+  }
+
+  /**
+   * Get all alerts AND templates from hierarchical sites (home, hub, current)
+   * Used by ManageAlertsTab to show everything that can be managed
+   * Automatically deduplicates when the same site appears multiple times
+   */
+  public async getAlertsAndTemplates(siteIds?: string[]): Promise<IAlertItem[]> {
+    try {
+      let sitesToQuery = siteIds;
+
+      // If no specific sites provided, use hierarchical sites from SiteContextService
+      if (!sitesToQuery) {
+        try {
+          const { SiteContextService } = await import('./SiteContextService');
+          const siteContextService = SiteContextService.getInstance(this.context, this.graphClient);
+          await siteContextService.initialize();
+          sitesToQuery = siteContextService.getAlertSourceSites();
+        } catch (error) {
+          logger.warn('SharePointAlertService', 'Failed to get hierarchical sites, falling back to current site', error);
+          sitesToQuery = [this.context.pageContext.site.id.toString()];
+        }
+      }
+
+      // Deduplicate site IDs to prevent querying the same site twice
+      const dedupMap = new Map<string, string>();
+      sitesToQuery.forEach(siteId => {
+        const normalized = siteId.includes(',')
+          ? siteId.split(',')[1] || siteId
+          : siteId.replace(/[{}]/g, '').toLowerCase();
+        if (!dedupMap.has(normalized)) {
+          dedupMap.set(normalized, siteId);
+        }
+      });
+
+      const uniqueSiteIds = Array.from(dedupMap.values());
+      const allItems: IAlertItem[] = [];
+      const batchSize = 3;
+
+      // Fetch alerts and templates from each site
+      for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
+        const batch = uniqueSiteIds.slice(i, i + batchSize);
+        const batchResults = await Promise.allSettled(batch.map(siteId => this.fetchAlertsAndTemplatesForSite(siteId)));
+
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            allItems.push(...result.value);
+          } else {
+            logger.warn('SharePointAlertService', `Failed to get items from site ${batch[index]}`, result.reason);
+          }
+        });
+      }
+
+      // Remove duplicates using normalized alert IDs
+      const uniqueItems = AlertFilters.removeDuplicates(allItems);
+
+      return uniqueItems.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+    } catch (error) {
+      logger.error('SharePointAlertService', 'Failed to get alerts and templates', error);
+      throw new Error(`GET_ALERTS_AND_TEMPLATES_FAILED: ${error.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Fetch all items (alerts and templates) from a single site
+   * Excludes only drafts and auto-saved items
+   */
+  private async fetchAlertsAndTemplatesForSite(siteId: string): Promise<IAlertItem[]> {
+    try {
+      // Get the resolved Graph site identifier (composite format) for consistent alert IDs
+      const resolvedSiteId = await this.ensureGraphSiteIdentifier(siteId);
+      const alertsListApi = await this.getAlertsListApi(siteId);
+
+      const response = await this.graphClient
+        .api(`${alertsListApi}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .expand("fields($select=Title,AlertType,Description,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,ScheduledStart,ScheduledEnd,TargetUsers,Created,Author,Attachments,AttachmentFiles)")
+        .orderby("fields/Created desc")
+        .get();
+
+      // Filter out drafts and auto-saved items, but include both alerts and templates
+      const filtered = response.value.filter((item: any) => {
+        const title = item.fields?.Title || '';
+        const itemType = (item.fields?.ItemType || '').toLowerCase();
+        const status = (item.fields?.Status || '').toLowerCase();
+
+        return itemType !== 'draft' &&
+          status !== 'draft' &&
+          !title.startsWith('[Auto-saved]') &&
+          !title.startsWith('[auto-saved]');
+      });
+
+      // Use resolvedSiteId for consistent alert IDs regardless of input format
+      return filtered.map((item: any) => this.mapSharePointItemToAlert(item, resolvedSiteId));
+    } catch (error) {
+      logger.warn('SharePointAlertService', `Failed to get items from site ${siteId}`, error);
+      return [];
     }
   }
 

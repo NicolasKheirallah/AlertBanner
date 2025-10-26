@@ -198,14 +198,14 @@ export class LanguageAwarenessService {
    */
   private mapSharePointLCID(lcid: number): TargetLanguage {
     const lcidMap: { [key: number]: TargetLanguage } = {
-      1033: TargetLanguage.EnglishUS, // English (US)
-      1036: TargetLanguage.FrenchFR,  // French (France)
-      1031: TargetLanguage.GermanDE,  // German (Germany)
-      1034: TargetLanguage.SpanishES, // Spanish (Spain)
-      1053: TargetLanguage.SwedishSE, // Swedish (Sweden)
-      1035: TargetLanguage.FinnishFI, // Finnish (Finland)
-      1030: TargetLanguage.DanishDK,  // Danish (Denmark)
-      1044: TargetLanguage.NorwegianNO // Norwegian (Norway)
+      1033: TargetLanguage.EnglishUS,
+      1036: TargetLanguage.FrenchFR,
+      1031: TargetLanguage.GermanDE,
+      1034: TargetLanguage.SpanishES,
+      1053: TargetLanguage.SwedishSE,
+      1035: TargetLanguage.FinnishFI,
+      1030: TargetLanguage.DanishDK,
+      1044: TargetLanguage.NorwegianNO
     };
 
     return lcidMap[lcid] || TargetLanguage.EnglishUS;
@@ -303,12 +303,11 @@ export class LanguageAwarenessService {
   }
 
   /**
-   * Get language-specific content for editing
+   * Get language-specific content for editing multi-language alerts
+   * Deduplicates by language to ensure each language appears only once
    */
   public getLanguageContent(alerts: IAlertItem[], languageGroup: string): ILanguageContent[] {
     const groupAlerts = alerts.filter(alert => alert.languageGroup === languageGroup);
-
-    // Deduplicate by language - keep only unique language variants
     const seenLanguages = new Set<string>();
     const uniqueAlerts = groupAlerts.filter(alert => {
       if (seenLanguages.has(alert.targetLanguage)) {

@@ -206,34 +206,15 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const loadExistingAlerts = React.useCallback(async () => {
     setIsLoadingAlerts(true);
     try {
-      logger.info('ManageAlertsTab', 'Loading both alerts and templates');
-      
-      // Load both alerts and templates separately
-      const [alerts, templates] = await Promise.all([
-        alertService.getAlerts(),
-        alertService.getTemplateAlerts(context.pageContext.site.id.toString())
-      ]);
-      
-      // Combine alerts and templates
-      const allItems = [...alerts, ...templates];
-      
-      logger.info('ManageAlertsTab', 'Successfully loaded items', { 
-        alertCount: alerts.length, 
-        templateCount: templates.length, 
-        totalCount: allItems.length 
-      });
-      
-      // Log template count for monitoring
-      logger.info('ManageAlertsTab', `Loaded ${templates.length} templates`);
-      
+      const allItems = await alertService.getAlertsAndTemplates();
       setExistingAlerts(allItems);
     } catch (error) {
-      logger.error('ManageAlertsTab', 'Error loading alerts', error);
+      logger.error('ManageAlertsTab', 'Error loading alerts and templates', error);
       setExistingAlerts([]);
     } finally {
       setIsLoadingAlerts(false);
     }
-  }, [alertService, context.pageContext.site.id]);
+  }, [alertService]);
 
   const handleBulkDelete = React.useCallback(async () => {
     if (selectedAlerts.length === 0) return;
@@ -417,10 +398,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       if (useMultiLanguage && editingAlert.languageContent && editingAlert.languageContent.length > 0) {
         // Update multi-language alert - need to update all language variants
         if (editingAlert.languageGroup) {
-          // Get all alerts in this language group
+          // Get all alerts in this language group and deduplicate by language
           const allGroupAlerts = existingAlerts.filter(a => a.languageGroup === editingAlert.languageGroup);
 
-          // Deduplicate by language - keep only unique language variants (in case of duplicates in existingAlerts)
           const seenLanguages = new Set<string>();
           const groupAlerts = allGroupAlerts.filter(alert => {
             if (seenLanguages.has(alert.targetLanguage)) {
@@ -482,7 +462,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             }
           }
 
-          // Delete language variants that were removed
+          // Delete language variants that were removed from the editor
           const updatedLanguages = editingAlert.languageContent.map(c => c.language);
           const toDelete = groupAlerts.filter(a => !updatedLanguages.includes(a.targetLanguage));
 
@@ -497,23 +477,21 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
               await alertService.deleteAlert(alertToDelete.id);
               logger.info('ManageAlertsTab', `Successfully deleted language variant for ${alertToDelete.targetLanguage}`);
             } catch (deleteError: any) {
-              // Check multiple possible status code locations in the error object
               const statusCode = deleteError?.statusCode || deleteError?.status || deleteError?.response?.status || deleteError?.code;
               const errorMessage = deleteError?.message || String(deleteError);
 
-              // If item doesn't exist (404 or "not found" message), log warning but continue
               const isNotFound = statusCode === 404 ||
                                 statusCode === '404' ||
                                 errorMessage.toLowerCase().includes('not found') ||
                                 errorMessage.toLowerCase().includes('does not exist');
 
               if (isNotFound) {
-                logger.warn('ManageAlertsTab', `Language variant ${alertToDelete.id} already deleted or not found - continuing`, {
+                // Item already deleted or doesn't exist - log and continue
+                logger.warn('ManageAlertsTab', `Language variant ${alertToDelete.id} already deleted or not found`, {
                   language: alertToDelete.targetLanguage,
                   errorMessage
                 });
               } else {
-                // For other errors, rethrow to trigger main error handler
                 logger.error('ManageAlertsTab', `Failed to delete language variant ${alertToDelete.id}`, deleteError);
                 throw deleteError;
               }
@@ -591,7 +569,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   // Group alerts by language group with enhanced filtering
   const groupedAlerts = React.useMemo(() => {
     let filteredAlerts = [...existingAlerts];
-    
+
     // Apply content type filter
     if (contentTypeFilter !== 'all') {
       filteredAlerts = filteredAlerts.filter(a => a.contentType === contentTypeFilter);

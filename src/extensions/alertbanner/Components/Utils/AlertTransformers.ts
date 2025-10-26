@@ -255,9 +255,30 @@ export class AlertTransformers {
   }
 
   /**
+   * Normalize site ID to extract the site GUID for consistent alert ID generation
+   * Handles multiple formats
+   */
+  private static normalizeSiteIdForAlertId(siteId: string): string {
+    if (!siteId) {
+      return '';
+    }
+
+    // If composite format (e.g., "hostname,siteGuid,webGuid"), extract the site GUID (middle part)
+    if (siteId.includes(',')) {
+      const parts = siteId.split(',');
+      if (parts.length >= 2 && parts[1]) {
+        return parts[1].replace(/[{}]/g, '').toLowerCase();
+      }
+    }
+
+    // Remove braces and lowercase for consistency
+    return siteId.replace(/[{}]/g, '').toLowerCase();
+  }
+
+  /**
    * Map SharePoint item to IAlertItem (simplified version for AlertsContext)
    * @param item - SharePoint list item from Graph API
-   * @param siteId - Site ID for alert identification
+   * @param siteId - Site ID for alert identification (will be normalized)
    * @param includeOriginalItem - Whether to include _originalListItem (default: false)
    */
   public static mapSharePointItemToAlert(
@@ -275,8 +296,11 @@ export class AlertTransformers {
     const createdDate = this.extractCreatedDate(item, fields);
     const createdBy = this.extractCreatedBy(item, fields);
 
+    // Normalize site ID to ensure consistent alert IDs regardless of input format
+    const normalizedSiteId = this.normalizeSiteIdForAlertId(siteId);
+
     const alert: IAlertItem = {
-      id: `${siteId}-${item.id}`,
+      id: `${normalizedSiteId}-${item.id}`,
       title: fields.Title || "",
       description: fields.Description || "",
       AlertType: fields.AlertType?.LookupValue || fields.AlertType || "Default",
