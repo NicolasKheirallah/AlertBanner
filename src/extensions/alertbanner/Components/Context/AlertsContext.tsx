@@ -13,6 +13,7 @@ import { validationService } from "../Services/ValidationService";
 import { AlertTransformers } from "../Utils/AlertTransformers";
 import { AlertFilters } from "../Utils/AlertFilters";
 import { LIST_NAMES, CACHE_CONFIG, API_CONFIG } from "../Utils/AppConstants";
+import { ArrayUtils } from "../Utils/ArrayUtils";
 
 interface AlertsState {
   alerts: IAlertItem[];
@@ -472,7 +473,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Normalize site IDs and remove duplicates
       const normalizedSiteIds = siteIds.map(normalizeSiteId);
-      const uniqueSiteIds = [...new Set(normalizedSiteIds)];
+      const uniqueSiteIds = ArrayUtils.unique(normalizedSiteIds);
 
       logger.info('AlertsContext', 'Processing sites for alert refresh', {
         totalSiteIds: siteIds.length,
@@ -547,8 +548,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Send notifications for critical/high priority alerts if they're new
       if (servicesRef.current.options.notificationsEnabled && alertsAreDifferent) {
         const highPriorityAlerts = alertsToShow.filter(alert =>
-          alert.priority === AlertPriority.Critical ||
-          alert.priority === AlertPriority.High
+          [AlertPriority.Critical, AlertPriority.High].includes(alert.priority)
         );
 
         // Only send notifications for the first 5 high priority alerts to avoid spamming

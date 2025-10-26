@@ -26,6 +26,7 @@ import { validateAlertData, IFormErrors as IValidationErrors } from "../../Utils
 import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
 import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
 import { DateUtils } from "../../Utils/DateUtils";
+import { StringUtils } from "../../Utils/StringUtils";
 
 export interface INewAlert {
   title: string;
@@ -645,11 +646,11 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                     <div className={styles.alertCardHeader}>
                       <h4>{draft.title}</h4>
                       <small>
-                        {new Date(draft.createdDate).toLocaleDateString()}
+                        {DateUtils.formatForDisplay(draft.createdDate)}
                       </small>
                     </div>
                     <div className={styles.alertCardContent}>
-                      <div dangerouslySetInnerHTML={{ __html: draft.description.substring(0, 100) + '...' }} />
+                      <div dangerouslySetInnerHTML={{ __html: StringUtils.truncate(draft.description, 100) }} />
                     </div>
                     <div className={styles.alertCardActions}>
                       <SharePointButton

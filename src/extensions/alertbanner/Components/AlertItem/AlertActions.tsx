@@ -10,6 +10,7 @@ import {
 import { IAlertItem } from "../Services/SharePointAlertService";
 import styles from "./AlertItem.module.scss";
 import { useLocalization } from "../Hooks/useLocalization";
+import { WINDOW_OPEN_CONFIG } from "../Utils/AppConstants";
 
 interface IAlertActionsProps {
   item: IAlertItem;
@@ -53,7 +54,7 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           onClick={(e: React.MouseEvent) => {
             stopPropagation(e);
             if (item.linkUrl) {
-              window.open(item.linkUrl, "_blank", "noopener,noreferrer");
+              window.open(item.linkUrl, WINDOW_OPEN_CONFIG.TARGET, WINDOW_OPEN_CONFIG.FEATURES);
             }
           }}
           aria-label={item.linkDescription || getString('AlertActionsOpenLink')}

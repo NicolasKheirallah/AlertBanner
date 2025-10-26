@@ -350,4 +350,40 @@ export class DateUtils {
       return `${prefix}${years} year${years !== 1 ? 's' : ''}${suffix}`;
     }
   }
+
+  /**
+   * Format date for display using locale-specific formatting
+   * @param date - Date to format
+   * @param options - Intl.DateTimeFormatOptions for custom formatting
+   * @returns Formatted date string or empty string if invalid
+   */
+  public static formatForDisplay(
+    date: Date | string | undefined | null,
+    options?: Intl.DateTimeFormatOptions
+  ): string {
+    const parsed = this.parseDate(date);
+    if (!parsed) {
+      return '';
+    }
+
+    return parsed.toLocaleDateString(undefined, options);
+  }
+
+  /**
+   * Format date and time for display using locale-specific formatting
+   * @param date - Date to format
+   * @param options - Intl.DateTimeFormatOptions for custom formatting
+   * @returns Formatted date and time string or empty string if invalid
+   */
+  public static formatDateTimeForDisplay(
+    date: Date | string | undefined | null,
+    options?: Intl.DateTimeFormatOptions
+  ): string {
+    const parsed = this.parseDate(date);
+    if (!parsed) {
+      return '';
+    }
+
+    return parsed.toLocaleString(undefined, options);
+  }
 }

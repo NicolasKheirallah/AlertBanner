@@ -10,6 +10,7 @@ import { ErrorUtils } from '../Utils/ErrorUtils';
 import { AlertFilters } from '../Utils/AlertFilters';
 import { ArrayUtils } from '../Utils/ArrayUtils';
 import { RetryUtils } from '../Utils/RetryUtils';
+import { StringUtils } from '../Utils/StringUtils';
 
 export interface IRepairResult {
   success: boolean;
@@ -918,7 +919,7 @@ export class SharePointAlertService {
             BackgroundColor: alertType.backgroundColor,
             TextColor: alertType.textColor,
             AdditionalStyles: alertType.additionalStyles || '',
-            PriorityStyles: JSON.stringify(alertType.priorityStyles || {}),
+            PriorityStyles: JsonUtils.safeStringify(alertType.priorityStyles || {}) || '{}',
             SortOrder: sortOrder++
           }
         };
@@ -1081,12 +1082,17 @@ export class SharePointAlertService {
         fields.LinkDescription = alert.linkDescription.trim();
       }
       if (alert.targetSites && alert.targetSites.length > 0) {
-        fields.TargetSites = JSON.stringify(alert.targetSites);
+        const targetSitesStr = JsonUtils.safeStringify(alert.targetSites);
+        if (targetSitesStr) {
+          fields.TargetSites = targetSitesStr;
+        } else {
+          logger.error('SharePointAlertService', 'Failed to serialize targetSites', { alertId: alert.title });
+        }
       }
 
       // Set status: use provided status or auto-determine from scheduling
       fields.Status = alert.status || (alert.scheduledStart && new Date(alert.scheduledStart) > new Date() ? 'Scheduled' : 'Active');
-      
+
       if (alert.scheduledStart) {
         fields.ScheduledStart = new Date(alert.scheduledStart).toISOString();
       }
@@ -1094,7 +1100,12 @@ export class SharePointAlertService {
         fields.ScheduledEnd = new Date(alert.scheduledEnd).toISOString();
       }
       if (alert.metadata) {
-        fields.Metadata = JSON.stringify(alert.metadata);
+        const metadataStr = JsonUtils.safeStringify(alert.metadata);
+        if (metadataStr) {
+          fields.Metadata = metadataStr;
+        } else {
+          logger.warn('SharePointAlertService', 'Failed to serialize metadata', { alertId: alert.title });
+        }
       }
 
       // Add targeting
@@ -1114,8 +1125,8 @@ export class SharePointAlertService {
       const listItem = { fields };
 
       logger.debug('SharePointAlertService', 'Creating alert', {
-        alert, 
-        listItem: { ...listItem, fields: { ...listItem.fields, Description: listItem.fields.Description?.substring(0, 100) + '...' } }
+        alert,
+        listItem: { ...listItem, fields: { ...listItem.fields, Description: StringUtils.truncate(listItem.fields.Description, 100) } }
       });
 
       let response;
@@ -1242,11 +1253,11 @@ export class SharePointAlertService {
           ...(updates.notificationType && { NotificationType: updates.notificationType }),
           ...(updates.linkUrl !== undefined && { LinkUrl: updates.linkUrl }),
           ...(updates.linkDescription !== undefined && { LinkDescription: updates.linkDescription }),
-          ...(updates.targetSites && { TargetSites: JSON.stringify(updates.targetSites) }),
+          ...(updates.targetSites && { TargetSites: JsonUtils.safeStringify(updates.targetSites) || '[]' }),
           ...(updates.scheduledStart !== undefined && { ScheduledStart: updates.scheduledStart }),
           ...(updates.scheduledEnd !== undefined && { ScheduledEnd: updates.scheduledEnd }),
           ...(updates.targetUsers !== undefined && { TargetUsers: updates.targetUsers || [] }),
-          ...(updates.metadata && { Metadata: JSON.stringify(updates.metadata) })
+          ...(updates.metadata && { Metadata: JsonUtils.safeStringify(updates.metadata) || '{}' })
         }
       };
 
@@ -1360,7 +1371,7 @@ export class SharePointAlertService {
             BackgroundColor: alertType.backgroundColor,
             TextColor: alertType.textColor,
             AdditionalStyles: alertType.additionalStyles || '',
-            PriorityStyles: JSON.stringify(alertType.priorityStyles || {}),
+            PriorityStyles: JsonUtils.safeStringify(alertType.priorityStyles || {}) || '{}',
             SortOrder: i
           }
         };

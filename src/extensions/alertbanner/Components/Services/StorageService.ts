@@ -36,7 +36,10 @@ export class StorageService {
         expiration: options?.expirationTime || this.defaultExpirationTime
       };
 
-      localStorage.setItem(fullKey, JSON.stringify(storageData));
+      const serialized = JsonUtils.safeStringify(storageData);
+      if (serialized) {
+        localStorage.setItem(fullKey, serialized);
+      }
     } catch (error) {
       // Silent fail for storage operations
     }
@@ -83,7 +86,10 @@ export class StorageService {
         timestamp: Date.now()
       };
 
-      sessionStorage.setItem(fullKey, JSON.stringify(storageData));
+      const serialized = JsonUtils.safeStringify(storageData);
+      if (serialized) {
+        sessionStorage.setItem(fullKey, serialized);
+      }
     } catch (error) {
       // Silent fail for storage operations
     }

@@ -24,6 +24,7 @@ import ProgressIndicator, { StepStatus, IProgressStep } from "../../UI/ProgressI
 import RepairDialog from "../../UI/RepairDialog";
 import { logger } from '../../Services/LoggerService';
 import styles from "../AlertSettings.module.scss";
+import { CAROUSEL_CONFIG } from "../../Utils/AppConstants";
 
 const useCardStyles = makeStyles({
   languageGrid: {
@@ -125,11 +126,11 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   React.useEffect(() => {
     const savedCarouselEnabled = storageService.current.getFromLocalStorage<boolean>('carouselEnabled');
     const savedCarouselInterval = storageService.current.getFromLocalStorage<number>('carouselInterval');
-    
+
     if (savedCarouselEnabled !== null) {
       setCarouselEnabled(savedCarouselEnabled);
     }
-    if (savedCarouselInterval && savedCarouselInterval >= 2000 && savedCarouselInterval <= 30000) {
+    if (savedCarouselInterval && savedCarouselInterval >= CAROUSEL_CONFIG.MIN_INTERVAL && savedCarouselInterval <= CAROUSEL_CONFIG.MAX_INTERVAL) {
       setCarouselInterval(savedCarouselInterval / 1000);
     }
   }, []);

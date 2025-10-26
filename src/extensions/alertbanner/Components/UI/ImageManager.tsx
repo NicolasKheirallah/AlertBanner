@@ -4,6 +4,7 @@ import { SharePointButton } from './SharePointControls';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { logger } from '../Services/LoggerService';
+import { DateUtils } from '../Utils/DateUtils';
 import styles from './ImageManager.module.scss';
 
 export interface IImageManagerProps {
@@ -187,7 +188,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
             <div className={styles.imageInfo}>
               <div className={styles.imageName} title={image.name}>{image.name}</div>
               <div className={styles.imageMeta}>
-                {formatFileSize(image.length)} • {new Date(image.timeCreated).toLocaleDateString()}
+                {formatFileSize(image.length)} • {DateUtils.formatForDisplay(image.timeCreated)}
               </div>
             </div>
             <div className={styles.imageActions}>

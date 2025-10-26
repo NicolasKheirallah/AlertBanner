@@ -4,6 +4,7 @@ import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import styles from "./AlertItem.module.scss";
 import { useLocalization } from "../Hooks/useLocalization";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
+import { StringUtils } from "../Utils/StringUtils";
 
 interface IDescriptionContentProps {
   description: string;
@@ -17,9 +18,9 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   const TRUNCATE_LENGTH = 200;
   const { getString } = useLocalization();
 
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
+  const toggleExpanded = React.useCallback(() => {
+    setIsExpanded(prev => !prev);
+  }, []);
 
   const handleImageClick = React.useCallback((url: string, alt: string) => {
     setSelectedImage({ url, alt });
@@ -96,7 +97,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   let showReadMoreButton = false;
 
   if (!containsHtml && description.length > TRUNCATE_LENGTH && !isExpanded) {
-    displayedDescription = description.substring(0, TRUNCATE_LENGTH) + "...";
+    displayedDescription = StringUtils.truncate(description, TRUNCATE_LENGTH);
     showReadMoreButton = true;
   }
 

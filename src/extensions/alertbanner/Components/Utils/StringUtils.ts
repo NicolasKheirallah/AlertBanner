@@ -394,4 +394,29 @@ export class StringUtils {
 
     return text!.replace(regex, '<mark>$1</mark>');
   }
+
+  /**
+   * Resolve URL to absolute path
+   * Handles absolute URLs, relative URLs, and adds origin if needed
+   */
+  public static resolveUrl(url?: string | null): string {
+    if (this.isEmpty(url)) {
+      return '#';
+    }
+
+    const trimmedUrl = url!.trim();
+
+    // Already an absolute URL
+    if (this.isUrl(trimmedUrl)) {
+      return trimmedUrl;
+    }
+
+    // Server-side rendering - return as-is
+    if (typeof window === 'undefined') {
+      return trimmedUrl;
+    }
+
+    // Relative URL - prepend origin
+    return `${window.location.origin}${trimmedUrl.startsWith('/') ? '' : '/'}${trimmedUrl}`;
+  }
 }

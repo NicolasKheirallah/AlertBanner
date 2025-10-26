@@ -28,6 +28,8 @@ import styles from "../AlertSettings.module.scss";
 import { validateAlertData, IFormErrors as IValidationErrors } from "../../Utils/AlertValidation";
 import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
 import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
+import { StringUtils } from "../../Utils/StringUtils";
+import { DateUtils } from "../../Utils/DateUtils";
 import { useLocalization } from "../../Hooks/useLocalization";
 
 export interface IEditingAlert extends Omit<IAlertItem, 'scheduledStart' | 'scheduledEnd'> {
@@ -998,12 +1000,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     
                     <div className={styles.alertCardDescription}>
                       {alert.description ? (
-                        <div 
-                          dangerouslySetInnerHTML={{ 
+                        <div
+                          dangerouslySetInnerHTML={{
                             __html: htmlSanitizer.sanitizeHtml(
-                              alert.description.length > 150 
-                                ? alert.description.substring(0, 150) + '...' 
-                                : alert.description
+                              StringUtils.truncate(alert.description, 150)
                             )
                           }}
                         />
@@ -1042,16 +1042,16 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         </div>
                       )}
                       <div className={styles.metaInfo}>
-                        <strong>Created:</strong> {new Date(alert.createdDate || Date.now()).toLocaleDateString()}
+                        <strong>Created:</strong> {DateUtils.formatForDisplay(alert.createdDate || new Date())}
                       </div>
                       {alert.scheduledStart && (
                         <div className={styles.metaInfo}>
-                          <strong>Start:</strong> {new Date(alert.scheduledStart).toLocaleString()}
+                          <strong>Start:</strong> {DateUtils.formatDateTimeForDisplay(alert.scheduledStart)}
                         </div>
                       )}
                       {alert.scheduledEnd && (
                         <div className={styles.metaInfo}>
-                          <strong>End:</strong> {new Date(alert.scheduledEnd).toLocaleString()}
+                          <strong>End:</strong> {DateUtils.formatDateTimeForDisplay(alert.scheduledEnd)}
                         </div>
                       )}
                     </div>
@@ -1347,11 +1347,11 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         <SharePointInput
                           label="Start Date & Time"
                           type="datetime-local"
-                          value={editingAlert.scheduledStart ? new Date(editingAlert.scheduledStart.getTime() - editingAlert.scheduledStart.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                          value={DateUtils.toDateTimeLocalValue(editingAlert.scheduledStart)}
                           onChange={(value) => {
-                            setEditingAlert(prev => prev ? { 
-                              ...prev, 
-                              scheduledStart: value ? new Date(value) : undefined 
+                            setEditingAlert(prev => prev ? {
+                              ...prev,
+                              scheduledStart: value ? new Date(value) : undefined
                             } : null);
                             if (editErrors.scheduledStart) setEditErrors(prev => ({ ...prev, scheduledStart: undefined }));
                           }}
@@ -1364,9 +1364,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         <SharePointInput
                           label="End Date & Time"
                           type="datetime-local"
-                          value={editingAlert.scheduledEnd ? new Date(editingAlert.scheduledEnd.getTime() - editingAlert.scheduledEnd.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                          value={DateUtils.toDateTimeLocalValue(editingAlert.scheduledEnd)}
                           onChange={(value) => {
-                            setEditingAlert(prev => prev ? { 
+                            setEditingAlert(prev => prev ? {
                               ...prev, 
                               scheduledEnd: value ? new Date(value) : undefined 
                             } : null);

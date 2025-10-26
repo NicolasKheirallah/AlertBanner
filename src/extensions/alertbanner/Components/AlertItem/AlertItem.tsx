@@ -10,6 +10,7 @@ import styles from "./AlertItem.module.scss";
 import AlertHeader from "./AlertHeader";
 import AlertContent from "./AlertContent";
 import AlertActions from "./AlertActions";
+import { WINDOW_OPEN_CONFIG, SHADOW_CONFIG } from "../Utils/AppConstants";
 
 const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
   if (!stylesString) return {};
@@ -70,7 +71,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     switch (action.actionType) {
       case "link":
         if (action.url) {
-          window.open(action.url, "_blank", "noopener,noreferrer");
+          window.open(action.url, WINDOW_OPEN_CONFIG.TARGET, WINDOW_OPEN_CONFIG.FEATURES);
         }
         break;
       case "dismiss":
@@ -126,7 +127,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     ...baseContainerStyle,
     ...parseAdditionalStyles(priorityStyle),
     ...(item.priority === "critical" && {
-      boxShadow: '0 4px 12px rgba(232, 17, 35, 0.15)'
+      boxShadow: SHADOW_CONFIG.CRITICAL_PRIORITY
     })
   }), [baseContainerStyle, priorityStyle, item.priority]);
 

@@ -334,6 +334,56 @@ export const FEATURE_FLAGS = {
 } as const;
 
 /**
+ * UI Shadow configurations
+ */
+export const SHADOW_CONFIG = {
+  CRITICAL_PRIORITY: '0 4px 12px rgba(232, 17, 35, 0.15)',
+  HIGH_PRIORITY: '0 2px 8px rgba(234, 67, 0, 0.1)',
+  MEDIUM_PRIORITY: '0 1px 4px rgba(0, 120, 212, 0.08)',
+  CARD_HOVER: '0 2px 8px rgba(0, 0, 0, 0.1)',
+  DIALOG: '0 8px 32px rgba(0, 0, 0, 0.15)'
+} as const;
+
+/**
+ * Window.open configuration for security
+ */
+export const WINDOW_OPEN_CONFIG = {
+  TARGET: '_blank',
+  FEATURES: 'noopener,noreferrer'
+} as const;
+
+/**
+ * UI Image configuration
+ */
+export const UI_IMAGE_CONFIG = {
+  MAX_WIDTH_PX: 300,
+  MIN_WIDTH_PX: 50,
+  MAX_HEIGHT_PX: 400,
+  DEFAULT_QUALITY: 0.8
+} as const;
+
+/**
+ * Carousel configuration
+ */
+export const CAROUSEL_CONFIG = {
+  MIN_INTERVAL: 2000,
+  MAX_INTERVAL: 30000,
+  DEFAULT_INTERVAL: 5000,
+  MIN_SLIDES: 1,
+  MAX_SLIDES: 10
+} as const;
+
+/**
+ * Animation durations (in milliseconds)
+ */
+export const ANIMATION_DURATION = {
+  FAST: 150,
+  NORMAL: 300,
+  SLOW: 500,
+  CAROUSEL_TRANSITION: 400
+} as const;
+
+/**
  * Type guards for const assertions
  */
 export type ListName = typeof LIST_NAMES[keyof typeof LIST_NAMES];

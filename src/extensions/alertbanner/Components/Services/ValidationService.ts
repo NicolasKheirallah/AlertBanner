@@ -324,8 +324,8 @@ export class ValidationService {
     // Log potential XSS attempts for security monitoring
     if (sanitized !== input) {
       logger.warn('ValidationService', 'Potential XSS attempt detected and sanitized', {
-        original: input.substring(0, 100) + '...',
-        sanitized: sanitized.substring(0, 100) + '...'
+        original: StringUtils.truncate(input, 100),
+        sanitized: StringUtils.truncate(sanitized, 100)
       });
     }
 

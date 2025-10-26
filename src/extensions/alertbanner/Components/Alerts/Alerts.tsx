@@ -10,6 +10,10 @@ import { EditModeDetector } from "../Utils/EditModeDetector";
 import { useAlerts } from "../Context/AlertsContext";
 import { StorageService } from "../Services/StorageService";
 import { useLocalization } from "../Hooks/useLocalization";
+import { ArrayUtils } from "../Utils/ArrayUtils";
+import { StringUtils } from "../Utils/StringUtils";
+import { CAROUSEL_CONFIG } from "../Utils/AppConstants";
+import { ErrorBoundary } from "../Utils/ErrorBoundary";
 
 const Alerts: React.FC<IAlertsProps> = (props) => {
   const { state, initializeAlerts, removeAlert, hideAlertForever } = useAlerts();
@@ -21,7 +25,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   
   // Carousel settings
   const [carouselEnabled, setCarouselEnabled] = React.useState(false);
-  const [carouselInterval, setCarouselInterval] = React.useState(5000); // 5 seconds default
+  const [carouselInterval, setCarouselInterval] = React.useState<number>(CAROUSEL_CONFIG.DEFAULT_INTERVAL);
   const carouselTimer = React.useRef<number | null>(null);
   const storageService = React.useRef<StorageService>(StorageService.getInstance());
 
@@ -53,8 +57,8 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   React.useEffect(() => {
     const normalizedSiteIds = (props.siteIds ?? [])
       .map(id => (id ?? '').toString().trim())
-      .filter(id => id.length > 0);
-    const uniqueSortedSiteIds = Array.from(new Set(normalizedSiteIds)).sort();
+      .filter(id => StringUtils.isNotEmpty(id));
+    const uniqueSortedSiteIds = ArrayUtils.unique(normalizedSiteIds).sort();
 
     const nextInitProps = {
       siteIds: uniqueSortedSiteIds,
@@ -138,7 +142,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     if (savedCarouselEnabled !== null) {
       setCarouselEnabled(savedCarouselEnabled);
     }
-    if (savedCarouselInterval && savedCarouselInterval >= 2000 && savedCarouselInterval <= 30000) {
+    if (savedCarouselInterval && savedCarouselInterval >= CAROUSEL_CONFIG.MIN_INTERVAL && savedCarouselInterval <= CAROUSEL_CONFIG.MAX_INTERVAL) {
       setCarouselInterval(savedCarouselInterval);
     }
 
@@ -149,7 +153,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       if (newEnabled !== undefined && newEnabled !== null) {
         setCarouselEnabled(newEnabled);
       }
-      if (newInterval && newInterval >= 2000 && newInterval <= 30000) {
+      if (newInterval && newInterval >= CAROUSEL_CONFIG.MIN_INTERVAL && newInterval <= CAROUSEL_CONFIG.MAX_INTERVAL) {
         setCarouselInterval(newInterval);
       }
     };
@@ -247,24 +251,26 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   return (
     <div className={styles.alerts}>
       {hasAlerts && (
-        <div 
+        <div
           className={styles.carousel}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <AlertItem
-            key={alerts[currentIndex].id}
-            item={alerts[currentIndex]}
-            remove={removeAlert}
-            hideForever={hideAlertForever}
-            alertType={alertTypes[alerts[currentIndex].AlertType] || defaultAlertType}
-            isCarousel={true}
-            currentIndex={currentIndex + 1}
-            totalAlerts={alerts.length}
-            onNext={goToNext}
-            onPrevious={goToPrevious}
-            userTargetingEnabled={props.userTargetingEnabled || false}
-          />
+          <ErrorBoundary componentName="AlertItem" onError={(error) => logger.error('Alerts', 'Alert rendering failed', error)}>
+            <AlertItem
+              key={alerts[currentIndex].id}
+              item={alerts[currentIndex]}
+              remove={removeAlert}
+              hideForever={hideAlertForever}
+              alertType={alertTypes[alerts[currentIndex].AlertType] || defaultAlertType}
+              isCarousel={true}
+              currentIndex={currentIndex + 1}
+              totalAlerts={alerts.length}
+              onNext={goToNext}
+              onPrevious={goToPrevious}
+              userTargetingEnabled={props.userTargetingEnabled || false}
+            />
+          </ErrorBoundary>
         </div>
       )}
       {isInEditMode && (
