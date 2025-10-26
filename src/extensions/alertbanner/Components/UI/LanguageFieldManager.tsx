@@ -14,6 +14,7 @@ import {
   tokens
 } from "@fluentui/react-components";
 import { logger } from '../Services/LoggerService';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import {
   Globe24Regular,
   Add24Regular,
@@ -142,9 +143,9 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
 }) => {
   const styles = useStyles();
   const [languages, setLanguages] = React.useState<ILanguage[]>(DEFAULT_LANGUAGES);
-  const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
-  
+  const [isTogglingLanguage, setIsTogglingLanguage] = React.useState(false);
+
   // Get site's default language
   const getSiteDefaultLanguage = React.useCallback((): string => {
     // Try to get from SharePoint context, fallback to browser, then English
@@ -189,28 +190,23 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     return 'en-us';
   }, []);
 
-  // Load currently supported languages on component mount
-  React.useEffect(() => {
-    loadSupportedLanguages();
-  }, []);
-
   const showMessage = (type: 'success' | 'error' | 'warning', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
   };
 
-  const loadSupportedLanguages = async () => {
-    try {
-      setLoading(true);
+  // Load supported languages using useAsyncOperation
+  const { loading, execute: loadSupportedLanguages } = useAsyncOperation(
+    async () => {
       const supported = await alertService.getSupportedLanguages();
       const siteDefaultLanguage = getSiteDefaultLanguage();
-      
+
       logger.debug('LanguageFieldManager', `Site default language detected: ${siteDefaultLanguage}`);
       logger.debug('LanguageFieldManager', `Supported languages from SharePoint: ${supported.join(', ')}`);
-      
+
       // Get standardized language definitions from LanguageAwarenessService
       const supportedLanguages = LanguageAwarenessService.getSupportedLanguages();
-      
+
       // Map our internal language list to the standardized one and update with SharePoint status
       const updatedLanguages = supportedLanguages.map(stdLang => {
         const currentLang = languages.find(l => l.code === stdLang.code);
@@ -223,33 +219,45 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           isPending: currentLang?.isPending || false
         };
       });
-      
-      setLanguages(updatedLanguages);
-      
+
       // If no languages are supported yet and this is first load, ensure site default is selected
       if (supported.length === 0) {
+        const defaultLanguages = updatedLanguages.map(lang => ({
+          ...lang,
+          isAdded: lang.code === siteDefaultLanguage
+        }));
+        logger.debug('LanguageFieldManager', `Set ${siteDefaultLanguage} as default language for new installation`);
+        return defaultLanguages;
+      }
+
+      return updatedLanguages;
+    },
+    {
+      onSuccess: (updatedLanguages) => {
+        if (updatedLanguages) {
+          setLanguages(updatedLanguages);
+        }
+      },
+      onError: () => {
+        logger.warn('LanguageFieldManager', 'Could not load supported languages');
+
+        // Fallback: set only site default language as active
+        const siteDefaultLanguage = getSiteDefaultLanguage();
         setLanguages(prev => prev.map(lang => ({
           ...lang,
           isAdded: lang.code === siteDefaultLanguage
         })));
-        logger.debug('LanguageFieldManager', `Set ${siteDefaultLanguage} as default language for new installation`);
-      }
-      
-    } catch (error) {
-      logger.warn('LanguageFieldManager', 'Could not load supported languages', error);
-      
-      // Fallback: set only site default language as active
-      const siteDefaultLanguage = getSiteDefaultLanguage();
-      setLanguages(prev => prev.map(lang => ({
-        ...lang,
-        isAdded: lang.code === siteDefaultLanguage
-      })));
-      
-      showMessage('warning', `Could not load language support. Using site default: ${siteDefaultLanguage}`);
-    } finally {
-      setLoading(false);
+
+        showMessage('warning', `Could not load language support. Using site default: ${siteDefaultLanguage}`);
+      },
+      logErrors: true
     }
-  };
+  );
+
+  // Load currently supported languages on component mount
+  React.useEffect(() => {
+    loadSupportedLanguages();
+  }, []);
 
   const handleLanguageToggle = async (languageCode: string, checked: boolean) => {
     // Allow English to be toggled even if it's the site default
@@ -276,19 +284,19 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     try {
       if (checked) {
         // Add language columns
-        setLoading(true);
+        setIsTogglingLanguage(true);
         await alertService.addLanguageSupport(languageCode);
         showMessage('success', `Added ${language.name} language support successfully!`);
       } else {
         // Remove language columns from SharePoint
-        setLoading(true);
+        setIsTogglingLanguage(true);
         await alertService.removeLanguageSupport(languageCode);
         showMessage('success', `Removed ${language.name} language support and columns.`);
       }
 
       // Update final state
-      setLanguages(prev => prev.map(lang => 
-        lang.code === languageCode 
+      setLanguages(prev => prev.map(lang =>
+        lang.code === languageCode
           ? { ...lang, isPending: false, isAdded: checked }
           : lang
       ));
@@ -302,15 +310,15 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     } catch (error) {
       logger.error('LanguageFieldManager', `Failed to ${checked ? 'add' : 'remove'} language ${languageCode}`, error);
       showMessage('error', `Failed to ${checked ? 'add' : 'remove'} ${language.name} language support.`);
-      
+
       // Revert UI state on error
-      setLanguages(prev => prev.map(lang => 
-        lang.code === languageCode 
+      setLanguages(prev => prev.map(lang =>
+        lang.code === languageCode
           ? { ...lang, isPending: false, isAdded: !checked }
           : lang
       ));
     } finally {
-      setLoading(false);
+      setIsTogglingLanguage(false);
     }
   };
 

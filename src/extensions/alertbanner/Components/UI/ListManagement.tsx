@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { logger } from '../Services/LoggerService';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import {
   Card,
   CardHeader,
@@ -61,19 +62,13 @@ const ListManagement: React.FC<IListManagementProps> = ({
   const { getString } = useLocalization();
   const [sites, setSites] = React.useState<ISiteInfo[]>([]);
   const [listStatuses, setListStatuses] = React.useState<{ [siteId: string]: IAlertListStatus }>({});
-  const [loading, setLoading] = React.useState(true);
   const [creatingList, setCreatingList] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedLanguages, setSelectedLanguages] = React.useState<string[]>(['en-us']); // Default to English
   const [languageDialogOpen, setLanguageDialogOpen] = React.useState<{ siteId: string; siteName: string } | null>(null);
 
-  React.useEffect(() => {
-    loadSiteInformation();
-  }, [siteContextService]);
-
-  const loadSiteInformation = async () => {
-    try {
-      setLoading(true);
+  const { loading, execute: loadSiteInformation } = useAsyncOperation(
+    async () => {
       const siteHierarchy = siteContextService.getSitesHierarchy();
       setSites(siteHierarchy);
       const statuses: { [siteId: string]: IAlertListStatus } = {};
@@ -90,15 +85,22 @@ const ListManagement: React.FC<IListManagementProps> = ({
         }
       }
       setListStatuses(statuses);
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: getString('FailedToLoadSiteInformation') || 'Failed to load site information'
-      });
-    } finally {
-      setLoading(false);
+      return statuses;
+    },
+    {
+      onError: () => {
+        setMessage({
+          type: 'error',
+          text: getString('FailedToLoadSiteInformation') || 'Failed to load site information'
+        });
+      },
+      logErrors: true
     }
-  };
+  );
+
+  React.useEffect(() => {
+    loadSiteInformation();
+  }, [loadSiteInformation]);
 
   const handleLanguageToggle = (languageCode: string) => {
     setSelectedLanguages(prev => {
@@ -178,53 +180,61 @@ const ListManagement: React.FC<IListManagementProps> = ({
     }
   };
 
-  const handleCreateList = async (siteId: string, siteName: string) => {
-    try {
+  const { execute: createListOperation } = useAsyncOperation(
+    async (siteId: string, siteName: string) => {
       setCreatingList(siteId);
-      setMessage(null);
       setLanguageDialogOpen(null);
 
-      // Create the list with selected languages
       const success = await siteContextService.createAlertsList(siteId, selectedLanguages);
-      
-      if (success) {
-        const languagesList = selectedLanguages.length > 1 
-          ? ` with support for ${selectedLanguages.length} languages`
-          : '';
-          
+
+      if (!success) {
+        throw new Error('Creation failed');
+      }
+
+      const languagesList = selectedLanguages.length > 1
+        ? ` with support for ${selectedLanguages.length} languages`
+        : '';
+
+      await siteContextService.refresh();
+      await loadSiteInformation();
+
+      if (onListCreated) {
+        onListCreated(siteId);
+      }
+
+      return { siteId, siteName, languagesList };
+    },
+    {
+      onSuccess: ({ siteName, languagesList }) => {
         setMessage({
           type: 'success',
           text: getString('AlertsListCreatedSuccessfully') || `Alerts list created successfully on ${siteName}${languagesList}`
         });
+        setCreatingList(null);
+      },
+      onError: (error: Error) => {
+        let errorMessage = error.message || getString('FailedToCreateAlertsList') || 'Failed to create alerts list';
 
-        // Refresh site context and list statuses
-        await siteContextService.refresh();
-        await loadSiteInformation();
-        
-        if (onListCreated) {
-          onListCreated(siteId);
+        if (error.message?.includes('LIST_INCOMPLETE')) {
+          errorMessage = `List created but some features may be limited. ${error.message}`;
+        } else if (error.message?.includes('PERMISSION_DENIED')) {
+          errorMessage = 'Cannot create list: Insufficient permissions. Contact your SharePoint administrator.';
         }
-      } else {
-        throw new Error('Creation failed');
-      }
-    } catch (error) {
-      let errorMessage = error.message || getString('FailedToCreateAlertsList') || `Failed to create alerts list on ${siteName}`;
-      
-      // Provide user-friendly error messages
-      if (error.message?.includes('LIST_INCOMPLETE')) {
-        errorMessage = `List created on ${siteName} but some features may be limited. ${error.message}`;
-      } else if (error.message?.includes('PERMISSION_DENIED')) {
-        errorMessage = `Cannot create list on ${siteName}: Insufficient permissions. Contact your SharePoint administrator.`;
-      }
-      
-      setMessage({
-        type: error.message?.includes('LIST_INCOMPLETE') ? 'success' : 'error',
-        text: errorMessage
-      });
-    } finally {
-      setCreatingList(null);
+
+        setMessage({
+          type: error.message?.includes('LIST_INCOMPLETE') ? 'success' : 'error',
+          text: errorMessage
+        });
+        setCreatingList(null);
+      },
+      logErrors: true
     }
-  };
+  );
+
+  const handleCreateList = React.useCallback(async (siteId: string, siteName: string) => {
+    setMessage(null);
+    await createListOperation(siteId, siteName);
+  }, [createListOperation]);
 
   const getSiteIcon = (siteType: string) => {
     switch (siteType) {

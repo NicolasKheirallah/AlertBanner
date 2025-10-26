@@ -1,5 +1,6 @@
 import * as React from "react";
 import { logger } from '../Services/LoggerService';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import {
   Search24Regular,
   CheckmarkCircle24Regular,
@@ -45,7 +46,6 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
   className
 }) => {
   const [availableSites, setAvailableSites] = React.useState<ISiteOption[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filters, setFilters] = React.useState<IFilterOptions>({
     showOnlyWritable: true,
@@ -61,27 +61,33 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     followedSites: ISiteOption[];
   } | null>(null);
 
-  // Load sites on component mount
-  React.useEffect(() => {
-    loadSites();
-  }, []);
-
-  const loadSites = async () => {
-    setLoading(true);
-    try {
+  // Load sites using useAsyncOperation
+  const { loading, execute: loadSites } = useAsyncOperation(
+    async () => {
       const [sites, suggestions] = await Promise.all([
         siteDetector.getAvailableSites(showPermissionStatus),
         siteDetector.getSuggestedDistributionScopes()
       ]);
-
-      setAvailableSites(sites);
-      setSuggestedSites(suggestions);
-    } catch (error) {
-      logger.error('SiteSelector', 'Failed to load sites', error);
-    } finally {
-      setLoading(false);
+      return { sites, suggestions };
+    },
+    {
+      onSuccess: (result) => {
+        if (result) {
+          setAvailableSites(result.sites);
+          setSuggestedSites(result.suggestions);
+        }
+      },
+      onError: () => {
+        logger.error('SiteSelector', 'Failed to load sites');
+      },
+      logErrors: true
     }
-  };
+  );
+
+  // Load sites on component mount
+  React.useEffect(() => {
+    loadSites();
+  }, []);
 
   const filteredSites = React.useMemo(() => {
     let filtered = [...availableSites];

@@ -4,6 +4,7 @@ import { ImageAdd24Regular } from '@fluentui/react-icons';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { ImageStorageService } from '../Services/ImageStorageService';
 import { logger } from '../Services/LoggerService';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './ImageUpload.module.scss';
 import { useLocalizationContext } from '../Hooks/useLocalization';
 
@@ -21,13 +22,38 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
   disabled = false
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = React.useState(false);
   const storageServiceRef = React.useRef<ImageStorageService>();
   const { getString } = useLocalizationContext();
 
   if (!storageServiceRef.current) {
     storageServiceRef.current = new ImageStorageService(context);
   }
+
+  // Upload image using useAsyncOperation
+  const { loading: isUploading, execute: uploadImage } = useAsyncOperation(
+    async (file: File) => {
+      logger.info('ImageUpload', 'Uploading image', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      const imageUrl = await storageServiceRef.current!.uploadImage(file, folderName);
+      logger.info('ImageUpload', 'Image upload completed', { url: imageUrl });
+      return { imageUrl, file };
+    },
+    {
+      onSuccess: (result) => {
+        if (result) {
+          onImageUploaded(result.imageUrl, result.file, 100);
+        }
+      },
+      onError: (error) => {
+        logger.error('ImageUpload', 'Image upload failed', error);
+        alert(error instanceof Error ? error.message : 'Image upload failed. Please try again.');
+      },
+      logErrors: true
+    }
+  );
 
   const handleButtonClick = React.useCallback(() => {
     if (disabled || isUploading) {
@@ -55,24 +81,8 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
       return;
     }
 
-    setIsUploading(true);
-
-    try {
-      logger.info('ImageUpload', 'Uploading image', {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-      const imageUrl = await storageServiceRef.current!.uploadImage(file, folderName);
-      logger.info('ImageUpload', 'Image upload completed', { url: imageUrl });
-      onImageUploaded(imageUrl, file, 100);
-    } catch (error) {
-      logger.error('ImageUpload', 'Image upload failed', error);
-      alert(error instanceof Error ? error.message : 'Image upload failed. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
-  }, [folderName, onImageUploaded]);
+    await uploadImage(file);
+  }, [uploadImage]);
 
   const label = getString('UploadImage');
 

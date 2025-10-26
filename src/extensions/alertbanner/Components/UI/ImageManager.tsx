@@ -5,6 +5,7 @@ import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { logger } from '../Services/LoggerService';
 import { DateUtils } from '../Utils/DateUtils';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './ImageManager.module.scss';
 
 export interface IImageManagerProps {
@@ -26,14 +27,9 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   onImageDeleted
 }) => {
   const [images, setImages] = React.useState<IImageFile[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
 
-  const loadImages = React.useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  const { loading: isLoading, error, execute: loadImages } = useAsyncOperation(
+    async () => {
       const siteUrl = context.pageContext.web.absoluteUrl;
       const serverRelativeUrl = context.pageContext.web.serverRelativeUrl;
       const cleanServerRelativeUrl = serverRelativeUrl.startsWith('/')
@@ -55,8 +51,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
       if (!response.ok) {
         if (response.status === 404) {
           // Folder doesn't exist yet - no images
-          setImages([]);
-          return;
+          return [];
         }
         throw new Error(`Failed to load images: ${response.statusText}`);
       }
@@ -71,26 +66,21 @@ const ImageManager: React.FC<IImageManagerProps> = ({
           length: file.Length
         }));
 
-      setImages(imageFiles);
       logger.info('ImageManager', 'Loaded images', { count: imageFiles.length, folder: folderName });
-    } catch (err) {
-      logger.error('ImageManager', 'Error loading images', err);
-      setError(err instanceof Error ? err.message : 'Failed to load images');
-    } finally {
-      setIsLoading(false);
+      return imageFiles;
+    },
+    {
+      onSuccess: (imageFiles) => setImages(imageFiles || []),
+      logErrors: true
     }
-  }, [context, folderName]);
+  );
 
   React.useEffect(() => {
     loadImages();
   }, [loadImages]);
 
-  const handleDeleteImage = React.useCallback(async (image: IImageFile) => {
-    if (!confirm(`Delete "${image.name}"? This cannot be undone.`)) {
-      return;
-    }
-
-    try {
+  const { execute: deleteImage } = useAsyncOperation(
+    async (image: IImageFile) => {
       const siteUrl = context.pageContext.web.absoluteUrl;
       const deleteUrl = `${siteUrl}/_api/web/GetFileByServerRelativeUrl('${encodeURIComponent(image.serverRelativeUrl)}')`;
 
@@ -110,16 +100,28 @@ const ImageManager: React.FC<IImageManagerProps> = ({
       }
 
       logger.info('ImageManager', 'Deleted image', { name: image.name });
-      await loadImages(); // Reload list
-
-      if (onImageDeleted) {
-        onImageDeleted();
-      }
-    } catch (err) {
-      logger.error('ImageManager', 'Error deleting image', err);
-      alert(`Failed to delete image: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      return true;
+    },
+    {
+      onSuccess: async () => {
+        await loadImages();
+        if (onImageDeleted) {
+          onImageDeleted();
+        }
+      },
+      onError: (err) => {
+        alert(`Failed to delete image: ${err.message}`);
+      },
+      logErrors: true
     }
-  }, [context, loadImages, onImageDeleted]);
+  );
+
+  const handleDeleteImage = React.useCallback(async (image: IImageFile) => {
+    if (!confirm(`Delete "${image.name}"? This cannot be undone.`)) {
+      return;
+    }
+    await deleteImage(image);
+  }, [deleteImage]);
 
   const handleCopyUrl = React.useCallback((image: IImageFile) => {
     const fullUrl = `${window.location.origin}${image.serverRelativeUrl}`;
@@ -148,7 +150,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   if (error) {
     return (
       <div className={styles.container}>
-        <div className={styles.error}>Error: {error}</div>
+        <div className={styles.error}>Error: {error.message}</div>
       </div>
     );
   }

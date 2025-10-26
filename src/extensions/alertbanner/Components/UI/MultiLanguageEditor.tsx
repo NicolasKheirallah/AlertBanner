@@ -24,6 +24,7 @@ import {
 } from '@fluentui/react-components';
 import { Add24Regular, Delete24Regular, Globe24Regular, Translate24Regular } from '@fluentui/react-icons';
 import { useLocalization } from '../Hooks/useLocalization';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import { LanguageManagementService, ICustomLanguage } from '../Services/LanguageManagementService';
 import { ILanguageInfo } from '../Services/LocalizationService';
 import { IAlertListItem } from '../Services/SharePointAlertService';
@@ -50,8 +51,6 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
   const [availableLanguages, setAvailableLanguages] = React.useState<ICustomLanguage[]>([]);
   const [activeLanguage, setActiveLanguage] = React.useState<string>(currentLanguage.code);
   const [content, setContent] = React.useState<{ [languageCode: string]: ILanguageContent }>({});
-  const [loading, setLoading] = React.useState(true);
-  const [message, setMessage] = React.useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [showAddLanguageDialog, setShowAddLanguageDialog] = React.useState(false);
   const [newLanguageInfo, setNewLanguageInfo] = React.useState<ILanguageInfo>({
     code: '',
@@ -62,6 +61,85 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
 
   // Content fields that support multi-language
   const contentFields = languageManager.getContentFields();
+
+  // Load languages async operation
+  const {
+    loading,
+    message,
+    setMessage,
+    execute: loadLanguages
+  } = useAsyncOperation(
+    async () => {
+      const languages = await languageManager.getAllAvailableLanguages();
+      return languages;
+    },
+    {
+      onSuccess: (languages) => setAvailableLanguages(languages || []),
+      errorMessage: getString('FailedToLoadLanguages') || 'Failed to load available languages',
+      logErrors: true
+    }
+  );
+
+  // Add custom language async operation
+  const {
+    execute: executeAddLanguage
+  } = useAsyncOperation(
+    async () => {
+      await languageManager.addCustomLanguage(newLanguageInfo);
+      await loadLanguages();
+      return true;
+    },
+    {
+      onSuccess: () => {
+        setShowAddLanguageDialog(false);
+        setNewLanguageInfo({ code: '', name: '', nativeName: '', isRTL: false });
+        setMessage({
+          type: 'success',
+          text: getString('LanguageAddedSuccessfully') || 'Language added successfully'
+        });
+      },
+      onError: (error) => {
+        setMessage({
+          type: 'error',
+          text: error.message || getString('FailedToAddLanguage') || 'Failed to add language'
+        });
+      },
+      logErrors: true
+    }
+  );
+
+  // Remove language async operation
+  const {
+    execute: executeRemoveLanguage
+  } = useAsyncOperation(
+    async (languageCode: string) => {
+      await languageManager.removeCustomLanguage(languageCode);
+      await loadLanguages();
+      return languageCode;
+    },
+    {
+      onSuccess: (languageCode) => {
+        // Remove content for this language
+        setContent(prev => {
+          const updated = { ...prev };
+          delete updated[languageCode];
+          return updated;
+        });
+
+        setMessage({
+          type: 'success',
+          text: getString('LanguageRemovedSuccessfully') || 'Language removed successfully'
+        });
+      },
+      onError: (error) => {
+        setMessage({
+          type: 'error',
+          text: error.message || getString('FailedToRemoveLanguage') || 'Failed to remove language'
+        });
+      },
+      logErrors: true
+    }
+  );
 
   React.useEffect(() => {
     loadLanguages();
@@ -78,21 +156,6 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
       onContentChange(content);
     }
   }, [content, onContentChange]);
-
-  const loadLanguages = async () => {
-    try {
-      setLoading(true);
-      const languages = await languageManager.getAllAvailableLanguages();
-      setAvailableLanguages(languages);
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: getString('FailedToLoadLanguages') || 'Failed to load available languages'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadExistingContent = () => {
     if (!alertItem || !availableLanguages.length) return;
@@ -126,48 +189,6 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
         [fieldName]: value
       }
     }));
-  };
-
-  const handleAddCustomLanguage = async () => {
-    try {
-      await languageManager.addCustomLanguage(newLanguageInfo);
-      await loadLanguages();
-      setShowAddLanguageDialog(false);
-      setNewLanguageInfo({ code: '', name: '', nativeName: '', isRTL: false });
-      setMessage({
-        type: 'success',
-        text: getString('LanguageAddedSuccessfully') || 'Language added successfully'
-      });
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error.message || getString('FailedToAddLanguage') || 'Failed to add language'
-      });
-    }
-  };
-
-  const handleRemoveLanguage = async (languageCode: string) => {
-    try {
-      await languageManager.removeCustomLanguage(languageCode);
-      await loadLanguages();
-
-      // Remove content for this language
-      setContent(prev => {
-        const updated = { ...prev };
-        delete updated[languageCode];
-        return updated;
-      });
-
-      setMessage({
-        type: 'success',
-        text: getString('LanguageRemovedSuccessfully') || 'Language removed successfully'
-      });
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error.message || getString('FailedToRemoveLanguage') || 'Failed to remove language'
-      });
-    }
   };
 
   const getSuggestedLanguages = (): ILanguageInfo[] => {
@@ -311,7 +332,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
                 </DialogTrigger>
                 <Button
                   appearance="primary"
-                  onClick={handleAddCustomLanguage}
+                  onClick={() => executeAddLanguage()}
                   disabled={!newLanguageInfo.code || !newLanguageInfo.name || !newLanguageInfo.nativeName}
                 >
                   {getString('AddLanguage') || 'Add Language'}
@@ -339,7 +360,7 @@ const MultiLanguageEditor: React.FC<IMultiLanguageEditorProps> = ({
                     <Button
                       appearance="subtle"
                       icon={<Delete24Regular />}
-                      onClick={() => handleRemoveLanguage(activeLanguage)}
+                      onClick={() => executeRemoveLanguage(activeLanguage)}
                       size="small"
                     >
                       {getString('RemoveLanguage') || 'Remove Language'}

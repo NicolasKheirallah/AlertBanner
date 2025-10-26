@@ -16,6 +16,7 @@ import {
 } from '@fluentui/react';
 import { IRepairResult } from '../Services/SharePointAlertService';
 import { SharePointAlertService } from '../Services/SharePointAlertService';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './RepairDialog.module.scss';
 
 export interface IRepairDialogProps {
@@ -36,55 +37,52 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
   onRepairComplete,
   alertService
 }) => {
-  const [isRepairing, setIsRepairing] = React.useState(false);
   const [repairProgress, setRepairProgress] = React.useState<IRepairProgress>({ message: '', progress: 0 });
-  const [repairResult, setRepairResult] = React.useState<IRepairResult | null>(null);
   const [showConfirmation, setShowConfirmation] = React.useState(true);
 
-  const handleStartRepair = React.useCallback(async () => {
-    setIsRepairing(true);
-    setShowConfirmation(false);
-    setRepairResult(null);
-
-    try {
+  const { loading: isRepairing, data: repairResult, execute: executeRepair, reset } = useAsyncOperation(
+    async () => {
       const siteId = alertService.getCurrentSiteId();
-
-      const result = await alertService.repairAlertsList(
+      return await alertService.repairAlertsList(
         siteId,
         (message: string, progress: number) => {
           setRepairProgress({ message, progress });
         }
       );
-
-      setRepairResult(result);
-      onRepairComplete(result);
-    } catch (error) {
-      const errorResult: IRepairResult = {
-        success: false,
-        message: `Repair failed: ${error.message}`,
-        details: {
-          columnsRemoved: [],
-          columnsAdded: [],
-          columnsUpdated: [],
-          errors: [error.message],
-          warnings: []
-        }
-      };
-      setRepairResult(errorResult);
-      onRepairComplete(errorResult);
-    } finally {
-      setIsRepairing(false);
+    },
+    {
+      onSuccess: (result) => onRepairComplete(result),
+      onError: (error) => {
+        const errorResult: IRepairResult = {
+          success: false,
+          message: `Repair failed: ${error.message}`,
+          details: {
+            columnsRemoved: [],
+            columnsAdded: [],
+            columnsUpdated: [],
+            errors: [error.message],
+            warnings: []
+          }
+        };
+        onRepairComplete(errorResult);
+      },
+      logErrors: true
     }
-  }, [alertService, onRepairComplete]);
+  );
+
+  const handleStartRepair = React.useCallback(async () => {
+    setShowConfirmation(false);
+    await executeRepair();
+  }, [executeRepair]);
 
   const handleDismiss = React.useCallback(() => {
     if (!isRepairing) {
       setShowConfirmation(true);
       setRepairProgress({ message: '', progress: 0 });
-      setRepairResult(null);
+      reset();
       onDismiss();
     }
-  }, [isRepairing, onDismiss]);
+  }, [isRepairing, onDismiss, reset]);
 
   const renderConfirmationContent = () => (
     <Stack tokens={{ childrenGap: 20 }}>

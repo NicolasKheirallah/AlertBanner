@@ -14,6 +14,7 @@ import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertSettings.module.scss";
 import { logger } from '../Services/LoggerService';
 import { useLocalization } from "../Hooks/useLocalization";
+import { useAsyncOperation } from "../Hooks/useAsyncOperation";
 
 export interface IAlertSettingsTabsProps {
   isInEditMode: boolean;
@@ -107,15 +108,18 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   const [isCheckingLists, setIsCheckingLists] = React.useState(false);
   const [isCreatingLists, setIsCreatingLists] = React.useState(false);
 
-  // Initialize alert types from SharePoint
-  React.useEffect(() => {
-    const loadAlertTypes = async () => {
-      try {
-        const types = await alertService.current.getAlertTypes();
-        setAlertTypes(types);
+  // Initialize alert types from SharePoint using useAsyncOperation
+  const { execute: loadAlertTypes } = useAsyncOperation(
+    async () => {
+      const types = await alertService.current.getAlertTypes();
+      return types;
+    },
+    {
+      onSuccess: (types) => {
+        if (types && types.length > 0) {
+          setAlertTypes(types);
 
-        // Set first alert type as default if none is selected
-        if (types.length > 0) {
+          // Set first alert type as default if none is selected
           setNewAlert(prev => {
             // Only set default if AlertType is empty or invalid
             if (!prev.AlertType || !types.find(t => t.name === prev.AlertType)) {
@@ -124,12 +128,16 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
             return prev;
           });
         }
-      } catch (error) {
-        logger.error('AlertSettingsTabs', 'Error loading alert types from SharePoint', error);
+      },
+      onError: () => {
+        logger.error('AlertSettingsTabs', 'Error loading alert types from SharePoint');
         setAlertTypes([]);
-      }
-    };
+      },
+      logErrors: true
+    }
+  );
 
+  React.useEffect(() => {
     if (isInEditMode) {
       loadAlertTypes();
     }

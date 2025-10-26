@@ -1,5 +1,6 @@
 import * as React from "react";
 import { logger } from '../Services/LoggerService';
+import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import {
   Settings24Regular,
   Warning24Regular,
@@ -102,7 +103,6 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [templates, setTemplates] = React.useState<IAlertTemplate[]>([]);
-  const [loading, setLoading] = React.useState(true);
 
   const categories = [
     { id: "all", name: "All Templates", icon: <Folder24Regular /> },
@@ -114,23 +114,26 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
     { id: "announcement", name: "Announcements", icon: <Megaphone24Regular /> }
   ];
 
-  // Load templates from SharePoint on component mount
-  React.useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        setLoading(true);
-        const currentSiteId = context.pageContext.site.id.toString();
-        const templateAlerts = await alertService.getTemplateAlerts(currentSiteId);
-        const convertedTemplates = templateAlerts.map(convertAlertToTemplate);
-        setTemplates(convertedTemplates);
-      } catch (error) {
-        logger.warn('AlertTemplates', 'Failed to load templates from SharePoint', error);
+  // Load templates from SharePoint using useAsyncOperation
+  const { loading, execute: loadTemplates } = useAsyncOperation(
+    async () => {
+      const currentSiteId = context.pageContext.site.id.toString();
+      const templateAlerts = await alertService.getTemplateAlerts(currentSiteId);
+      const convertedTemplates = templateAlerts.map(convertAlertToTemplate);
+      return convertedTemplates;
+    },
+    {
+      onSuccess: (convertedTemplates) => setTemplates(convertedTemplates || []),
+      onError: () => {
+        logger.warn('AlertTemplates', 'Failed to load templates from SharePoint');
         setTemplates([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+      },
+      logErrors: true
+    }
+  );
 
+  // Load templates on component mount
+  React.useEffect(() => {
     loadTemplates();
   }, [alertService, context]);
 
