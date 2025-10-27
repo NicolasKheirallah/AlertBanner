@@ -30,7 +30,10 @@ import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
 import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
 import { StringUtils } from "../../Utils/StringUtils";
 import { DateUtils } from "../../Utils/DateUtils";
-import { useLocalization } from "../../Hooks/useLocalization";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
+
+const STRINGS_DICTIONARY = strings as unknown as Record<string, string>;
 
 export interface IEditingAlert extends Omit<IAlertItem, 'scheduledStart' | 'scheduledEnd'> {
   scheduledStart?: Date;
@@ -108,9 +111,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const [showFilters, setShowFilters] = React.useState(false);
 
-  // Localization
-  const { getString } = useLocalization();
-
   // Initialize services with useMemo to prevent recreation
   const languageService = React.useMemo(() =>
     new LanguageAwarenessService(graphClient, context),
@@ -123,27 +123,27 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   );
 
   // Priority options - using shared hook with localization
-  const priorityOptions = usePriorityOptions(getString);
+  const priorityOptions = usePriorityOptions();
 
   // Notification type options with detailed descriptions - memoized and localized
   const notificationOptions: ISharePointSelectOption[] = React.useMemo(() => ([
     {
       value: NotificationType.None,
-      label: getString('CreateAlertNotificationNoneDescription')
+      label: strings.CreateAlertNotificationNoneDescription
     },
     {
       value: NotificationType.Browser,
-      label: getString('CreateAlertNotificationBrowserDescription')
+      label: strings.CreateAlertNotificationBrowserDescription
     },
     {
       value: NotificationType.Email,
-      label: getString('CreateAlertNotificationEmailDescription')
+      label: strings.CreateAlertNotificationEmailDescription
     },
     {
       value: NotificationType.Both,
-      label: getString('CreateAlertNotificationBothDescription')
+      label: strings.CreateAlertNotificationBothDescription
     }
-  ]), [getString]);
+  ]), []);
 
   // Alert type options (include legacy/custom values that might not exist locally)
   const alertTypeOptions: ISharePointSelectOption[] = React.useMemo(() => {
@@ -167,10 +167,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
   // Content type options - memoized and localized (matching CreateAlerts)
   const contentTypeOptions: ISharePointSelectOption[] = React.useMemo(() => ([
-    { value: ContentType.Alert, label: getString('CreateAlertContentTypeAlertDescription') },
-    { value: ContentType.Template, label: getString('CreateAlertContentTypeTemplateDescription') },
-    { value: ContentType.Draft, label: getString('CreateAlertContentTypeDraftDescription') }
-  ]), [getString]);
+    { value: ContentType.Alert, label: strings.CreateAlertContentTypeAlertDescription },
+    { value: ContentType.Template, label: strings.CreateAlertContentTypeTemplateDescription },
+    { value: ContentType.Draft, label: strings.CreateAlertContentTypeDraftDescription }
+  ]), []);
 
   // Ensure we always have a persisted alert type selected
   React.useEffect(() => {
@@ -383,12 +383,19 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
     const validationErrors = validateAlertData(editingAlert, {
       useMultiLanguage,
-      getString
+      getString: (key: string, ...args: Array<string | number>) => {
+        const template = STRINGS_DICTIONARY[key] ?? key;
+        if (args.length === 0) {
+          return template;
+        }
+        const formattedArgs = args.map(arg => arg.toString());
+        return Text.format(template, ...formattedArgs);
+      }
     });
 
     setEditErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
-  }, [editingAlert, useMultiLanguage, getString]);
+  }, [editingAlert, useMultiLanguage]);
 
   const handleSaveEdit = React.useCallback(async () => {
     if (!editingAlert || !validateEditForm()) return;
@@ -675,8 +682,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       <div className={styles.tabContent}>
         <div className={styles.tabHeader}>
           <div>
-            <h3>Manage Alerts</h3>
-            <p>View, edit, and manage existing alerts across your sites</p>
+            <h3>{strings.ManageAlerts}</h3>
+            <p>{strings.ManageAlertsSubtitle || 'View, edit, and manage existing alerts across your sites'}</p>
           </div>
           <div className={styles.flexRowGap12}>
             {selectedAlerts.length === 1 && (
@@ -690,7 +697,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   }
                 }}
               >
-                Edit Selected
+                {strings.ManageAlertsEditSelectedButtonLabel || 'Edit Selected'}
               </SharePointButton>
             )}
             {selectedAlerts.length > 0 && (
@@ -699,7 +706,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 icon={<Delete24Regular />}
                 onClick={handleBulkDelete}
               >
-                Delete Selected ({selectedAlerts.length})
+                {Text.format(strings.ManageAlertsDeleteSelectedButtonLabel || 'Delete Selected ({0})', selectedAlerts.length)}
               </SharePointButton>
             )}
             <SharePointButton
@@ -707,14 +714,18 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
               onClick={loadExistingAlerts}
               disabled={isLoadingAlerts}
             >
-              {isLoadingAlerts ? 'Refreshing...' : 'Refresh'}
+              {isLoadingAlerts
+                ? strings.ManageAlertsRefreshingLabel || 'Refreshing...'
+                : strings.Refresh}
             </SharePointButton>
             <button
               className={styles.filterToggleButton}
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter24Regular />
-              {showFilters ? 'Hide' : 'Show'} Filters
+              {(showFilters
+                ? strings.ManageAlertsHideFiltersLabel || 'Hide'
+                : strings.ManageAlertsShowFiltersLabel || 'Show')} {strings.ManageAlertsFiltersLabel || 'Filters'}
               {showFilters ? <ChevronUp24Regular /> : <ChevronDown24Regular />}
             </button>
           </div>
@@ -722,31 +733,31 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
         {isLoadingAlerts ? (
           <div className={styles.loadingContainer}>
-            <div className={styles.loadingTitle}>Loading alerts...</div>
-            <div className={styles.loadingSubtitle}>Please wait while we fetch your alerts</div>
+            <div className={styles.loadingTitle}>{strings.ManageAlertsLoadingTitle || 'Loading alerts...'}</div>
+            <div className={styles.loadingSubtitle}>{strings.ManageAlertsLoadingSubtitle || 'Please wait while we fetch your alerts'}</div>
           </div>
         ) : existingAlerts.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📢</div>
-            <h4>No Alerts Found</h4>
-            <p>No alerts are currently available. This might be because:</p>
+            <h4>{strings.ManageAlertsEmptyTitle || 'No Alerts Found'}</h4>
+            <p>{strings.ManageAlertsEmptyDescription || 'No alerts are currently available. This might be because:'}</p>
             <ul className={styles.emptyStateList}>
-              <li>The Alert Banner lists haven't been created yet</li>
-              <li>You don't have access to the lists</li>
-              <li>No alerts have been created yet</li>
+              <li>{strings.ManageAlertsEmptyReasonListsMissing || "The Alert Banner lists haven't been created yet"}</li>
+              <li>{strings.ManageAlertsEmptyReasonNoAccess || "You don't have access to the lists"}</li>
+              <li>{strings.ManageAlertsEmptyReasonNoAlerts || 'No alerts have been created yet'}</li>
             </ul>
             <div className={styles.flexRowCentered}>
               <SharePointButton
                 variant="primary"
                 onClick={() => setActiveTab("create")}
               >
-                Create First Alert
+                {strings.ManageAlertsEmptyCreateFirstButton || 'Create First Alert'}
               </SharePointButton>
               <SharePointButton
                 variant="secondary"
                 onClick={loadExistingAlerts}
               >
-                Refresh
+                {strings.Refresh}
               </SharePointButton>
             </div>
           </div>
@@ -756,8 +767,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             <div className={styles.filterSection}>
               <div className={styles.filterHeader}>
                 <div className={styles.filterSummary}>
-                  <span>Showing {groupedAlerts.length} of {existingAlerts.length} items</span>
-                  <span>{groupedAlerts.filter(a => a.isLanguageGroup).length} multi-language groups</span>
+                  <span>{Text.format(strings.ManageAlertsFilterSummaryCount || 'Showing {0} of {1} items', groupedAlerts.length, existingAlerts.length)}</span>
+                  <span>{Text.format(strings.ManageAlertsFilterSummaryLanguageGroups || '{0} multi-language groups', groupedAlerts.filter(a => a.isLanguageGroup).length)}</span>
                 </div>
               </div>
 
@@ -767,25 +778,25 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   variant={contentTypeFilter === ContentType.Alert ? "primary" : "secondary"}
                   onClick={() => setContentTypeFilter(ContentType.Alert)}
                 >
-                  📢 Alerts ({existingAlerts.filter(a => a.contentType === ContentType.Alert).length})
+                  {Text.format(strings.ManageAlertsFilterAlertsLabel || "📢 Alerts ({0})", existingAlerts.filter(a => a.contentType === ContentType.Alert).length)}
                 </SharePointButton>
                 <SharePointButton
                   variant={contentTypeFilter === ContentType.Draft ? "primary" : "secondary"}
                   onClick={() => setContentTypeFilter(ContentType.Draft)}
                 >
-                  ✏️ Drafts ({existingAlerts.filter(a => a.contentType === ContentType.Draft).length})
+                  {Text.format(strings.ManageAlertsFilterDraftsLabel || "✏️ Drafts ({0})", existingAlerts.filter(a => a.contentType === ContentType.Draft).length)}
                 </SharePointButton>
                 <SharePointButton
                   variant={contentTypeFilter === ContentType.Template ? "primary" : "secondary"}
                   onClick={() => setContentTypeFilter(ContentType.Template)}
                 >
-                  📄 Templates ({existingAlerts.filter(a => a.contentType === ContentType.Template).length})
+                  {Text.format(strings.ManageAlertsFilterTemplatesLabel || "📄 Templates ({0})", existingAlerts.filter(a => a.contentType === ContentType.Template).length)}
                 </SharePointButton>
                 <SharePointButton
                   variant={contentTypeFilter === 'all' ? "primary" : "secondary"}
                   onClick={() => setContentTypeFilter('all')}
                 >
-                  📋 All ({existingAlerts.length})
+                  {Text.format(strings.ManageAlertsFilterAllLabel || "📋 All ({0})", existingAlerts.length)}
                 </SharePointButton>
               </div>
 
@@ -795,7 +806,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   label=""
                   value={searchTerm}
                   onChange={setSearchTerm}
-                  placeholder="🔍 Search alerts, drafts, and templates by title, description, type, priority, or author..."
+                  placeholder={strings.ManageAlertsSearchPlaceholder || "🔍 Search alerts, drafts, and templates by title, description, type, priority, or author..."}
                   className={styles.searchInput}
                 />
               </div>
@@ -806,38 +817,38 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   <div className={styles.filterGrid}>
                     {/* Content Type Filter */}
                     <SharePointSelect
-                      label="Content Type"
+                      label={strings.ContentTypeLabel}
                       value={contentTypeFilter}
                       onChange={(value) => setContentTypeFilter(value as 'all' | ContentType)}
                       options={[
-                        { value: 'all', label: '📋 All Types' },
-                        { value: ContentType.Alert, label: '📢 Alerts' },
-                        { value: ContentType.Draft, label: '✏️ Drafts' },
-                        { value: ContentType.Template, label: '📄 Templates' }
+                        { value: 'all', label: strings.ManageAlertsContentTypeAllOption || '📋 All Types' },
+                        { value: ContentType.Alert, label: strings.ManageAlertsContentTypeAlertOption || '📢 Alerts' },
+                        { value: ContentType.Draft, label: strings.ManageAlertsContentTypeDraftOption || '✏️ Drafts' },
+                        { value: ContentType.Template, label: strings.ManageAlertsContentTypeTemplateOption || '📄 Templates' }
                       ]}
                     />
 
                     {/* Priority Filter */}
                     <SharePointSelect
-                      label="Priority"
+                      label={strings.CreateAlertPriorityLabel}
                       value={priorityFilter}
                       onChange={(value) => setPriorityFilter(value as 'all' | AlertPriority)}
                       options={[
-                        { value: 'all', label: '🔘 All Priorities' },
-                        { value: AlertPriority.Critical, label: '🔴 Critical' },
-                        { value: AlertPriority.High, label: '🟠 High' },
-                        { value: AlertPriority.Medium, label: '🟡 Medium' },
-                        { value: AlertPriority.Low, label: '🟢 Low' }
+                        { value: 'all', label: strings.ManageAlertsPriorityAllOption || '🔘 All Priorities' },
+                        { value: AlertPriority.Critical, label: `🔴 ${strings.PriorityCritical}` },
+                        { value: AlertPriority.High, label: `🟠 ${strings.PriorityHigh}` },
+                        { value: AlertPriority.Medium, label: `🟡 ${strings.PriorityMedium}` },
+                        { value: AlertPriority.Low, label: `🟢 ${strings.PriorityLow}` }
                       ]}
                     />
 
                     {/* Alert Type Filter */}
                     <SharePointSelect
-                      label="Alert Type"
+                      label={strings.AlertType}
                       value={alertTypeFilter}
                       onChange={(value) => setAlertTypeFilter(value)}
                       options={[
-                        { value: 'all', label: '🎨 All Types' },
+                        { value: 'all', label: strings.ManageAlertsAlertTypeAllOption || '🎨 All Types' },
                         ...alertTypes.map(type => ({
                           value: type.name,
                           label: `${type.iconName ? '🎯' : '📢'} ${type.name}`
@@ -847,25 +858,25 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
                     {/* Status Filter */}
                     <SharePointSelect
-                      label="Status"
+                      label={strings.Status}
                       value={statusFilter}
                       onChange={(value) => setStatusFilter(value)}
                       options={[
-                        { value: 'all', label: '⚪ All Statuses' },
-                        { value: 'active', label: '🟢 Active' },
-                        { value: 'expired', label: '🔴 Expired' },
-                        { value: 'scheduled', label: '🟡 Scheduled' }
+                        { value: 'all', label: strings.ManageAlertsStatusAllOption || '⚪ All Statuses' },
+                        { value: 'active', label: `🟢 ${strings.StatusActive}` },
+                        { value: 'expired', label: `🔴 ${strings.StatusExpired}` },
+                        { value: 'scheduled', label: `🟡 ${strings.StatusScheduled}` }
                       ]}
                     />
 
                     {/* Language Filter */}
                     <SharePointSelect
-                      label="Language"
+                      label={strings.Language}
                       value={languageFilter}
                       onChange={(value) => setLanguageFilter(value as 'all' | TargetLanguage)}
                       options={[
-                        { value: 'all', label: '🌐 All Languages' },
-                        { value: TargetLanguage.All, label: '🌍 Multi-Language' },
+                        { value: 'all', label: strings.ManageAlertsLanguageAllOption || '🌐 All Languages' },
+                        { value: TargetLanguage.All, label: strings.ManageAlertsLanguageMultiOption || '🌍 Multi-Language' },
                         ...supportedLanguages.map(lang => ({
                           value: lang.code,
                           label: `${lang.flag} ${lang.nativeName}`
@@ -875,29 +886,29 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
                     {/* Notification Type Filter */}
                     <SharePointSelect
-                      label="Notification Type"
+                      label={strings.NotificationType}
                       value={notificationFilter}
                       onChange={(value) => setNotificationFilter(value as 'all' | NotificationType)}
                       options={[
-                        { value: 'all', label: '📧 All Notification Types' },
-                        { value: NotificationType.None, label: '🚫 None - Banner only' },
-                        { value: NotificationType.Browser, label: '🌐 Browser - Banner display' },
-                        { value: NotificationType.Email, label: '📧 Email only - No banner' },
-                        { value: NotificationType.Both, label: '📧🌐 Browser + Email' }
+                        { value: 'all', label: strings.ManageAlertsNotificationAllOption || '📧 All Notification Types' },
+                        { value: NotificationType.None, label: strings.ManageAlertsNotificationNoneOption || '🚫 None - Banner only' },
+                        { value: NotificationType.Browser, label: strings.ManageAlertsNotificationBrowserOption || '🌐 Browser - Banner display' },
+                        { value: NotificationType.Email, label: strings.ManageAlertsNotificationEmailOption || '📧 Email only - No banner' },
+                        { value: NotificationType.Both, label: strings.ManageAlertsNotificationBothOption || '📧🌐 Browser + Email' }
                       ]}
                     />
 
                     {/* Date Filter */}
                     <SharePointSelect
-                      label="Created Date"
+                      label={strings.ManageAlertsCreatedDateFilterLabel || "Created Date"}
                       value={dateFilter}
                       onChange={(value) => setDateFilter(value as any)}
                       options={[
-                        { value: 'all', label: '📅 All Dates' },
-                        { value: 'today', label: '📅 Today' },
-                        { value: 'week', label: '📅 This Week' },
-                        { value: 'month', label: '📅 This Month' },
-                        { value: 'custom', label: '📅 Custom Range' }
+                        { value: 'all', label: strings.ManageAlertsDateAllOption || '📅 All Dates' },
+                        { value: 'today', label: strings.ManageAlertsDateTodayOption || '📅 Today' },
+                        { value: 'week', label: strings.ManageAlertsDateWeekOption || '📅 This Week' },
+                        { value: 'month', label: strings.ManageAlertsDateMonthOption || '📅 This Month' },
+                        { value: 'custom', label: strings.ManageAlertsDateCustomOption || '📅 Custom Range' }
                       ]}
                     />
                   </div>
@@ -906,13 +917,13 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   {dateFilter === 'custom' && (
                     <div className={styles.dateRangeFilters}>
                       <SharePointInput
-                        label="From Date"
+                        label={strings.ManageAlertsFromDateLabel || "From Date"}
                         type="date"
                         value={customDateFrom}
                         onChange={setCustomDateFrom}
                       />
                       <SharePointInput
-                        label="To Date"
+                        label={strings.ManageAlertsToDateLabel || "To Date"}
                         type="date"
                         value={customDateTo}
                         onChange={setCustomDateTo}
@@ -937,7 +948,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         setSearchTerm('');
                       }}
                     >
-                      Clear All Filters
+                      {strings.ManageAlertsClearFiltersButton || "Clear All Filters"}
                     </SharePointButton>
                   </div>
                 </div>
@@ -1003,16 +1014,16 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                           '--text-color': '#ffffff'
                         } as React.CSSProperties}
                       >
-                        {alert.contentType === ContentType.Template ? '📄 Template' : '📢 Alert'}
+                        {alert.contentType === ContentType.Template ? (strings.ManageAlertsTemplateBadge || '📄 Template') : (strings.ManageAlertsAlertBadge || '📢 Alert')}
                       </div>
                     )}
                     
                     <h4 className={styles.alertCardTitle}>
-                      {alert.title || '[No Title Available]'}
+                      {alert.title || (strings.ManageAlertsNoTitleFallback || '[No Title Available]')}
                       {isMultiLanguage && (
                         <span className={styles.multiLanguageBadge}>
                           <Globe24Regular style={{ width: '12px', height: '12px', marginRight: '4px' }} />
-                          {alert.languageVariants?.length} languages
+                          {Text.format(strings.ManageAlertsLanguageBadge || "{0} languages", alert.languageVariants?.length || 0)}
                         </span>
                       )}
                     </h4>
@@ -1027,50 +1038,53 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                           }}
                         />
                       ) : (
-                        <em style={{ color: '#999' }}>[No Description Available]</em>
+                        <em style={{ color: '#999' }}>{strings.ManageAlertsNoDescriptionFallback || '[No Description Available]'}</em>
                       )}
                     </div>
                     
                     <div className={styles.alertMetaData}>
                       <div className={styles.metaInfo}>
-                        <strong>Type:</strong> 
+                        <strong>{strings.AlertType || "Type"}:</strong> 
                         <span className={`${styles.contentTypeBadge} ${alert.contentType === ContentType.Template ? styles.template : styles.alert}`}>
-                          {alert.contentType === ContentType.Template ? '📄 Template' : '📢 Alert'}
+                          {alert.contentType === ContentType.Template ? (strings.ManageAlertsTemplateBadge || '📄 Template') : (strings.ManageAlertsAlertBadge || '📢 Alert')}
                         </span>
                       </div>
                       <div className={styles.metaInfo}>
-                        <strong>Priority:</strong> {alert.priority}
+                        <strong>{strings.Priority || "Priority"}:</strong> {priorityOptions.find(option => option.value === alert.priority)?.label || alert.priority}
                       </div>
                       <div className={styles.metaInfo}>
-                        <strong>Language:</strong> 
+                        <strong>{strings.Language || "Language"}:</strong> 
                         {isMultiLanguage ? (
                           <span className={styles.languageList}>
-                            🌐 Multi-language ({alert.languageVariants?.map(v => 
-                              supportedLanguages.find(l => l.code === v.targetLanguage)?.flag || v.targetLanguage
-                            ).join(' ')})
+                            {Text.format(
+                              strings.ManageAlertsMultiLanguageList || '🌐 Multi-language ({0})',
+                              alert.languageVariants?.map(v =>
+                                supportedLanguages.find(l => l.code === v.targetLanguage)?.flag || v.targetLanguage
+                              ).join(' ') || ''
+                            )}
                           </span>
                         ) : (
-                          alert.targetLanguage === TargetLanguage.All ? '🌐 All Languages' : 
-                          supportedLanguages.find(l => l.code === alert.targetLanguage)?.flag + ' ' + 
-                          supportedLanguages.find(l => l.code === alert.targetLanguage)?.nativeName || alert.targetLanguage
+                          alert.targetLanguage === TargetLanguage.All
+                            ? strings.ManageAlertsAllLanguagesLabel || '🌐 All Languages'
+                            : `${supportedLanguages.find(l => l.code === alert.targetLanguage)?.flag || ''} ${supportedLanguages.find(l => l.code === alert.targetLanguage)?.nativeName || alert.targetLanguage}`
                         )}
                       </div>
                       {alert.linkUrl && (
                         <div className={styles.metaInfo}>
-                          <strong>Action:</strong> {alert.linkDescription}
+                          <strong>{strings.LinkDescription || "Action"}:</strong> {alert.linkDescription}
                         </div>
                       )}
                       <div className={styles.metaInfo}>
-                        <strong>Created:</strong> {DateUtils.formatForDisplay(alert.createdDate || new Date())}
+                        <strong>{strings.ManageAlertsCreatedLabel || "Created"}:</strong> {DateUtils.formatForDisplay(alert.createdDate || new Date())}
                       </div>
                       {alert.scheduledStart && (
                         <div className={styles.metaInfo}>
-                          <strong>Start:</strong> {DateUtils.formatDateTimeForDisplay(alert.scheduledStart)}
+                          <strong>{strings.CreateAlertStartDateLabel || "Start"}:</strong> {DateUtils.formatDateTimeForDisplay(alert.scheduledStart)}
                         </div>
                       )}
                       {alert.scheduledEnd && (
                         <div className={styles.metaInfo}>
-                          <strong>End:</strong> {DateUtils.formatDateTimeForDisplay(alert.scheduledEnd)}
+                          <strong>{strings.CreateAlertEndDateLabel || "End"}:</strong> {DateUtils.formatDateTimeForDisplay(alert.scheduledEnd)}
                         </div>
                       )}
                     </div>
@@ -1086,7 +1100,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                             handlePublishDraft(alert);
                           }}
                         >
-                          Publish
+                          {strings.ManageAlertsPublishButtonLabel || "Publish"}
                         </SharePointButton>
                         <SharePointButton
                           variant="secondary"
@@ -1095,7 +1109,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                             handleEditAlert(alert);
                           }}
                         >
-                          Edit
+                          {strings.Edit}
                         </SharePointButton>
                         <SharePointButton
                           variant="danger"
@@ -1104,7 +1118,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                             handleDeleteAlert(alert.id, alert.title);
                           }}
                         >
-                          Delete
+                          {strings.Delete}
                         </SharePointButton>
                       </>
                     ) : (
@@ -1116,7 +1130,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                             handleEditAlert(alert);
                           }}
                         >
-                          Edit
+                          {strings.Edit}
                         </SharePointButton>
                         <SharePointButton
                           variant="danger"
@@ -1125,7 +1139,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                             handleDeleteAlert(alert.id, alert.title);
                           }}
                         >
-                          Delete
+                          {strings.Delete}
                         </SharePointButton>
                       </>
                     )}
@@ -1149,30 +1163,30 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           <div className={styles.alertForm}>
             <div className={styles.formWithPreview}>
               <div className={styles.formColumn}>
-                <SharePointSection title="Content Classification">
+                <SharePointSection title={strings.CreateAlertSectionContentClassificationTitle}>
                   <SharePointSelect
-                    label="Content Type"
+                    label={strings.ContentTypeLabel}
                     value={editingAlert.contentType}
                     onChange={(value) => setEditingAlert(prev => prev ? { ...prev, contentType: value as ContentType } : null)}
                     options={contentTypeOptions}
                     required
-                    description="Choose whether this is a live alert or a reusable template"
+                    description={strings.ManageAlertsContentClassificationDescription || strings.CreateAlertSectionContentClassificationDescription}
                   />
 
                   <div className={styles.languageModeSelector}>
-                    <label className={styles.fieldLabel}>Language Configuration</label>
+                    <label className={styles.fieldLabel}>{strings.ManageAlertsLanguageConfigurationLabel || strings.CreateAlertLanguageConfigurationLabel}</label>
                     <div className={styles.languageOptions}>
                       <SharePointButton
                         variant={!useMultiLanguage ? "primary" : "secondary"}
                         onClick={() => setUseMultiLanguage(false)}
                       >
-                        🌐 Single Language
+                        {strings.ManageAlertsSingleLanguageButton || '🌐 Single Language'}
                       </SharePointButton>
                       <SharePointButton
                         variant={useMultiLanguage ? "primary" : "secondary"}
                         onClick={() => setUseMultiLanguage(true)}
                       >
-                        🗣️ Multi-Language
+                        {strings.ManageAlertsMultiLanguageButton || '🗣️ Multi-Language'}
                       </SharePointButton>
                     </div>
                   </div>
@@ -1180,49 +1194,49 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
                 {!useMultiLanguage ? (
                   <>
-                    <SharePointSection title="Language Targeting">
+                    <SharePointSection title={strings.CreateAlertSectionLanguageTargetingTitle}>
                       <SharePointSelect
-                        label="Target Language"
+                        label={strings.CreateAlertTargetLanguageLabel}
                         value={editingAlert.targetLanguage}
                         onChange={(value) => setEditingAlert(prev => prev ? { ...prev, targetLanguage: value as TargetLanguage } : null)}
                         options={languageOptions}
                         required
-                        description="Choose which language audience this alert targets"
+                        description={strings.ManageAlertsTargetLanguageDescription || strings.CreateAlertSectionLanguageTargetingDescription}
                       />
                     </SharePointSection>
 
-                    <SharePointSection title="Basic Information">
+                    <SharePointSection title={strings.CreateAlertSectionBasicInformationTitle}>
                       <SharePointInput
-                        label="Alert Title"
+                        label={strings.AlertTitle}
                         value={editingAlert.title}
                         onChange={(value) => {
                           setEditingAlert(prev => prev ? { ...prev, title: value } : null);
                           if (editErrors.title) setEditErrors(prev => ({ ...prev, title: undefined }));
                         }}
-                        placeholder="Enter a clear, concise title"
+                        placeholder={strings.CreateAlertTitlePlaceholder}
                         required
                         error={editErrors.title}
-                        description="This will be the main heading of your alert (3-100 characters)"
+                        description={strings.CreateAlertTitleDescription}
                       />
 
                       <SharePointRichTextEditor
-                        label="Alert Description"
+                        label={strings.AlertDescription}
                         value={editingAlert.description}
                         onChange={(value) => {
                           setEditingAlert(prev => prev ? { ...prev, description: value } : null);
                           if (editErrors.description) setEditErrors(prev => ({ ...prev, description: undefined }));
                         }}
                         context={context}
-                        placeholder="Provide detailed information about the alert..."
+                        placeholder={strings.ManageAlertsDescriptionPlaceholder || strings.CreateAlertDescriptionPlaceholder}
                         required
                         error={editErrors.description}
-                        description="Use the toolbar to format your message with rich text, links, lists, emojis, and images (including animated GIFs). Manage file attachments below."
+                        description={strings.ManageAlertsDescriptionHelp || strings.CreateAlertDescriptionHelp}
                         imageFolderName={editingAlert.languageGroup || editingAlert.title || 'Untitled_Alert'}
                       />
                     </SharePointSection>
                   </>
                 ) : (
-                  <SharePointSection title="Multi-Language Content">
+                  <SharePointSection title={strings.MultiLanguageContent}>
                     <MultiLanguageContentEditor
                       content={editingAlert.languageContent || []}
                       onContentChange={(content) => {
@@ -1250,7 +1264,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 />
 
                 {/* Image Manager */}
-                <SharePointSection title="Uploaded Images">
+                <SharePointSection title={strings.ManageAlertsUploadedImagesSectionTitle || 'Uploaded Images'}>
                   <ImageManager
                     context={context}
                     folderName={editingAlert.languageGroup || editingAlert.title}
@@ -1261,9 +1275,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   />
                 </SharePointSection>
 
-                <SharePointSection title="Alert Configuration">
+                <SharePointSection title={strings.CreateAlertConfigurationSectionTitle}>
                   <SharePointSelect
-                    label="Alert Type"
+                    label={strings.AlertType}
                     value={editingAlert.AlertType}
                     onChange={(value) => {
                       setEditingAlert(prev => prev ? { ...prev, AlertType: value } : null);
@@ -1272,59 +1286,59 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     options={alertTypeOptions}
                     required
                     error={editErrors.AlertType}
-                    description="Select the visual style and category for this alert"
+                    description={strings.ManageAlertsAlertTypeDescription || strings.CreateAlertConfigurationDescription}
                   />
 
                   <SharePointSelect
-                    label="Priority Level"
+                    label={strings.CreateAlertPriorityLabel}
                     value={editingAlert.priority}
                     onChange={(value) => setEditingAlert(prev => prev ? { ...prev, priority: value as AlertPriority } : null)}
                     options={priorityOptions}
                     required
-                    description="Set the importance level - affects visual styling and user attention"
+                    description={strings.ManageAlertsPriorityDescription || strings.CreateAlertPriorityDescription}
                   />
 
                   <SharePointToggle
-                    label="Pin Alert to Top"
+                    label={strings.CreateAlertPinLabel}
                     checked={editingAlert.isPinned}
                     onChange={(checked) => setEditingAlert(prev => prev ? { ...prev, isPinned: checked } : null)}
-                    description="Pinned alerts appear at the top and are more prominent"
+                    description={strings.ManageAlertsPinDescription || strings.CreateAlertPinDescription}
                   />
 
                   <SharePointSelect
-                    label="Notification Method"
+                    label={strings.ManageAlertsNotificationMethodLabel || strings.CreateAlertNotificationLabel}
                     value={editingAlert.notificationType}
                     onChange={(value) => setEditingAlert(prev => prev ? { ...prev, notificationType: value as NotificationType } : null)}
                     options={notificationOptions}
-                    description="Choose how users will be notified about this alert"
+                    description={strings.ManageAlertsNotificationDescription || strings.CreateAlertNotificationDescription}
                   />
                 </SharePointSection>
 
-                <SharePointSection title="Action Link (Optional)">
+                <SharePointSection title={strings.CreateAlertActionLinkSectionTitle}>
                   <SharePointInput
-                    label="Link URL"
+                    label={strings.CreateAlertLinkUrlLabel}
                     value={editingAlert.linkUrl || ""}
                     onChange={(value) => {
                       setEditingAlert(prev => prev ? { ...prev, linkUrl: value } : null);
                       if (editErrors.linkUrl) setEditErrors(prev => ({ ...prev, linkUrl: undefined }));
                     }}
-                    placeholder="https://example.com/more-info"
+                    placeholder={strings.CreateAlertLinkUrlPlaceholder}
                     error={editErrors.linkUrl}
-                    description="Optional link for users to get more information or take action"
+                    description={strings.CreateAlertLinkUrlDescription}
                   />
 
                   {editingAlert.linkUrl && !useMultiLanguage && (
                     <SharePointInput
-                      label="Link Description"
+                      label={strings.CreateAlertLinkDescriptionLabel}
                       value={editingAlert.linkDescription || ""}
                       onChange={(value) => {
                         setEditingAlert(prev => prev ? { ...prev, linkDescription: value } : null);
                         if (editErrors.linkDescription) setEditErrors(prev => ({ ...prev, linkDescription: undefined }));
                       }}
-                      placeholder="Learn More"
+                      placeholder={strings.CreateAlertLinkDescriptionPlaceholder}
                       required={!!editingAlert.linkUrl}
                       error={editErrors.linkDescription}
-                      description="Text that will appear on the link button"
+                      description={strings.CreateAlertLinkDescriptionDescription}
                     />
                   )}
                   
@@ -1335,7 +1349,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   )}
                 </SharePointSection>
 
-                <SharePointSection title="Site Targeting">
+                <SharePointSection title={strings.CreateAlertTargetSitesSectionTitle}>
                   <SiteSelector
                     selectedSites={editingAlert.targetSites || []}
                     onSitesChange={(sites: string[]) => {
@@ -1349,22 +1363,22 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     <div className={styles.errorMessage}>{editErrors.targetSites}</div>
                   )}
                   <div className={styles.fieldDescription}>
-                    Choose which SharePoint sites will display this alert
+                    {strings.ManageAlertsTargetSitesDescription || 'Choose which SharePoint sites will display this alert.'}
                   </div>
                 </SharePointSection>
 
-                <SharePointSection title="Scheduling & Timing">
+                <SharePointSection title={strings.CreateAlertSchedulingSectionTitle}>
                   <div className={styles.schedulingContainer}>
                     <div className={styles.schedulingHeader}>
                       <p className={styles.schedulingDescription}>
-                        Configure when this alert will be visible to users. Leave dates empty for immediate activation and manual control.
+                        {strings.ManageAlertsSchedulingDescription || 'Configure when this alert will be visible to users. Leave dates empty for immediate activation and manual control.'}
                       </p>
                     </div>
 
                     <div className={styles.schedulingGrid}>
                       <div>
                         <SharePointInput
-                          label="Start Date & Time"
+                          label={strings.CreateAlertStartDateLabel}
                           type="datetime-local"
                           value={DateUtils.toDateTimeLocalValue(editingAlert.scheduledStart)}
                           onChange={(value) => {
@@ -1375,13 +1389,13 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                             if (editErrors.scheduledStart) setEditErrors(prev => ({ ...prev, scheduledStart: undefined }));
                           }}
                           error={editErrors.scheduledStart}
-                          description="When this alert becomes active"
+                          description={strings.ManageAlertsStartDateDescription || strings.CreateAlertStartDateDescription}
                         />
                       </div>
 
                       <div>
                         <SharePointInput
-                          label="End Date & Time"
+                          label={strings.CreateAlertEndDateLabel}
                           type="datetime-local"
                           value={DateUtils.toDateTimeLocalValue(editingAlert.scheduledEnd)}
                           onChange={(value) => {
@@ -1392,28 +1406,28 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                             if (editErrors.scheduledEnd) setEditErrors(prev => ({ ...prev, scheduledEnd: undefined }));
                           }}
                           error={editErrors.scheduledEnd}
-                          description="When this alert expires"
+                          description={strings.ManageAlertsEndDateDescription || strings.CreateAlertEndDateDescription}
                         />
                       </div>
                     </div>
 
                     {/* Schedule Summary */}
                     <div className={styles.scheduleSummary}>
-                      <h4>Schedule Summary</h4>
+                      <h4>{strings.ManageAlertsScheduleSummaryTitle || 'Schedule Summary'}</h4>
                       {!editingAlert.scheduledStart && !editingAlert.scheduledEnd ? (
-                        <p>⚡ <strong>Immediate & Manual:</strong> Alert is active immediately and requires manual deactivation</p>
+                        <p>{strings.ManageAlertsScheduleImmediate || '⚡ Alert is active immediately and requires manual deactivation.'}</p>
                       ) : editingAlert.scheduledStart && !editingAlert.scheduledEnd ? (
-                        <p>📅 <strong>Scheduled Start:</strong> Alert activates on {new Date(editingAlert.scheduledStart).toLocaleString()} and remains active until manually deactivated</p>
+                        <p>{Text.format(strings.ManageAlertsScheduleStartOnly || '📅 Alert activates on {0} and remains active until manually deactivated.', new Date(editingAlert.scheduledStart).toLocaleString())}</p>
                       ) : !editingAlert.scheduledStart && editingAlert.scheduledEnd ? (
-                        <p>⏰ <strong>Auto-Expire:</strong> Alert is active immediately until {new Date(editingAlert.scheduledEnd).toLocaleString()}</p>
+                        <p>{Text.format(strings.ManageAlertsScheduleEndOnly || '⏰ Alert is active immediately until {0}.', new Date(editingAlert.scheduledEnd).toLocaleString())}</p>
                       ) : (
-                        <p>📅 <strong>Fully Scheduled:</strong> Active from {new Date(editingAlert.scheduledStart!).toLocaleString()} to {new Date(editingAlert.scheduledEnd!).toLocaleString()}</p>
+                        <p>{Text.format(strings.ManageAlertsScheduleWindow || '📅 Active from {0} to {1}.', new Date(editingAlert.scheduledStart!).toLocaleString(), new Date(editingAlert.scheduledEnd!).toLocaleString())}</p>
                       )}
                     </div>
 
                     {/* Time Zone Info */}
                     <div className={styles.timezoneInfo}>
-                      <p>🌍 <strong>Time Zone:</strong> All times are in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})</p>
+                      <p>{Text.format(strings.ManageAlertsScheduleTimezone || '🌍 All times are in your local time zone ({0}).', Intl.DateTimeFormat().resolvedOptions().timeZone)}</p>
                     </div>
                   </div>
                 </SharePointSection>
@@ -1426,7 +1440,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     disabled={isEditingAlert}
                     icon={<Save24Regular />}
                   >
-                    {isEditingAlert ? 'Saving Changes...' : 'Save Changes'}
+                    {isEditingAlert ? (strings.ManageAlertsSavingChangesLabel || 'Saving Changes...') : (strings.ManageAlertsSaveChangesButton || 'Save Changes')}
                   </SharePointButton>
 
                   <SharePointButton
@@ -1434,7 +1448,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     onClick={handleCancelEdit}
                     disabled={isEditingAlert}
                   >
-                    Cancel
+                    {strings.Cancel}
                   </SharePointButton>
 
                   <SharePointButton
@@ -1442,7 +1456,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     onClick={() => setShowPreview(!showPreview)}
                     icon={<Eye24Regular />}
                   >
-                    {showPreview ? "Hide Preview" : "Show Preview"}
+                    {showPreview ? strings.CreateAlertHidePreview : strings.CreateAlertShowPreview}
                   </SharePointButton>
                 </div>
               </div>
@@ -1451,12 +1465,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
               {showPreview && (
                 <div className={styles.formColumn}>
                   <div className={styles.alertCard}>
-                    <h3>Live Preview</h3>
+                    <h3>{strings.ManageAlertsLivePreviewTitle || 'Live Preview'}</h3>
                     
                     {/* Multi-language preview mode selector */}
                     {useMultiLanguage && editingAlert.languageContent && editingAlert.languageContent.length > 0 && (
                       <div className={styles.previewLanguageSelector}>
-                        <label className={styles.previewLabel}>Preview Language:</label>
+                        <label className={styles.previewLabel}>{strings.CreateAlertPreviewLanguageLabel}</label>
                         <div className={styles.previewLanguageButtons}>
                           {editingAlert.languageContent.map((content, index) => {
                             const lang = supportedLanguages.find(l => l.code === content.language);
@@ -1481,26 +1495,26 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
                     <AlertPreview
                       title={useMultiLanguage && editingAlert.languageContent && editingAlert.languageContent.length > 0 
-                        ? editingAlert.languageContent[0]?.title || "Multi-language Alert Title"
-                        : editingAlert.title || "Alert Title"}
+                        ? editingAlert.languageContent[0]?.title || strings.CreateAlertMultiLanguagePreviewTitle
+                        : editingAlert.title || strings.AlertPreviewDefaultTitle}
                       description={useMultiLanguage && editingAlert.languageContent && editingAlert.languageContent.length > 0
-                        ? editingAlert.languageContent[0]?.description || "Multi-language alert description will appear here..."
-                        : editingAlert.description || "Alert description will appear here..."}
-                      alertType={getCurrentAlertType() || { name: "Default", iconName: "Info", backgroundColor: "#0078d4", textColor: "#ffffff", additionalStyles: "", priorityStyles: {} }}
+                        ? editingAlert.languageContent[0]?.description || strings.CreateAlertMultiLanguagePreviewDescription
+                        : editingAlert.description || strings.AlertPreviewDefaultDescription}
+                      alertType={getCurrentAlertType() || { name: strings.AlertTypeInfo, iconName: "Info", backgroundColor: "#0078d4", textColor: "#ffffff", additionalStyles: "", priorityStyles: {} }}
                       priority={editingAlert.priority}
                       linkUrl={editingAlert.linkUrl}
                       linkDescription={useMultiLanguage && editingAlert.languageContent && editingAlert.languageContent.length > 0
-                        ? editingAlert.languageContent[0]?.linkDescription || "Learn More"
-                        : editingAlert.linkDescription || "Learn More"}
+                        ? editingAlert.languageContent[0]?.linkDescription || strings.CreateAlertLinkPreviewFallback
+                        : editingAlert.linkDescription || strings.CreateAlertLinkPreviewFallback}
                       isPinned={editingAlert.isPinned}
                     />
 
                     {/* Multi-language preview info */}
                     {useMultiLanguage && editingAlert.languageContent && editingAlert.languageContent.length > 0 && (
                       <div className={styles.multiLanguagePreviewInfo}>
-                        <p><strong>Multi-Language {editingAlert.contentType === ContentType.Template ? 'Template' : 'Alert'}</strong></p>
-                        <p>Currently previewing: <strong>{supportedLanguages.find(l => l.code === editingAlert.languageContent![0]?.language)?.nativeName || editingAlert.languageContent![0]?.language}</strong></p>
-                        <p>Available in {editingAlert.languageContent.length} language(s): {editingAlert.languageContent.map(c => supportedLanguages.find(l => l.code === c.language)?.flag || c.language).join(' ')}</p>
+                        <p><strong>{strings.ManageAlertsMultiLanguagePreviewHeading || 'Multi-language Preview'}</strong></p>
+                        <p>{Text.format(strings.ManageAlertsMultiLanguagePreviewCurrentLanguage || 'Currently previewing: {0}', supportedLanguages.find(l => l.code === editingAlert.languageContent![0]?.language)?.nativeName || editingAlert.languageContent![0]?.language)}</p>
+                        <p>{Text.format(strings.ManageAlertsMultiLanguagePreviewAvailableLanguages || 'Available in {0} language(s): {1}', editingAlert.languageContent.length, editingAlert.languageContent.map(c => supportedLanguages.find(l => l.code === c.language)?.flag || c.language).join(' '))}</p>
                       </div>
                     )}
                   </div>

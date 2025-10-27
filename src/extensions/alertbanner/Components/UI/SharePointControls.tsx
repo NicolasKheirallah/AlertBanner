@@ -7,7 +7,7 @@ const generateId = (() => {
 })();
 
 export interface ISharePointButtonProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onClick?: () => void;
   variant?: "primary" | "secondary" | "danger";
   disabled?: boolean;

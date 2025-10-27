@@ -7,6 +7,8 @@ import { logger } from '../Services/LoggerService';
 import { DateUtils } from '../Utils/DateUtils';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './ImageManager.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
 
 export interface IImageManagerProps {
   context: ApplicationCustomizerContext;
@@ -115,14 +117,14 @@ const ImageManager: React.FC<IImageManagerProps> = ({
         }
       },
       onError: (err) => {
-        alert(`Failed to delete image: ${err.message}`);
+        alert(Text.format(strings.ImageManagerDeleteError, err.message || ''));
       },
       logErrors: true
     }
   );
 
   const handleDeleteImage = React.useCallback(async (image: IImageFile) => {
-    if (!confirm(`Delete "${image.name}"? This cannot be undone.`)) {
+    if (!confirm(Text.format(strings.ImageManagerDeleteConfirm, image.name))) {
       return;
     }
     await deleteImage(image);
@@ -131,23 +133,23 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   const handleCopyUrl = React.useCallback((image: IImageFile) => {
     const fullUrl = `${window.location.origin}${image.serverRelativeUrl}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
-      alert('Image URL copied to clipboard!');
+      alert(strings.ImageManagerCopySuccess);
     }).catch(err => {
       logger.error('ImageManager', 'Error copying URL', err);
-      alert('Failed to copy URL');
+      alert(strings.ImageManagerCopyError);
     });
   }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024 * 1024) return Text.format(strings.FileSizeKilobytes, (bytes / 1024).toFixed(1));
+    return Text.format(strings.FileSizeMegabytes, (bytes / (1024 * 1024)).toFixed(1));
   };
 
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading images...</div>
+        <div className={styles.loading}>{strings.ImageManagerLoading}</div>
       </div>
     );
   }
@@ -155,7 +157,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   if (error) {
     return (
       <div className={styles.container}>
-        <div className={styles.error}>Error: {error.message}</div>
+        <div className={styles.error}>{Text.format(strings.ImageManagerError, error.message || '')}</div>
       </div>
     );
   }
@@ -165,7 +167,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
       <div className={styles.container}>
         <div className={styles.emptyState}>
           <Image24Regular className={styles.emptyIcon} />
-          <p>No images uploaded yet</p>
+          <p>{strings.ImageManagerEmpty}</p>
         </div>
       </div>
     );
@@ -174,9 +176,9 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h4>Uploaded Images ({images.length})</h4>
+        <h4>{Text.format(strings.ImageManagerHeaderTitle, images.length.toString())}</h4>
         <SharePointButton variant="secondary" onClick={loadImages}>
-          Refresh
+          {strings.Refresh}
         </SharePointButton>
       </div>
 
@@ -204,14 +206,14 @@ const ImageManager: React.FC<IImageManagerProps> = ({
                 icon={<Copy24Regular />}
                 onClick={() => handleCopyUrl(image)}
               >
-                Copy URL
+                {strings.ImageManagerCopyUrl}
               </SharePointButton>
               <SharePointButton
                 variant="danger"
                 icon={<Delete24Regular />}
                 onClick={() => handleDeleteImage(image)}
               >
-                Delete
+                {strings.Delete}
               </SharePointButton>
             </div>
           </div>

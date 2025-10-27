@@ -9,8 +9,9 @@ import {
 } from "@fluentui/react-icons";
 import { IAlertItem } from "../Services/SharePointAlertService";
 import styles from "./AlertItem.module.scss";
-import { useLocalization } from "../Hooks/useLocalization";
 import { WINDOW_OPEN_CONFIG } from "../Utils/AppConstants";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
 
 interface IAlertActionsProps {
   item: IAlertItem;
@@ -39,10 +40,9 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
   stopPropagation,
   userTargetingEnabled
 }) => {
-  const { getString } = useLocalization();
   const carouselCounterLabel = React.useMemo(
-    () => getString('AlertCarouselCounter', currentIndex, totalAlerts),
-    [currentIndex, totalAlerts, getString]
+    () => CoreText.format(strings.AlertCarouselCounter, currentIndex.toString(), totalAlerts.toString()),
+    [currentIndex, totalAlerts]
   );
 
   return (
@@ -57,9 +57,9 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
               window.open(item.linkUrl, WINDOW_OPEN_CONFIG.TARGET, WINDOW_OPEN_CONFIG.FEATURES);
             }
           }}
-          aria-label={item.linkDescription || getString('AlertActionsOpenLink')}
+          aria-label={item.linkDescription || strings.AlertActionsOpenLink}
           size="small"
-          title={item.linkDescription || getString('AlertActionsOpenLink')}
+          title={item.linkDescription || strings.AlertActionsOpenLink}
         />
       )}
       {isCarousel && totalAlerts > 1 && (
@@ -71,9 +71,9 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
               stopPropagation(e);
               onPrevious?.();
             }}
-            aria-label={getString('AlertActionsPrevious')}
+            aria-label={strings.AlertActionsPrevious}
             size="small"
-            title={getString('AlertActionsPrevious')}
+            title={strings.AlertActionsPrevious}
           />
           <div className={styles.carouselCounter}>
             <Text size={200} weight="medium" style={{ color: tokens.colorNeutralForeground2 }}>
@@ -87,9 +87,9 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
               stopPropagation(e);
               onNext?.();
             }}
-            aria-label={getString('AlertActionsNext')}
+            aria-label={strings.AlertActionsNext}
             size="small"
-            title={getString('AlertActionsNext')}
+            title={strings.AlertActionsNext}
           />
           <div className={styles.divider} />
         </>
@@ -101,9 +101,9 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           stopPropagation(e);
           remove(item.id);
         }}
-        aria-label={getString('AlertActionsDismiss')}
+        aria-label={strings.AlertActionsDismiss}
         size="small"
-        title={getString('AlertActionsDismiss')}
+        title={strings.AlertActionsDismiss}
       />
       {userTargetingEnabled && (
         <Button
@@ -113,9 +113,9 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
             stopPropagation(e);
             hideForever(item.id);
           }}
-          aria-label={getString('AlertActionsHideForever')}
+          aria-label={strings.AlertActionsHideForever}
           size="small"
-          title={getString('AlertActionsHideForever')}
+          title={strings.AlertActionsHideForever}
         />
       )}
     </div>

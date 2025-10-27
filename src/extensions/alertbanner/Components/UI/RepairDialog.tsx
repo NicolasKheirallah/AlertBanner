@@ -18,6 +18,18 @@ import { IRepairResult } from '../Services/SharePointAlertService';
 import { SharePointAlertService } from '../Services/SharePointAlertService';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './RepairDialog.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
+
+const localize = (key: keyof typeof strings | string, ...args: Array<string | number>): string => {
+  const dictionary = strings as unknown as Record<string, string>;
+  const value = dictionary[key as string] ?? key.toString();
+  if (args.length === 0) {
+    return value;
+  }
+  const formattedArgs = args.map(arg => arg.toString());
+  return CoreText.format(value, ...formattedArgs);
+};
 
 export interface IRepairDialogProps {
   isOpen: boolean;
@@ -87,36 +99,35 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
   const renderConfirmationContent = () => (
     <Stack tokens={{ childrenGap: 20 }}>
       <MessageBar messageBarType={MessageBarType.warning}>
-        <strong>This action will modify your SharePoint list structure.</strong>
+        <strong>{strings.RepairDialogWarningMessage}</strong>
       </MessageBar>
       
       <div className={styles.confirmationContent}>
         <Text variant="medium">
-          The repair process will:
+          {strings.RepairDialogActionsIntro}
         </Text>
         
         <ul className={styles.repairActionsList}>
           <li>
             <Icon iconName="Delete" className={styles.removeIcon} />
-            <Text>Remove outdated columns that are no longer needed</Text>
+            <Text>{strings.RepairDialogRemoveColumns}</Text>
           </li>
           <li>
             <Icon iconName="Add" className={styles.addIcon} />
-            <Text>Add missing columns with current definitions</Text>
+            <Text>{strings.RepairDialogAddColumns}</Text>
           </li>
           <li>
             <Icon iconName="Refresh" className={styles.updateIcon} />
-            <Text>Update existing columns to match the latest schema</Text>
+            <Text>{strings.RepairDialogUpdateColumns}</Text>
           </li>
           <li>
             <Icon iconName="Shield" className={styles.protectIcon} />
-            <Text>Preserve all existing data and language-specific columns</Text>
+            <Text>{strings.RepairDialogProtectData}</Text>
           </li>
         </ul>
 
         <MessageBar messageBarType={MessageBarType.info}>
-          <strong>Safe Process:</strong> This repair is designed to be non-destructive. 
-          Your existing alert data will be preserved, and language-specific columns will be kept intact.
+          <strong>{strings.RepairDialogSafeProcess}</strong> {strings.RepairDialogSafeProcessDescription}
         </MessageBar>
       </div>
     </Stack>
@@ -124,7 +135,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
 
   const renderProgressContent = () => (
     <Stack tokens={{ childrenGap: 15 }}>
-      <Text variant="mediumPlus">Repairing Alerts List...</Text>
+      <Text variant="mediumPlus">{strings.RepairDialogProgressTitle}</Text>
       
       <ProgressIndicator
         percentComplete={repairProgress.progress / 100}
@@ -133,7 +144,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
       />
       
       <Text variant="small" className={styles.progressText}>
-        Please wait while we update your list structure. This may take a few minutes.
+        {strings.RepairDialogProgressDescription}
       </Text>
     </Stack>
   );
@@ -149,7 +160,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
           messageBarType={success ? MessageBarType.success : MessageBarType.error}
           className={styles.resultMessage}
         >
-          <strong>{success ? 'Repair Completed!' : 'Repair Failed'}</strong>
+          <strong>{success ? strings.RepairDialogResultSuccessTitle : strings.RepairDialogResultFailureTitle}</strong>
           <br />
           {message}
         </MessageBar>
@@ -158,7 +169,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
           <div className={styles.resultSection}>
             <Text variant="medium" className={styles.sectionTitle}>
               <Icon iconName="Delete" className={styles.removeIcon} />
-              Removed Columns ({details.columnsRemoved.length})
+              {CoreText.format(strings.RepairDialogRemovedColumnsTitle, details.columnsRemoved.length.toString())}
             </Text>
             <List
               items={details.columnsRemoved}
@@ -176,7 +187,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
           <div className={styles.resultSection}>
             <Text variant="medium" className={styles.sectionTitle}>
               <Icon iconName="Add" className={styles.addIcon} />
-              Added/Updated Columns ({details.columnsAdded.length})
+              {CoreText.format(strings.RepairDialogAddedColumnsTitle, details.columnsAdded.length.toString())}
             </Text>
             <List
               items={details.columnsAdded}
@@ -194,7 +205,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
           <div className={styles.resultSection}>
             <Text variant="medium" className={styles.sectionTitle}>
               <Icon iconName="Warning" className={styles.warningIcon} />
-              Warnings ({details.warnings.length})
+              {CoreText.format(strings.RepairDialogWarningsTitle, details.warnings.length.toString())}
             </Text>
             <List
               items={details.warnings}
@@ -212,7 +223,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
           <div className={styles.resultSection}>
             <Text variant="medium" className={styles.sectionTitle}>
               <Icon iconName="Error" className={styles.errorIcon} />
-              Errors ({details.errors.length})
+              {CoreText.format(strings.RepairDialogErrorsTitle, details.errors.length.toString())}
             </Text>
             <List
               items={details.errors}
@@ -231,12 +242,12 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
 
   const getDialogTitle = () => {
     if (repairResult) {
-      return repairResult.success ? 'Repair Completed Successfully' : 'Repair Completed with Issues';
+      return repairResult.success ? strings.RepairDialogDialogTitleSuccess : strings.RepairDialogDialogTitleIssues;
     }
     if (isRepairing) {
-      return 'Repairing Alerts List';
+      return strings.RepairDialogDialogTitleProgress;
     }
-    return 'Repair Alerts List';
+    return strings.RepairDialogTitle;
   };
 
   return (
@@ -246,7 +257,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
       dialogContentProps={{
         type: DialogType.largeHeader,
         title: getDialogTitle(),
-        subText: !showConfirmation && !repairResult ? 'Please wait...' : undefined
+        subText: !showConfirmation && !repairResult ? strings.RepairDialogPleaseWait : undefined
       }}
       modalProps={{
         isBlocking: isRepairing,
@@ -271,13 +282,13 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
           <>
             <PrimaryButton
               onClick={handleStartRepair}
-              text="Start Repair"
+              text={strings.RepairDialogStartButton}
               iconProps={{ iconName: 'Wrench' }}
               className={styles.primaryButton}
             />
             <DefaultButton
               onClick={handleDismiss}
-              text="Cancel"
+              text={strings.RepairDialogCancelButton}
             />
           </>
         )}
@@ -285,7 +296,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
         {isRepairing && (
           <DefaultButton
             disabled
-            text="Repairing..."
+            text={strings.RepairDialogInProgressButton}
             iconProps={{ iconName: 'ProgressLoopInner' }}
           />
         )}
@@ -293,7 +304,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
         {repairResult && (
           <PrimaryButton
             onClick={handleDismiss}
-            text="Close"
+            text={strings.RepairDialogCloseButton}
             iconProps={{ iconName: 'CheckMark' }}
           />
         )}

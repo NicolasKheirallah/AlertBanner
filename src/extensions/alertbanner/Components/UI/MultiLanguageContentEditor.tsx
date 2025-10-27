@@ -20,6 +20,8 @@ import SharePointRichTextEditor from './SharePointRichTextEditor';
 import { ILanguageContent, ISupportedLanguage, LanguageAwarenessService } from '../Services/LanguageAwarenessService';
 import { TargetLanguage } from '../Alerts/IAlerts';
 import styles from './MultiLanguageContentEditor.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
 
 
 export interface IMultiLanguageContentEditorProps {
@@ -29,8 +31,8 @@ export interface IMultiLanguageContentEditorProps {
   errors?: { [key: string]: string };
   linkUrl?: string;
   tenantDefaultLanguage?: TargetLanguage;
-  context?: any; // ApplicationCustomizerContext for image uploads
-  imageFolderName?: string; // Shared folder name for all language variants
+  context?: any;
+  imageFolderName?: string; 
 }
 
 const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = ({
@@ -107,15 +109,15 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
           header={
             <div className={styles.cardHeader}>
               <Globe24Regular />
-              <Text size={400} weight="semibold">Multi-Language Content</Text>
-              <Badge size="small" color="informative">{content.length} languages</Badge>
+              <Text size={400} weight="semibold">{strings.MultiLanguageContent}</Text>
+              <Badge size="small" color="informative">{CoreText.format(strings.MultiLanguageEditorLanguageCount, content.length.toString())}</Badge>
             </div>
           }
         />
 
         {/* Language Selector */}
         <div className={styles.languageSelector}>
-          <Text size={300} weight="semibold">Add Languages:</Text>
+          <Text size={300} weight="semibold">{strings.MultiLanguageEditorAddLanguagesLabel}</Text>
           <div className={styles.availableLanguages}>
             {getAvailableLanguagesToAdd().map(language => (
               <button
@@ -132,7 +134,7 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
           </div>
           {getAvailableLanguagesToAdd().length === 0 && (
             <Text size={200} className={styles.allLanguagesText}>
-              All available languages have been added
+              {strings.MultiLanguageEditorAllLanguagesAdded}
             </Text>
           )}
         </div>
@@ -148,7 +150,7 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
                     <span className={styles.tabFlag}>{langInfo?.flag}</span>
                     {langInfo?.nativeName}
                     {(!contentItem.title || !contentItem.description) && (
-                      <Badge size="small" color="warning" className={styles.tabBadge}>Incomplete</Badge>
+                      <Badge size="small" color="warning" className={styles.tabBadge}>{strings.MultiLanguageEditorIncompleteBadge}</Badge>
                     )}
                   </Tab>
                 );
@@ -168,83 +170,84 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
                       <span>{langInfo?.nativeName}</span>
                       <span className={styles.langCode}>({langInfo?.name})</span>
                     </div>
-                    {content.length > 1 && (
-                      <Button
-                        appearance="subtle"
-                        icon={<Dismiss24Regular />}
-                        onClick={() => removeLanguage(contentItem.language)}
-                        className={styles.removeButton}
-                        size="small"
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </div>
+                      {content.length > 1 && (
+                        <Button
+                          appearance="subtle"
+                          icon={<Dismiss24Regular />}
+                          onClick={() => removeLanguage(contentItem.language)}
+                          className={styles.removeButton}
+                          size="small"
+                        >
+                          {strings.MultiLanguageEditorRemoveButton}
+                        </Button>
+                      )}
+                    </div>
 
-                  <div className={styles.contentFields}>
-                    <Field
-                      label="Title"
-                      required
-                      validationState={errors[`title_${contentItem.language}`] ? 'error' : undefined}
-                      validationMessage={errors[`title_${contentItem.language}`]}
-                    >
-                      <SharePointInput
-                        label=""
-                        placeholder={`Enter alert title in ${langInfo?.nativeName}...`}
-                        value={contentItem.title}
-                        onChange={(value) => updateContent(contentItem.language, 'title', value)}
-                        error={errors[`title_${contentItem.language}`]}
-                      />
-                    </Field>
-
-                    <Field
-                      label="Description"
-                      required
-                      validationState={errors[`description_${contentItem.language}`] ? 'error' : undefined}
-                      validationMessage={errors[`description_${contentItem.language}`]}
-                    >
-                      <SharePointRichTextEditor
-                        label=""
-                        value={contentItem.description}
-                        onChange={(value) => updateContent(contentItem.language, 'description', value)}
-                        placeholder={`Enter alert description in ${langInfo?.nativeName}...`}
-                        context={context}
-                        imageFolderName={imageFolderName}
-                      />
-                    </Field>
-
-                    {linkUrl && (
+                    <div className={styles.contentFields}>
                       <Field
-                        label="Link Description"
-                        validationState={errors[`linkDescription_${contentItem.language}`] ? 'error' : undefined}
-                        validationMessage={errors[`linkDescription_${contentItem.language}`]}
+                        label={strings.MultiLanguageEditorTitleLabel}
+                        required
+                        validationState={errors[`title_${contentItem.language}`] ? 'error' : undefined}
+                        validationMessage={errors[`title_${contentItem.language}`]}
                       >
+                        {/** Determine placeholder text using available language info */}
                         <SharePointInput
                           label=""
-                          placeholder={`Enter link description in ${langInfo?.nativeName}...`}
-                          value={contentItem.linkDescription || ''}
-                          onChange={(value) => updateContent(contentItem.language, 'linkDescription', value)}
-                          error={errors[`linkDescription_${contentItem.language}`]}
+                          placeholder={CoreText.format(strings.MultiLanguageEditorTitlePlaceholder, (langInfo?.nativeName || langInfo?.name || contentItem.language))}
+                          value={contentItem.title}
+                          onChange={(value) => updateContent(contentItem.language, 'title', value)}
+                          error={errors[`title_${contentItem.language}`]}
                         />
                       </Field>
-                    )}
+
+                      <Field
+                        label={strings.MultiLanguageEditorDescriptionLabel}
+                        required
+                        validationState={errors[`description_${contentItem.language}`] ? 'error' : undefined}
+                        validationMessage={errors[`description_${contentItem.language}`]}
+                      >
+                        <SharePointRichTextEditor
+                          label=""
+                          value={contentItem.description}
+                          onChange={(value) => updateContent(contentItem.language, 'description', value)}
+                          placeholder={CoreText.format(strings.MultiLanguageEditorDescriptionPlaceholder, (langInfo?.nativeName || langInfo?.name || contentItem.language))}
+                          context={context}
+                          imageFolderName={imageFolderName}
+                        />
+                      </Field>
+
+                      {linkUrl && (
+                        <Field
+                          label={strings.MultiLanguageEditorLinkDescriptionLabel}
+                          validationState={errors[`linkDescription_${contentItem.language}`] ? 'error' : undefined}
+                          validationMessage={errors[`linkDescription_${contentItem.language}`]}
+                        >
+                              <SharePointInput
+                                label=""
+                                placeholder={CoreText.format(strings.MultiLanguageEditorLinkDescriptionPlaceholder, (langInfo?.nativeName || langInfo?.name || contentItem.language))}
+                                value={contentItem.linkDescription || ''}
+                                onChange={(value) => updateContent(contentItem.language, 'linkDescription', value)}
+                                error={errors[`linkDescription_${contentItem.language}`]}
+                              />
+                        </Field>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
+                );
             })}
           </div>
-        ) : (
+          ) : (
           <div className={styles.emptyState}>
             <Globe24Regular className={styles.emptyIcon} />
-            <Text size={400} weight="semibold">No Languages Selected</Text>
-            <Text size={300}>Add languages above to create multi-language content</Text>
+            <Text size={400} weight="semibold">{strings.MultiLanguageEditorNoLanguagesTitle}</Text>
+            <Text size={300}>{strings.MultiLanguageEditorNoLanguagesDescription}</Text>
           </div>
         )}
 
         {/* Summary */}
         {content.length > 0 && (
           <div className={styles.summary}>
-            <Text size={300} weight="semibold">Content Summary:</Text>
+            <Text size={300} weight="semibold">{strings.MultiLanguageEditorSummaryTitle}</Text>
             <ul className={styles.summaryList}>
               {content.map(contentItem => {
                 const langInfo = getLanguageInfo(contentItem.language);
@@ -253,7 +256,7 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
                   <li key={contentItem.language} className={styles.summaryItem}>
                     <span>{langInfo?.flag} {langInfo?.nativeName}: </span>
                     <span className={isComplete ? styles.statusComplete : styles.statusIncomplete}>
-                      {isComplete ? '✓ Complete' : '⚠ Incomplete'}
+                      {isComplete ? strings.MultiLanguageEditorSummaryComplete : strings.MultiLanguageEditorSummaryIncomplete}
                     </span>
                   </li>
                 );

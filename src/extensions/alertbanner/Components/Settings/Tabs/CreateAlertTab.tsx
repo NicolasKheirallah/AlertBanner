@@ -21,12 +21,15 @@ import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { logger } from '../../Services/LoggerService';
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
-import { useLocalization } from "../../Hooks/useLocalization";
 import { validateAlertData, IFormErrors as IValidationErrors } from "../../Utils/AlertValidation";
 import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
 import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
 import { DateUtils } from "../../Utils/DateUtils";
 import { StringUtils } from "../../Utils/StringUtils";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
+
+const STRINGS_DICTIONARY = strings as unknown as Record<string, string>;
 
 export interface INewAlert {
   title: string;
@@ -104,18 +107,16 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   setShowTemplates,
   languageUpdateTrigger
 }) => {
-  const { getString } = useLocalization();
-
   // Priority options - using shared hook
-  const priorityOptions = usePriorityOptions(getString);
+  const priorityOptions = usePriorityOptions();
 
   // Notification type options with detailed descriptions
   const notificationOptions: ISharePointSelectOption[] = React.useMemo(() => ([
-    { value: NotificationType.None, label: getString('CreateAlertNotificationNoneDescription') },
-    { value: NotificationType.Browser, label: getString('CreateAlertNotificationBrowserDescription') },
-    { value: NotificationType.Email, label: getString('CreateAlertNotificationEmailDescription') },
-    { value: NotificationType.Both, label: getString('CreateAlertNotificationBothDescription') }
-  ]), [getString]);
+    { value: NotificationType.None, label: strings.CreateAlertNotificationNoneDescription },
+    { value: NotificationType.Browser, label: strings.CreateAlertNotificationBrowserDescription },
+    { value: NotificationType.Email, label: strings.CreateAlertNotificationEmailDescription },
+    { value: NotificationType.Both, label: strings.CreateAlertNotificationBothDescription }
+  ]), []);
 
   // Alert type options
   const alertTypeOptions: ISharePointSelectOption[] = alertTypes.map(type => ({
@@ -125,9 +126,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
   // Content type options
   const contentTypeOptions: ISharePointSelectOption[] = React.useMemo(() => ([
-    { value: ContentType.Alert, label: getString('CreateAlertContentTypeAlertDescription') },
-    { value: ContentType.Template, label: getString('CreateAlertContentTypeTemplateDescription') }
-  ]), [getString]);
+    { value: ContentType.Alert, label: strings.CreateAlertContentTypeAlertDescription },
+    { value: ContentType.Template, label: strings.CreateAlertContentTypeTemplateDescription }
+  ]), []);
 
   // Language awareness state
   const [languageService] = React.useState(() => new LanguageAwarenessService(graphClient, context));
@@ -338,12 +339,19 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   const validateForm = React.useCallback((): boolean => {
     const validationErrors = validateAlertData(newAlert, {
       useMultiLanguage,
-      getString
+      getString: (key: string, ...args: Array<string | number>) => {
+        const template = STRINGS_DICTIONARY[key] ?? key;
+        if (args.length === 0) {
+          return template;
+        }
+        const formattedArgs = args.map(arg => arg.toString());
+        return Text.format(template, ...formattedArgs);
+      }
     });
 
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
-  }, [newAlert, useMultiLanguage, getString]);
+  }, [newAlert, useMultiLanguage]);
 
   const handleCreateAlert = React.useCallback(async () => {
     if (!validateForm()) return;
@@ -384,7 +392,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         
         setCreationProgress([{
           siteId: "success",
-          siteName: `Multi-Language Alert Created (${alertItems.length} variants)`,
+          siteName: Text.format(strings.CreateAlertMultiLanguageSuccessStatus, alertItems.length),
           hasAccess: true,
           canCreateAlerts: true,
           permissionLevel: "success",
@@ -412,7 +420,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         
         setCreationProgress([{
           siteId: "success",
-          siteName: "Alert Created",
+          siteName: strings.CreateAlertCreationSuccessStatus,
           hasAccess: true,
           canCreateAlerts: true,
           permissionLevel: "success",
@@ -443,11 +451,11 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       logger.error('CreateAlertTab', 'Error creating alert', error);
       setCreationProgress([{
         siteId: "error",
-        siteName: "Creation Error",
+        siteName: strings.CreateAlertCreationErrorStatus,
         hasAccess: false,
         canCreateAlerts: false,
         permissionLevel: "error",
-        error: error instanceof Error ? error.message : "Unknown error occurred"
+        error: error instanceof Error ? error.message : strings.CreateAlertUnknownError
       }]);
     } finally {
       setIsCreatingAlert(false);
@@ -612,13 +620,13 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
               variant={showTemplates && !showDrafts ? "primary" : "secondary"}
               onClick={() => { setShowTemplates(true); setShowDrafts(false); }}
             >
-              Templates
+              {strings.CreateAlertTemplatesButtonLabel}
             </SharePointButton>
             <SharePointButton
               variant={showDrafts ? "primary" : "secondary"}
               onClick={() => { setShowTemplates(false); setShowDrafts(true); }}
             >
-              My Drafts ({drafts.length})
+              {Text.format(strings.CreateAlertDraftsButtonLabel, drafts.length)}
             </SharePointButton>
           </div>
 
@@ -636,7 +644,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
             <div className={styles.alertsList}>
               {drafts.length === 0 ? (
                 <div className={styles.emptyState}>
-                  <p>No drafts found. Save your work as a draft to continue later!</p>
+                  <p>{strings.CreateAlertDraftsEmptyMessage}</p>
                 </div>
               ) : (
                 drafts.map(draft => (
@@ -656,7 +664,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                         onClick={() => handleLoadDraft(draft)}
                         icon={<DocumentArrowLeft24Regular />}
                       >
-                        Load Draft
+                        {strings.CreateAlertLoadDraftButton}
                       </SharePointButton>
                     </div>
                   </div>
@@ -670,7 +678,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
               variant="secondary"
               onClick={() => { setShowTemplates(false); setShowDrafts(false); }}
             >
-              Start from Scratch
+              {strings.CreateAlertStartFromScratchButton}
             </SharePointButton>
           </div>
         </div>
@@ -680,30 +688,30 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         <div className={styles.alertForm}>
           <div className={styles.formWithPreview}>
             <div className={styles.formColumn}>
-              <SharePointSection title={getString('CreateAlertSectionContentClassificationTitle')}>
+              <SharePointSection title={strings.CreateAlertSectionContentClassificationTitle}>
                 <SharePointSelect
-                  label={getString('ContentTypeLabel')}
+                  label={strings.ContentTypeLabel}
                   value={newAlert.contentType}
                   onChange={(value) => setNewAlert(prev => ({ ...prev, contentType: value as ContentType }))}
                   options={contentTypeOptions}
                   required
-                  description={getString('CreateAlertSectionContentClassificationDescription')}
+                  description={strings.CreateAlertSectionContentClassificationDescription}
                 />
 
                 <div className={styles.languageModeSelector}>
-                  <label className={styles.fieldLabel}>{getString('CreateAlertLanguageConfigurationLabel')}</label>
+                  <label className={styles.fieldLabel}>{strings.CreateAlertLanguageConfigurationLabel}</label>
                   <div className={styles.languageOptions}>
                     <SharePointButton
                       variant={!useMultiLanguage ? "primary" : "secondary"}
                       onClick={() => setUseMultiLanguage(false)}
                     >
-                      {getString('CreateAlertSingleLanguageButton')}
+                      {strings.CreateAlertSingleLanguageButton}
                     </SharePointButton>
                     <SharePointButton
                       variant={useMultiLanguage ? "primary" : "secondary"}
                       onClick={() => setUseMultiLanguage(true)}
                     >
-                      {getString('CreateAlertMultiLanguageButton')}
+                      {strings.CreateAlertMultiLanguageButton}
                     </SharePointButton>
                   </div>
                 </div>
@@ -711,49 +719,49 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
               {!useMultiLanguage ? (
                 <>
-                  <SharePointSection title={getString('CreateAlertSectionLanguageTargetingTitle')}>
+                  <SharePointSection title={strings.CreateAlertSectionLanguageTargetingTitle}>
                     <SharePointSelect
-                      label={getString('CreateAlertTargetLanguageLabel')}
+                      label={strings.CreateAlertTargetLanguageLabel}
                       value={newAlert.targetLanguage}
                       onChange={(value) => setNewAlert(prev => ({ ...prev, targetLanguage: value as TargetLanguage }))}
                       options={languageOptions}
                       required
-                      description={getString('CreateAlertSectionLanguageTargetingDescription')}
+                      description={strings.CreateAlertSectionLanguageTargetingDescription}
                     />
                   </SharePointSection>
 
-                  <SharePointSection title={getString('CreateAlertSectionBasicInformationTitle')}>
+                  <SharePointSection title={strings.CreateAlertSectionBasicInformationTitle}>
                     <SharePointInput
-                      label={getString('AlertTitle')}
+                      label={strings.AlertTitle}
                       value={newAlert.title}
                       onChange={(value) => {
                         setNewAlert(prev => ({ ...prev, title: value }));
                         setErrors(prev => prev.title ? { ...prev, title: undefined } : prev);
                       }}
-                      placeholder={getString('CreateAlertTitlePlaceholder')}
+                      placeholder={strings.CreateAlertTitlePlaceholder}
                       required
                       error={errors.title}
-                      description={getString('CreateAlertTitleDescription')}
+                      description={strings.CreateAlertTitleDescription}
                     />
 
                     <SharePointRichTextEditor
-                      label={getString('AlertDescription')}
+                      label={strings.AlertDescription}
                       value={newAlert.description}
                       onChange={(value) => {
                         setNewAlert(prev => ({ ...prev, description: value }));
                         if (errors.description) setErrors(prev => ({ ...prev, description: undefined }));
                       }}
                       context={context}
-                      placeholder={getString('CreateAlertDescriptionPlaceholder')}
+                      placeholder={strings.CreateAlertDescriptionPlaceholder}
                       required
                       error={errors.description}
-                      description={getString('CreateAlertDescriptionHelp')}
+                      description={strings.CreateAlertDescriptionHelp}
                       imageFolderName={newAlert.languageGroup || newAlert.title || 'Untitled_Alert'}
                     />
                   </SharePointSection>
                 </>
               ) : (
-                <SharePointSection title={getString('MultiLanguageContent')}>
+                <SharePointSection title={strings.MultiLanguageContent}>
                   <MultiLanguageContentEditor
                     content={newAlert.languageContent}
                     onContentChange={(content) => setNewAlert(prev => ({ ...prev, languageContent: content }))}
@@ -766,9 +774,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                 </SharePointSection>
               )}
 
-              <SharePointSection title="Alert Configuration">
+              <SharePointSection title={strings.CreateAlertConfigurationSectionTitle}>
                 <SharePointSelect
-                  label="Alert Type"
+                  label={strings.AlertType}
                   value={newAlert.AlertType}
                   onChange={(value) => {
                     setNewAlert(prev => ({ ...prev, AlertType: value }));
@@ -777,72 +785,72 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                   options={alertTypeOptions}
                   required
                   error={errors.AlertType}
-                  description="Choose the visual style and importance level"
+                  description={strings.CreateAlertConfigurationDescription}
                 />
 
                 <SharePointSelect
-                  label="Priority Level"
+                  label={strings.CreateAlertPriorityLabel}
                   value={newAlert.priority}
                   onChange={(value) => setNewAlert(prev => ({ ...prev, priority: value as AlertPriority }))}
                   options={priorityOptions}
                   required
-                  description="This affects the visual styling and user attention level"
+                  description={strings.CreateAlertPriorityDescription}
                 />
 
                 <SharePointToggle
-                  label="Pin Alert"
+                  label={strings.CreateAlertPinLabel}
                   checked={newAlert.isPinned}
                   onChange={(checked) => setNewAlert(prev => ({ ...prev, isPinned: checked }))}
-                  description="Pinned alerts stay at the top and are harder to dismiss"
+                  description={strings.CreateAlertPinDescription}
                 />
 
                 {notificationsEnabled && (
                   <SharePointSelect
-                    label="Notification Type"
+                    label={strings.CreateAlertNotificationLabel}
                     value={newAlert.notificationType}
                     onChange={(value) => setNewAlert(prev => ({ ...prev, notificationType: value as NotificationType }))}
                     options={notificationOptions}
-                    description="How users will be notified about this alert"
+                    description={strings.CreateAlertNotificationDescription}
                   />
                 )}
               </SharePointSection>
 
-              <SharePointSection title="Action Link (Optional)">
+              <SharePointSection title={strings.CreateAlertActionLinkSectionTitle}>
                 <SharePointInput
-                  label="Link URL"
+                  label={strings.CreateAlertLinkUrlLabel}
                   value={newAlert.linkUrl}
                   onChange={(value) => {
                     setNewAlert(prev => ({ ...prev, linkUrl: value }));
                     setErrors(prev => prev.linkUrl ? { ...prev, linkUrl: undefined } : prev);
                   }}
-                  placeholder="https://example.com/more-info"
+                  placeholder={strings.CreateAlertLinkUrlPlaceholder}
                   error={errors.linkUrl}
-                  description="Optional link for users to get more information or take action"
+                  description={strings.CreateAlertLinkUrlDescription}
                 />
 
                 {newAlert.linkUrl && !useMultiLanguage && (
                   <SharePointInput
-                    label="Link Description"
+                    label={strings.CreateAlertLinkDescriptionLabel}
                     value={newAlert.linkDescription}
                     onChange={(value) => {
                       setNewAlert(prev => ({ ...prev, linkDescription: value }));
                       setErrors(prev => prev.linkDescription ? { ...prev, linkDescription: undefined } : prev);
                     }}
-                    placeholder="Learn More"
+                    placeholder={strings.CreateAlertLinkDescriptionPlaceholder}
                     required={!!newAlert.linkUrl}
                     error={errors.linkDescription}
-                    description="Text that will appear on the action button"
+                    description={strings.CreateAlertLinkDescriptionDescription}
                   />
                 )}
                 
                 {newAlert.linkUrl && useMultiLanguage && (
                   <div className={styles.infoMessage}>
-                    <p>Link descriptions will be configured per language in the Multi-Language Content section above.</p>
+                    <p>{strings.CreateAlertLinkDescriptionInfo}</p>
                   </div>
                 )}
               </SharePointSection>
 
-              <SharePointSection title="Target Sites">
+              <SharePointSection title={strings.CreateAlertTargetSitesSectionTitle}>
                 <SiteSelector
                   selectedSites={newAlert.targetSites}
                   onSitesChange={(sites) => {
@@ -858,9 +866,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                 )}
               </SharePointSection>
 
-              <SharePointSection title="Scheduling (Optional)">
+              <SharePointSection title={strings.CreateAlertSchedulingSectionTitle}>
                 <SharePointInput
-                  label="Start Date & Time"
+                  label={strings.CreateAlertStartDateLabel}
                   type="datetime-local"
                   value={DateUtils.toDateTimeLocalValue(newAlert.scheduledStart)}
                   onChange={(value) => {
@@ -871,11 +879,11 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                     if (errors.scheduledStart) setErrors(prev => ({ ...prev, scheduledStart: undefined }));
                   }}
                   error={errors.scheduledStart}
-                  description="When should this alert become visible? Leave empty to show immediately."
+                  description={strings.CreateAlertStartDateDescription}
                 />
 
                 <SharePointInput
-                  label="End Date & Time"
+                  label={strings.CreateAlertEndDateLabel}
                   type="datetime-local"
                   value={DateUtils.toDateTimeLocalValue(newAlert.scheduledEnd)}
                   onChange={(value) => {
@@ -886,7 +894,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                     if (errors.scheduledEnd) setErrors(prev => ({ ...prev, scheduledEnd: undefined }));
                   }}
                   error={errors.scheduledEnd}
-                  description="When should this alert automatically hide? Leave empty to keep it visible until manually removed."
+                  description={strings.CreateAlertEndDateDescription}
                 />
               </SharePointSection>
 
@@ -897,7 +905,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                   disabled={isCreatingAlert || alertTypes.length === 0}
                   icon={<Save24Regular />}
                 >
-                  {isCreatingAlert ? "Creating Alert..." : "Create Alert"}
+                  {isCreatingAlert ? strings.CreateAlertPrimaryButtonLoading : strings.CreateAlert}
                 </SharePointButton>
 
                 <SharePointButton
@@ -906,7 +914,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                   disabled={isCreatingAlert || alertTypes.length === 0}
                   icon={<Drafts24Regular />}
                 >
-                  Save as Draft
+                  {strings.CreateAlertSaveDraftButtonLabel}
                 </SharePointButton>
 
                 <SharePointButton
@@ -915,7 +923,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                   disabled={isCreatingAlert}
                   icon={<Dismiss24Regular />}
                 >
-                  Reset Form
+                  {strings.CreateAlertResetFormButtonLabel}
                 </SharePointButton>
 
                 <SharePointButton
@@ -923,14 +931,14 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                   onClick={() => setShowPreview(!showPreview)}
                   icon={<Eye24Regular />}
                 >
-                  {showPreview ? "Hide Preview" : "Show Preview"}
+                  {showPreview ? strings.CreateAlertHidePreview : strings.CreateAlertShowPreview}
                 </SharePointButton>
 
                 {/* Auto-save indicator */}
                 <div style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>
-                  {isAutoSaving && <span>💾 Auto-saving...</span>}
+                  {isAutoSaving && <span>{strings.CreateAlertAutoSaving}</span>}
                   {!isAutoSaving && lastAutoSave && (
-                    <span>✓ Auto-saved at {lastAutoSave.toLocaleTimeString()}</span>
+                    <span>{Text.format(strings.CreateAlertAutoSavedAt, lastAutoSave.toLocaleTimeString())}</span>
                   )}
                 </div>
               </div>
@@ -938,13 +946,15 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
               {/* Creation Progress */}
               {creationProgress.length > 0 && (
                 <div className={styles.alertsList}>
-                  <h3>Creation Results:</h3>
+                  <h3>{strings.CreateAlertCreationResultsHeading}</h3>
                   {creationProgress.map((result, index) => (
                     <div
                       key={index}
                       className={`${styles.alertCard} ${result.error ? styles.error : styles.success}`}
                     >
-                      <strong>{result.siteName}</strong>: {result.error ? `❌ ${result.error}` : "✅ Created successfully"}
+                      <strong>{result.siteName}</strong>: {result.error
+                        ? Text.format(strings.CreateAlertCreationResultError, result.error)
+                        : strings.CreateAlertCreationResultSuccess}
                     </div>
                   ))}
                 </div>
@@ -958,7 +968,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                   {/* Multi-language preview mode selector */}
                   {useMultiLanguage && newAlert.languageContent.length > 0 && (
                     <div className={styles.previewLanguageSelector}>
-                      <label className={styles.previewLabel}>Preview Language:</label>
+                      <label className={styles.previewLabel}>{strings.CreateAlertPreviewLanguageLabel}</label>
                       <div className={styles.previewLanguageButtons}>
                         {newAlert.languageContent.map((content, index) => {
                           const lang = supportedLanguages.find(l => l.code === content.language);
@@ -983,26 +993,32 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
                   <AlertPreview
                     title={useMultiLanguage && newAlert.languageContent.length > 0 
-                      ? newAlert.languageContent[0]?.title || "Multi-language Alert Title"
-                      : newAlert.title || "Alert Title"}
+                      ? newAlert.languageContent[0]?.title || strings.CreateAlertMultiLanguagePreviewTitle
+                      : newAlert.title || strings.AlertPreviewDefaultTitle}
                     description={useMultiLanguage && newAlert.languageContent.length > 0
-                      ? newAlert.languageContent[0]?.description || "Multi-language alert description will appear here..."
-                      : newAlert.description || "Alert description will appear here..."}
-                    alertType={getCurrentAlertType() || { name: "Default", iconName: "Info", backgroundColor: "#0078d4", textColor: "#ffffff", additionalStyles: "", priorityStyles: {} }}
+                      ? newAlert.languageContent[0]?.description || strings.CreateAlertMultiLanguagePreviewDescription
+                      : newAlert.description || strings.AlertPreviewDefaultDescription}
+                    alertType={getCurrentAlertType() || { name: strings.AlertTypeInfo, iconName: "Info", backgroundColor: "#0078d4", textColor: "#ffffff", additionalStyles: "", priorityStyles: {} }}
                     priority={newAlert.priority}
                     linkUrl={newAlert.linkUrl}
                     linkDescription={useMultiLanguage && newAlert.languageContent.length > 0
-                      ? newAlert.languageContent[0]?.linkDescription || "Learn More"
-                      : newAlert.linkDescription || "Learn More"}
+                      ? newAlert.languageContent[0]?.linkDescription || strings.CreateAlertLinkPreviewFallback
+                      : newAlert.linkDescription || strings.CreateAlertLinkPreviewFallback}
                     isPinned={newAlert.isPinned}
                   />
 
                   {/* Multi-language preview info */}
                   {useMultiLanguage && newAlert.languageContent.length > 0 && (
                     <div className={styles.multiLanguagePreviewInfo}>
-                      <p><strong>Multi-Language Alert</strong></p>
-                      <p>Currently previewing: <strong>{supportedLanguages.find(l => l.code === newAlert.languageContent[0]?.language)?.nativeName || newAlert.languageContent[0]?.language}</strong></p>
-                      <p>Available in {newAlert.languageContent.length} language(s): {newAlert.languageContent.map(c => supportedLanguages.find(l => l.code === c.language)?.flag || c.language).join(' ')}</p>
+                      <p><strong>{strings.CreateAlertMultiLanguagePreviewHeading}</strong></p>
+                      <p>{Text.format(strings.CreateAlertMultiLanguagePreviewCurrentLanguage,
+                        supportedLanguages.find(l => l.code === newAlert.languageContent[0]?.language)?.nativeName || newAlert.languageContent[0]?.language
+                      )}</p>
+                      <p>{Text.format(
+                        strings.CreateAlertMultiLanguagePreviewAvailableLanguages,
+                        newAlert.languageContent.length,
+                        newAlert.languageContent.map(c => supportedLanguages.find(l => l.code === c.language)?.flag || c.language).join(' ')
+                      )}</p>
                     </div>
                   )}
                 </div>

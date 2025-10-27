@@ -17,6 +17,8 @@ import { SharePointButton, SharePointInput, SharePointToggle } from "./SharePoin
 import { ISiteOption, SiteContextDetector } from "../Utils/SiteContextDetector";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import styles from "./SiteSelector.module.scss";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
 
 export interface ISiteSelectorProps {
   selectedSites: string[];
@@ -208,20 +210,20 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
     const { permissionLevel, canCreateAlerts } = site.userPermissions;
 
     if (!canCreateAlerts) {
-      return <span className={`${styles.permissionBadge} ${styles.readOnly}`}>Read Only</span>;
+      return <span className={`${styles.permissionBadge} ${styles.readOnly}`}>{strings.SiteSelectorPermissionReadOnly}</span>;
     }
 
     switch (permissionLevel) {
       case 'owner':
-        return <span className={`${styles.permissionBadge} ${styles.owner}`}>Owner</span>;
+        return <span className={`${styles.permissionBadge} ${styles.owner}`}>{strings.SiteSelectorPermissionOwner}</span>;
       case 'fullControl':
-        return <span className={`${styles.permissionBadge} ${styles.owner}`}>Full Control</span>;
+        return <span className={`${styles.permissionBadge} ${styles.owner}`}>{strings.SiteSelectorPermissionFullControl}</span>;
       case 'contribute':
-        return <span className={`${styles.permissionBadge} ${styles.contribute}`}>Can Edit</span>;
+        return <span className={`${styles.permissionBadge} ${styles.contribute}`}>{strings.SiteSelectorPermissionCanEdit}</span>;
       case 'design':
-        return <span className={`${styles.permissionBadge} ${styles.design}`}>Designer</span>;
+        return <span className={`${styles.permissionBadge} ${styles.design}`}>{strings.SiteSelectorPermissionDesigner}</span>;
       default:
-        return <span className={`${styles.permissionBadge} ${styles.readOnly}`}>Read Only</span>;
+        return <span className={`${styles.permissionBadge} ${styles.readOnly}`}>{strings.SiteSelectorPermissionReadOnly}</span>;
     }
   }, [showPermissionStatus]);
 
@@ -230,7 +232,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       <div className={`${styles.siteSelector} ${className || ''}`}>
         <div className={styles.loading}>
           <div className={styles.loadingSpinner}></div>
-          <p>Loading available sites...</p>
+          <p>{strings.SiteSelectorLoading}</p>
         </div>
       </div>
     );
@@ -241,14 +243,14 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       {/* Suggested Scopes */}
       {suggestedSites && (
         <div className={styles.suggestedScopes}>
-          <h4>Quick Selection</h4>
+          <h4>{strings.SiteSelectorQuickSelectionTitle}</h4>
           <div className={styles.scopeButtons}>
             <SharePointButton
               variant="secondary"
               onClick={() => selectSuggestedScope('current')}
               className={styles.scopeButton}
             >
-              <Building24Regular /> Current Site Only
+              <Building24Regular /> {strings.SiteSelectorCurrentSiteOnly}
             </SharePointButton>
 
             {suggestedSites.hubSites && suggestedSites.hubSites.length > 0 && (
@@ -257,7 +259,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
                 onClick={() => selectSuggestedScope('hub')}
                 className={styles.scopeButton}
               >
-                <Settings24Regular /> This Hub ({suggestedSites.hubSites.length + 1} sites)
+                <Settings24Regular /> {CoreText.format(strings.SiteSelectorHubScope, (suggestedSites.hubSites.length + 1).toString())}
               </SharePointButton>
             )}
 
@@ -267,7 +269,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
                 onClick={() => selectSuggestedScope('homesite')}
                 className={styles.scopeButton}
               >
-                <Home24Regular /> Organization Home
+                <Home24Regular /> {strings.SiteSelectorOrganizationHome}
               </SharePointButton>
             )}
 
@@ -277,7 +279,10 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
                 onClick={() => selectSuggestedScope('recent')}
                 className={styles.scopeButton}
               >
-                Recent Sites ({suggestedSites.recentSites.filter(s => s.userPermissions.canCreateAlerts).length})
+                {CoreText.format(
+                  strings.SiteSelectorRecentSites,
+                  suggestedSites.recentSites.filter(s => s.userPermissions.canCreateAlerts).length.toString()
+                )}
               </SharePointButton>
             )}
           </div>
@@ -291,7 +296,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
             label=""
             value={searchTerm}
             onChange={setSearchTerm}
-            placeholder="Search sites by name or URL..."
+            placeholder={strings.SiteSelectorSearchPlaceholder}
           />
           <Search24Regular className={styles.searchIcon} />
         </div>
@@ -303,20 +308,20 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
             className={styles.filterToggle}
           >
             <Filter24Regular />
-            Filters
+            {strings.SiteSelectorFiltersLabel}
             {showFilters ? <ChevronUp24Regular /> : <ChevronDown24Regular />}
           </SharePointButton>
 
           {showFilters && (
             <div className={styles.filterOptions}>
               <SharePointToggle
-                label="Show only sites where I can create alerts"
+                label={strings.SiteSelectorShowWritable}
                 checked={filters.showOnlyWritable}
                 onChange={(checked) => setFilters(prev => ({ ...prev, showOnlyWritable: checked }))}
               />
 
               <div className={styles.typeFilter}>
-                <label>Site Type:</label>
+                <label>{strings.SiteSelectorSiteTypeLabel}</label>
                 <select
                   value={filters.siteType}
                   onChange={(e) => setFilters(prev => ({
@@ -325,11 +330,11 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
                   }))}
                   className={styles.typeSelect}
                 >
-                  <option value="all">All Sites</option>
-                  <option value="hub">Hub Sites</option>
-                  <option value="team">Team Sites</option>
-                  <option value="communication">Communication Sites</option>
-                  <option value="homesite">Home Sites</option>
+                  <option value="all">{strings.SiteSelectorSiteTypeAll}</option>
+                  <option value="hub">{strings.SiteSelectorSiteTypeHub}</option>
+                  <option value="team">{strings.SiteSelectorSiteTypeTeam}</option>
+                  <option value="communication">{strings.SiteSelectorSiteTypeCommunication}</option>
+                  <option value="homesite">{strings.SiteSelectorSiteTypeHome}</option>
                 </select>
               </div>
             </div>
@@ -341,8 +346,8 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       {selectedSites.length > 0 && (
         <div className={styles.selectionSummary}>
           <p>
-            <strong>{selectedSites.length}</strong> site{selectedSites.length !== 1 ? 's' : ''} selected
-            {maxSelection && ` (max ${maxSelection})`}
+            <strong>{selectedSites.length}</strong> {selectedSites.length === 1 ? strings.SiteSelectorSiteSingular : strings.SiteSelectorSitePlural} {strings.SiteSelectorSelected}
+            {maxSelection && ` ${CoreText.format(strings.SiteSelectorMaxSelection, maxSelection.toString())}`}
           </p>
         </div>
       )}
@@ -380,10 +385,10 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       {filteredSites.length === 0 && (
         <div className={styles.noResults}>
           <Search24Regular className={styles.noResultsIcon} />
-          <h4>No sites found</h4>
+          <h4>{strings.SiteSelectorNoResultsTitle}</h4>
           <p>
-            Try adjusting your search terms or filters.
-            {filters.showOnlyWritable && " You may need to disable the 'writable only' filter to see more sites."}
+            {strings.SiteSelectorNoResultsDescription}
+            {filters.showOnlyWritable && ` ${strings.SiteSelectorWritableFilterHint}`}
           </p>
         </div>
       )}

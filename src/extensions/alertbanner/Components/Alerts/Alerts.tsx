@@ -9,16 +9,15 @@ import { ISettingsData } from "../Settings/Tabs/SettingsTab";
 import { EditModeDetector } from "../Utils/EditModeDetector";
 import { useAlerts } from "../Context/AlertsContext";
 import { StorageService } from "../Services/StorageService";
-import { useLocalization } from "../Hooks/useLocalization";
 import { ArrayUtils } from "../Utils/ArrayUtils";
 import { StringUtils } from "../Utils/StringUtils";
 import { CAROUSEL_CONFIG } from "../Utils/AppConstants";
 import { ErrorBoundary } from "../Utils/ErrorBoundary";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
 
 const Alerts: React.FC<IAlertsProps> = (props) => {
   const { state, initializeAlerts, removeAlert, hideAlertForever } = useAlerts();
   const { alerts, alertTypes, isLoading, hasError, errorMessage } = state;
-  const { getString } = useLocalization();
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInEditMode, setIsInEditMode] = React.useState(false);
@@ -30,7 +29,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   const storageService = React.useRef<StorageService>(StorageService.getInstance());
 
   const defaultAlertType = React.useMemo<IAlertType>(() => ({
-    name: getString('DefaultAlertTypeName'),
+    name: strings.DefaultAlertTypeName,
     iconName: "Info",
     backgroundColor: "#ffffff",
     textColor: "#000000",
@@ -41,7 +40,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       [AlertPriority.Medium]: "",
       [AlertPriority.Low]: ""
     }
-  }), [getString]);
+  }), []);
 
   // Store initial props to prevent unnecessary re-initialization
   const previousInitPropsRef = React.useRef<{
@@ -95,8 +94,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       });
     }
 
-    setIsInEditMode(EditModeDetector.isPageInEditMode());
-    // Edit mode detection is now static - no need for change listener
+    setIsInEditMode(EditModeDetector.isPageInEditMode(props.context));
   }, [
     props.graphClient,
     props.context,
@@ -106,6 +104,58 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     props.siteIds && props.siteIds.join('|'),
     initializeAlerts
   ]);
+
+  // Monitor for edit mode changes using MutationObserver with debouncing
+  React.useEffect(() => {
+    let debounceTimer: number | null = null;
+
+    const checkEditMode = () => {
+      const newEditMode = EditModeDetector.isPageInEditMode(props.context);
+      setIsInEditMode(prevMode => {
+        if (prevMode !== newEditMode) {
+          logger.debug('Alerts', `Edit mode changed: ${prevMode} -> ${newEditMode}`);
+        }
+        return newEditMode;
+      });
+    };
+
+    const debouncedCheckEditMode = () => {
+      if (debounceTimer) {
+        window.clearTimeout(debounceTimer);
+      }
+      debounceTimer = window.setTimeout(checkEditMode, 200);
+    };
+
+    const observer = new MutationObserver(debouncedCheckEditMode);
+
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      subtree: false
+    });
+
+    const observeCommandBar = () => {
+      const commandBar = document.querySelector('[data-automation-id="pageCommandBarRegion"]');
+      if (commandBar) {
+        observer.observe(commandBar, {
+          childList: true,
+          subtree: true
+        });
+      }
+    };
+
+    observeCommandBar();
+
+    const retryTimer = window.setTimeout(observeCommandBar, 1000);
+    checkEditMode();
+    return () => {
+      if (debounceTimer) {
+        window.clearTimeout(debounceTimer);
+      }
+      window.clearTimeout(retryTimer);
+      observer.disconnect();
+    };
+  }, []);
 
   // Effect to reset index when alerts change
   React.useEffect(() => {
@@ -227,14 +277,14 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
               fontWeight: tokens.fontWeightSemibold,
               fontSize: tokens.fontSizeBase300
             }}>
-              {getString('AlertsLoadErrorTitle')}
+              {strings.AlertsLoadErrorTitle}
             </MessageBarTitle>
             <div style={{
               marginTop: tokens.spacingVerticalXS,
               fontSize: tokens.fontSizeBase200,
               lineHeight: tokens.lineHeightBase200,
             }}>
-              {errorMessage || getString('AlertsLoadErrorFallback')}
+              {errorMessage || strings.AlertsLoadErrorFallback}
             </div>
           </MessageBarBody>
         </MessageBar>

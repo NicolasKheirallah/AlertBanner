@@ -3,6 +3,8 @@ import { logger } from '../Services/LoggerService';
 import { Text, Button, MessageBar } from '@fluentui/react-components';
 import { ErrorCircle24Regular, ArrowClockwise24Regular } from '@fluentui/react-icons';
 import styles from './ErrorBoundary.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
 
 interface IErrorBoundaryState {
   hasError: boolean;
@@ -133,20 +135,20 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
             <div className={styles.errorHeader}>
               <ErrorCircle24Regular />
               <Text weight="semibold">
-                Something went wrong in {componentName}
+                {CoreText.format(strings.ErrorBoundaryHeader, componentName)}
               </Text>
             </div>
           </MessageBar>
 
           <div className={styles.errorMessage}>
             <Text size={300} className={styles.errorMessageText}>
-              {this.state.error?.message || 'An unexpected error occurred'}
+              {this.state.error?.message || strings.ErrorBoundaryFallbackMessage}
             </Text>
           </div>
 
           <div className={styles.errorId}>
             <Text size={200} className={styles.errorIdText}>
-              Error ID: {this.state.errorId}
+              {CoreText.format(strings.ErrorBoundaryIdLabel, this.state.errorId ?? '')}
             </Text>
           </div>
 
@@ -157,7 +159,7 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
                 icon={<ArrowClockwise24Regular />}
                 onClick={this.handleRetry}
               >
-                Try Again ({this.maxRetries - this.retryCount} attempts left)
+                {`${strings.ErrorBoundaryRetryButton} (${this.maxRetries - this.retryCount} ${strings.ErrorBoundaryAttemptsLeft})`}
               </Button>
             )}
 
@@ -165,21 +167,21 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
               appearance="secondary"
               onClick={this.handleCopyErrorDetails}
             >
-              Copy Error Details
+              {strings.ErrorBoundaryCopyButton}
             </Button>
 
             <Button 
               appearance="secondary"
               onClick={() => window.location.reload()}
             >
-              Reload Page
+              {strings.ErrorBoundaryReloadButton}
             </Button>
           </div>
 
           {process.env.NODE_ENV === 'development' && (
             <details className={styles.errorDetails}>
               <summary className={styles.errorDetailsSummary}>
-                Development Error Details
+                {strings.ErrorBoundaryDevDetailsTitle}
               </summary>
               <pre className={styles.errorDetailsCode}>
                 {this.state.error?.stack}

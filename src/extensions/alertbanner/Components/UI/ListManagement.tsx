@@ -32,9 +32,19 @@ import {
   Home24Regular,
   LocalLanguage24Regular
 } from '@fluentui/react-icons';
-import { useLocalization } from '../Hooks/useLocalization';
 import { SiteContextService, ISiteInfo, IAlertListStatus } from '../Services/SiteContextService';
 import styles from './ListManagement.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
+
+const formatWithFallback = (value: string | undefined, fallback: string, ...args: Array<string | number>): string => {
+  const template = value || fallback;
+  if (args.length === 0) {
+    return template;
+  }
+  const formattedArgs = args.map(arg => arg.toString());
+  return CoreText.format(template, ...formattedArgs);
+};
 
 export interface IListManagementProps {
   siteContextService: SiteContextService;
@@ -59,7 +69,6 @@ const ListManagement: React.FC<IListManagementProps> = ({
   onListCreated,
   className
 }) => {
-  const { getString } = useLocalization();
   const [sites, setSites] = React.useState<ISiteInfo[]>([]);
   const [listStatuses, setListStatuses] = React.useState<{ [siteId: string]: IAlertListStatus }>({});
   const [creatingList, setCreatingList] = React.useState<string | null>(null);
@@ -91,7 +100,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
       onError: () => {
         setMessage({
           type: 'error',
-          text: getString('FailedToLoadSiteInformation') || 'Failed to load site information'
+          text: strings.FailedToLoadSiteInformation || 'Failed to load site information'
         });
       },
       logErrors: true
@@ -162,7 +171,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
         
         setMessage({
           type: 'success',
-          text: getString('LanguagesUpdatedSuccessfully') || `Languages updated successfully for ${siteName}`
+          text: formatWithFallback(strings.LanguagesUpdatedSuccessfully, 'Languages updated successfully for {0}', siteName)
         });
 
         await siteContextService.refresh();
@@ -173,7 +182,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
     } catch (error) {
       setMessage({
         type: 'error',
-        text: error.message || getString('FailedToUpdateLanguages') || `Failed to update languages for ${siteName}`
+        text: error.message || formatWithFallback(strings.FailedToUpdateLanguages, 'Failed to update languages for {0}', siteName)
       });
     } finally {
       setCreatingList(null);
@@ -208,12 +217,12 @@ const ListManagement: React.FC<IListManagementProps> = ({
       onSuccess: ({ siteName, languagesList }) => {
         setMessage({
           type: 'success',
-          text: getString('AlertsListCreatedSuccessfully') || `Alerts list created successfully on ${siteName}${languagesList}`
+          text: formatWithFallback(strings.AlertsListCreatedSuccessfully, 'Alerts list created successfully on {0}', siteName) + languagesList
         });
         setCreatingList(null);
       },
       onError: (error: Error) => {
-        let errorMessage = error.message || getString('FailedToCreateAlertsList') || 'Failed to create alerts list';
+        let errorMessage = error.message || strings.FailedToCreateAlertsList || 'Failed to create alerts list';
 
         if (error.message?.includes('LIST_INCOMPLETE')) {
           errorMessage = `List created but some features may be limited. ${error.message}`;
@@ -246,17 +255,17 @@ const ListManagement: React.FC<IListManagementProps> = ({
 
   const getSiteTypeLabel = (siteType: string) => {
     switch (siteType) {
-      case 'home': return getString('HomeSite') || 'Home Site';
-      case 'hub': return getString('HubSite') || 'Hub Site';
-      default: return getString('CurrentSite') || 'Current Site';
+      case 'home': return strings.HomeSite || 'Home Site';
+      case 'hub': return strings.HubSite || 'Hub Site';
+      default: return strings.CurrentSite || 'Current Site';
     }
   };
 
   const getSiteDescription = (siteType: string) => {
     switch (siteType) {
-      case 'home': return getString('HomeSiteDescription') || 'Alerts shown on all sites in the tenant';
-      case 'hub': return getString('HubSiteDescription') || 'Alerts shown on hub and connected sites';
-      default: return getString('CurrentSiteDescription') || 'Alerts shown only on this site';
+      case 'home': return strings.HomeSiteDescription || 'Alerts shown on all sites in the tenant';
+      case 'hub': return strings.HubSiteDescription || 'Alerts shown on hub and connected sites';
+      default: return strings.CurrentSiteDescription || 'Alerts shown only on this site';
     }
   };
 
@@ -274,13 +283,13 @@ const ListManagement: React.FC<IListManagementProps> = ({
 
   const getStatusText = (status: IAlertListStatus) => {
     if (status.exists && status.canAccess) {
-      return getString('ListExistsAndAccessible') || 'List exists and accessible';
+      return strings.ListExistsAndAccessible || 'List exists and accessible';
     } else if (status.exists && !status.canAccess) {
-      return getString('ListExistsNoAccess') || 'List exists but no access';
+      return strings.ListExistsNoAccess || 'List exists but no access';
     } else if (!status.exists && status.canCreate) {
-      return getString('ListNotExistsCanCreate') || 'List not found - can create';
+      return strings.ListNotExistsCanCreate || 'List not found - can create';
     } else {
-      return getString('ListNotExistsCannotCreate') || 'List not found - cannot create';
+      return strings.ListNotExistsCannotCreate || 'List not found - cannot create';
     }
   };
 
@@ -290,11 +299,11 @@ const ListManagement: React.FC<IListManagementProps> = ({
         <Card>
           <CardHeader
             image={<List24Regular />}
-            header={<Text weight="semibold">{getString('AlertListsManagement') || 'Alert Lists Management'}</Text>}
+            header={<Text weight="semibold">{strings.AlertListsManagement || 'Alert Lists Management'}</Text>}
           />
           <CardPreview>
             <div className={styles.loadingContainer}>
-              <Spinner label={getString('LoadingSiteInformation') || 'Loading site information...'} />
+              <Spinner label={strings.LoadingSiteInformation || 'Loading site information...'} />
             </div>
           </CardPreview>
         </Card>
@@ -313,10 +322,10 @@ const ListManagement: React.FC<IListManagementProps> = ({
       <Card>
         <CardHeader
           image={<List24Regular />}
-          header={<Text weight="semibold">{getString('AlertListsManagement') || 'Alert Lists Management'}</Text>}
+          header={<Text weight="semibold">{strings.AlertListsManagement || 'Alert Lists Management'}</Text>}
           description={
             <Text size={200}>
-              {getString('ManageAlertListsDescription') || 'Manage alert lists across your site hierarchy'}
+              {strings.ManageAlertListsDescription || 'Manage alert lists across your site hierarchy'}
             </Text>
           }
         />
@@ -368,8 +377,8 @@ const ListManagement: React.FC<IListManagementProps> = ({
                             disabled={creatingList === site.id}
                           >
                             {creatingList === site.id 
-                              ? (getString('CreatingList') || 'Creating...')
-                              : (getString('CreateAlertsList') || 'Create Alerts List')
+                              ? (strings.CreatingList || 'Creating...')
+                              : (strings.CreateAlertsList || 'Create Alerts List')
                             }
                           </Button>
                         </DialogTrigger>
@@ -377,11 +386,11 @@ const ListManagement: React.FC<IListManagementProps> = ({
                           <DialogBody>
                             <DialogTitle>
                               <LocalLanguage24Regular className={styles.languageDialogIcon} />
-                              {getString('SelectLanguagesForList') || 'Select Languages for Alert List'}
+                              {strings.SelectLanguagesForList || 'Select Languages for Alert List'}
                             </DialogTitle>
                             <DialogContent>
                               <Text>
-                                {getString('SelectLanguagesDescription') || 
+                                {strings.SelectLanguagesDescription || 
                                   `Choose which languages to support for alerts on ${site.name}. English is required and will always be included.`
                                 }
                               </Text>
@@ -406,7 +415,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
                               
                               <div className={styles.languageSelectionSummary}>
                                 <Text size={200}>
-                                  <strong>{getString('SelectedLanguages') || 'Selected languages'}:</strong> {selectedLanguages.length} 
+                                  <strong>{strings.SelectedLanguages || 'Selected languages'}:</strong> {selectedLanguages.length} 
                                   ({AVAILABLE_LANGUAGES
                                     .filter(lang => selectedLanguages.includes(lang.code))
                                     .map(lang => lang.nativeName)
@@ -417,7 +426,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
                             <DialogActions>
                               <DialogTrigger disableButtonEnhancement>
                                 <Button appearance="secondary" onClick={() => setLanguageDialogOpen(null)}>
-                                  {getString('Cancel') || 'Cancel'}
+                                  {strings.Cancel || 'Cancel'}
                                 </Button>
                               </DialogTrigger>
                               <Button 
@@ -426,10 +435,10 @@ const ListManagement: React.FC<IListManagementProps> = ({
                                 disabled={creatingList === site.id}
                               >
                                 {creatingList === site.id 
-                                  ? (getString('CreatingList') || 'Creating...')
-                                  : (getString('CreateWithSelectedLanguages') || `Create with ${selectedLanguages.length} languages`)
+                                  ? (strings.CreatingList || 'Creating...')
+                                  : formatWithFallback(strings.CreateWithSelectedLanguages, 'Create with {0} languages', selectedLanguages.length)
                                 }
-                              </Button>
+                             </Button>
                             </DialogActions>
                           </DialogBody>
                         </DialogSurface>
@@ -440,7 +449,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
                   {status.exists && status.canAccess && (
                     <div className={styles.listInfo}>
                       <Text size={200} className={styles.successText}>
-                        ✓ {getString('ReadyForAlerts') || 'Ready for alerts'}
+                        ✓ {strings.ReadyForAlerts || 'Ready for alerts'}
                       </Text>
                       <div className={styles.existingListActions}>
                         <Dialog open={!!languageDialogOpen && languageDialogOpen.siteId === site.id}>
@@ -451,18 +460,18 @@ const ListManagement: React.FC<IListManagementProps> = ({
                               icon={<LocalLanguage24Regular />}
                               onClick={() => handleOpenLanguageDialog(site.id, site.name)}
                             >
-                              {getString('ViewEditLanguages') || 'Languages'}
+                              {strings.ViewEditLanguages || 'Languages'}
                             </Button>
                           </DialogTrigger>
                           <DialogSurface>
                             <DialogBody>
                               <DialogTitle>
                                 <LocalLanguage24Regular className={styles.languageDialogIcon} />
-                                {getString('ManageLanguagesForList') || 'Manage Languages for Alert List'}
+                                {strings.ManageLanguagesForList || 'Manage Languages for Alert List'}
                               </DialogTitle>
                               <DialogContent>
                                 <Text>
-                                  {getString('ManageLanguagesDescription') || 
+                                  {strings.ManageLanguagesDescription || 
                                     `Manage which languages are supported for alerts on ${site.name}. English is required and will always be included.`
                                   }
                                 </Text>
@@ -487,7 +496,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
                                 
                                 <div className={styles.languageSelectionSummary}>
                                   <Text size={200}>
-                                    <strong>{getString('SelectedLanguages') || 'Selected languages'}:</strong> {selectedLanguages.length} 
+                                    <strong>{strings.SelectedLanguages || 'Selected languages'}:</strong> {selectedLanguages.length} 
                                     ({AVAILABLE_LANGUAGES
                                       .filter(lang => selectedLanguages.includes(lang.code))
                                       .map(lang => lang.nativeName)
@@ -498,7 +507,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
                               <DialogActions>
                                 <DialogTrigger disableButtonEnhancement>
                                   <Button appearance="secondary" onClick={() => setLanguageDialogOpen(null)}>
-                                    {getString('Cancel') || 'Cancel'}
+                                    {strings.Cancel || 'Cancel'}
                                   </Button>
                                 </DialogTrigger>
                                 <Button 
@@ -506,7 +515,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
                                   onClick={() => languageDialogOpen && handleUpdateLanguages(languageDialogOpen.siteId, languageDialogOpen.siteName)}
                                   disabled={creatingList === site.id}
                                 >
-                                  {getString('UpdateLanguages') || 'Update Languages'}
+                                  {strings.UpdateLanguages || 'Update Languages'}
                                 </Button>
                               </DialogActions>
                             </DialogBody>
@@ -524,27 +533,27 @@ const ListManagement: React.FC<IListManagementProps> = ({
 
       <Card className={styles.hierarchyInfo}>
         <CardHeader
-          header={<Text weight="semibold">{getString('AlertHierarchy') || 'Alert Display Hierarchy'}</Text>}
+          header={<Text weight="semibold">{strings.AlertHierarchy || 'Alert Display Hierarchy'}</Text>}
         />
         <CardPreview>
           <div className={styles.hierarchyDescription}>
             <Text size={200}>
-              {getString('AlertHierarchyDescription') || 
+              {strings.AlertHierarchyDescription || 
                 'Alerts are displayed based on site hierarchy: Home Site alerts appear everywhere, Hub Site alerts appear on hub and connected sites, and Site alerts appear only on the specific site.'}
             </Text>
             
             <div className={styles.hierarchyList}>
               <div className={styles.hierarchyItem}>
                 <Home24Regular />
-                <Text size={200}><strong>{getString('HomeSite') || 'Home Site'}:</strong> {getString('HomeSiteScope') || 'Shown on all sites'}</Text>
+                <Text size={200}><strong>{strings.HomeSite || 'Home Site'}:</strong> {strings.HomeSiteScope || 'Shown on all sites'}</Text>
               </div>
               <div className={styles.hierarchyItem}>
                 <Building24Regular />
-                <Text size={200}><strong>{getString('HubSite') || 'Hub Site'}:</strong> {getString('HubSiteScope') || 'Shown on hub and connected sites'}</Text>
+                <Text size={200}><strong>{strings.HubSite || 'Hub Site'}:</strong> {strings.HubSiteScope || 'Shown on hub and connected sites'}</Text>
               </div>
               <div className={styles.hierarchyItem}>
                 <Globe24Regular />
-                <Text size={200}><strong>{getString('CurrentSite') || 'Site'}:</strong> {getString('SiteScope') || 'Shown only on this site'}</Text>
+                <Text size={200}><strong>{strings.CurrentSite || 'Site'}:</strong> {strings.SiteScope || 'Shown only on this site'}</Text>
               </div>
             </div>
           </div>

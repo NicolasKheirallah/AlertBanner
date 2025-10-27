@@ -2,9 +2,9 @@ import * as React from "react";
 import { Button, Text } from "@fluentui/react-components";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import styles from "./AlertItem.module.scss";
-import { useLocalization } from "../Hooks/useLocalization";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
 import { StringUtils } from "../Utils/StringUtils";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
 
 interface IDescriptionContentProps {
   description: string;
@@ -16,8 +16,6 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState<{ url: string; alt: string }>({ url: "", alt: "" });
   const TRUNCATE_LENGTH = 200;
-  const { getString } = useLocalization();
-
   const toggleExpanded = React.useCallback(() => {
     setIsExpanded(prev => !prev);
   }, []);
@@ -161,7 +159,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
           onClick={toggleExpanded}
           className={styles.descriptionToggleButton}
         >
-          {isExpanded ? getString('ShowLess') : getString('ShowMore')}
+          {isExpanded ? strings.ShowLess : strings.ShowMore}
         </Button>
       )}
     </div>

@@ -2,6 +2,8 @@ import * as React from 'react';
 import { CheckmarkCircle24Filled, CircleSmall24Regular, ErrorCircle24Filled } from '@fluentui/react-icons';
 import { Spinner } from '@fluentui/react-components';
 import styles from './ProgressIndicator.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
 
 export enum StepStatus {
   Pending = 'pending',
@@ -27,7 +29,7 @@ export interface IProgressIndicatorProps {
 
 const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({ 
   steps, 
-  title = 'Progress',
+  title = strings.ProgressIndicatorTitle,
   showStepDescriptions = false,
   variant = 'vertical'
 }) => {
@@ -73,11 +75,11 @@ const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({
           <div className={styles.summary}>
             {failedSteps > 0 ? (
               <span className={styles.errorSummary}>
-                {failedSteps} of {totalSteps} steps failed
+                {Text.format(strings.ProgressIndicatorFailedSummary, failedSteps.toString(), totalSteps.toString())}
               </span>
             ) : (
               <span className={styles.progressSummary}>
-                {completedSteps} of {totalSteps} steps completed
+                {Text.format(strings.ProgressIndicatorCompletedSummary, completedSteps.toString(), totalSteps.toString())}
               </span>
             )}
           </div>
@@ -114,7 +116,7 @@ const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({
               
               {step.status === StepStatus.Failed && step.error && (
                 <div className={styles.stepError}>
-                  Error: {step.error}
+                  {Text.format(strings.ProgressIndicatorError, step.error)}
                 </div>
               )}
             </div>

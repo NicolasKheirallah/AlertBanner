@@ -12,6 +12,7 @@ import {
 } from '@fluentui/react-components';
 import { LocalLanguage24Regular } from '@fluentui/react-icons';
 import { useLocalization } from '../Hooks/useLocalization';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import styles from './LanguageSelector.module.scss';
 
 export interface ILanguageSelectorProps {
@@ -28,8 +29,7 @@ const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
   const { 
     currentLanguage, 
     supportedLanguages, 
-    setLanguage, 
-    getString 
+    setLanguage 
   } = useLocalization();
 
   const handleLanguageChange = async (languageCode: string) => {
@@ -48,8 +48,8 @@ const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
           <Button
             appearance="subtle"
             icon={<LocalLanguage24Regular />}
-            aria-label={getString('ChangeLanguage')}
-            title={getString('ChangeLanguage')}
+            aria-label={strings.ChangeLanguage}
+            title={strings.ChangeLanguage}
             className={className}
             size="small"
           />
@@ -77,8 +77,8 @@ const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
   return (
     <div className={`${styles.languageSelector} ${className || ''}`}>
       <Dropdown
-        aria-label={getString('SelectLanguage')}
-        placeholder={getString('SelectLanguage')}
+        aria-label={strings.SelectLanguage}
+        placeholder={strings.SelectLanguage}
         value={currentLanguage.nativeName}
         onOptionSelect={(_, data) => {
           if (data.optionValue && data.optionValue !== currentLanguage.code) {

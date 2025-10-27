@@ -13,9 +13,11 @@ import {
   Image24Regular
 } from '@fluentui/react-icons';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
-import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+import { SPHttpClient } from '@microsoft/sp-http';
 import { logger } from '../Services/LoggerService';
 import styles from './AttachmentManager.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
 
 export interface IAttachment {
   fileName: string;
@@ -117,7 +119,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       const arrayBuffer = await file.arrayBuffer();
       progressCallback(30);
 
-      const response: SPHttpClientResponse = await context.spHttpClient.post(
+      const response = await context.spHttpClient.post(
         uploadUrl,
         SPHttpClient.configurations.v1,
         {
@@ -253,7 +255,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   const handleRemoveAttachment = React.useCallback(async (attachment: IAttachment) => {
     if (!itemId) return;
 
-    if (!confirm(`Are you sure you want to delete "${attachment.fileName}"?`)) {
+    if (!confirm(Text.format(strings.AttachmentManagerDeleteConfirm, attachment.fileName))) {
       return;
     }
 
@@ -280,7 +282,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       logger.info('AttachmentManager', 'Attachment deleted successfully', { fileName: attachment.fileName });
     } catch (error) {
       logger.error('AttachmentManager', 'Failed to delete attachment', error);
-      alert('Failed to delete attachment. Please try again.');
+      alert(strings.AttachmentManagerDeleteError);
     }
   }, [context, listId, itemId, attachments, onAttachmentsChange]);
 
@@ -289,11 +291,11 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
 
     const kb = bytes / 1024;
     if (kb < 1024) {
-      return `${kb.toFixed(1)} KB`;
+      return Text.format(strings.FileSizeKilobytes, kb.toFixed(1));
     }
 
     const mb = kb / 1024;
-    return `${mb.toFixed(1)} MB`;
+    return Text.format(strings.FileSizeMegabytes, mb.toFixed(1));
   };
 
   const getFileIcon = (fileName: string): React.ReactElement => {
@@ -338,7 +340,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   return (
     <div className={styles.attachmentManager}>
       <div className={styles.header}>
-        <div className={styles.title}>Attachments</div>
+        <div className={styles.title}>{strings.AttachmentManagerTitle}</div>
         <input
           ref={fileInputRef}
           type="file"
@@ -356,13 +358,13 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
           size="small"
           className={styles.uploadButton}
         >
-          {isUploading ? 'Uploading...' : 'Add Files'}
+          {isUploading ? strings.AttachmentManagerUploadingLabel : strings.AttachmentManagerAddFilesButton}
         </Button>
       </div>
 
       {!itemId && (
         <div className={styles.infoMessage}>
-          💡 Save the alert first to add attachments
+          💡 {strings.AttachmentManagerSaveNotice}
         </div>
       )}
 
@@ -378,10 +380,10 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
         >
           <Attach24Regular className={styles.dropZoneIcon} />
           <div className={styles.dropZoneText}>
-            Drag and drop files here or click "Add Files" button
+            {strings.AttachmentManagerDropZoneInstruction}
           </div>
           <div className={styles.dropZoneHint}>
-            {allowedFormats.join(', ')} | Max {maxFileSize}MB per file
+            {Text.format(strings.AttachmentManagerDropZoneHint, allowedFormats.join(', '), maxFileSize.toString())}
           </div>
         </div>
       )}
@@ -389,14 +391,14 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       {/* Upload Progress Indicators */}
       {uploadProgress.length > 0 && (
         <div className={styles.progressContainer}>
-          <div className={styles.progressTitle}>Uploading files...</div>
+          <div className={styles.progressTitle}>{strings.AttachmentManagerProgressTitle}</div>
           {uploadProgress.map((progress, index) => (
             <div key={index} className={styles.progressItem}>
               <div className={styles.progressHeader}>
                 <span className={styles.progressFileName}>{progress.fileName}</span>
                 <span className={styles.progressStatus}>
-                  {progress.status === 'completed' && '✓ Completed'}
-                  {progress.status === 'error' && '✗ Failed'}
+                  {progress.status === 'completed' && strings.AttachmentManagerStatusCompleted}
+                  {progress.status === 'error' && strings.AttachmentManagerStatusFailed}
                   {progress.status === 'uploading' && `${progress.progress}%`}
                 </span>
               </div>
@@ -433,7 +435,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
                   href={`${window.location.origin}${attachment.serverRelativeUrl}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Download"
+                  title={strings.AttachmentManagerDownloadTitle}
                 />
                 <Button
                   icon={<Delete24Regular />}
@@ -442,7 +444,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
                   onClick={() => handleRemoveAttachment(attachment)}
                   disabled={!itemId}
                   className={styles.deleteButton}
-                  title="Delete"
+                  title={strings.AttachmentManagerDeleteTitle}
                 />
               </div>
             </div>
@@ -451,7 +453,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       )}
 
       <div className={styles.helpText}>
-        Allowed formats: {allowedFormats.join(', ')} | Max size: {maxFileSize}MB per file
+        {Text.format(strings.AttachmentManagerHelpText, allowedFormats.join(', '), maxFileSize.toString())}
       </div>
     </div>
   );

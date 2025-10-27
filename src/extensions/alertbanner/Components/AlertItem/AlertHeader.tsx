@@ -5,8 +5,9 @@ import { IAlertItem } from "../Services/SharePointAlertService";
 import { AlertPriority } from "../Alerts/IAlerts";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import { getPriorityIcon } from "./utils";
-import { useLocalization } from "../Hooks/useLocalization";
 import styles from "./AlertItem.module.scss";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
 
 interface IAlertHeaderProps {
   item: IAlertItem;
@@ -16,21 +17,19 @@ interface IAlertHeaderProps {
 }
 
 const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, toggleExpanded, ariaControlsId }) => {
-  const { getString } = useLocalization();
-
   const priorityLabel = React.useMemo(() => {
     switch (item.priority) {
       case AlertPriority.Critical:
-        return getString('PriorityCritical');
+        return strings.PriorityCritical;
       case AlertPriority.High:
-        return getString('PriorityHigh');
+        return strings.PriorityHigh;
       case AlertPriority.Medium:
-        return getString('PriorityMedium');
+        return strings.PriorityMedium;
       case AlertPriority.Low:
       default:
-        return getString('PriorityLow');
+        return strings.PriorityLow;
     }
-  }, [getString, item.priority]);
+  }, [item.priority]);
 
   const previewContent = React.useMemo(() => {
     if (!item.description) {
@@ -41,8 +40,8 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
   }, [item.description]);
 
   const priorityTooltip = React.useMemo(
-    () => getString('AlertHeaderPriorityTooltip', priorityLabel),
-    [getString, priorityLabel]
+    () => CoreText.format(strings.AlertHeaderPriorityTooltip, priorityLabel),
+    [priorityLabel]
   );
 
   return (
@@ -79,7 +78,7 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(({ item, expanded, t
           }}
           aria-expanded={expanded}
           aria-controls={ariaControlsId}
-          aria-label={expanded ? getString('CollapseAlert') : getString('ExpandAlert')}
+          aria-label={expanded ? strings.CollapseAlert : strings.ExpandAlert}
           size="small"
         />
       </div>

@@ -3,6 +3,7 @@ import EmojiPickerReact, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Popover, PopoverTrigger, PopoverSurface, Button } from '@fluentui/react-components';
 import { Emoji24Regular } from '@fluentui/react-icons';
 import styles from './EmojiPicker.module.scss';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
 
 export interface IEmojiPickerProps {
   onEmojiSelect: (emoji: string) => void;
@@ -34,17 +35,17 @@ const EmojiPicker: React.FC<IEmojiPickerProps> = ({
           disabled={disabled}
           className={styles.emojiButton}
           appearance="subtle"
-          title="Add emoji"
-          aria-label="Add emoji"
+          title={strings.EmojiPickerButtonTitle}
+          aria-label={strings.EmojiPickerButtonTitle}
         >
-          {showLabel && 'Add Emoji'}
+          {showLabel && strings.EmojiPickerButtonLabel}
         </Button>
       </PopoverTrigger>
       <PopoverSurface className={styles.emojiPickerSurface}>
         <EmojiPickerReact
           onEmojiClick={handleEmojiClick}
           theme={Theme.AUTO}
-          searchPlaceHolder="Search emoji..."
+          searchPlaceHolder={strings.EmojiPickerSearchPlaceholder}
           width={350}
           height={400}
           previewConfig={{

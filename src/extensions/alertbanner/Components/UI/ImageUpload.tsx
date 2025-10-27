@@ -6,7 +6,7 @@ import { ImageStorageService } from '../Services/ImageStorageService';
 import { logger } from '../Services/LoggerService';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './ImageUpload.module.scss';
-import { useLocalizationContext } from '../Hooks/useLocalization';
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
 
 export interface IImageUploadProps {
   context: ApplicationCustomizerContext;
@@ -23,7 +23,6 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const storageServiceRef = React.useRef<ImageStorageService>();
-  const { getString } = useLocalizationContext();
 
   if (!storageServiceRef.current) {
     storageServiceRef.current = new ImageStorageService(context);
@@ -49,7 +48,8 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
       },
       onError: (error) => {
         logger.error('ImageUpload', 'Image upload failed', error);
-        alert(error instanceof Error ? error.message : 'Image upload failed. Please try again.');
+        const errorMessage = error instanceof Error ? error.message : strings.ImageUploadFailure;
+        alert(errorMessage);
       },
       logErrors: true
     }
@@ -77,14 +77,14 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
     }
 
     if (!file.type?.startsWith('image/')) {
-      alert('Please select a valid image file (PNG, JPG, GIF, or WebP).');
+      alert(strings.ImageUploadInvalidFile);
       return;
     }
 
     await uploadImage(file);
   }, [uploadImage]);
 
-  const label = getString('UploadImage');
+  const label = strings.UploadImage;
 
   return (
     <div className={styles.imageUploadContainer}>

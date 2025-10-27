@@ -23,6 +23,8 @@ import { SharePointAlertService, IAlertItem } from "../Services/SharePointAlertS
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertTemplates.module.scss";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
 
 export interface IAlertTemplate {
   id: string;
@@ -78,7 +80,7 @@ const convertAlertToTemplate = (alert: IAlertItem): IAlertTemplate => {
   return {
     id: alert.id,
     name: alert.title,
-    description: `Template based on "${alert.title}"`,
+    description: Text.format(strings.AlertTemplatesTemplateDescription, alert.title),
     icon: getIconForAlertType(alert.AlertType),
     category: getCategoryForAlertType(alert.AlertType),
     template: {
@@ -88,7 +90,7 @@ const convertAlertToTemplate = (alert: IAlertItem): IAlertTemplate => {
       notificationType: alert.notificationType as NotificationType,
       isPinned: alert.isPinned,
       linkUrl: alert.linkUrl || "",
-      linkDescription: alert.linkDescription || "Learn more"
+      linkDescription: alert.linkDescription || strings.AlertTemplatesDefaultLinkDescription
     }
   };
 };
@@ -105,13 +107,13 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
   const [templates, setTemplates] = React.useState<IAlertTemplate[]>([]);
 
   const categories = [
-    { id: "all", name: "All Templates", icon: <Folder24Regular /> },
-    { id: "maintenance", name: "Maintenance", icon: <Settings24Regular /> },
-    { id: "info", name: "Information", icon: <Info24Regular /> },
-    { id: "emergency", name: "Emergency", icon: <Warning24Regular /> },
-    { id: "interruption", name: "Interruption", icon: <Warning24Regular /> },
-    { id: "training", name: "Training", icon: <Book24Regular /> },
-    { id: "announcement", name: "Announcements", icon: <Megaphone24Regular /> }
+    { id: "all", name: strings.AlertTemplatesCategoryAll, icon: <Folder24Regular /> },
+    { id: "maintenance", name: strings.AlertTemplatesCategoryMaintenance, icon: <Settings24Regular /> },
+    { id: "info", name: strings.AlertTemplatesCategoryInformation, icon: <Info24Regular /> },
+    { id: "emergency", name: strings.AlertTemplatesCategoryEmergency, icon: <Warning24Regular /> },
+    { id: "interruption", name: strings.AlertTemplatesCategoryInterruption, icon: <Warning24Regular /> },
+    { id: "training", name: strings.AlertTemplatesCategoryTraining, icon: <Book24Regular /> },
+    { id: "announcement", name: strings.AlertTemplatesCategoryAnnouncements, icon: <Megaphone24Regular /> }
   ];
 
   // Load templates from SharePoint using useAsyncOperation
@@ -151,15 +153,15 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
   return (
     <div className={`${styles.templatesContainer} ${className || ''}`}>
       <div className={styles.templatesHeader}>
-        <h3>Choose a Template</h3>
-        <p>Start with a pre-configured template and customize it to your needs</p>
+        <h3>{strings.AlertTemplatesHeaderTitle}</h3>
+        <p>{strings.AlertTemplatesHeaderDescription}</p>
       </div>
 
       <div className={styles.searchAndFilter}>
         <div className={styles.searchBox}>
           <input
             type="text"
-            placeholder="Search templates..."
+            placeholder={strings.AlertTemplatesSearchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
@@ -184,8 +186,8 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
       {loading ? (
         <div className={styles.loadingContainer}>
           <div className={styles.loadingIcon}>📋</div>
-          <h4>Loading Templates...</h4>
-          <p>Fetching templates from SharePoint</p>
+          <h4>{strings.AlertTemplatesLoadingTitle}</h4>
+          <p>{strings.AlertTemplatesLoadingDescription}</p>
         </div>
       ) : (
         <>
@@ -203,41 +205,41 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
                   <h4 className={styles.templateName}>{template.name}</h4>
                   <p className={styles.templateDescription}>{template.description}</p>
                   <div className={styles.templateMeta}>
-                    <span className={`${styles.priorityBadge} ${styles[template.template.priority]}`}>
-                      {template.template.priority.toUpperCase()}
-                    </span>
-                    {template.template.isPinned && (
-                      <span className={styles.pinnedBadge}><Pin24Regular /> PINNED</span>
-                    )}
-                    {template.template.notificationType !== NotificationType.None && (
-                      <span className={styles.notificationBadge}><Alert24Regular /> NOTIFY</span>
-                    )}
-                  </div>
-                </div>
-                <div className={styles.templateAction}>
-                  <button className={styles.useTemplateButton}>
-                    Use Template →
-                  </button>
+                  <span className={`${styles.priorityBadge} ${styles[template.template.priority]}`}>
+                    {template.template.priority.toUpperCase()}
+                  </span>
+                  {template.template.isPinned && (
+                    <span className={styles.pinnedBadge}><Pin24Regular /> {strings.AlertTemplatesPinnedBadge}</span>
+                  )}
+                  {template.template.notificationType !== NotificationType.None && (
+                    <span className={styles.notificationBadge}><Alert24Regular /> {strings.AlertTemplatesNotifyBadge}</span>
+                  )}
                 </div>
               </div>
-            ))}
+              <div className={styles.templateAction}>
+                <button className={styles.useTemplateButton}>
+                  {strings.AlertTemplatesUseTemplate}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!loading && filteredTemplates.length === 0 && templates.length > 0 && (
+          <div className={styles.noResults}>
+            <div className={styles.noResultsIcon}><Search24Regular /></div>
+            <h4>{strings.AlertTemplatesNoResultsTitle}</h4>
+            <p>{strings.AlertTemplatesNoResultsDescription}</p>
           </div>
+        )}
 
-          {!loading && filteredTemplates.length === 0 && templates.length > 0 && (
-            <div className={styles.noResults}>
-              <div className={styles.noResultsIcon}><Search24Regular /></div>
-              <h4>No templates found</h4>
-              <p>Try adjusting your search terms or category filter</p>
-            </div>
-          )}
-
-          {!loading && templates.length === 0 && (
-            <div className={styles.noResults}>
-              <div className={styles.noResultsIcon}>📋</div>
-              <h4>No templates available</h4>
-              <p>Templates will be created automatically when alert lists are set up</p>
-            </div>
-          )}
+        {!loading && templates.length === 0 && (
+          <div className={styles.noResults}>
+            <div className={styles.noResultsIcon}>📋</div>
+            <h4>{strings.AlertTemplatesEmptyTitle}</h4>
+            <p>{strings.AlertTemplatesEmptyDescription}</p>
+          </div>
+        )}
         </>
       )}
     </div>

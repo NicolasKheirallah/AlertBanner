@@ -3,7 +3,8 @@ import { IAlertItem } from "../Services/SharePointAlertService";
 import { Document24Regular, ArrowDownload24Regular } from "@fluentui/react-icons";
 import DescriptionContent from "./DescriptionContent";
 import styles from "./AlertItem.module.scss";
-import { useLocalization } from "../Hooks/useLocalization";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
 
 interface IAlertContentProps {
   item: IAlertItem;
@@ -12,8 +13,6 @@ interface IAlertContentProps {
 }
 
 const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, expanded, stopPropagation }) => {
-  const { getString } = useLocalization();
-
   if (!expanded) return null;
 
   const resolveAttachmentUrl = (serverRelativeUrl?: string): string => {
@@ -37,11 +36,11 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, expanded,
 
     const kb = bytes / 1024;
     if (kb < 1024) {
-      return getString('FileSizeKilobytes', kb.toFixed(1));
+      return Text.format(strings.FileSizeKilobytes, kb.toFixed(1));
     }
 
     const mb = kb / 1024;
-    return getString('FileSizeMegabytes', mb.toFixed(1));
+    return Text.format(strings.FileSizeMegabytes, mb.toFixed(1));
   };
 
   return (
@@ -54,7 +53,7 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, expanded,
       {item.attachments && item.attachments.length > 0 && (
         <div className={styles.attachmentsSection}>
           <div className={styles.attachmentsTitle}>
-            {getString('AttachmentsHeader', item.attachments.length)}
+            {Text.format(strings.AttachmentsHeader, item.attachments.length.toString())}
           </div>
           <div className={styles.attachmentsList}>
             {item.attachments.map((attachment, index) => (

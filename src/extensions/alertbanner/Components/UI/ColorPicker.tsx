@@ -1,5 +1,7 @@
 import * as React from "react";
 import styles from "./ColorPicker.module.scss";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text } from '@microsoft/sp-core-library';
 
 interface IColorPickerProps {
   label: string;
@@ -107,7 +109,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
           className={styles.colorButton}
           onClick={() => setIsOpen(!isOpen)}
           style={{ backgroundColor: value }}
-          aria-label={`Selected color: ${value}`}
+          aria-label={Text.format(strings.ColorPickerSelectedColorAria, value)}
         >
           <div className={styles.colorPreview}>
             <div className={styles.colorSwatch} style={{ backgroundColor: value }} />
@@ -118,7 +120,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
         {isOpen && (
           <div className={styles.colorDropdown}>
             <div className={styles.presetColors}>
-              <h4>Preset Colors</h4>
+              <h4>{strings.ColorPickerPresetColorsTitle}</h4>
               <div className={styles.colorGrid}>
                 {presetColors.map((color) => (
                   <button
@@ -127,7 +129,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
                     className={`${styles.presetColor} ${color === value ? styles.selected : ''}`}
                     style={{ backgroundColor: color }}
                     onClick={() => handleColorSelect(color)}
-                    aria-label={`Select color ${color}`}
+                    aria-label={Text.format(strings.ColorPickerSelectColorAria, color)}
                     title={color}
                   />
                 ))}
@@ -135,7 +137,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
             </div>
 
             <div className={styles.customColor}>
-              <h4>Custom Color</h4>
+              <h4>{strings.ColorPickerCustomColorTitle}</h4>
               <div className={styles.customColorInputs}>
                 <input
                   type="color"
@@ -162,7 +164,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
                   onClick={() => handleColorSelect(customColor)}
                   disabled={!isValidColor(customColor)}
                 >
-                  Apply
+                  {strings.ColorPickerApplyButton}
                 </button>
               </div>
             </div>
