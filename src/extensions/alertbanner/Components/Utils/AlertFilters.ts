@@ -84,7 +84,28 @@ export class AlertFilters {
       return alerts;
     }
 
-    const scopeSet = new Set(scopedSiteIds.map(site => String(site).toLowerCase()));
+    // Accept multiple representations (composite Graph id, GUID only, or URL/hostname)
+    const scopeSet = new Set<string>();
+    scopedSiteIds.forEach(site => {
+      const normalized = String(site).toLowerCase();
+      scopeSet.add(normalized);
+
+      // Composite Graph id: domain,guid,guid
+      const parts = normalized.split(",");
+      if (parts.length === 3) {
+        scopeSet.add(parts[1]); // site GUID
+        scopeSet.add(parts[0]); // hostname
+      }
+
+      // URL formats
+      try {
+        const url = new URL(normalized.startsWith("http") ? normalized : `https://${normalized}`);
+        scopeSet.add(url.hostname);
+        scopeSet.add(url.hostname + url.pathname);
+      } catch {
+        /* ignore parse errors */
+      }
+    });
 
     return alerts.filter(alert => {
       // If no target sites specified, show to all sites
@@ -93,9 +114,28 @@ export class AlertFilters {
       }
 
       // Check if any of the alert's target sites match the scoped sites
-      return alert.targetSites.some(targetSiteId =>
-        scopeSet.has(String(targetSiteId).toLowerCase())
-      );
+      return alert.targetSites.some(targetSiteId => {
+        const raw = String(targetSiteId).toLowerCase();
+        if (scopeSet.has(raw)) return true;
+
+        // Composite Graph id: domain,guid,guid
+        const parts = raw.split(",");
+        if (parts.length === 3) {
+          if (scopeSet.has(parts[1]) || scopeSet.has(parts[0])) return true;
+        }
+
+        // URL/hostname variants
+        try {
+          const url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+          if (scopeSet.has(url.hostname) || scopeSet.has(url.hostname + url.pathname)) {
+            return true;
+          }
+        } catch {
+          /* ignore parse errors */
+        }
+
+        return false;
+      });
     });
   }
 
@@ -206,7 +246,11 @@ export class AlertFilters {
     if (language === 'all') {
       return alerts;
     }
-    return alerts.filter(alert => alert.targetLanguage === language);
+    // Include alerts that match the language OR have targetLanguage set to 'all'
+    return alerts.filter(alert => 
+      alert.targetLanguage?.toLowerCase() === language.toLowerCase() ||
+      alert.targetLanguage?.toLowerCase() === 'all'
+    );
   }
 
   /**

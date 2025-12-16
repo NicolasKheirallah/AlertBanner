@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Delete24Regular, Image24Regular, Copy24Regular } from '@fluentui/react-icons';
 import { SharePointButton } from './SharePointControls';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
-import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+import { ImageStorageService, IExistingImage } from '../Services/ImageStorageService';
 import { logger } from '../Services/LoggerService';
 import { DateUtils } from '../Utils/DateUtils';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
@@ -12,62 +12,24 @@ import { Text } from '@microsoft/sp-core-library';
 
 export interface IImageManagerProps {
   context: ApplicationCustomizerContext;
+  imageStorageService: ImageStorageService;
   folderName: string; // Alert-specific folder name (e.g., languageGroup or title)
   onImageDeleted?: () => void;
 }
 
-interface IImageFile {
-  name: string;
-  serverRelativeUrl: string;
-  timeCreated: string;
-  length: number;
-}
+
 
 const ImageManager: React.FC<IImageManagerProps> = ({
   context,
+  imageStorageService,
   folderName,
   onImageDeleted
 }) => {
-  const [images, setImages] = React.useState<IImageFile[]>([]);
+  const [images, setImages] = React.useState<IExistingImage[]>([]);
 
-  const fetchFolderImages = React.useCallback(async (): Promise<IImageFile[]> => {
-    const siteUrl = context.pageContext.web.absoluteUrl;
-    const serverRelativeUrl = context.pageContext.web.serverRelativeUrl;
-    const cleanServerRelativeUrl = serverRelativeUrl.startsWith('/')
-      ? serverRelativeUrl.substring(1)
-      : serverRelativeUrl;
-
-    const folderPath = cleanServerRelativeUrl
-      ? `/${cleanServerRelativeUrl}/SiteAssets/AlertBannerImages/${folderName}`
-      : `/SiteAssets/AlertBannerImages/${folderName}`;
-
-    const filesUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderPath)}')/Files?$select=Name,ServerRelativeUrl,TimeCreated,Length`;
-
-    const response: SPHttpClientResponse = await context.spHttpClient.get(
-      filesUrl,
-      SPHttpClient.configurations.v1
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return [];
-      }
-      throw new Error(`Failed to load images: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const imageFiles: IImageFile[] = data.value
-      .filter((file: any) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file.Name))
-      .map((file: any) => ({
-        name: file.Name,
-        serverRelativeUrl: file.ServerRelativeUrl,
-        timeCreated: file.TimeCreated,
-        length: file.Length
-      }));
-
-    logger.info('ImageManager', 'Loaded images', { count: imageFiles.length, folder: folderName });
-    return imageFiles;
-  }, [context.pageContext.web.absoluteUrl, context.pageContext.web.serverRelativeUrl, context.spHttpClient, folderName]);
+  const fetchFolderImages = React.useCallback(async (): Promise<IExistingImage[]> => {
+    return await imageStorageService.listImages(folderName);
+  }, [imageStorageService, folderName]);
 
   const { loading: isLoading, error, execute: loadImages } = useAsyncOperation(
     fetchFolderImages,
@@ -87,26 +49,8 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   }, [folderName, fetchFolderImages]);
 
   const { execute: deleteImage } = useAsyncOperation(
-    async (image: IImageFile) => {
-      const siteUrl = context.pageContext.web.absoluteUrl;
-      const deleteUrl = `${siteUrl}/_api/web/GetFileByServerRelativeUrl('${encodeURIComponent(image.serverRelativeUrl)}')`;
-
-      const response = await context.spHttpClient.post(
-        deleteUrl,
-        SPHttpClient.configurations.v1,
-        {
-          headers: {
-            'X-HTTP-Method': 'DELETE',
-            'IF-MATCH': '*'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete image: ${response.statusText}`);
-      }
-
-      logger.info('ImageManager', 'Deleted image', { name: image.name });
+    async (image: IExistingImage) => {
+      await imageStorageService.deleteImage(image.name, folderName);
       return true;
     },
     {
@@ -123,14 +67,14 @@ const ImageManager: React.FC<IImageManagerProps> = ({
     }
   );
 
-  const handleDeleteImage = React.useCallback(async (image: IImageFile) => {
+  const handleDeleteImage = React.useCallback(async (image: IExistingImage) => {
     if (!confirm(Text.format(strings.ImageManagerDeleteConfirm, image.name))) {
       return;
     }
     await deleteImage(image);
   }, [deleteImage]);
 
-  const handleCopyUrl = React.useCallback((image: IImageFile) => {
+  const handleCopyUrl = React.useCallback((image: IExistingImage) => {
     const fullUrl = `${window.location.origin}${image.serverRelativeUrl}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       alert(strings.ImageManagerCopySuccess);

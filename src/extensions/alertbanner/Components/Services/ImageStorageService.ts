@@ -75,6 +75,66 @@ export class ImageStorageService {
     }
   }
 
+  public async deleteImage(fileName: string, folderName: string): Promise<void> {
+    const sanitizedFolder = this.sanitizeFolderName(folderName);
+    const { siteUrl, siteAssetsRoot } = this.getSitePaths();
+    const folderPath = `${siteAssetsRoot}/${ALERT_IMAGES_FOLDER}/${sanitizedFolder}`;
+    const normalizedFolder = folderPath.startsWith('/') ? folderPath : `/${folderPath}`;
+    
+    // Construct the server relative URL for the file
+    const serverRelativeUrl = `${normalizedFolder}/${fileName}`;
+    
+    const deleteUrl = `${siteUrl}/_api/web/GetFileByServerRelativeUrl('${encodeURIComponent(serverRelativeUrl)}')`;
+
+    try {
+      const response = await this.context.spHttpClient.post(
+        deleteUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'X-HTTP-Method': 'DELETE',
+            'IF-MATCH': '*'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete image: ${response.statusText}`);
+      }
+
+      logger.info('ImageStorageService', 'Deleted image', { fileName, folderName });
+    } catch (error) {
+      logger.error('ImageStorageService', 'Error deleting image', error);
+      throw error;
+    }
+  }
+
+  public async deleteImageFolder(folderName: string): Promise<void> {
+    const sanitizedFolder = this.sanitizeFolderName(folderName);
+    const { siteUrl, siteAssetsRoot } = this.getSitePaths();
+    const folderPath = `${siteAssetsRoot}/${ALERT_IMAGES_FOLDER}/${sanitizedFolder}`;
+    const normalizedFolder = folderPath.startsWith('/') ? folderPath : `/${folderPath}`;
+
+    const deleteFolderUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(normalizedFolder)}')`;
+
+    try {
+      await this.context.spHttpClient.post(
+        deleteFolderUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'X-HTTP-Method': 'DELETE',
+            'IF-MATCH': '*'
+          }
+        }
+      );
+      logger.info('ImageStorageService', 'Image folder deleted successfully', { folderName });
+    } catch (error) {
+      // Folder deletion is optional - log warning if it fails
+      logger.warn('ImageStorageService', 'Could not delete image folder (may not exist)', { folderName, error });
+    }
+  }
+
   private sanitizeFolderName(name: string): string {
     let sanitized = name
       .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')

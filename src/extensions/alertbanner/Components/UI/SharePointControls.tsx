@@ -1,4 +1,5 @@
 import * as React from "react";
+import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import styles from "./SharePointControls.module.scss";
 
 const generateId = (() => {
@@ -335,6 +336,88 @@ export const SharePointSection: React.FC<ISharePointSectionProps> = ({
       {!collapsed && (
         <div className={styles.sectionContent}>
           {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export interface ISharePointPeoplePickerProps {
+  context: any;
+  titleText: string;
+  personSelectionLimit?: number;
+  groupName?: string; // Filter by SharePoint group
+  showtooltip?: boolean;
+  required?: boolean;
+  disabled?: boolean;
+  onChange?: (items: any[]) => void;
+  defaultSelectedUsers?: string[];
+  principalTypes?: PrincipalType[];
+  resolveDelay?: number;
+  className?: string;
+  description?: string;
+  error?: string;
+}
+
+export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
+  context,
+  titleText,
+  personSelectionLimit = 50,
+  groupName,
+  showtooltip = false,
+  required = false,
+  disabled = false,
+  onChange,
+  defaultSelectedUsers,
+  principalTypes = [PrincipalType.User, PrincipalType.SharePointGroup, PrincipalType.SecurityGroup],
+  resolveDelay = 1000,
+  className,
+  description,
+  error
+}) => {
+  const pickerId = React.useMemo(() => generateId(), []);
+  const errorId = `${pickerId}-error`;
+  const descId = `${pickerId}-desc`;
+
+  // Defensive check: ensure context is defined
+  if (!context || !context.pageContext || !context.pageContext.web) {
+    return (
+      <div className={`${styles.field} ${className || ''}`}>
+        <div className={styles.error}>
+          People Picker Error: Context is not properly initialized. Please refresh the page.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${styles.field} ${className || ''}`}>
+      <div className={styles.peoplePickerContainer}>
+        <PeoplePicker
+          context={context}
+          titleText={titleText}
+          personSelectionLimit={personSelectionLimit}
+          groupName={groupName}
+          showtooltip={showtooltip}
+          required={required}
+          disabled={disabled}
+          onChange={onChange}
+          defaultSelectedUsers={defaultSelectedUsers}
+          principalTypes={principalTypes}
+          resolveDelay={resolveDelay}
+          ensureUser={true}
+        />
+      </div>
+
+      {description && (
+        <div id={descId} className={styles.description}>
+          {description}
+        </div>
+      )}
+
+      {error && (
+        <div id={errorId} className={styles.error}>
+          {error}
         </div>
       )}
     </div>

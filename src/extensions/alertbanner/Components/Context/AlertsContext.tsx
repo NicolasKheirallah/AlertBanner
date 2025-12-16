@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createContext, useReducer, useContext, useCallback } from "react";
 import { IAlertType, AlertPriority, IPersonField, ITargetingRule, ContentType, TargetLanguage, NotificationType } from "../Alerts/IAlerts";
-import { IAlertItem } from "../Services/SharePointAlertService";
+import { SharePointAlertService, IAlertItem } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import UserTargetingService from "../Services/UserTargetingService";
@@ -123,6 +123,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     userTargetingService?: UserTargetingService;
     notificationService?: NotificationService;
     languageAwarenessService?: LanguageAwarenessService;
+    sharePointAlertService?: SharePointAlertService;
     options?: AlertsContextOptions;
   }>({});
 
@@ -244,31 +245,15 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Create new request and store it in pending map
     const requestPromise = (async () => {
       try {
-      // First, try to get list with custom fields
-      let response;
-      try {
-        const filterQuery = `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null) and (fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null) and (fields/ItemType ne 'template') and (fields/ItemType ne 'draft')`;
-        if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
-        response = await servicesRef.current.graphClient
-          .api(`/sites/${siteId}/lists/${LIST_NAMES.ALERTS}/items`)
-          .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-          .expand("fields($select=Title,AlertType,Description,ScheduledStart,ScheduledEnd,Priority,IsPinned,NotificationType,LinkUrl,LinkDescription,TargetSites,Status,ItemType,TargetLanguage,LanguageGroup,AvailableForAll,Metadata,Attachments,AttachmentFiles)")
-          .filter(filterQuery)
-          .orderby("fields/ScheduledStart desc")
-          .top(25)
-          .get();
-      } catch (customFieldError) {
-        logger.warn('AlertsContext', 'Custom fields not found, falling back to basic fields', customFieldError);
-        if (!servicesRef.current.graphClient) throw new Error('GraphClient not initialized');
-        response = await servicesRef.current.graphClient
-          .api(`/sites/${siteId}/lists/${LIST_NAMES.ALERTS}/items`)
-          .expand("fields($select=Title,Description,Created,Author,Attachments,AttachmentFiles)")
-          .orderby("fields/Created desc")
-          .top(25)
-          .get();
+      // Use the centralized service to fetch active alerts
+      // This handles date filtering, custom field fallback, and ensures consistent logic
+      if (!servicesRef.current.sharePointAlertService) {
+        throw new Error('SharePointAlertService not initialized');
       }
+      
+      let alerts = await servicesRef.current.sharePointAlertService.getActiveAlerts(siteId);
 
-      let alerts = response.value.map((item: any) => mapSharePointItemToAlert(item, siteId));
+
 
       // Filter out templates, drafts, and auto-saved items using AlertFilters utility
       alerts = AlertFilters.excludeNonPublicAlerts(alerts);
@@ -399,9 +384,10 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       servicesRef.current.graphClient = initOptions.graphClient;
 
       // Initialize services
-      servicesRef.current.userTargetingService = UserTargetingService.getInstance(servicesRef.current.graphClient);
+      servicesRef.current.userTargetingService = UserTargetingService.getInstance(servicesRef.current.graphClient, initOptions.context);
       servicesRef.current.notificationService = NotificationService.getInstance(initOptions.context);
       servicesRef.current.languageAwarenessService = new LanguageAwarenessService(servicesRef.current.graphClient, initOptions.context);
+      servicesRef.current.sharePointAlertService = new SharePointAlertService(servicesRef.current.graphClient, initOptions.context);
 
       alertCacheRef.current.clear();
 

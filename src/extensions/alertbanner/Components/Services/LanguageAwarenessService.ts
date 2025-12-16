@@ -229,7 +229,16 @@ export class LanguageAwarenessService {
         alertGroups.get(alert.languageGroup)!.push(alert);
       } else {
         // Handle standalone alerts (non-multi-language)
-        if (alert.targetLanguage === TargetLanguage.All || alert.targetLanguage === userLanguage) {
+        // Show if: targetLanguage is "all" (case-insensitive), matches user's language, or matches tenant default
+        const alertLang = (alert.targetLanguage || TargetLanguage.All)?.toLowerCase();
+        const userLang = userLanguage?.toLowerCase();
+        const tenantLang = tenantDefault?.toLowerCase();
+        
+        if (
+          alertLang === 'all' || 
+          alertLang === userLang ||
+          alertLang === tenantLang
+        ) {
           standaloneAlerts.push(alert);
         }
       }

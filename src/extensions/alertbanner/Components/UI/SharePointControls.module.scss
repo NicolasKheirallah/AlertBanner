@@ -4,7 +4,8 @@
 .field {
   margin-bottom: 20px;
   padding: 0 4px;
-  font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif;
+  font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI",
+    -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif;
 }
 
 .label {
@@ -52,12 +53,12 @@
   text-align: center;
   text-decoration: none;
   user-select: none;
-  
+
   &:disabled {
     cursor: not-allowed;
     opacity: 0.4;
   }
-  
+
   &:focus {
     outline: 2px solid #0078d4;
     outline-offset: 2px;
@@ -68,7 +69,7 @@
   margin-right: 6px;
   display: flex;
   align-items: center;
-  
+
   svg {
     width: 16px;
     height: 16px;
@@ -79,12 +80,12 @@
   background-color: #0078d4;
   border-color: #0078d4;
   color: #ffffff;
-  
+
   &:hover:not(:disabled) {
     background-color: #106ebe;
     border-color: #106ebe;
   }
-  
+
   &:active:not(:disabled) {
     background-color: #005a9e;
     border-color: #005a9e;
@@ -95,12 +96,12 @@
   background-color: #ffffff;
   border-color: #8a8886;
   color: #323130;
-  
+
   &:hover:not(:disabled) {
     background-color: #f3f2f1;
     border-color: #323130;
   }
-  
+
   &:active:not(:disabled) {
     background-color: #edebe9;
     border-color: #201f1e;
@@ -111,12 +112,12 @@
   background-color: #d13438;
   border-color: #d13438;
   color: #ffffff;
-  
+
   &:hover:not(:disabled) {
     background-color: #a4262c;
     border-color: #a4262c;
   }
-  
+
   &:active:not(:disabled) {
     background-color: #731a1f;
     border-color: #731a1f;
@@ -141,24 +142,24 @@
   background-color: #ffffff;
   transition: border-color 0.1s ease-out;
   box-sizing: border-box;
-  
+
   &:focus {
     outline: none;
     border-color: #0078d4;
     box-shadow: inset 0 0 0 1px #0078d4;
   }
-  
+
   &:hover:not(:disabled) {
     border-color: #323130;
   }
-  
+
   &:disabled {
     background-color: #f3f2f1;
     border-color: #c8c6c4;
     color: #a19f9d;
     cursor: not-allowed;
   }
-  
+
   &::placeholder {
     color: #605e5c;
   }
@@ -166,7 +167,7 @@
 
 .inputError {
   border-color: #a80000;
-  
+
   &:focus {
     border-color: #a80000;
     box-shadow: inset 0 0 0 1px #a80000;
@@ -189,11 +190,11 @@
   background-size: 16px;
   padding-right: 40px;
   cursor: pointer;
-  
+
   &:disabled {
     cursor: not-allowed;
   }
-  
+
   // Ensure consistent height with inputs
   min-height: 32px;
   height: auto;
@@ -216,12 +217,12 @@
   transition: all 0.1s ease-out;
   background: none;
   padding: 0;
-  
+
   &:focus {
     outline: 2px solid #0078d4;
     outline-offset: 2px;
   }
-  
+
   &:disabled {
     cursor: not-allowed;
     opacity: 0.4;
@@ -230,11 +231,11 @@
 
 .toggleOff {
   background-color: #c8c6c4;
-  
+
   &:hover:not(:disabled) {
     background-color: #a19f9d;
   }
-  
+
   .toggleThumb {
     transform: translateX(0);
   }
@@ -242,11 +243,11 @@
 
 .toggleOn {
   background-color: #0078d4;
-  
+
   &:hover:not(:disabled) {
     background-color: #106ebe;
   }
-  
+
   .toggleThumb {
     transform: translateX(24px);
   }
@@ -291,11 +292,11 @@
   justify-content: space-between;
   cursor: pointer;
   transition: background-color 0.1s ease-out;
-  
+
   &:hover {
     background-color: #edebe9;
   }
-  
+
   &:focus {
     outline: 2px solid #0078d4;
     outline-offset: -2px;
@@ -315,7 +316,7 @@
   color: #605e5c;
   transition: transform 0.1s ease-out;
   user-select: none;
-  
+
   &.collapsed {
     transform: rotate(-90deg);
   }
@@ -326,7 +327,6 @@
   background-color: #ffffff;
 }
 
-
 // High contrast mode
 @media (prefers-contrast: high) {
   .input,
@@ -335,12 +335,12 @@
   .button {
     border-width: 2px;
   }
-  
+
   .toggle {
     border-width: 2px;
     border-color: currentColor;
   }
-  
+
   .section {
     border-width: 2px;
   }
@@ -351,29 +351,38 @@
   .field {
     margin-bottom: 16px;
   }
-  
+
   .button {
     min-height: 44px;
     padding: 10px 16px;
   }
-  
+
   .input,
   .textarea,
   .select {
     min-height: 44px;
   }
-  
+
   .toggle {
     width: 48px;
     height: 24px;
-    
+
     .toggleThumb {
       width: 20px;
       height: 20px;
     }
-    
+
     &.toggleOn .toggleThumb {
       transform: translateX(24px);
     }
   }
+}
+
+.peoplePickerContainer {
+  // Ensure the picker has enough width and spacing
+  width: 100%;
+
+  // Fix for PnP PeoplePicker z-index issues if any
+  position: relative;
+  z-index: 1;
 }

@@ -12,9 +12,7 @@
     "skipLibCheck": true,
     "outDir": "lib",
     "inlineSources": false,
-    
-    // Enhanced type safety (gradually enabled)
-    "strict": false, // Enable gradually
+        "strict": false, // Enable gradually
     "noImplicitAny": true,
     "noImplicitReturns": false, // Too many violations initially
     "noImplicitThis": false,
@@ -24,15 +22,11 @@
     "noUncheckedIndexedAccess": false, // Enable after array access fixes
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
-    
-    // Additional strictness (gradually enabled)
     "strictNullChecks": false, // Enable after null checks
     "strictBindCallApply": false,
     "strictFunctionTypes": false,
     "strictPropertyInitialization": false, // Enable after constructor fixes
     "useUnknownInCatchVariables": false, // Enable after error handling fixes
-    
-    // Import/module strictness
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "isolatedModules": true,

@@ -62,12 +62,18 @@ export class SiteContextService {
   private async detectSiteContext(): Promise<void> {
     try {
       // Get current site info
+      const hostname = new URL(this._context.pageContext.web.absoluteUrl).hostname;
+      const siteId = this._context.pageContext.site.id.toString();
+      const webId = this._context.pageContext.web.id.toString();
+      const graphId = `${hostname},${siteId},${webId}`;
+
+      // Get current site info
       this._currentSiteInfo = {
-        id: this._context.pageContext.site.id.toString(),
-        url: this._context.pageContext.site.absoluteUrl,
-        name: (this._context.pageContext.site as any).displayName || 'Current Site',
+        id: graphId, // Use composite ID for consistency with Graph responses
+        url: this._context.pageContext.web.absoluteUrl,
+        name: this._context.pageContext.web.title,
         type: 'current',
-        graphId: this.buildGraphSiteIdentifier(this._context.pageContext.web.absoluteUrl)
+        graphId: graphId
       };
 
       // Detect home site
@@ -440,37 +446,38 @@ export class SiteContextService {
   /**
    * Get sites that should show alerts for current user context
    */
+  /**
+   * Get sites that should show alerts for current user context
+   */
   public getAlertSourceSites(): string[] {
     const siteMap = new Map<string, string>(); // Map: GUID -> siteId (for deduplication)
 
-    // Always include home site alerts (shown everywhere)
-    if (this._homeSiteInfo?.hasAlertsList) {
-      const homeGuid = this._homeSiteInfo.id; // The actual GUID
-      const homeSiteId = this._homeSiteInfo.graphId ?? homeGuid ?? this.buildGraphSiteIdentifier(this._homeSiteInfo.url);
-      if (homeGuid && !siteMap.has(homeGuid)) {
-        siteMap.set(homeGuid, homeSiteId);
+    // Helper to add site to map
+    const addSite = (siteInfo: ISiteInfo | null) => {
+      if (siteInfo && siteInfo.hasAlertsList) {
+        const guid = siteInfo.id;
+        const graphId = siteInfo.graphId ?? guid ?? this.buildGraphSiteIdentifier(siteInfo.url);
+        if (guid && !siteMap.has(guid)) {
+          siteMap.set(guid, graphId);
+        }
       }
+    };
+
+    // 1. Current Site
+    addSite(this._currentSiteInfo);
+
+    // 2. Hub Site (if connected and different from Current)
+    if (this._hubSiteInfo?.id !== this._currentSiteInfo?.id) {
+      addSite(this._hubSiteInfo);
     }
 
-    // Include hub site alerts if current site is connected to hub
-    if (this._hubSiteInfo?.hasAlertsList && this._context.pageContext.legacyPageContext.hubSiteId) {
-      const hubGuid = this._hubSiteInfo.id; // The actual GUID
-      const hubSiteId = this._hubSiteInfo.graphId ?? hubGuid ?? this.buildGraphSiteIdentifier(this._hubSiteInfo.url);
-      if (hubGuid && !siteMap.has(hubGuid)) {
-        siteMap.set(hubGuid, hubSiteId);
-      }
+    // 3. Home Site (Always, if different from Current and Hub)
+    if (this._homeSiteInfo?.id !== this._currentSiteInfo?.id && 
+        this._homeSiteInfo?.id !== this._hubSiteInfo?.id) {
+      addSite(this._homeSiteInfo);
     }
 
-    // Always include current site alerts
-    if (this._currentSiteInfo?.hasAlertsList) {
-      const currentGuid = this._currentSiteInfo.id; // The actual GUID
-      const currentSiteId = this._currentSiteInfo.graphId ?? currentGuid ?? this.buildGraphSiteIdentifier(this._currentSiteInfo.url);
-      if (currentGuid && !siteMap.has(currentGuid)) {
-        siteMap.set(currentGuid, currentSiteId);
-      }
-    }
-
-    // Return unique site IDs (deduplicated by GUID)
+    // Return unique site IDs
     return Array.from(siteMap.values());
   }
 

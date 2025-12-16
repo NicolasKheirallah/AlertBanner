@@ -13,7 +13,7 @@ import {
   Image24Regular
 } from '@fluentui/react-icons';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
-import { SPHttpClient } from '@microsoft/sp-http';
+import { SharePointAlertService } from '../Services/SharePointAlertService';
 import { logger } from '../Services/LoggerService';
 import styles from './AttachmentManager.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
@@ -27,6 +27,7 @@ export interface IAttachment {
 
 export interface IAttachmentManagerProps {
   context: ApplicationCustomizerContext;
+  alertService: SharePointAlertService;
   listId: string;
   itemId?: number;
   attachments: IAttachment[];
@@ -44,6 +45,7 @@ interface IUploadProgress {
 
 const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   context,
+  alertService,
   listId,
   itemId,
   attachments,
@@ -113,36 +115,16 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       // Simulate progress for better UX (SharePoint doesn't provide real progress)
       progressCallback(10);
 
-      const siteUrl = context.pageContext.web.absoluteUrl;
-      const uploadUrl = `${siteUrl}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/add(FileName='${encodeURIComponent(file.name)}')`;
-
       const arrayBuffer = await file.arrayBuffer();
       progressCallback(30);
 
-      const response = await context.spHttpClient.post(
-        uploadUrl,
-        SPHttpClient.configurations.v1,
-        {
-          headers: {
-            'Accept': 'application/json;odata=verbose',
-            'Content-Type': 'application/octet-stream',
-          },
-          body: arrayBuffer
-        }
-      );
+      const result = await alertService.addAttachment(listId, itemId, file.name, arrayBuffer);
 
-      progressCallback(70);
-
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
       progressCallback(90);
 
       const attachment: IAttachment = {
-        fileName: result.d.FileName,
-        serverRelativeUrl: result.d.ServerRelativeUrl,
+        fileName: result.fileName,
+        serverRelativeUrl: result.serverRelativeUrl,
         size: file.size
       };
 
@@ -260,20 +242,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
     }
 
     try {
-      const siteUrl = context.pageContext.web.absoluteUrl;
-      const deleteUrl = `${siteUrl}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/getByFileName('${encodeURIComponent(attachment.fileName)}')`;
-
-      await context.spHttpClient.post(
-        deleteUrl,
-        SPHttpClient.configurations.v1,
-        {
-          headers: {
-            'Accept': 'application/json;odata=verbose',
-            'X-HTTP-Method': 'DELETE',
-            'IF-MATCH': '*'
-          }
-        }
-      );
+      await alertService.deleteAttachment(listId, itemId, attachment.fileName);
 
       // Update attachments list
       const updatedAttachments = attachments.filter(a => a.fileName !== attachment.fileName);

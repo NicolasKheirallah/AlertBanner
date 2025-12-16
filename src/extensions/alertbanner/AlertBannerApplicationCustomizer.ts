@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+// Version 4.2.0 - Fixed AttachmentFiles Graph API errors and language filtering
 import { override } from "@microsoft/decorators";
 import {
   BaseApplicationCustomizer,
@@ -14,6 +15,7 @@ import { LocalizationProvider } from "./Components/Hooks/useLocalization";
 import Alerts from "./Components/Alerts/Alerts";
 import { logger } from './Components/Services/LoggerService';
 import StorageService from './Components/Services/StorageService';
+import { SiteContextService } from "./Components/Services/SiteContextService";
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
   private _topPlaceholderContent: PlaceholderContent | undefined;
@@ -212,6 +214,10 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           throw graphError; // Re-throw to be caught by outer try/catch
         }
 
+        // Initialize SiteContextService
+        const siteContextService = SiteContextService.getInstance(this.context, msGraphClient);
+        await siteContextService.initialize();
+
         const currentSiteId = this.context.pageContext.site.id.toString();
 
         if (this._lastRenderedSiteId && this._lastRenderedSiteId !== currentSiteId) {
@@ -221,44 +227,15 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         this._lastRenderedSiteId = currentSiteId;
 
         if (!this._siteIds) {
-          this._siteIds = [currentSiteId];
-
-          try {
-            const siteContext = this.context.pageContext as any;
-            const hubSiteId: string = siteContext.site.hubSiteId
-              ? siteContext.site.hubSiteId.toString()
-              : "";
-
-            if (
-              hubSiteId &&
-              hubSiteId !== "00000000-0000-0000-0000-000000000000" &&
-              hubSiteId !== currentSiteId &&
-              !this._siteIds.includes(hubSiteId)
-            ) {
-              this._siteIds.push(hubSiteId);
-            }
-
-            try {
-              const homeSiteResponse = await msGraphClient
-                .api("/sites/root")
-                .select("id")
-                .get();
-              const homeSiteId: string = homeSiteResponse.id;
-
-              if (
-                homeSiteId &&
-                homeSiteId !== currentSiteId &&
-                homeSiteId !== hubSiteId &&
-                !this._siteIds.includes(homeSiteId)
-              ) {
-                this._siteIds.push(homeSiteId);
-              }
-            } catch (homeSiteError) {
-              logger.warn('ApplicationCustomizer', 'Unable to fetch home site, continuing with local and hub sites only', homeSiteError);
-            }
-          } catch (siteError) {
-            logger.warn('ApplicationCustomizer', 'Error gathering site IDs, falling back to current site only', siteError);
-          }
+          // Use the robust site detection from SiteContextService
+          this._siteIds = siteContextService.getAlertSourceSites();
+          
+          logger.info('ApplicationCustomizer', 'Resolved alert source sites', { 
+            sites: this._siteIds,
+            homeSite: siteContextService.getHomeSite()?.url,
+            hubSite: siteContextService.getHubSite()?.url,
+            currentSite: siteContextService.getCurrentSite()?.url
+          });
         }
 
         // Get alert types from our custom properties

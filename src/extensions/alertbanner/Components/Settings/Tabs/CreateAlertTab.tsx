@@ -6,14 +6,15 @@ import {
   SharePointSelect,
   SharePointToggle,
   SharePointSection,
-  ISharePointSelectOption
+  ISharePointSelectOption,
+  SharePointPeoplePicker
 } from "../../UI/SharePointControls";
 import SharePointRichTextEditor from "../../UI/SharePointRichTextEditor";
 import AlertPreview from "../../UI/AlertPreview";
 import AlertTemplates, { IAlertTemplate } from "../../UI/AlertTemplates";
 import SiteSelector from "../../UI/SiteSelector";
 import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
-import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage } from "../../Alerts/IAlerts";
+import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage, IPersonField } from "../../Alerts/IAlerts";
 import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
 import { SiteContextDetector, ISiteValidationResult } from "../../Utils/SiteContextDetector";
 import { SharePointAlertService, IAlertItem } from "../../Services/SharePointAlertService";
@@ -47,6 +48,8 @@ export interface INewAlert {
   targetLanguage: TargetLanguage;
   languageContent: ILanguageContent[];
   languageGroup?: string; // For multi-language alerts to share resources
+  targetUsers?: IPersonField[];
+  targetGroups?: IPersonField[];
 }
 
 export interface IFormErrors {
@@ -352,6 +355,42 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   }, [newAlert, useMultiLanguage]);
+  
+  const handlePeoplePickerChange = React.useCallback((items: any[]) => {
+    const users: IPersonField[] = [];
+    const groups: IPersonField[] = [];
+    
+    items.forEach(item => {
+      const personField: IPersonField = {
+        id: item.id,
+        displayName: item.text,
+        email: item.secondaryText, // Usually email
+        loginName: item.loginName,
+        isGroup: item.id ? item.id.indexOf('c:0(.s|true') === -1 : false // Simple check, might need refinement based on PrincipalType
+      };
+      
+      // PnP PeoplePicker returns items. We need to distinguish users and groups.
+      // PrincipalType: User = 1, DistributionList = 2, SecurityGroup = 4, SharePointGroup = 8
+      // But the items array might not have the numeric type directly accessible in the same way.
+      // Let's rely on the image or type if available, but for now we'll assume:
+      // If it has an email, it's likely a user. If not, it might be a group.
+      // Better approach: Check item.imageInitials or item.imageUrl
+      
+      if (item.imageInitials || (item.secondaryText && item.secondaryText.indexOf('@') > -1)) {
+        personField.isGroup = false;
+        users.push(personField);
+      } else {
+        personField.isGroup = true;
+        groups.push(personField);
+      }
+    });
+    
+    setNewAlert(prev => ({
+      ...prev,
+      targetUsers: users,
+      targetGroups: groups
+    }));
+  }, [setNewAlert]);
 
   const handleCreateAlert = React.useCallback(async () => {
     if (!validateForm()) return;
@@ -443,7 +482,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         scheduledEnd: undefined,
         contentType: ContentType.Alert,
         targetLanguage: TargetLanguage.All,
-        languageContent: []
+        languageContent: [],
+        targetUsers: [],
+        targetGroups: []
       });
       setUseMultiLanguage(false);
       setShowTemplates(true);
@@ -598,7 +639,9 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       scheduledEnd: undefined,
       contentType: ContentType.Alert,
       targetLanguage: TargetLanguage.All,
-      languageContent: []
+      languageContent: [],
+      targetUsers: [],
+      targetGroups: []
     });
     setErrors({});
     setUseMultiLanguage(false);
@@ -729,6 +772,26 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                       description={strings.CreateAlertSectionLanguageTargetingDescription}
                     />
                   </SharePointSection>
+                  
+                  {userTargetingEnabled && (
+                    <SharePointSection title={strings.CreateAlertSectionUserTargetingTitle || "User Targeting"}>
+                      <SharePointPeoplePicker
+                        context={context}
+                        titleText={strings.CreateAlertPeoplePickerLabel || "Target specific users or groups"}
+                        personSelectionLimit={50}
+                        groupName={""} // Leave empty to search all
+                        showtooltip={true}
+                        required={false}
+                        disabled={isCreatingAlert}
+                        onChange={handlePeoplePickerChange}
+                        defaultSelectedUsers={[
+                          ...(newAlert.targetUsers?.map(u => u.email || u.loginName || u.displayName) || []),
+                          ...(newAlert.targetGroups?.map(g => g.loginName || g.displayName) || [])
+                        ]}
+                        description={strings.CreateAlertPeoplePickerDescription || "Leave empty to show to everyone. Select users or groups to restrict visibility."}
+                      />
+                    </SharePointSection>
+                  )}
 
                   <SharePointSection title={strings.CreateAlertSectionBasicInformationTitle}>
                     <SharePointInput

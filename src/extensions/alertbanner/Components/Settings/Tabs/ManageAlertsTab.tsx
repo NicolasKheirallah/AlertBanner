@@ -1,12 +1,14 @@
 import * as React from "react";
 import { Delete24Regular, Edit24Regular, Globe24Regular, Save24Regular, Eye24Regular, Filter24Regular, Search24Regular, Calendar24Regular, ChevronDown24Regular, ChevronUp24Regular, Drafts24Regular, Send24Regular } from "@fluentui/react-icons";
+import { PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import {
   SharePointButton,
   SharePointInput,
   SharePointSelect,
   SharePointToggle,
   SharePointSection,
-  ISharePointSelectOption
+  ISharePointSelectOption,
+  SharePointPeoplePicker
 } from "../../UI/SharePointControls";
 import SharePointRichTextEditor from "../../UI/SharePointRichTextEditor";
 import SharePointDialog from "../../UI/SharePointDialog";
@@ -15,12 +17,13 @@ import AlertPreview from "../../UI/AlertPreview";
 import SiteSelector from "../../UI/SiteSelector";
 import AttachmentManager from "../../UI/AttachmentManager";
 import ImageManager from "../../UI/ImageManager";
-import { AlertPriority, NotificationType, IAlertType, TargetLanguage, ContentType } from "../../Alerts/IAlerts";
+import { AlertPriority, NotificationType, IAlertType, TargetLanguage, ContentType, IPersonField } from "../../Alerts/IAlerts";
 import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
 import { logger } from '../../Services/LoggerService';
 import { NotificationService } from '../../Services/NotificationService';
 import { SiteContextDetector } from "../../Utils/SiteContextDetector";
 import { SharePointAlertService, IAlertItem } from "../../Services/SharePointAlertService";
+import { ImageStorageService } from "../../Services/ImageStorageService";
 import { htmlSanitizer } from "../../Utils/HtmlSanitizer";
 import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
@@ -39,6 +42,8 @@ export interface IEditingAlert extends Omit<IAlertItem, 'scheduledStart' | 'sche
   scheduledStart?: Date;
   scheduledEnd?: Date;
   languageContent?: ILanguageContent[];
+  targetUsers?: IPersonField[];
+  targetGroups?: IPersonField[];
 }
 
 export interface IFormErrors {
@@ -110,6 +115,19 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [customDateTo, setCustomDateTo] = React.useState<string>('');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const [showFilters, setShowFilters] = React.useState(false);
+  const [alertsListId, setAlertsListId] = React.useState<string>("");
+
+  React.useEffect(() => {
+    const fetchListId = async () => {
+      try {
+        const id = await alertService.getAlertsListId();
+        setAlertsListId(id);
+      } catch (error) {
+        logger.error('ManageAlertsTab', 'Failed to get alerts list ID', error);
+      }
+    };
+    fetchListId();
+  }, [alertService]);
 
   // Initialize services with useMemo to prevent recreation
   const languageService = React.useMemo(() =>
@@ -119,6 +137,11 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
   const notificationService = React.useMemo(() =>
     NotificationService.getInstance(context),
+    [context]
+  );
+
+  const imageStorageService = React.useMemo(() =>
+    new ImageStorageService(context),
     [context]
   );
 
@@ -203,6 +226,40 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     loadLanguageSettings();
   }, [languageService]);
 
+  // Initialize language content when switching to multi-language mode in edit
+  React.useEffect(() => {
+    if (editingAlert && useMultiLanguage && (!editingAlert.languageContent || editingAlert.languageContent.length === 0)) {
+      // User toggled multi-language mode - initialize with current alert content
+      const initialContent: ILanguageContent = {
+        language: editingAlert.targetLanguage || tenantDefaultLanguage,
+        title: editingAlert.title,
+        description: editingAlert.description,
+        linkDescription: editingAlert.linkDescription || undefined,
+        availableForAll: editingAlert.targetLanguage === tenantDefaultLanguage
+      };
+      
+      setEditingAlert(prev => prev ? {
+        ...prev,
+        languageContent: [initialContent],
+        languageGroup: prev.languageGroup || `lg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+      } : null);
+    } else if (editingAlert && !useMultiLanguage && editingAlert.languageContent && editingAlert.languageContent.length > 0) {
+      // User toggled back to single language - use first language content
+      const firstLang = editingAlert.languageContent[0];
+      if (firstLang) {
+        setEditingAlert(prev => prev ? {
+          ...prev,
+          title: firstLang.title,
+          description: firstLang.description,
+          linkDescription: firstLang.linkDescription || '',
+          targetLanguage: firstLang.language,
+          languageContent: undefined
+        } : null);
+      }
+    }
+  }, [useMultiLanguage, editingAlert?.id, tenantDefaultLanguage]); // Only run when useMultiLanguage changes or alert ID changes
+
+
   const loadExistingAlerts = React.useCallback(async () => {
     setIsLoadingAlerts(true);
     try {
@@ -270,7 +327,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           ...alert,
           scheduledStart: alert.scheduledStart ? new Date(alert.scheduledStart) : undefined,
           scheduledEnd: alert.scheduledEnd ? new Date(alert.scheduledEnd) : undefined,
-          languageContent
+          languageContent,
+          targetUsers: alert.targetUsers?.filter(u => !u.isGroup) || [],
+          targetGroups: alert.targetUsers?.filter(u => u.isGroup) || []
         };
 
         logger.info('ManageAlertsTab', 'Multi-language edit mode activated', {
@@ -285,7 +344,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           ...alert,
           scheduledStart: alert.scheduledStart ? new Date(alert.scheduledStart) : undefined,
           scheduledEnd: alert.scheduledEnd ? new Date(alert.scheduledEnd) : undefined,
-          languageContent: undefined
+          languageContent: undefined,
+          targetUsers: alert.targetUsers?.filter(u => !u.isGroup) || [],
+          targetGroups: alert.targetUsers?.filter(u => u.isGroup) || []
         };
 
         logger.info('ManageAlertsTab', 'Single-language edit mode activated', {
@@ -303,6 +364,35 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     }
   }, [setEditingAlert, existingAlerts, languageService, notificationService, alertService, setSupplementalAlertTypes]);
 
+  const handlePeoplePickerChange = React.useCallback((items: any[]) => {
+    const users: IPersonField[] = [];
+    const groups: IPersonField[] = [];
+    
+    items.forEach(item => {
+      const personField: IPersonField = {
+        id: item.id,
+        displayName: item.text,
+        email: item.secondaryText, // Usually email
+        loginName: item.loginName,
+        isGroup: item.id ? item.id.indexOf('c:0(.s|true') === -1 : false // Simple check
+      };
+      
+      if (item.imageInitials || (item.secondaryText && item.secondaryText.indexOf('@') > -1)) {
+        personField.isGroup = false;
+        users.push(personField);
+      } else {
+        personField.isGroup = true;
+        groups.push(personField);
+      }
+    });
+    
+    setEditingAlert(prev => prev ? {
+      ...prev,
+      targetUsers: users,
+      targetGroups: groups
+    } : null);
+  }, [setEditingAlert]);
+
   const handleDeleteAlert = React.useCallback(async (alertId: string, alertTitle: string) => {
     if (!confirm(`Are you sure you want to delete "${alertTitle}"? This action cannot be undone.`)) {
       return;
@@ -317,35 +407,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       await alertService.deleteAlert(alertId);
 
       // Delete the associated image folder
-      try {
-        const siteUrl = context.pageContext.web.absoluteUrl;
-        const serverRelativeUrl = context.pageContext.web.serverRelativeUrl;
-        const cleanServerRelativeUrl = serverRelativeUrl.startsWith('/')
-          ? serverRelativeUrl.substring(1)
-          : serverRelativeUrl;
-
-        const folderPath = cleanServerRelativeUrl
-          ? `/${cleanServerRelativeUrl}/SiteAssets/AlertBannerImages/${folderName}`
-          : `/SiteAssets/AlertBannerImages/${folderName}`;
-
-        const deleteFolderUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(folderPath)}')`;
-
-        await context.spHttpClient.post(
-          deleteFolderUrl,
-          SPHttpClient.configurations.v1,
-          {
-            headers: {
-              'X-HTTP-Method': 'DELETE',
-              'IF-MATCH': '*'
-            }
-          }
-        );
-
-        logger.info('ManageAlertsTab', 'Image folder deleted successfully', { folderName });
-      } catch (folderError) {
-        // Folder deletion is optional - log warning if it fails but don't block the alert deletion
-        logger.warn('ManageAlertsTab', 'Could not delete image folder (may not exist)', { folderName, error: folderError });
-      }
+      await imageStorageService.deleteImageFolder(folderName);
 
       await loadExistingAlerts();
       notificationService.showSuccess(`Successfully deleted "${alertTitle}"`, 'Alert Deleted');
@@ -445,7 +507,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 linkDescription: updatedAlert.linkDescription,
                 scheduledStart: updatedAlert.scheduledStart?.toISOString(),
                 scheduledEnd: updatedAlert.scheduledEnd?.toISOString(),
-                availableForAll: updatedAlert.availableForAll
+                availableForAll: updatedAlert.availableForAll,
+                targetUsers: [...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])]
               });
             } else {
               // Create new language variant
@@ -464,7 +527,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 contentType: updatedAlert.contentType,
                 targetLanguage: updatedAlert.targetLanguage,
                 languageGroup: updatedAlert.languageGroup,
-                availableForAll: updatedAlert.availableForAll
+                availableForAll: updatedAlert.availableForAll,
+                targetUsers: [...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])]
               });
             }
           }
@@ -517,7 +581,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           linkUrl: editingAlert.linkUrl,
           linkDescription: editingAlert.linkDescription,
           scheduledStart: editingAlert.scheduledStart?.toISOString(),
-          scheduledEnd: editingAlert.scheduledEnd?.toISOString()
+          scheduledEnd: editingAlert.scheduledEnd?.toISOString(),
+          targetUsers: [...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])]
         });
       }
 
@@ -1192,6 +1257,21 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   </div>
                 </SharePointSection>
 
+                <SharePointSection title={strings.CreateAlertSectionUserTargetingTitle}>
+                  <SharePointPeoplePicker
+                    context={context}
+                    titleText={strings.CreateAlertPeoplePickerLabel}
+                    personSelectionLimit={50}
+                    groupName={strings.CreateAlertPeoplePickerLabel}
+                    showtooltip={true}
+                    defaultSelectedUsers={[...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])].map(u => u.email || u.loginName || u.displayName)}
+                    onChange={handlePeoplePickerChange}
+                    principalTypes={[PrincipalType.User, PrincipalType.SharePointGroup, PrincipalType.SecurityGroup, PrincipalType.DistributionList]}
+                    resolveDelay={1000}
+                    description={strings.CreateAlertPeoplePickerDescription}
+                  />
+                </SharePointSection>
+
                 {!useMultiLanguage ? (
                   <>
                     <SharePointSection title={strings.CreateAlertSectionLanguageTargetingTitle}>
@@ -1243,6 +1323,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         setEditingAlert(prev => prev ? { ...prev, languageContent: content } : null);
                       }}
                       availableLanguages={supportedLanguages}
+
                       errors={editErrors}
                       linkUrl={editingAlert.linkUrl}
                       tenantDefaultLanguage={tenantDefaultLanguage}
@@ -1252,14 +1333,30 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   </SharePointSection>
                 )}
 
+                {/* Image Manager */}
+                {editingAlert.languageGroup && (
+                  <SharePointSection title={strings.ImageManagerTitle || "Images"}>
+                    <ImageManager
+                      context={context}
+                      imageStorageService={imageStorageService}
+                      folderName={editingAlert.languageGroup}
+                    />
+                  </SharePointSection>
+                )}
+
+
+
+  // ... (rest of the component)
+
                 {/* Attachment Manager */}
                 <AttachmentManager
                   context={context}
-                  listId={editingAlert._originalListItem?.['odata.id']?.match(/lists\(guid'([^']+)'\)/)?.[1] || ''}
+                  alertService={alertService}
+                  listId={alertsListId}
                   itemId={parseInt(editingAlert.id)}
                   attachments={editingAlert.attachments || []}
-                  onAttachmentsChange={(attachments) => {
-                    setEditingAlert(prev => prev ? { ...prev, attachments } : null);
+                  onAttachmentsChange={(newAttachments) => {
+                    setEditingAlert(prev => prev ? { ...prev, attachments: newAttachments } : null);
                   }}
                 />
 
@@ -1267,6 +1364,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 <SharePointSection title={strings.ManageAlertsUploadedImagesSectionTitle || 'Uploaded Images'}>
                   <ImageManager
                     context={context}
+                    imageStorageService={imageStorageService}
                     folderName={editingAlert.languageGroup || editingAlert.title}
                     onImageDeleted={() => {
                       // Optional: Refresh or notify on image deletion

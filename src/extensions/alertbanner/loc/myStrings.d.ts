@@ -61,6 +61,9 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CreateAlertLanguageConfigurationLabel: string;
   CreateAlertSingleLanguageButton: string;
   CreateAlertMultiLanguageButton: string;
+  CreateAlertSectionUserTargetingTitle: string;
+  CreateAlertPeoplePickerLabel: string;
+  CreateAlertPeoplePickerDescription: string;
   CreateAlertSectionLanguageTargetingTitle: string;
   CreateAlertTargetLanguageLabel: string;
   CreateAlertSectionLanguageTargetingDescription: string;
@@ -480,6 +483,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ImageManagerCopyError: string;
   ImageUploadFailure: string;
   ImageUploadInvalidFile: string;
+  ImageManagerTitle: string;
 
   // Repair Dialog
   RepairDialogWarningMessage: string;

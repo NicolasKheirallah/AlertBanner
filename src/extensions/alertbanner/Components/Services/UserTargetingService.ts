@@ -1,26 +1,30 @@
 import { IUser, ITargetingRule, IPersonField } from "../Alerts/IAlerts";
 import { IAlertItem } from "./SharePointAlertService";
-import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { MSGraphClientV3, SPHttpClient, SPHttpClientResponse } from "@microsoft/sp-http";
+import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import StorageService from "./StorageService";
 import { logger } from './LoggerService';
 
 export class UserTargetingService {
   private static instance: UserTargetingService;
+  private context: ApplicationCustomizerContext;
   private graphClient: MSGraphClientV3;
+  private spGroupIds: number[] = [];
   private currentUser: IUser | null = null;
   private userGroups: string[] = [];
   private userGroupIds: string[] = [];
   private isInitialized: boolean = false;
   private storageService: StorageService;
 
-  private constructor(graphClient: MSGraphClientV3) {
+  private constructor(graphClient: MSGraphClientV3, context: ApplicationCustomizerContext) {
     this.graphClient = graphClient;
+    this.context = context;
     this.storageService = StorageService.getInstance();
   }
 
-  public static getInstance(graphClient: MSGraphClientV3): UserTargetingService {
-    if (!UserTargetingService.instance) {
-      UserTargetingService.instance = new UserTargetingService(graphClient);
+  public static getInstance(graphClient: MSGraphClientV3, context?: ApplicationCustomizerContext): UserTargetingService {
+    if (!UserTargetingService.instance && context) {
+      UserTargetingService.instance = new UserTargetingService(graphClient, context);
     }
     return UserTargetingService.instance;
   }
@@ -69,6 +73,27 @@ export class UserTargetingService {
           .map((group: any) => group.id)
           .filter(Boolean);
         this.currentUser.userGroups = this.userGroups;
+      }
+
+      // Get SharePoint groups
+      try {
+        const spGroupsResponse: SPHttpClientResponse = await this.context.spHttpClient.get(
+          `${this.context.pageContext.web.absoluteUrl}/_api/web/currentuser/groups?$select=Id,Title`,
+          SPHttpClient.configurations.v1
+        );
+        
+        if (spGroupsResponse.ok) {
+          const spGroups = await spGroupsResponse.json();
+          if (spGroups && spGroups.value) {
+            this.spGroupIds = spGroups.value.map((g: any) => g.Id);
+            // Also add SP group names to userGroups for display/fallback
+            const spGroupNames = spGroups.value.map((g: any) => g.Title);
+            this.userGroups.push(...spGroupNames);
+            this.currentUser.userGroups = this.userGroups;
+          }
+        }
+      } catch (spError) {
+        logger.warn('UserTargetingService', 'Error fetching SharePoint groups', spError);
       }
 
       this.isInitialized = true;
@@ -224,16 +249,22 @@ export class UserTargetingService {
       return false;
     }
 
-    if (!this.userGroupIds.length) {
+    if (!this.userGroupIds.length && !this.spGroupIds.length) {
       return false;
     }
 
-    // Try to match by ID (most reliable)
-    if (this.userGroupIds.includes(group.id)) {
+    // Check SharePoint Groups (by ID)
+    // PeoplePicker returns SP Group ID as string, e.g. "12"
+    if (group.id && !isNaN(Number(group.id)) && this.spGroupIds.includes(Number(group.id))) {
       return true;
     }
 
-    // Fallback to match by display name (less reliable but added for robustness)
+    // Check AD Groups (by ID)
+    if (group.id && this.userGroupIds.includes(group.id)) {
+      return true;
+    }
+
+    // Fallback to match by display name
     return this.userGroups.some(userGroup =>
       typeof userGroup === 'string' &&
       typeof group.displayName === 'string' &&
