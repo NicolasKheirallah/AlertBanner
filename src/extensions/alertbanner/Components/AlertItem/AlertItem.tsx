@@ -146,7 +146,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
 
   const baseContainerStyle = React.useMemo<React.CSSProperties>(() => {
     const backgroundColor = alertType.backgroundColor || "#389899";
-    const textColor = getContrastText(backgroundColor);
+    const textColor = alertType.textColor || getContrastText(backgroundColor);
 
     return {
       backgroundColor,
