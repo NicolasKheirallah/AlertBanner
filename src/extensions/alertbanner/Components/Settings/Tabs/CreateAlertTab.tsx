@@ -14,13 +14,14 @@ import AlertPreview from "../../UI/AlertPreview";
 import AlertTemplates, { IAlertTemplate } from "../../UI/AlertTemplates";
 import SiteSelector from "../../UI/SiteSelector";
 import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
-import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage, IPersonField } from "../../Alerts/IAlerts";
+import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage, IPersonField, IAlertItem } from "../../Alerts/IAlerts";
 import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
 import { SiteContextDetector, ISiteValidationResult } from "../../Utils/SiteContextDetector";
-import { SharePointAlertService, IAlertItem } from "../../Services/SharePointAlertService";
+import { SharePointAlertService } from "../../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { logger } from '../../Services/LoggerService';
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+import { NotificationService } from '../../Services/NotificationService';
 import styles from "../AlertSettings.module.scss";
 import { validateAlertData, IFormErrors as IValidationErrors } from "../../Utils/AlertValidation";
 import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
@@ -137,6 +138,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   const [languageService] = React.useState(() => new LanguageAwarenessService(graphClient, context));
   const [supportedLanguages, setSupportedLanguages] = React.useState<ISupportedLanguage[]>([]);
   const [useMultiLanguage, setUseMultiLanguage] = React.useState(false);
+  const notificationService = React.useMemo(() => NotificationService.getInstance(context), [context]);
 
   // Draft state
   const [drafts, setDrafts] = React.useState<IAlertItem[]>([]);
@@ -413,7 +415,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           targetLanguage: TargetLanguage.All,
           status: 'Active' as 'Active' | 'Expired' | 'Scheduled',
           targetSites: newAlert.targetSites,
-          id: '0'
+          id: '0',
+          targetUsers: [...(newAlert.targetUsers || []), ...(newAlert.targetGroups || [])]
         }, newAlert.languageContent);
 
         const alertItems = languageService.generateAlertItems(multiLanguageAlert);
@@ -437,6 +440,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           permissionLevel: "success",
           error: ""
         }]);
+        notificationService.showSuccess(Text.format(strings.CreateAlertMultiLanguageSuccessStatus, alertItems.length), 'Alerts Created');
       } else {
         // Create single language alert
         const alertData = {
@@ -452,7 +456,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           scheduledStart: newAlert.scheduledStart?.toISOString(),
           scheduledEnd: newAlert.scheduledEnd?.toISOString(),
           contentType: newAlert.contentType,
-          targetLanguage: newAlert.targetLanguage
+          targetLanguage: newAlert.targetLanguage,
+          targetUsers: [...(newAlert.targetUsers || []), ...(newAlert.targetGroups || [])]
         };
 
         await alertService.createAlert(alertData);
@@ -465,6 +470,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           permissionLevel: "success",
           error: ""
         }]);
+        notificationService.showSuccess(strings.CreateAlertCreationSuccessStatus, 'Alert Created');
       }
 
       // Reset form on success
@@ -498,6 +504,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         permissionLevel: "error",
         error: error instanceof Error ? error.message : strings.CreateAlertUnknownError
       }]);
+      notificationService.showError(strings.CreateAlertCreationErrorStatus, 'Creation Failed');
     } finally {
       setIsCreatingAlert(false);
     }

@@ -28,7 +28,7 @@ export interface IMultiLanguageContentEditorProps {
   content: ILanguageContent[];
   onContentChange: (content: ILanguageContent[]) => void;
   availableLanguages: ISupportedLanguage[];
-  errors?: { [key: string]: string };
+  errors?: { [key: string]: string | undefined };
   linkUrl?: string;
   tenantDefaultLanguage?: TargetLanguage;
   context?: any;

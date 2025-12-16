@@ -1,5 +1,6 @@
 import * as React from "react";
 import { AlertPriority } from "../Alerts/IAlerts";
+import { tokens } from "@fluentui/react-components";
 import {
   Info24Regular,
   Warning24Regular,
@@ -10,11 +11,11 @@ import {
 export const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
   const getIconColor = (priority: AlertPriority): string => {
     switch (priority) {
-      case "critical": return "#d13438";
-      case "high": return "#f7630c";
-      case "medium": return "#0078d4";
-      case "low": return "#107c10";
-      default: return "#107c10";
+      case "critical": return tokens.colorPaletteRedForeground1;
+      case "high": return tokens.colorPaletteDarkOrangeForeground1;
+      case "medium": return tokens.colorPaletteBlueForeground2;
+      case "low": return tokens.colorPaletteGreenForeground1;
+      default: return tokens.colorPaletteGreenForeground1;
     }
   };
 

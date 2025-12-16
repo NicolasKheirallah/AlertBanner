@@ -1,5 +1,6 @@
 import * as React from "react";
-import { IAlertItem } from "../Services/SharePointAlertService";
+import { StringUtils } from "../Utils/StringUtils";
+import { IAlertItem } from "../Alerts/IAlerts";
 import { Document24Regular, ArrowDownload24Regular } from "@fluentui/react-icons";
 import DescriptionContent from "./DescriptionContent";
 import styles from "./AlertItem.module.scss";
@@ -59,7 +60,7 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(({ item, expanded,
             {item.attachments.map((attachment, index) => (
               <a
                 key={index}
-                href={resolveAttachmentUrl(attachment.serverRelativeUrl)}
+                href={StringUtils.resolveUrl(attachment.serverRelativeUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.attachmentItem}

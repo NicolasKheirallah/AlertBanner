@@ -3,6 +3,8 @@
  * Consolidates magic strings and configuration values
  */
 
+import { AlertPriority } from "../Alerts/IAlerts";
+
 /**
  * SharePoint list names
  */
@@ -43,32 +45,9 @@ export const FIELD_NAMES = {
   AVAILABLE_FOR_ALL: 'AvailableForAll',
 
   // Multi-language content fields
-  TITLE_EN: 'Title_EN',
-  TITLE_FR: 'Title_FR',
-  TITLE_DE: 'Title_DE',
-  TITLE_ES: 'Title_ES',
-  TITLE_SV: 'Title_SV',
-  TITLE_FI: 'Title_FI',
-  TITLE_DA: 'Title_DA',
-  TITLE_NO: 'Title_NO',
-
-  DESCRIPTION_EN: 'Description_EN',
-  DESCRIPTION_FR: 'Description_FR',
-  DESCRIPTION_DE: 'Description_DE',
-  DESCRIPTION_ES: 'Description_ES',
-  DESCRIPTION_SV: 'Description_SV',
-  DESCRIPTION_FI: 'Description_FI',
-  DESCRIPTION_DA: 'Description_DA',
-  DESCRIPTION_NO: 'Description_NO',
-
-  LINK_DESCRIPTION_EN: 'LinkDescription_EN',
-  LINK_DESCRIPTION_FR: 'LinkDescription_FR',
-  LINK_DESCRIPTION_DE: 'LinkDescription_DE',
-  LINK_DESCRIPTION_ES: 'LinkDescription_ES',
-  LINK_DESCRIPTION_SV: 'LinkDescription_SV',
-  LINK_DESCRIPTION_FI: 'LinkDescription_FI',
-  LINK_DESCRIPTION_DA: 'LinkDescription_DA',
-  LINK_DESCRIPTION_NO: 'LinkDescription_NO',
+  // Multi-language content fields
+  // Note: We use Row-Based Localization, so we do NOT use Title_EN, Title_FR columns.
+  // These are removed to avoid confusion.
 
   // Metadata fields
   METADATA: 'Metadata',
@@ -156,25 +135,45 @@ export const API_CONFIG = {
  * HTML sanitization configuration
  */
 export const SANITIZATION_CONFIG = {
-  // Allowed HTML tags
   ALLOWED_TAGS: [
-    'p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li',
-    'a', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'blockquote', 'code', 'pre', 'img'
+    'div', 'span', 'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li',
+    'a', 'img',
+    'blockquote', 'pre', 'code',
+    'table', 'thead', 'tbody', 'tr', 'td', 'th'
   ],
+  ALLOWED_ATTR: [
+    'href', 'src', 'alt', 'title', 'class', 'id', 'style',
+    'target', 'rel', 'width', 'height'
+  ],
+  FORBID_TAGS: ['script', 'object', 'embed', 'iframe', 'form', 'input'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+  DANGEROUS_JSON_KEYS: ['__proto__', 'constructor', 'prototype'],
+  TRUSTED_DOMAINS: [
+    /(^|\.)sharepoint\.[a-z.]+$/i,
+    /(^|\.)office\.[a-z.]+$/i,
+    /(^|\.)microsoft\.[a-z.]+$/i,
+    /(^|\.)cdn\.jsdelivr\.net$/i,
+    /(^|\.)cdnjs\.cloudflare\.com$/i
+  ]
+} as const;
 
-  // Allowed attributes
-  ALLOWED_ATTRIBUTES: {
-    'a': ['href', 'title', 'target'],
-    'img': ['src', 'alt', 'title', 'width', 'height'],
-    '*': ['class', 'id', 'style']
-  },
-
-  // Allowed URL schemes
-  ALLOWED_URL_SCHEMES: ['http', 'https', 'mailto'],
-
-  // Dangerous property names for JSON validation
-  DANGEROUS_JSON_KEYS: ['__proto__', 'constructor', 'prototype']
+export const VALIDATION_MESSAGES = {
+  CreateAlertLanguageRequired: 'At least one language must be configured',
+  CreateAlertLanguageTitleRequired: 'Title is required for {0}',
+  CreateAlertLanguageDescriptionRequired: 'Description is required for {0}',
+  CreateAlertLanguageLinkDescriptionRequired: 'Link description is required for {0} when URL is provided',
+  TitleRequired: 'Title is required',
+  TitleMinLength: 'Title must be at least 3 characters',
+  TitleMaxLength: 'Title cannot exceed 100 characters',
+  DescriptionRequired: 'Description is required',
+  DescriptionMinLength: 'Description must be at least 10 characters',
+  LinkDescriptionRequired: 'Link description is required when URL is provided',
+  AlertTypeRequired: 'Alert type is required',
+  InvalidUrlFormat: 'Please enter a valid URL',
+  AtLeastOneSiteRequired: 'At least one target site must be selected',
+  EndDateMustBeAfterStartDate: 'End date must be after start date',
 } as const;
 
 /**
@@ -216,6 +215,97 @@ export const ALERT_TYPE_DEFAULTS = {
 } as const;
 
 /**
+ * Default Alert Types Configuration
+ */
+// Default Alert Type Name when none is specified
+export const DEFAULT_ALERT_TYPE_NAME = "Info";
+
+export const DEFAULT_ALERT_TYPES = [
+  {
+    name: "Info",
+    iconName: "Info",
+    backgroundColor: "#389899",
+    textColor: "#ffffff",
+    additionalStyles: "",
+    priorityStyles: {
+      [AlertPriority.Critical]: "border: 2px solid #E81123;",
+      [AlertPriority.High]: "border: 1px solid #EA4300;",
+      [AlertPriority.Medium]: "",
+      [AlertPriority.Low]: ""
+    }
+  },
+  {
+    name: "Warning",
+    iconName: "Warning",
+    backgroundColor: "#f1c40f",
+    textColor: "#000000",
+    additionalStyles: "",
+    priorityStyles: {
+      [AlertPriority.Critical]: "border: 2px solid #E81123;",
+      [AlertPriority.High]: "border: 1px solid #EA4300;",
+      [AlertPriority.Medium]: "",
+      [AlertPriority.Low]: ""
+    }
+  },
+  {
+    name: "Maintenance",
+    iconName: "ConstructionCone",
+    backgroundColor: "#afd6d6",
+    textColor: "#000000",
+    additionalStyles: "",
+    priorityStyles: {
+      [AlertPriority.Critical]: "border: 2px solid #E81123;",
+      [AlertPriority.High]: "border: 1px solid #EA4300;",
+      [AlertPriority.Medium]: "",
+      [AlertPriority.Low]: ""
+    }
+  },
+  {
+    name: "Interruption",
+    iconName: "Error",
+    backgroundColor: "#c54644",
+    textColor: "#ffffff",
+    additionalStyles: "",
+    priorityStyles: {
+      [AlertPriority.Critical]: "border: 2px solid #E81123;",
+      [AlertPriority.High]: "border: 1px solid #EA4300;",
+      [AlertPriority.Medium]: "",
+      [AlertPriority.Low]: ""
+    }
+  }
+] as const;
+
+/**
+ * Notification Styles
+ */
+export const NOTIFICATION_STYLES = {
+  SUCCESS: { 
+    backgroundColor: '#dff6dd', 
+    textColor: '#107c10', 
+    borderColor: '#107c10', 
+    icon: '✅' 
+  },
+  WARNING: { 
+    backgroundColor: '#fff4ce', 
+    textColor: '#797673', 
+    borderColor: '#ffb900', 
+    icon: '⚠️' 
+  },
+  ERROR: { 
+    backgroundColor: '#fde7e9', 
+    textColor: '#a4262c', 
+    borderColor: '#d13438', 
+    icon: '❌' 
+  },
+  INFO: { 
+    backgroundColor: '#deecf9', 
+    textColor: '#323130', 
+    borderColor: '#0078d4', 
+    icon: 'ℹ️' 
+  }
+} as const;
+
+/**
  * Status values
  */
 export const ALERT_STATUS = {
@@ -234,7 +324,22 @@ export const AUTO_SAVE_PREFIXES = {
 } as const;
 
 /**
- * Language codes mapping
+ * Supported languages configuration
+ * Single source of truth for language definitions
+ */
+export const SUPPORTED_LANGUAGES = [
+  { code: 'en-us', suffix: 'EN', name: 'English', nativeName: 'English', flag: '🇺🇸' },
+  { code: 'fr-fr', suffix: 'FR', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+  { code: 'de-de', suffix: 'DE', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
+  { code: 'es-es', suffix: 'ES', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+  { code: 'sv-se', suffix: 'SV', name: 'Swedish', nativeName: 'Svenska', flag: '🇸🇪' },
+  { code: 'fi-fi', suffix: 'FI', name: 'Finnish', nativeName: 'Suomi', flag: '🇫🇮' },
+  { code: 'da-dk', suffix: 'DA', name: 'Danish', nativeName: 'Dansk', flag: '🇩🇰' },
+  { code: 'nb-no', suffix: 'NO', name: 'Norwegian', nativeName: 'Norsk', flag: '🇳🇴' }
+] as const;
+
+/**
+ * Language codes mapping (Derived/Legacy support)
  */
 export const LANGUAGE_CODES = {
   'en-us': 'EN',

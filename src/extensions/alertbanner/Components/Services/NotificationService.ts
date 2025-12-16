@@ -1,5 +1,6 @@
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { logger } from './LoggerService';
+import { UI_CONFIG, NOTIFICATION_STYLES } from '../Utils/AppConstants';
 
 export enum NotificationType {
   Success = 'success',
@@ -48,7 +49,7 @@ export class NotificationService {
       type: NotificationType.Success,
       title: title || 'Success',
       message,
-      duration: 5000,
+      duration: UI_CONFIG.TOAST_DURATION_MEDIUM_MS,
       actions,
       dismissible: true
     });
@@ -62,7 +63,7 @@ export class NotificationService {
       type: NotificationType.Warning,
       title: title || 'Warning',
       message,
-      duration: 8000,
+      duration: UI_CONFIG.TOAST_DURATION_LONG_MS,
       actions,
       dismissible: true
     });
@@ -90,7 +91,7 @@ export class NotificationService {
       type: NotificationType.Info,
       title: title || 'Information',
       message,
-      duration: 6000,
+      duration: UI_CONFIG.TOAST_DURATION_MEDIUM_MS + 1000, 
       actions,
       dismissible: true
     });
@@ -281,7 +282,7 @@ export class NotificationService {
       if (notification.parentNode) {
         notification.parentNode.removeChild(notification);
       }
-    }, 300);
+    }, UI_CONFIG.FADE_OUT_DURATION_MS + 100);
   }
 
   /**
@@ -290,14 +291,14 @@ export class NotificationService {
   private getBackgroundColor(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
-        return '#dff6dd';
+        return NOTIFICATION_STYLES.SUCCESS.backgroundColor;
       case NotificationType.Warning:
-        return '#fff4ce';
+        return NOTIFICATION_STYLES.WARNING.backgroundColor;
       case NotificationType.Error:
-        return '#fde7e9';
+        return NOTIFICATION_STYLES.ERROR.backgroundColor;
       case NotificationType.Info:
       default:
-        return '#deecf9';
+        return NOTIFICATION_STYLES.INFO.backgroundColor;
     }
   }
 
@@ -307,14 +308,14 @@ export class NotificationService {
   private getTextColor(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
-        return '#107c10';
+        return NOTIFICATION_STYLES.SUCCESS.textColor;
       case NotificationType.Warning:
-        return '#797673';
+        return NOTIFICATION_STYLES.WARNING.textColor;
       case NotificationType.Error:
-        return '#a4262c';
+        return NOTIFICATION_STYLES.ERROR.textColor;
       case NotificationType.Info:
       default:
-        return '#323130';
+        return NOTIFICATION_STYLES.INFO.textColor;
     }
   }
 
@@ -324,14 +325,14 @@ export class NotificationService {
   private getBorderColor(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
-        return '#107c10';
+        return NOTIFICATION_STYLES.SUCCESS.borderColor;
       case NotificationType.Warning:
-        return '#ffb900';
+        return NOTIFICATION_STYLES.WARNING.borderColor;
       case NotificationType.Error:
-        return '#d13438';
+        return NOTIFICATION_STYLES.ERROR.borderColor;
       case NotificationType.Info:
       default:
-        return '#0078d4';
+        return NOTIFICATION_STYLES.INFO.borderColor;
     }
   }
 
@@ -341,14 +342,14 @@ export class NotificationService {
   private getIcon(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
-        return '✅';
+        return NOTIFICATION_STYLES.SUCCESS.icon;
       case NotificationType.Warning:
-        return '⚠️';
+        return NOTIFICATION_STYLES.WARNING.icon;
       case NotificationType.Error:
-        return '❌';
+        return NOTIFICATION_STYLES.ERROR.icon;
       case NotificationType.Info:
       default:
-        return 'ℹ️';
+        return NOTIFICATION_STYLES.INFO.icon;
     }
   }
 

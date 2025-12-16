@@ -262,6 +262,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         );
 
         // Render with error handling
+        // NOTE: Using ReactDOM.render is required for SPFx compatibility (React 17)
         ReactDOM.render(
           alertsApp,
           this._topPlaceholderContent.domElement

@@ -18,8 +18,8 @@ import {
   Alert24Regular,
   Info24Regular
 } from "@fluentui/react-icons";
-import { AlertPriority, NotificationType } from "../Alerts/IAlerts";
-import { SharePointAlertService, IAlertItem } from "../Services/SharePointAlertService";
+import { AlertPriority, NotificationType, IAlertItem } from "../Alerts/IAlerts";
+import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertTemplates.module.scss";

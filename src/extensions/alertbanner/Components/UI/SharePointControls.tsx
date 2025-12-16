@@ -379,15 +379,33 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
   const errorId = `${pickerId}-error`;
   const descId = `${pickerId}-desc`;
 
-  // Defensive check: ensure context is defined
-  if (!context || !context.pageContext || !context.pageContext.web) {
-    return (
-      <div className={`${styles.field} ${className || ''}`}>
-        <div className={styles.error}>
-          People Picker Error: Context is not properly initialized. Please refresh the page.
+  // Defensive check: ensure context is defined and has necessary properties
+  const isContextValid = context && context.pageContext && context.pageContext.web && context.pageContext.web.absoluteUrl;
+  
+  if (!isContextValid) {
+    // If context is invalid, we can try to fall back or show a warning.
+    // For PeoplePicker, we absolutely need the web URL to call the API.
+    // We can try to use window.location.origin + context.pageContext.web.serverRelativeUrl if available?
+    let fallbackUrl = "";
+    if (context && context.pageContext && context.pageContext.web && context.pageContext.web.serverRelativeUrl) {
+        fallbackUrl = window.location.origin + context.pageContext.web.serverRelativeUrl;
+        // Hack: patch the context object if we can
+        try {
+            context.pageContext.web.absoluteUrl = fallbackUrl;
+        } catch (e) {
+            // Immutable?
+        }
+    }
+
+    if (!fallbackUrl && (!context || !context.pageContext || !context.pageContext.web || !context.pageContext.web.absoluteUrl)) {
+        return (
+        <div className={`${styles.field} ${className || ''}`}>
+            <div className={styles.error}>
+            People Picker Error: Context is not properly initialized (missing absoluteUrl). Please refresh the page.
+            </div>
         </div>
-      </div>
-    );
+        );
+    }
   }
 
   return (

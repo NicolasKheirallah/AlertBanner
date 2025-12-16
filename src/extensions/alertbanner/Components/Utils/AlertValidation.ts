@@ -1,6 +1,7 @@
-import { IAlertItem } from "../Services/SharePointAlertService";
+import { IAlertItem } from "../Alerts/IAlerts";
 import { ILanguageContent } from "../Services/LanguageAwarenessService";
 import { validationService } from "../Services/ValidationService";
+import { VALIDATION_MESSAGES } from "./AppConstants";
 
 export interface IFormErrors {
   [key: string]: string;
@@ -30,22 +31,7 @@ export const validateAlertData = (
       return getString(key, ...args);
     }
     // Fallback messages if localization is not available
-    const fallbackMessages: { [key: string]: string } = {
-      'CreateAlertLanguageRequired': 'At least one language must be configured',
-      'CreateAlertLanguageTitleRequired': 'Title is required for {0}',
-      'CreateAlertLanguageDescriptionRequired': 'Description is required for {0}',
-      'CreateAlertLanguageLinkDescriptionRequired': 'Link description is required for {0} when URL is provided',
-      'TitleRequired': 'Title is required',
-      'TitleMinLength': 'Title must be at least 3 characters',
-      'TitleMaxLength': 'Title cannot exceed 100 characters',
-      'DescriptionRequired': 'Description is required',
-      'DescriptionMinLength': 'Description must be at least 10 characters',
-      'LinkDescriptionRequired': 'Link description is required when URL is provided',
-      'AlertTypeRequired': 'Alert type is required',
-      'InvalidUrlFormat': 'Please enter a valid URL',
-      'AtLeastOneSiteRequired': 'At least one target site must be selected',
-      'EndDateMustBeAfterStartDate': 'End date must be after start date',
-    };
+    const fallbackMessages: { [key: string]: string } = VALIDATION_MESSAGES;
 
     let message = fallbackMessages[key] || key;
     // Simple placeholder replacement

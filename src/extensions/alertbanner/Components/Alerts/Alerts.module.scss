@@ -13,7 +13,8 @@
 }
 
 @keyframes pulseGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(232, 17, 35, 0.2);
   }
   50% {
@@ -48,7 +49,8 @@
   width: 100%;
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto",
+    sans-serif;
 }
 
 .container {
@@ -78,13 +80,24 @@
   padding: 5px 0;
 }
 
+.errorContainer {
+  width: 100%;
+  max-width: 100vw;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.errorMessageBar {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 // Responsive design
 @media (max-width: 768px) {
   :global(.alert-slide-in) {
     animation: fadeIn 0.2s ease-out; // Simpler animation on mobile
   }
 }
-
 
 // High contrast mode support
 @media (prefers-contrast: high) {

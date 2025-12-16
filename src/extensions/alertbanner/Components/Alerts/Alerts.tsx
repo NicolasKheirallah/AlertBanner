@@ -31,12 +31,12 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   const defaultAlertType = React.useMemo<IAlertType>(() => ({
     name: strings.DefaultAlertTypeName,
     iconName: "Info",
-    backgroundColor: "#ffffff",
-    textColor: "#000000",
+    backgroundColor: tokens.colorNeutralBackground1,
+    textColor: tokens.colorNeutralForeground1,
     additionalStyles: "",
     priorityStyles: {
-      [AlertPriority.Critical]: "border: 2px solid #E81123;",
-      [AlertPriority.High]: "border: 1px solid #EA4300;",
+      [AlertPriority.Critical]: `border: 2px solid ${tokens.colorPaletteRedForeground1};`,
+      [AlertPriority.High]: `border: 1px solid ${tokens.colorPaletteDarkOrangeForeground1};`,
       [AlertPriority.Medium]: "",
       [AlertPriority.Low]: ""
     }
@@ -101,7 +101,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     props.alertTypesJson,
     props.userTargetingEnabled,
     props.notificationsEnabled,
-    props.siteIds && props.siteIds.join('|'),
+    (props.siteIds || []).join('|'),
     initializeAlerts
   ]);
 
@@ -253,20 +253,19 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
 
   if (hasError) {
     return (
-      <div style={{
-        width: '100%',
-        maxWidth: '100vw',
-        margin: '0',
-        padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-        backgroundColor: tokens.colorNeutralBackground1,
-        borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
-        fontFamily: tokens.fontFamilyBase,
-      }}>
+      <div 
+        className={styles.errorContainer}
+        style={{
+          padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+          backgroundColor: tokens.colorNeutralBackground1,
+          borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+          fontFamily: tokens.fontFamilyBase,
+        }}
+      >
         <MessageBar 
           intent="error"
+          className={styles.errorMessageBar}
           style={{
-            maxWidth: '1200px',
-            margin: '0 auto',
             borderRadius: tokens.borderRadiusMedium,
             boxShadow: tokens.shadow4,
           }}

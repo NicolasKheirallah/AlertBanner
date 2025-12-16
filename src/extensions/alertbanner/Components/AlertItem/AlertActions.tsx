@@ -7,7 +7,7 @@ import {
   EyeOff24Regular,
   Link24Regular
 } from "@fluentui/react-icons";
-import { IAlertItem } from "../Services/SharePointAlertService";
+import { IAlertItem } from "../Alerts/IAlerts";
 import styles from "./AlertItem.module.scss";
 import { WINDOW_OPEN_CONFIG } from "../Utils/AppConstants";
 import * as strings from 'AlertBannerApplicationCustomizerStrings';

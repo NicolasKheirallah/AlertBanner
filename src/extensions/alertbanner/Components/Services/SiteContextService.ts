@@ -1,6 +1,7 @@
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { logger } from './LoggerService';
 import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { LIST_NAMES } from '../Utils/AppConstants';
 
 export interface ISiteInfo {
   id: string;
@@ -25,7 +26,7 @@ export class SiteContextService {
   private _homeSiteInfo: ISiteInfo | null = null;
   private _hubSiteInfo: ISiteInfo | null = null;
   private _currentSiteInfo: ISiteInfo | null = null;
-  private readonly alertsListName = 'Alerts';
+  private readonly alertsListName = LIST_NAMES.ALERTS;
 
   public static getInstance(
     context?: ApplicationCustomizerContext,
@@ -33,6 +34,14 @@ export class SiteContextService {
   ): SiteContextService {
     if (!SiteContextService._instance) {
       SiteContextService._instance = new SiteContextService(context, graphClient);
+    } else {
+      // Update stale dependencies if provided
+      if (context) {
+        SiteContextService._instance._context = context;
+      }
+      if (graphClient) {
+        SiteContextService._instance._graphClient = graphClient;
+      }
     }
     return SiteContextService._instance;
   }
@@ -355,35 +364,21 @@ export class SiteContextService {
       const { SharePointAlertService } = await import('./SharePointAlertService');
       const alertService = new SharePointAlertService(this._graphClient, this._context);
       
-      // Temporarily override the site context to create list on specific site
-      const originalSiteId = this._context.pageContext.site.id.toString();
-      (this._context.pageContext.site as any).id = { toString: () => siteId };
+      // Pass siteId directly to initializeLists and addLanguageSupport
+      await alertService.initializeLists(siteId);
       
-      try {
-        await alertService.initializeLists();
-        
-        if (selectedLanguages && selectedLanguages.length > 0) {
-          for (const languageCode of selectedLanguages) {
-            try {
-              await alertService.addLanguageSupport(languageCode);
-            } catch (langError) {
-              logger.warn('SiteContextService', `Failed to add language columns for ${languageCode}`, langError);
-            }
-          }
-        }
-        
-        // Update the hasAlertsList flag for the site
-        const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo];
-        const targetSite = sites.find(s => s && s.id === siteId);
-        if (targetSite) {
-          targetSite.hasAlertsList = true;
-        }
-        
-        return true;
-      } finally {
-        // Restore original site context
-        (this._context.pageContext.site as any).id = { toString: () => originalSiteId };
+      if (selectedLanguages && selectedLanguages.length > 0) {
+        await alertService.updateSupportedLanguages(siteId, selectedLanguages);
       }
+      
+      // Update the hasAlertsList flag for the site
+      const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo];
+      const targetSite = sites.find(s => s && s.id === siteId);
+      if (targetSite) {
+        targetSite.hasAlertsList = true;
+      }
+      
+      return true;
     } catch (error) {
       logger.error('SiteContextService', `Failed to create alerts list on site ${siteId}`, error);
       
@@ -407,16 +402,8 @@ export class SiteContextService {
       const { SharePointAlertService } = await import('./SharePointAlertService');
       const alertService = new SharePointAlertService(this._graphClient, this._context);
       
-      // Temporarily override the site context to query the specific site
-      const originalSiteId = this._context.pageContext.site.id.toString();
-      (this._context.pageContext.site as any).id = { toString: () => siteId };
-      
-      try {
-        return await alertService.getSupportedLanguages();
-      } finally {
-        // Restore original site context
-        (this._context.pageContext.site as any).id = { toString: () => originalSiteId };
-      }
+      // Pass siteId directly to getSupportedLanguages
+      return await alertService.getSupportedLanguages(siteId);
     } catch (error) {
       logger.warn('SiteContextService', `Failed to get supported languages for site ${siteId}`, error);
       return ['en-us']; // Default fallback

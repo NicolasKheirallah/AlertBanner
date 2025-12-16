@@ -36,6 +36,7 @@ import { SiteContextService, ISiteInfo, IAlertListStatus } from '../Services/Sit
 import styles from './ListManagement.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text as CoreText } from '@microsoft/sp-core-library';
+import { SUPPORTED_LANGUAGES } from '../Utils/AppConstants';
 
 const formatWithFallback = (value: string | undefined, fallback: string, ...args: Array<string | number>): string => {
   const template = value || fallback;
@@ -53,16 +54,7 @@ export interface IListManagementProps {
 }
 
 // Available languages for selection
-const AVAILABLE_LANGUAGES = [
-  { code: 'en-us', name: 'English', nativeName: 'English' },
-  { code: 'fr-fr', name: 'French', nativeName: 'Français' },
-  { code: 'de-de', name: 'German', nativeName: 'Deutsch' },
-  { code: 'es-es', name: 'Spanish', nativeName: 'Español' },
-  { code: 'sv-se', name: 'Swedish', nativeName: 'Svenska' },
-  { code: 'fi-fi', name: 'Finnish', nativeName: 'Suomi' },
-  { code: 'da-dk', name: 'Danish', nativeName: 'Dansk' },
-  { code: 'nb-no', name: 'Norwegian', nativeName: 'Norsk' }
-];
+const AVAILABLE_LANGUAGES = SUPPORTED_LANGUAGES;
 
 const ListManagement: React.FC<IListManagementProps> = ({
   siteContextService,
@@ -153,21 +145,9 @@ const ListManagement: React.FC<IListManagementProps> = ({
         siteContextService.getContext()
       );
 
-      // Temporarily override the site context
-      const originalSiteId = siteContextService.getContext().pageContext.site.id.toString();
-      (siteContextService.getContext().pageContext.site as any).id = { toString: () => siteId };
-
       try {
-        // Add support for newly selected languages
-        for (const languageCode of selectedLanguages) {
-          if (languageCode !== 'en-us') { // English is already there
-            try {
-              await alertService.addLanguageSupport(languageCode);
-            } catch (langError) {
-              logger.warn('ListManagement', `Failed to add language support for ${languageCode}`, langError);
-            }
-          }
-        }
+        // Update supported languages
+        await alertService.updateSupportedLanguages(siteId, selectedLanguages);
         
         setMessage({
           type: 'success',
@@ -177,7 +157,7 @@ const ListManagement: React.FC<IListManagementProps> = ({
         await siteContextService.refresh();
         await loadSiteInformation();
       } finally {
-        (siteContextService.getContext().pageContext.site as any).id = { toString: () => originalSiteId };
+        // Context restoration no longer needed
       }
     } catch (error) {
       setMessage({

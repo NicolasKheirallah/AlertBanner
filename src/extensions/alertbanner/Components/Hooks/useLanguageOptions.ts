@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { TargetLanguage } from '../Alerts/IAlerts';
 import { ISupportedLanguage } from '../Services/LanguageAwarenessService';
 
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+
 export interface ISharePointSelectOption {
   value: string;
   label: string;
@@ -17,7 +19,7 @@ export const useLanguageOptions = (
 ): ISharePointSelectOption[] => {
   return useMemo(() => {
     const options: ISharePointSelectOption[] = [
-      { value: TargetLanguage.All, label: '🌐 All Languages' }
+      { value: TargetLanguage.All, label: `🌐 ${strings.CreateAlertTargetLanguageAll}` }
     ];
 
     // Filter to only show enabled languages (those with column support or English default)

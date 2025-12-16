@@ -177,7 +177,7 @@ export class JsonUtils {
    * Merge multiple objects (shallow merge)
    */
   public static merge<T extends object>(...objects: Array<Partial<T> | null | undefined>): Partial<T> {
-    return objects.reduce((acc, obj) => {
+    return objects.reduce<Partial<T>>((acc, obj) => {
       if (obj) {
         return { ...acc, ...obj };
       }

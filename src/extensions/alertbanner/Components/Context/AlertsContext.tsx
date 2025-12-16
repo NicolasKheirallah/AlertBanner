@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createContext, useReducer, useContext, useCallback } from "react";
-import { IAlertType, AlertPriority, IPersonField, ITargetingRule, ContentType, TargetLanguage, NotificationType } from "../Alerts/IAlerts";
-import { SharePointAlertService, IAlertItem } from "../Services/SharePointAlertService";
+import { IAlertType, AlertPriority, IPersonField, ITargetingRule, ContentType, TargetLanguage, NotificationType, IAlertItem } from "../Alerts/IAlerts";
+import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import UserTargetingService from "../Services/UserTargetingService";
@@ -14,6 +14,7 @@ import { AlertTransformers } from "../Utils/AlertTransformers";
 import { AlertFilters } from "../Utils/AlertFilters";
 import { LIST_NAMES, CACHE_CONFIG, API_CONFIG } from "../Utils/AppConstants";
 import { JsonUtils } from "../Utils/JsonUtils";
+import { SiteIdUtils } from "../Utils/SiteIdUtils";
 
 interface AlertsState {
   alerts: IAlertItem[];
@@ -174,20 +175,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Normalize site ID to extract the site GUID for consistent deduplication
   const createSiteDedupKey = useCallback((siteId: string): string => {
-    if (!siteId) {
-      return "";
-    }
-
-    if (siteId.includes(',')) {
-      const [, siteGuid = siteId] = siteId.split(',');
-      return siteGuid;
-    }
-
-    if (siteId.includes(':')) {
-      return siteId.toLowerCase();
-    }
-
-    return siteId.replace(/[{}]/g, '').toLowerCase();
+    return SiteIdUtils.createDedupKey(siteId);
   }, []);
 
   const createAlertSignature = useCallback((alert: IAlertItem): string => {
@@ -255,8 +243,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
 
 
-      // Filter out templates, drafts, and auto-saved items using AlertFilters utility
-      alerts = AlertFilters.excludeNonPublicAlerts(alerts);
+      // Filter out templates, drafts, and auto-saved items is already handled by SharePointAlertService.getActiveAlerts
+      // alerts = AlertFilters.excludeNonPublicAlerts(alerts);
 
         // Cache the results
         alertCacheRef.current.set(siteId, { alerts, timestamp: now });
@@ -306,18 +294,28 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!cachedAlerts) return true;
     if (newAlerts.length !== cachedAlerts.length) return true;
 
-    const cachedSignatures = new Map<string, string>();
-    cachedAlerts.forEach(alert => {
-      cachedSignatures.set(alert.id, createAlertSignature(alert));
-    });
+    // Use Map for O(1) lookups
+    const cachedMap = new Map(cachedAlerts.map(a => [a.id, a]));
 
-    for (const alert of newAlerts) {
-      const cachedSignature = cachedSignatures.get(alert.id);
-      if (!cachedSignature) {
+    for (const newAlert of newAlerts) {
+      const cachedAlert = cachedMap.get(newAlert.id);
+      if (!cachedAlert) {
         return true;
       }
 
-      const currentSignature = createAlertSignature(alert);
+      // Fast comparison using modified timestamp if available
+      // This avoids expensive JSON serialization for most cases
+      if (newAlert.modified && cachedAlert.modified) {
+        if (newAlert.modified !== cachedAlert.modified) {
+          return true;
+        }
+        continue;
+      }
+
+      // Fallback to deep signature comparison if timestamp is missing
+      const cachedSignature = createAlertSignature(cachedAlert);
+      const currentSignature = createAlertSignature(newAlert);
+
       if (currentSignature !== cachedSignature) {
         return true;
       }

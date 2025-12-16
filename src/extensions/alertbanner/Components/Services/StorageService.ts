@@ -1,5 +1,6 @@
 import { IAlertItem } from "../Alerts/IAlerts";
 import { JsonUtils } from '../Utils/JsonUtils';
+import { logger } from './LoggerService';
 
 export interface IStorageOptions {
   expirationTime?: number; // In milliseconds
@@ -41,7 +42,7 @@ export class StorageService {
         localStorage.setItem(fullKey, serialized);
       }
     } catch (error) {
-      // Silent fail for storage operations
+      logger.warn('StorageService', `Failed to save to localStorage: ${key}`, error);
     }
   }
 
@@ -63,7 +64,7 @@ export class StorageService {
 
       return parsedData.data as T;
     } catch (error) {
-      // Silent fail for storage operations
+      logger.warn('StorageService', `Failed to read from localStorage: ${key}`, error);
       return null;
     }
   }
@@ -73,7 +74,7 @@ export class StorageService {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       localStorage.removeItem(fullKey);
     } catch (error) {
-      // Silent fail for storage operations
+      logger.warn('StorageService', `Failed to remove from localStorage: ${key}`, error);
     }
   }
 
@@ -91,7 +92,7 @@ export class StorageService {
         sessionStorage.setItem(fullKey, serialized);
       }
     } catch (error) {
-      // Silent fail for storage operations
+      logger.warn('StorageService', `Failed to save to sessionStorage: ${key}`, error);
     }
   }
 
@@ -105,7 +106,7 @@ export class StorageService {
       const parsedData = JsonUtils.safeParse(data);
       return parsedData ? (parsedData.data as T) : null;
     } catch (error) {
-      // Silent fail for storage operations
+      logger.warn('StorageService', `Failed to read from sessionStorage: ${key}`, error);
       return null;
     }
   }
@@ -115,7 +116,7 @@ export class StorageService {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       sessionStorage.removeItem(fullKey);
     } catch (error) {
-      // Silent fail for storage operations
+      logger.warn('StorageService', `Failed to remove from sessionStorage: ${key}`, error);
     }
   }
 

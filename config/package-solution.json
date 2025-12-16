@@ -1,76 +1,74 @@
 {
-    "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
-    "solution": {
-        "name": "alert-banner-client-side-solution",
-        "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
-        "version": "4.2.0.0",
-        "includeClientSideAssets": true,
-        "skipFeatureDeployment": true,
-        "isDomainIsolated": false,
-        "webApiPermissionRequests": [
-            {
-                "resource": "Microsoft Graph",
-                "scope": "Sites.ReadWrite.All"
-            },
-            {
-                "resource": "Microsoft Graph",
-                "scope": "User.Read"
-            },
-            {
-                "resource": "Microsoft Graph",
-                "scope": "Mail.Send"
-            },
-            {
-                "resource": "Microsoft Graph",
-                "scope": "GroupMember.Read.All"
-            },
-            {
-                "resource": "Microsoft Graph",
-                "scope": "Directory.Read.All"
-            },
-            {
-                "resource": "Microsoft Graph",
-                "scope": "Sites.FullControl.All"
-            }
-        ],
-        "developer": {
-            "name": "",
-            "websiteUrl": "",
-            "privacyUrl": "",
-            "termsOfUseUrl": "",
-            "mpnId": ""
-        },
-        "metadata": {
-            "shortDescription": {
-                "default": "Hierarchical alert banner with Home/Hub/Site distribution, automatic list management, and multi-language content creation"
-            },
-            "longDescription": {
-                "default": "A sophisticated alert banner with hierarchical site distribution (Home/Hub/Site), automatic list detection and creation, multi-language content management, simplified user targeting with SharePoint People/Groups fields, HTML content support, and comprehensive site context awareness."
-            },
-            "screenshotPaths": [],
-            "videoUrl": "",
-            "categories": []
-        },
-        "features": [
-            {
-                "title": "Alerts banner",
-                "description": "Deploys a custom action with ClientSideComponentId association",
-                "id": "811e2b52-af7a-41b7-b492-6f893b097fb6",
-                "version": "1.0.0.0",
-                "assets": {
-                    "elementManifests": [
-                        "elements.xml",
-                        "ClientSideInstance.xml",
-                        "listElements.xml"
-                    ],
-                    "elementFiles": [
-                        "listSchema_Alerts.xml"
-                    ]
-                }
-            }
-        ]
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "alert-banner-client-side-solution",
+    "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
+    "version": "5.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "webApiPermissionRequests": [
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Sites.ReadWrite.All"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "User.Read"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Mail.Send"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "GroupMember.Read.All"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Directory.Read.All"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Sites.FullControl.All"
+      }
+    ],
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": ""
     },
-    "paths": {
-        "zippedPackage": "solution/alert-banner.sppkg"
-    }
+    "metadata": {
+      "shortDescription": {
+        "default": "Hierarchical alert banner with Home/Hub/Site distribution, automatic list management, and multi-language content creation"
+      },
+      "longDescription": {
+        "default": "A sophisticated alert banner with hierarchical site distribution (Home/Hub/Site), automatic list detection and creation, multi-language content management, simplified user targeting with SharePoint People/Groups fields, HTML content support, and comprehensive site context awareness."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "Alerts banner",
+        "description": "Deploys a custom action with ClientSideComponentId association",
+        "id": "811e2b52-af7a-41b7-b492-6f893b097fb6",
+        "version": "1.0.0.0",
+        "assets": {
+          "elementManifests": [
+            "elements.xml",
+            "ClientSideInstance.xml",
+            "listElements.xml"
+          ],
+          "elementFiles": ["listSchema_Alerts.xml"]
+        }
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/alert-banner.sppkg"
+  }
 }

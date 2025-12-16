@@ -10,7 +10,7 @@ export class EditModeDetector {
         const pageContext = context.pageContext;
         // Check if user has edit rights - if not, definitely not in edit mode
         if (pageContext && pageContext.list && pageContext.list.permissions) {
-          const hasEditPermission = pageContext.list.permissions.hasPermission(SPPermission.editListItems);
+          const hasEditPermission = pageContext.list.permissions.hasPermission(SPPermission.editListItems as any);
           if (!hasEditPermission) {
             logger.debug('EditModeDetector', 'User does not have edit permissions - not in edit mode');
             return false;

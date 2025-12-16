@@ -22,7 +22,7 @@
     "noUncheckedIndexedAccess": false, // Enable after array access fixes
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
-    "strictNullChecks": false, // Enable after null checks
+    "strictNullChecks": true, // ENABLED: catches null/undefined errors
     "strictBindCallApply": false,
     "strictFunctionTypes": false,
     "strictPropertyInitialization": false, // Enable after constructor fixes

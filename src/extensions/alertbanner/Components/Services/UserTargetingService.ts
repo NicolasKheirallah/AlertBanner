@@ -1,5 +1,5 @@
 import { IUser, ITargetingRule, IPersonField } from "../Alerts/IAlerts";
-import { IAlertItem } from "./SharePointAlertService";
+import { IAlertItem } from "../Alerts/IAlerts";
 import { MSGraphClientV3, SPHttpClient, SPHttpClientResponse } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import StorageService from "./StorageService";

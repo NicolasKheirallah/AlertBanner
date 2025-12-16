@@ -1,7 +1,8 @@
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { MSGraphClientV3 } from '@microsoft/sp-http';
 import { TargetLanguage, ContentType } from '../Alerts/IAlerts';
-import { IAlertItem } from './SharePointAlertService';
+import { IAlertItem } from "../Alerts/IAlerts";
+import { SUPPORTED_LANGUAGES } from '../Utils/AppConstants';
 import { logger } from './LoggerService';
 
 export interface ISupportedLanguage {
@@ -66,16 +67,14 @@ export class LanguageAwarenessService {
    * Get all supported languages for the tenant
    */
   public static getSupportedLanguages(): ISupportedLanguage[] {
-    return [
-      { code: TargetLanguage.EnglishUS, name: 'English', nativeName: 'English', flag: '🇺🇸', isSupported: true, columnExists: false },
-      { code: TargetLanguage.FrenchFR, name: 'French', nativeName: 'Français', flag: '🇫🇷', isSupported: false, columnExists: false },
-      { code: TargetLanguage.GermanDE, name: 'German', nativeName: 'Deutsch', flag: '🇩🇪', isSupported: false, columnExists: false },
-      { code: TargetLanguage.SpanishES, name: 'Spanish', nativeName: 'Español', flag: '🇪🇸', isSupported: false, columnExists: false },
-      { code: TargetLanguage.SwedishSE, name: 'Swedish', nativeName: 'Svenska', flag: '🇸🇪', isSupported: false, columnExists: false },
-      { code: TargetLanguage.FinnishFI, name: 'Finnish', nativeName: 'Suomi', flag: '🇫🇮', isSupported: false, columnExists: false },
-      { code: TargetLanguage.DanishDK, name: 'Danish', nativeName: 'Dansk', flag: '🇩🇰', isSupported: false, columnExists: false },
-      { code: TargetLanguage.NorwegianNO, name: 'Norwegian', nativeName: 'Norsk', flag: '🇳🇴', isSupported: false, columnExists: false }
-    ];
+    return SUPPORTED_LANGUAGES.map(lang => ({
+      code: lang.code as TargetLanguage,
+      name: lang.name,
+      nativeName: lang.nativeName,
+      flag: lang.flag,
+      isSupported: lang.code === 'en-us', // Only English supported by default
+      columnExists: false
+    }));
   }
 
   /**

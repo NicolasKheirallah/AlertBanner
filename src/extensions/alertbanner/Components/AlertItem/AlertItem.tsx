@@ -4,13 +4,34 @@ import {
   IAlertType,
   IQuickAction
 } from "../Alerts/IAlerts";
-import { IAlertItem } from "../Services/SharePointAlertService";
+import { IAlertItem } from "../Alerts/IAlerts";
 import { getContrastText } from "../Utils/ColorUtils";
 import styles from "./AlertItem.module.scss";
 import AlertHeader from "./AlertHeader";
 import AlertContent from "./AlertContent";
 import AlertActions from "./AlertActions";
 import { WINDOW_OPEN_CONFIG, SHADOW_CONFIG } from "../Utils/AppConstants";
+
+// Whitelist of safe CSS properties for alert styling
+const ALLOWED_CSS_PROPERTIES = new Set([
+  'color', 'backgroundColor', 'background', 'border', 'borderColor', 
+  'borderWidth', 'borderStyle', 'borderRadius', 'padding', 'margin',
+  'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textDecoration',
+  'boxShadow', 'opacity', 'display', 'width', 'height', 'maxWidth', 
+  'minWidth', 'maxHeight', 'minHeight', 'lineHeight', 'letterSpacing'
+]);
+
+// Dangerous patterns that could enable CSS injection attacks
+const DANGEROUS_CSS_PATTERNS = [
+  /url\s*\(/i,           // Block url() - potential data exfiltration
+  /expression\s*\(/i,    // Block expression() - IE XSS vector
+  /javascript\s*:/i,     // Block javascript: protocol
+  /data\s*:/i,           // Block data: URIs
+  /behavior\s*:/i,       // Block behavior: - IE XSS vector
+  /@import/i,            // Block @import
+  /binding\s*:/i,        // Block -moz-binding
+  /\\[0-9a-f]/i          // Block unicode escape sequences
+];
 
 const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
   if (!stylesString) return {};
@@ -19,12 +40,31 @@ const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
   const stylesArray = stylesString.split(";").filter(s => s.trim());
 
   stylesArray.forEach(style => {
-    const [key, value] = style.split(":");
-    if (key?.trim() && value?.trim()) {
-      const camelCaseKey = key.trim().replace(/-([a-z])/g, (_, group1) => group1.toUpperCase());
-      const trimmedValue = value.trim();
-      styleObj[camelCaseKey] = isNaN(Number(trimmedValue)) ? trimmedValue : Number(trimmedValue);
+    const colonIndex = style.indexOf(":");
+    if (colonIndex === -1) return;
+    
+    const key = style.substring(0, colonIndex).trim();
+    const value = style.substring(colonIndex + 1).trim();
+    
+    if (!key || !value) return;
+    
+    const camelCaseKey = key.replace(/-([a-z])/g, (_, group1) => group1.toUpperCase());
+    
+    // Security: Only allow whitelisted CSS properties
+    if (!ALLOWED_CSS_PROPERTIES.has(camelCaseKey)) {
+      logger.warn('AlertItem', `Blocked non-whitelisted CSS property: ${key}`);
+      return;
     }
+    
+    // Security: Block dangerous CSS values
+    for (const pattern of DANGEROUS_CSS_PATTERNS) {
+      if (pattern.test(value)) {
+        logger.warn('AlertItem', `Blocked dangerous CSS value: ${value.substring(0, 50)}`);
+        return;
+      }
+    }
+    
+    styleObj[camelCaseKey] = isNaN(Number(value)) ? value : Number(value);
   });
 
   return styleObj as React.CSSProperties;

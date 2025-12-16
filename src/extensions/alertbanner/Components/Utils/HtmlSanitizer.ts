@@ -1,6 +1,7 @@
 import DOMPurifyFactory from 'dompurify';
 import { marked } from 'marked';
 import { logger } from '../Services/LoggerService';
+import { SANITIZATION_CONFIG } from '../Utils/AppConstants';
 
 type DomPurifyInstance = ReturnType<typeof DOMPurifyFactory> | null;
 
@@ -20,13 +21,6 @@ const createDomPurifyInstance = (): DomPurifyInstance => {
 
 const DOMPurify = createDomPurifyInstance();
 
-const DEFAULT_TRUSTED_DOMAIN_PATTERNS: RegExp[] = [
-  /(^|\.)sharepoint\.[a-z.]+$/i,
-  /(^|\.)office\.[a-z.]+$/i,
-  /(^|\.)microsoft\.[a-z.]+$/i,
-  /(^|\.)cdn\.jsdelivr\.net$/i,
-  /(^|\.)cdnjs\.cloudflare\.com$/i
-];
 
 const getConfiguredTrustedDomains = (): string[] => {
   if (typeof window === 'undefined') {
@@ -51,7 +45,8 @@ const isTrustedHost = (hostname: string): boolean => {
     return true;
   }
 
-  return DEFAULT_TRUSTED_DOMAIN_PATTERNS.some(pattern => pattern.test(normalizedHost));
+  // Use centralized configuration from AppConstants
+  return SANITIZATION_CONFIG.TRUSTED_DOMAINS.some(pattern => pattern.test(normalizedHost));
 };
 
 export class HtmlSanitizer {

@@ -1,5 +1,5 @@
-import { IAlertItem } from '../Services/SharePointAlertService';
-import { ContentType, AlertPriority, NotificationType, TargetLanguage } from '../Alerts/IAlerts';
+import { SiteIdUtils } from './SiteIdUtils';
+import { IAlertItem, ContentType, AlertPriority, NotificationType, TargetLanguage } from '../Alerts/IAlerts';
 import { logger } from '../Services/LoggerService';
 
 /**
@@ -84,27 +84,10 @@ export class AlertFilters {
       return alerts;
     }
 
-    // Accept multiple representations (composite Graph id, GUID only, or URL/hostname)
+    // Build unique set of all scoped site variations
     const scopeSet = new Set<string>();
     scopedSiteIds.forEach(site => {
-      const normalized = String(site).toLowerCase();
-      scopeSet.add(normalized);
-
-      // Composite Graph id: domain,guid,guid
-      const parts = normalized.split(",");
-      if (parts.length === 3) {
-        scopeSet.add(parts[1]); // site GUID
-        scopeSet.add(parts[0]); // hostname
-      }
-
-      // URL formats
-      try {
-        const url = new URL(normalized.startsWith("http") ? normalized : `https://${normalized}`);
-        scopeSet.add(url.hostname);
-        scopeSet.add(url.hostname + url.pathname);
-      } catch {
-        /* ignore parse errors */
-      }
+      SiteIdUtils.generateSiteVariations(site).forEach(v => scopeSet.add(v));
     });
 
     return alerts.filter(alert => {
@@ -115,26 +98,8 @@ export class AlertFilters {
 
       // Check if any of the alert's target sites match the scoped sites
       return alert.targetSites.some(targetSiteId => {
-        const raw = String(targetSiteId).toLowerCase();
-        if (scopeSet.has(raw)) return true;
-
-        // Composite Graph id: domain,guid,guid
-        const parts = raw.split(",");
-        if (parts.length === 3) {
-          if (scopeSet.has(parts[1]) || scopeSet.has(parts[0])) return true;
-        }
-
-        // URL/hostname variants
-        try {
-          const url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-          if (scopeSet.has(url.hostname) || scopeSet.has(url.hostname + url.pathname)) {
-            return true;
-          }
-        } catch {
-          /* ignore parse errors */
-        }
-
-        return false;
+        const variations = SiteIdUtils.generateSiteVariations(String(targetSiteId));
+        return variations.some(v => scopeSet.has(v));
       });
     });
   }

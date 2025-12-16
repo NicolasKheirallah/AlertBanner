@@ -1,6 +1,73 @@
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
-export type { IAlertItem } from "../Services/SharePointAlertService";
+// IAlertItem definition moved here to avoid circular dependencies
+export interface IAlertItem {
+  id: string;
+  title: string;
+  description: string;
+  AlertType: string;
+  priority: AlertPriority;
+  isPinned: boolean;
+  targetUsers?: IPersonField[]; // People/Groups who can see this alert. If empty, everyone sees it
+  notificationType: NotificationType;
+  linkUrl?: string;
+  linkDescription?: string;
+  targetSites: string[];
+  status: "Active" | "Expired" | "Scheduled" | "Draft";
+  createdDate: string;
+  createdBy: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  metadata?: any;
+  // New language and classification properties
+  contentType: ContentType;
+  targetLanguage: TargetLanguage;
+  languageGroup?: string;
+  availableForAll?: boolean;
+  // Attachments support
+  attachments?: {
+    fileName: string;
+    serverRelativeUrl: string;
+    size?: number;
+  }[];
+  modified?: string;
+  // Store the original SharePoint list item for multi-language access
+  _originalListItem?: IAlertListItem;
+}
+
+export interface IMultiLanguageContent {
+  [languageCode: string]: string;
+}
+
+export interface IAlertListItem {
+  Id: number;
+  Title: string;
+  Description: string;
+  AlertType: string;
+  Priority: string;
+  IsPinned: boolean;
+  NotificationType: string;
+  LinkUrl?: string;
+  LinkDescription?: string;
+  TargetSites: string;
+  Status: string;
+  Created: string;
+  Author: {
+    Title: string;
+    Email?: string;
+  };
+  Modified?: string;
+  ScheduledStart?: string;
+  ScheduledEnd?: string;
+  Metadata?: string;
+  ItemType?: string;
+  TargetLanguage?: string;
+  LanguageGroup?: string;
+  AvailableForAll?: boolean;
+
+  // Targeting
+  TargetUsers?: any[]; // SharePoint People/Groups field data
+}
 
 export enum AlertPriority {
   Low = "low",
@@ -77,7 +144,7 @@ export interface IAlertsProps {
 }
 
 export interface IAlertsState {
-  alerts: import("../Services/SharePointAlertService").IAlertItem[];
+  alerts: IAlertItem[];
   alertTypes: { [key: string]: IAlertType };
   isLoading: boolean;
   hasError: boolean;

@@ -343,14 +343,18 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       </div>
 
       {/* Selection Summary */}
-      {selectedSites.length > 0 && (
-        <div className={styles.selectionSummary}>
-          <p>
-            <strong>{selectedSites.length}</strong> {selectedSites.length === 1 ? strings.SiteSelectorSiteSingular : strings.SiteSelectorSitePlural} {strings.SiteSelectorSelected}
-            {maxSelection && ` ${CoreText.format(strings.SiteSelectorMaxSelection, maxSelection.toString())}`}
-          </p>
-        </div>
-      )}
+      <div className={styles.selectionSummary}>
+        <p>
+          {selectedSites.length === 0 ? (
+            <span>{'No sites selected'}</span>
+          ) : (
+            <>
+              <strong>{selectedSites.length}</strong> {selectedSites.length === 1 ? strings.SiteSelectorSiteSingular : strings.SiteSelectorSitePlural} {strings.SiteSelectorSelected}
+              {maxSelection && ` ${CoreText.format(strings.SiteSelectorMaxSelection, maxSelection.toString())}`}
+            </>
+          )}
+        </p>
+      </div>
 
       {/* Sites Grid */}
       <div className={styles.sitesGrid}>

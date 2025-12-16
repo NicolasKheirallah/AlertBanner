@@ -1,7 +1,8 @@
-import { IAlertItem, IAlertListItem } from '../Services/SharePointAlertService';
-import { AlertPriority, NotificationType, ContentType, TargetLanguage, IPersonField } from '../Alerts/IAlerts';
+import { IAlertItem, IAlertListItem, AlertPriority, NotificationType, ContentType, TargetLanguage, IPersonField } from '../Alerts/IAlerts';
 import { logger } from '../Services/LoggerService';
 import { JsonUtils } from './JsonUtils';
+import { SiteIdUtils } from './SiteIdUtils';
+import { DEFAULT_ALERT_TYPE_NAME } from './AppConstants';
 
 /**
  * Utility class for transforming SharePoint items to alert objects
@@ -213,44 +214,11 @@ export class AlertTransformers {
       ScheduledEnd: fields.ScheduledEnd || undefined,
       Metadata: fields.Metadata || undefined,
 
-      // Add all multi-language fields
-      Title_EN: fields.Title_EN || '',
-      Title_FR: fields.Title_FR || '',
-      Title_DE: fields.Title_DE || '',
-      Title_ES: fields.Title_ES || '',
-      Title_SV: fields.Title_SV || '',
-      Title_FI: fields.Title_FI || '',
-      Title_DA: fields.Title_DA || '',
-      Title_NO: fields.Title_NO || '',
-
-      Description_EN: fields.Description_EN || '',
-      Description_FR: fields.Description_FR || '',
-      Description_DE: fields.Description_DE || '',
-      Description_ES: fields.Description_ES || '',
-      Description_SV: fields.Description_SV || '',
-      Description_FI: fields.Description_FI || '',
-      Description_DA: fields.Description_DA || '',
-      Description_NO: fields.Description_NO || '',
-
-      LinkDescription_EN: fields.LinkDescription_EN || '',
-      LinkDescription_FR: fields.LinkDescription_FR || '',
-      LinkDescription_DE: fields.LinkDescription_DE || '',
-      LinkDescription_ES: fields.LinkDescription_ES || '',
-      LinkDescription_SV: fields.LinkDescription_SV || '',
-      LinkDescription_FI: fields.LinkDescription_FI || '',
-      LinkDescription_DA: fields.LinkDescription_DA || '',
-      LinkDescription_NO: fields.LinkDescription_NO || '',
-
-      // Language and classification properties
+      // Language and classification properties (Row-Based Localization)
       ItemType: fields.ItemType || '',
       TargetLanguage: fields.TargetLanguage || '',
       LanguageGroup: fields.LanguageGroup || '',
       AvailableForAll: fields.AvailableForAll || false,
-
-      // Include any additional dynamic language fields
-      ...Object.keys(fields)
-        .filter(key => key.match(/^(Title|Description|LinkDescription)_[A-Z]{2}$/))
-        .reduce((acc, key) => ({ ...acc, [key]: fields[key] }), {})
     };
   }
 
@@ -265,14 +233,12 @@ export class AlertTransformers {
 
     // If composite format (e.g., "hostname,siteGuid,webGuid"), extract the site GUID (middle part)
     if (siteId.includes(',')) {
-      const parts = siteId.split(',');
-      if (parts.length >= 2 && parts[1]) {
-        return parts[1].replace(/[{}]/g, '').toLowerCase();
-      }
+      const extracted = SiteIdUtils.extractGuidFromGraphId(siteId);
+      if (extracted) return extracted;
     }
 
     // Remove braces and lowercase for consistency
-    return siteId.replace(/[{}]/g, '').toLowerCase();
+    return SiteIdUtils.normalizeGuid(siteId);
   }
 
   /**
@@ -303,7 +269,7 @@ export class AlertTransformers {
       id: `${normalizedSiteId}-${item.id}`,
       title: fields.Title || "",
       description: fields.Description || "",
-      AlertType: fields.AlertType?.LookupValue || fields.AlertType || "Default",
+      AlertType: fields.AlertType?.LookupValue || fields.AlertType || DEFAULT_ALERT_TYPE_NAME,
       priority: priority,
       isPinned: fields.IsPinned || false,
       targetUsers: targetUsers,
@@ -315,6 +281,7 @@ export class AlertTransformers {
       createdDate,
       createdBy,
       contentType: contentType,
+      modified: item.lastModifiedDateTime || fields.Modified,
       targetLanguage: (fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
       languageGroup: fields.LanguageGroup || undefined,
       availableForAll: typeof fields.AvailableForAll === 'boolean'

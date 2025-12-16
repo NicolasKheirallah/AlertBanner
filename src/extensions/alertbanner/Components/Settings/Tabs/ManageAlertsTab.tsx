@@ -22,7 +22,8 @@ import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "
 import { logger } from '../../Services/LoggerService';
 import { NotificationService } from '../../Services/NotificationService';
 import { SiteContextDetector } from "../../Utils/SiteContextDetector";
-import { SharePointAlertService, IAlertItem } from "../../Services/SharePointAlertService";
+import { SharePointAlertService } from "../../Services/SharePointAlertService";
+import { IAlertItem } from "../../Alerts/IAlerts";
 import { ImageStorageService } from "../../Services/ImageStorageService";
 import { htmlSanitizer } from "../../Utils/HtmlSanitizer";
 import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
@@ -508,6 +509,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 scheduledStart: updatedAlert.scheduledStart?.toISOString(),
                 scheduledEnd: updatedAlert.scheduledEnd?.toISOString(),
                 availableForAll: updatedAlert.availableForAll,
+                targetSites: editingAlert.targetSites,
                 targetUsers: [...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])]
               });
             } else {
@@ -521,7 +523,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 notificationType: updatedAlert.notificationType,
                 linkUrl: updatedAlert.linkUrl,
                 linkDescription: updatedAlert.linkDescription,
-                targetSites: existingAlerts.find(a => a.languageGroup === editingAlert.languageGroup)?.targetSites || [],
+                targetSites: editingAlert.targetSites || [],
                 scheduledStart: updatedAlert.scheduledStart?.toISOString(),
                 scheduledEnd: updatedAlert.scheduledEnd?.toISOString(),
                 contentType: updatedAlert.contentType,
@@ -582,6 +584,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           linkDescription: editingAlert.linkDescription,
           scheduledStart: editingAlert.scheduledStart?.toISOString(),
           scheduledEnd: editingAlert.scheduledEnd?.toISOString(),
+          targetSites: editingAlert.targetSites,
           targetUsers: [...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])]
         });
       }

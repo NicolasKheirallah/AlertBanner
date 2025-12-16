@@ -12,7 +12,8 @@ import {
   Text,
   Icon,
   Stack,
-  Separator
+  Separator,
+  ContextualMenu
 } from '@fluentui/react';
 import { IRepairResult } from '../Services/SharePointAlertService';
 import { SharePointAlertService } from '../Services/SharePointAlertService';
@@ -264,7 +265,7 @@ const RepairDialog: React.FC<IRepairDialogProps> = ({
         dragOptions: isRepairing ? undefined : {
           moveMenuItemText: 'Move',
           closeMenuItemText: 'Close',
-          menu: undefined
+          menu: ContextualMenu
         }
       }}
       minWidth={600}
