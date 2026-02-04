@@ -8,20 +8,23 @@ import {
   Button,
   Field,
   Badge,
-  Checkbox
+  Checkbox,
+  MessageBar,
+  MessageBarBody
 } from '@fluentui/react-components';
 import {
   Add24Regular,
   Dismiss24Regular,
   Globe24Regular
 } from '@fluentui/react-icons';
-import { SharePointInput } from './SharePointControls';
+import { SharePointInput, SharePointSelect, ISharePointSelectOption } from './SharePointControls';
 import SharePointRichTextEditor from './SharePointRichTextEditor';
-import { ILanguageContent, ISupportedLanguage, LanguageAwarenessService } from '../Services/LanguageAwarenessService';
-import { TargetLanguage } from '../Alerts/IAlerts';
+import { ILanguageContent, ISupportedLanguage } from '../Services/LanguageAwarenessService';
+import { TargetLanguage, TranslationStatus } from '../Alerts/IAlerts';
 import styles from './MultiLanguageContentEditor.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text as CoreText } from '@microsoft/sp-core-library';
+import { ILanguagePolicy, normalizeLanguagePolicy } from '../Services/LanguagePolicyService';
 
 
 export interface IMultiLanguageContentEditorProps {
@@ -33,6 +36,8 @@ export interface IMultiLanguageContentEditorProps {
   tenantDefaultLanguage?: TargetLanguage;
   context?: any;
   imageFolderName?: string; 
+  disableImageUpload?: boolean;
+  languagePolicy?: ILanguagePolicy;
 }
 
 const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = ({
@@ -43,9 +48,13 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
   linkUrl,
   tenantDefaultLanguage = TargetLanguage.EnglishUS,
   context,
-  imageFolderName
+  imageFolderName,
+  disableImageUpload = false,
+  languagePolicy
 }) => {
   const [selectedTab, setSelectedTab] = React.useState<string>('');
+  const effectivePolicy = React.useMemo(() => normalizeLanguagePolicy(languagePolicy), [languagePolicy]);
+  const fallbackLanguage = effectivePolicy.fallbackLanguage === "tenant-default" ? tenantDefaultLanguage : effectivePolicy.fallbackLanguage;
   
   React.useEffect(() => {
     if (content.length > 0 && !selectedTab) {
@@ -62,7 +71,8 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
       title: '',
       description: '',
       linkDescription: linkUrl ? '' : undefined,
-      availableForAll: language === tenantDefaultLanguage
+      availableForAll: language === tenantDefaultLanguage,
+      translationStatus: effectivePolicy.workflow.enabled ? effectivePolicy.workflow.defaultStatus : TranslationStatus.Approved
     };
 
     const updatedContent = [...content, newContent];
@@ -82,7 +92,7 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
     }
   };
 
-  const updateContent = (language: TargetLanguage, field: keyof ILanguageContent, value: string) => {
+  const updateContent = (language: TargetLanguage, field: keyof ILanguageContent, value: string | boolean) => {
     const updatedContent = content.map(c => 
       c.language === language 
         ? { ...c, [field]: value }
@@ -102,6 +112,20 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
     );
   };
 
+  const translationStatusOptions: ISharePointSelectOption[] = React.useMemo(() => ([
+    { value: TranslationStatus.Draft, label: strings.TranslationStatusDraft },
+    { value: TranslationStatus.InReview, label: strings.TranslationStatusInReview },
+    { value: TranslationStatus.Approved, label: strings.TranslationStatusApproved }
+  ]), []);
+
+  const fallbackLanguageLabel = React.useMemo(() => {
+    if (effectivePolicy.fallbackLanguage === "tenant-default") {
+      return strings.LanguagePolicyFallbackTenantDefault;
+    }
+    const info = getLanguageInfo(fallbackLanguage);
+    return info ? `${info.flag} ${info.nativeName}` : fallbackLanguage;
+  }, [effectivePolicy.fallbackLanguage, fallbackLanguage, availableLanguages]);
+
   return (
     <div className={styles.container}>
       <Card>
@@ -118,6 +142,11 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
         {/* Language Selector */}
         <div className={styles.languageSelector}>
           <Text size={300} weight="semibold">{strings.MultiLanguageEditorAddLanguagesLabel}</Text>
+          {effectivePolicy.inheritance.enabled && (
+            <Text size={200} className={styles.policyHint}>
+              {CoreText.format(strings.LanguagePolicyInheritanceHint, fallbackLanguageLabel)}
+            </Text>
+          )}
           <div className={styles.availableLanguages}>
             {getAvailableLanguagesToAdd().map(language => (
               <button
@@ -136,6 +165,13 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
             <Text size={200} className={styles.allLanguagesText}>
               {strings.MultiLanguageEditorAllLanguagesAdded}
             </Text>
+          )}
+          {(errors.languageDuplicate || errors.languageContent) && (
+            <MessageBar intent="error">
+              <MessageBarBody>
+                {errors.languageDuplicate || errors.languageContent}
+              </MessageBarBody>
+            </MessageBar>
           )}
         </div>
 
@@ -213,6 +249,7 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
                           placeholder={CoreText.format(strings.MultiLanguageEditorDescriptionPlaceholder, (langInfo?.nativeName || langInfo?.name || contentItem.language))}
                           context={context}
                           imageFolderName={imageFolderName}
+                          disableImageUpload={disableImageUpload}
                         />
                       </Field>
 
@@ -231,6 +268,24 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
                               />
                         </Field>
                       )}
+
+                      {effectivePolicy.workflow.enabled && (
+                        <SharePointSelect
+                          label={strings.TranslationStatusLabel}
+                          value={contentItem.translationStatus || effectivePolicy.workflow.defaultStatus}
+                          onChange={(value) => updateContent(contentItem.language, 'translationStatus', value)}
+                          options={translationStatusOptions}
+                          description={strings.TranslationStatusDescription}
+                        />
+                      )}
+
+                      <div className={styles.fieldRow}>
+                        <Checkbox
+                          checked={!!contentItem.availableForAll}
+                          onChange={(_, data) => updateContent(contentItem.language, 'availableForAll', !!data.checked)}
+                          label={strings.MultiLanguageEditorFallbackLabel}
+                        />
+                      </div>
                     </div>
                   </div>
                 );

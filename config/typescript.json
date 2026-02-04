@@ -1,0 +1,4 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/typescript.schema.json",
+  "extends": "../node_modules/@microsoft/spfx-web-build-rig/profiles/default/config/typescript.json"
+}

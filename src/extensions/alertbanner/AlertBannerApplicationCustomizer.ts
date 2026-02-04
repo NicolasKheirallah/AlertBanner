@@ -14,8 +14,8 @@ import { LocalizationService } from "./Components/Services/LocalizationService";
 import { LocalizationProvider } from "./Components/Hooks/useLocalization";
 import Alerts from "./Components/Alerts/Alerts";
 import { logger } from './Components/Services/LoggerService';
-import StorageService from './Components/Services/StorageService';
 import { SiteContextService } from "./Components/Services/SiteContextService";
+import { setIconOptions } from "@fluentui/style-utilities";
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
   private _topPlaceholderContent: PlaceholderContent | undefined;
@@ -23,10 +23,12 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
   private _siteIds: string[] | null = null; // Cache site IDs to prevent recalculation
   private _isRendering: boolean = false; // Prevent concurrent renders
   private _lastRenderedSiteId: string | null = null; // Track last site to detect SPA navigation
-  private readonly _storageService: StorageService = StorageService.getInstance();
 
   @override
   public async onInit(): Promise<void> {
+    // Suppress duplicate icon registration warnings from Fluent UI v8 dependencies
+    setIconOptions({ disableWarnings: true });
+
     // Initialize localization service
     const localizationService = LocalizationService.getInstance(this.context);
     await localizationService.initialize(this.context);
@@ -46,15 +48,6 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
   private _initializeDefaultProperties(): void {
     // Instead of modifying this.properties directly, create a local copy
     this._customProperties = { ...this.properties };
-
-    // Merge persisted settings from storage if available
-    const persistedSettings = this._storageService.getFromLocalStorage<IAlertsBannerApplicationCustomizerProperties>('AlertBannerSettings');
-    if (persistedSettings) {
-      this._customProperties = {
-        ...this._customProperties,
-        ...persistedSettings
-      };
-    }
 
     // Set default alert types if none are provided
     if (!this._customProperties.alertTypesJson || this._customProperties.alertTypesJson === "[]") {
@@ -126,6 +119,11 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       this._customProperties.notificationsEnabled !== undefined ?
       this._customProperties.notificationsEnabled : false;
 
+    // DISABLED BY DEFAULT - target site selection can be enabled in settings
+    this._customProperties.enableTargetSite =
+      this._customProperties.enableTargetSite !== undefined ?
+      this._customProperties.enableTargetSite : false;
+
     this._persistCustomProperties();
   }
 
@@ -133,8 +131,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     this.properties.alertTypesJson = this._customProperties.alertTypesJson;
     this.properties.userTargetingEnabled = this._customProperties.userTargetingEnabled;
     this.properties.notificationsEnabled = this._customProperties.notificationsEnabled;
-
-    this._storageService.saveToLocalStorage('AlertBannerSettings', this._customProperties);
+    this.properties.enableTargetSite = this._customProperties.enableTargetSite;
   }
 
   @override
@@ -173,11 +170,13 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     alertTypesJson: string;
     userTargetingEnabled: boolean;
     notificationsEnabled: boolean;
+    enableTargetSite: boolean;
   }): void => {
     const hasChanged =
       this._customProperties.alertTypesJson !== settings.alertTypesJson ||
       this._customProperties.userTargetingEnabled !== settings.userTargetingEnabled ||
-      this._customProperties.notificationsEnabled !== settings.notificationsEnabled;
+      this._customProperties.notificationsEnabled !== settings.notificationsEnabled ||
+      this._customProperties.enableTargetSite !== settings.enableTargetSite;
 
     if (!hasChanged) {
       return;
@@ -187,7 +186,8 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       ...this._customProperties,
       alertTypesJson: settings.alertTypesJson,
       userTargetingEnabled: settings.userTargetingEnabled,
-      notificationsEnabled: settings.notificationsEnabled
+      notificationsEnabled: settings.notificationsEnabled,
+      enableTargetSite: settings.enableTargetSite
     };
 
     this._persistCustomProperties();
@@ -251,6 +251,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
             alertTypesJson: alertTypesJsonString,
             userTargetingEnabled: this._customProperties.userTargetingEnabled,
             notificationsEnabled: this._customProperties.notificationsEnabled,
+            enableTargetSite: this._customProperties.enableTargetSite,
             onSettingsChange: this._handleSettingsChange
           }
         );

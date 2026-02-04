@@ -6,6 +6,7 @@ import { AlertOperationsService } from "./AlertOperationsService";
 import { logger } from "./LoggerService";
 import { AlertFilters } from "../Utils/AlertFilters";
 import { IAlertItem, IAlertType, ContentType, AlertPriority } from "../Alerts/IAlerts";
+import { ILanguagePolicy } from "./LanguagePolicyService";
 import { LIST_NAMES } from "../Utils/AppConstants";
 
 export type { IRepairResult }; // Re-export for consumers
@@ -45,9 +46,11 @@ export class SharePointAlertService {
   public async getDraftAlerts(siteId: string) { return this.operations.getDraftAlerts(siteId); }
   public async saveDraft(draft: any) { return this.operations.saveDraft(draft); }
   public async deleteDraft(id: string) { return this.operations.deleteDraft(id); }
-  public async addAttachment(listId: string, itemId: number, name: string, content: ArrayBuffer) { return this.operations.addAttachment(listId, itemId, name, content); }
-  public async deleteAttachment(listId: string, itemId: number, name: string) { return this.operations.deleteAttachment(listId, itemId, name); }
+  public async addAttachment(listId: string, itemId: number, name: string, content: ArrayBuffer, siteId?: string) { return this.operations.addAttachment(listId, itemId, name, content, siteId); }
+  public async deleteAttachment(listId: string, itemId: number, name: string, siteId?: string) { return this.operations.deleteAttachment(listId, itemId, name, siteId); }
   public async getTemplateAlerts(siteId: string) { return this.operations.getTemplateAlerts(siteId); }
+  public async getLanguagePolicy(siteId?: string) { return this.operations.getLanguagePolicy(siteId); }
+  public async saveLanguagePolicy(policy: ILanguagePolicy, siteId?: string) { return this.operations.saveLanguagePolicy(policy, siteId); }
 
   // Helpers exposed
   public getCurrentSiteId() { return this.context.pageContext.site.id.toString(); }

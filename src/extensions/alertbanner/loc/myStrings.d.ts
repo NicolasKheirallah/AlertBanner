@@ -117,6 +117,9 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CreateAlertDraftSaveSuccessStatus: string;
   CreateAlertDraftSaveErrorStatus: string;
   CreateAlertUnknownError: string;
+  CreateAlertLanguageAtLeastOneComplete: string;
+  CreateAlertDefaultLanguageRequired: string;
+  DuplicateLanguagesNotAllowed: string;
   CreateAlertPreviewLanguageLabel: string;
   CreateAlertMultiLanguagePreviewTitle: string;
   CreateAlertMultiLanguagePreviewDescription: string;
@@ -425,12 +428,65 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   MultiLanguageEditorDescriptionPlaceholder: string;
   MultiLanguageEditorLinkDescriptionLabel: string;
   MultiLanguageEditorLinkDescriptionPlaceholder: string;
+  MultiLanguageEditorFallbackLabel: string;
   MultiLanguageEditorNoLanguagesTitle: string;
   MultiLanguageEditorNoLanguagesDescription: string;
   MultiLanguageEditorSummaryTitle: string;
   MultiLanguageEditorSummaryComplete: string;
   MultiLanguageEditorSummaryIncomplete: string;
   MultiLanguageEditorLanguageCount: string;
+  TranslationStatusLabel: string;
+  TranslationStatusDescription: string;
+  TranslationStatusDraft: string;
+  TranslationStatusInReview: string;
+  TranslationStatusApproved: string;
+  LanguagePolicyInheritanceHint: string;
+
+  // Language Policy
+  LanguagePolicyTitle: string;
+  LanguagePolicyDescription: string;
+  LanguagePolicyFallbackLanguageLabel: string;
+  LanguagePolicyFallbackLanguageDescription: string;
+  LanguagePolicyFallbackTenantDefault: string;
+  LanguagePolicyCompletenessRuleLabel: string;
+  LanguagePolicyCompletenessRuleDescription: string;
+  LanguagePolicyCompletenessAll: string;
+  LanguagePolicyCompletenessAtLeastOne: string;
+  LanguagePolicyCompletenessDefault: string;
+  LanguagePolicyRequireLinkDescriptionLabel: string;
+  LanguagePolicyRequireLinkDescriptionDescription: string;
+  LanguagePolicyPreventDuplicatesLabel: string;
+  LanguagePolicyPreventDuplicatesDescription: string;
+  LanguagePolicyInheritanceEnable: string;
+  LanguagePolicyInheritanceDescription: string;
+  LanguagePolicyInheritanceTitleField: string;
+  LanguagePolicyInheritanceDescriptionField: string;
+  LanguagePolicyInheritanceLinkDescriptionField: string;
+  LanguagePolicyWorkflowEnable: string;
+  LanguagePolicyWorkflowDescription: string;
+  LanguagePolicyWorkflowDefaultStatusLabel: string;
+  LanguagePolicyWorkflowRequireApproved: string;
+  LanguagePolicyWorkflowRequireApprovedDescription: string;
+  LanguagePolicySaveButton: string;
+  LanguagePolicySaving: string;
+  LanguagePolicySavedSuccess: string;
+  LanguagePolicySavedFailed: string;
+
+  // Language Manager
+  LanguageManagerTitle: string;
+  LanguageManagerDescription: string;
+  LanguageManagerAvailableLanguages: string;
+  LanguageManagerActiveCount: string;
+  LanguageManagerActiveCountWithPending: string;
+  LanguageManagerLoading: string;
+  LanguageManagerLoadingSupport: string;
+  LanguageManagerUpdating: string;
+  LanguageManagerActive: string;
+  LanguageManagerLoadFailedDefault: string;
+  LanguageManagerDefaultLanguageProtected: string;
+  LanguageManagerAddedSuccess: string;
+  LanguageManagerRemovedSuccess: string;
+  LanguageManagerUpdateFailed: string;
 
   // Alert Templates
   AlertTemplatesTemplateDescription: string;
@@ -470,6 +526,10 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AttachmentManagerDeleteTitle: string;
   AttachmentManagerHelpText: string;
   AttachmentManagerDeleteError: string;
+  AttachmentManagerSaveAlertFirst: string;
+  AttachmentManagerUploadFailed: string;
+  AttachmentManagerInvalidFormat: string;
+  AttachmentManagerFileTooLarge: string;
 
   // Image Manager
   ImageManagerDeleteConfirm: string;
@@ -554,6 +614,24 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ErrorBoundaryCopyButton: string;
   ErrorBoundaryReloadButton: string;
   ErrorBoundaryDevDetailsTitle: string;
+
+  // Permission Status
+  PermissionStatusChecking: string;
+  PermissionStatusAllGranted: string;
+  PermissionStatusMissingTitle: string;
+  PermissionStatusSitesWriteRequired: string;
+  PermissionStatusSitesWriteDescription: string;
+  PermissionStatusMailRequired: string;
+  PermissionStatusMailDescription: string;
+  PermissionStatusShowDetails: string;
+  PermissionStatusHideDetails: string;
+  PermissionStatusMissingList: string;
+  PermissionStatusAdminAction: string;
+  PermissionStatusGrantPermissions: string;
+  PermissionStatusContactAdmin: string;
+
+  // Manage Alerts - Missing strings
+  ManageAlertsCrossSiteImagesNotice: string;
 }
 
 declare module 'AlertBannerApplicationCustomizerStrings' {

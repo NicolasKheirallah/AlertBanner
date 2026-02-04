@@ -8,6 +8,7 @@ import UserTargetingService from "../Services/UserTargetingService";
 import { NotificationService } from "../Services/NotificationService";
 import StorageService from "../Services/StorageService";
 import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
+import { DEFAULT_LANGUAGE_POLICY, ILanguagePolicy } from "../Services/LanguagePolicyService";
 import { logger } from "../Services/LoggerService";
 import { validationService } from "../Services/ValidationService";
 import { AlertTransformers } from "../Utils/AlertTransformers";
@@ -112,6 +113,7 @@ export interface AlertsContextOptions {
   alertTypesJson: string;
   userTargetingEnabled?: boolean;
   notificationsEnabled?: boolean;
+  enableTargetSite?: boolean;
 }
 
 export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -125,10 +127,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     notificationService?: NotificationService;
     languageAwarenessService?: LanguageAwarenessService;
     sharePointAlertService?: SharePointAlertService;
+    languagePolicy?: ILanguagePolicy;
     options?: AlertsContextOptions;
   }>({});
 
-  // Load alert types from JSON
+  // Load alert types from JSON (fallback)
   const loadAlertTypes = useCallback((alertTypesJson: string) => {
     const endPerformanceTracking = logger.startPerformanceTracking('loadAlertTypes');
 
@@ -159,6 +162,38 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (error) {
       logger.error("AlertsContext", "Error processing alert types JSON", error, { alertTypesJson });
       dispatch({ type: 'SET_ALERT_TYPES', payload: {} });
+    } finally {
+      endPerformanceTracking();
+    }
+  }, []);
+
+  // Load alert types from SharePoint list (primary source)
+  const loadAlertTypesFromList = useCallback(async (): Promise<boolean> => {
+    const endPerformanceTracking = logger.startPerformanceTracking('loadAlertTypesFromList');
+
+    try {
+      if (!servicesRef.current.sharePointAlertService) {
+        return false;
+      }
+
+      const alertTypesData = await servicesRef.current.sharePointAlertService.getAlertTypes();
+      if (!alertTypesData || alertTypesData.length === 0) {
+        return false;
+      }
+
+      const alertTypesMap: { [key: string]: IAlertType } = {};
+      alertTypesData.forEach((type) => {
+        if (type?.name) {
+          alertTypesMap[type.name] = type;
+        }
+      });
+
+      dispatch({ type: 'SET_ALERT_TYPES', payload: alertTypesMap });
+      logger.info('AlertsContext', `Loaded ${alertTypesData.length} alert types from SharePoint list`);
+      return true;
+    } catch (error) {
+      logger.warn('AlertsContext', 'Failed to load alert types from SharePoint list', error);
+      return false;
     } finally {
       endPerformanceTracking();
     }
@@ -347,7 +382,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       const userLanguage = await servicesRef.current.languageAwarenessService.getUserPreferredLanguage();
-      const filteredAlerts = servicesRef.current.languageAwarenessService.filterAlertsForUser(alertsToFilter, userLanguage);
+      const filteredAlerts = servicesRef.current.languageAwarenessService.filterAlertsForUser(
+        alertsToFilter,
+        userLanguage,
+        servicesRef.current.languagePolicy || DEFAULT_LANGUAGE_POLICY
+      );
       
       logger.info('AlertsContext', `Applied language filtering: ${userLanguage}`, {
         originalCount: alertsToFilter.length,
@@ -386,6 +425,9 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       servicesRef.current.notificationService = NotificationService.getInstance(initOptions.context);
       servicesRef.current.languageAwarenessService = new LanguageAwarenessService(servicesRef.current.graphClient, initOptions.context);
       servicesRef.current.sharePointAlertService = new SharePointAlertService(servicesRef.current.graphClient, initOptions.context);
+      servicesRef.current.languagePolicy = await servicesRef.current.sharePointAlertService
+        .getLanguagePolicy()
+        .catch(() => DEFAULT_LANGUAGE_POLICY);
 
       alertCacheRef.current.clear();
 
@@ -396,8 +438,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         await servicesRef.current.userTargetingService.initialize();
       }
 
-      // Load alert types from JSON
-      loadAlertTypes(servicesRef.current.options.alertTypesJson);
+      // Load alert types from SharePoint list first, fall back to JSON if needed
+      const loadedFromList = await loadAlertTypesFromList();
+      if (!loadedFromList) {
+        loadAlertTypes(servicesRef.current.options.alertTypesJson);
+      }
 
       // Get user's dismissed and hidden alerts - batch update to reduce re-renders
       if (servicesRef.current.options.userTargetingEnabled) {

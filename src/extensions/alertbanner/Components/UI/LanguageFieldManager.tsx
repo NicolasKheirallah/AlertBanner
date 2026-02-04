@@ -22,6 +22,8 @@ import {
 } from "@fluentui/react-icons";
 import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { Text as CoreText } from '@microsoft/sp-core-library';
 
 const useStyles = makeStyles({
   container: {
@@ -248,7 +250,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           isAdded: lang.code === siteDefaultLanguage
         })));
 
-        showMessage('warning', `Could not load language support. Using site default: ${siteDefaultLanguage}`);
+        showMessage('warning', CoreText.format(strings.LanguageManagerLoadFailedDefault, siteDefaultLanguage));
       },
       logErrors: true
     }
@@ -266,7 +268,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       const siteDefaultLanguage = getSiteDefaultLanguage();
       if (languageCode === siteDefaultLanguage && !checked) {
         const defaultLanguageName = languages.find(l => l.code === siteDefaultLanguage)?.name || 'default';
-        showMessage('warning', `${defaultLanguageName} is the site's default language and cannot be removed.`);
+        showMessage('warning', CoreText.format(strings.LanguageManagerDefaultLanguageProtected, defaultLanguageName));
         return;
       }
     }
@@ -286,12 +288,12 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         // Add language columns
         setIsTogglingLanguage(true);
         await alertService.addLanguageSupport(languageCode);
-        showMessage('success', `Added ${language.name} language support successfully!`);
+        showMessage('success', CoreText.format(strings.LanguageManagerAddedSuccess, language.name));
       } else {
         // Remove language columns from SharePoint
         setIsTogglingLanguage(true);
         await alertService.removeLanguageSupport(languageCode);
-        showMessage('success', `Removed ${language.name} language support and columns.`);
+        showMessage('success', CoreText.format(strings.LanguageManagerRemovedSuccess, language.name));
       }
 
       // Update final state
@@ -309,7 +311,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
 
     } catch (error) {
       logger.error('LanguageFieldManager', `Failed to ${checked ? 'add' : 'remove'} language ${languageCode}`, error);
-      showMessage('error', `Failed to ${checked ? 'add' : 'remove'} ${language.name} language support.`);
+      showMessage('error', CoreText.format(strings.LanguageManagerUpdateFailed, language.name));
 
       // Revert UI state on error
       setLanguages(prev => prev.map(lang =>
@@ -330,7 +332,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           className={`${styles.statusBadge} ${styles.pendingBadge}`}
           icon={<Spinner size="tiny" />}
         >
-          Updating...
+          {strings.LanguageManagerUpdating}
         </Badge>
       );
     }
@@ -342,7 +344,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           className={`${styles.statusBadge} ${styles.addedBadge}`}
           icon={<Checkmark24Filled fontSize={12} />}
         >
-          Active
+          {strings.LanguageManagerActive}
         </Badge>
       );
     }
@@ -352,6 +354,9 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
 
   const addedCount = languages.filter(l => l.isAdded && !l.isPending).length;
   const pendingCount = languages.filter(l => l.isPending).length;
+  const activeLabel = pendingCount > 0
+    ? CoreText.format(strings.LanguageManagerActiveCountWithPending, addedCount, pendingCount)
+    : CoreText.format(strings.LanguageManagerActiveCount, addedCount);
 
   return (
     <div className={styles.container}>
@@ -366,13 +371,12 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           header={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Globe24Regular />
-              <Text weight="semibold">Multi-Language Field Management</Text>
+              <Text weight="semibold">{strings.LanguageManagerTitle}</Text>
             </div>
           }
           description={
             <Text size={200}>
-              Select languages to add multi-language content fields to your alert lists. 
-              Fields will be created for Title, Description, and Link Description in each selected language.
+              {strings.LanguageManagerDescription}
             </Text>
           }
         />
@@ -381,9 +385,9 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
           <div style={{ padding: "16px" }}>
             <div className={styles.languageHeader}>
               <div className={styles.languageSummary}>
-                <Text weight="semibold">Available Languages</Text>
+                <Text weight="semibold">{strings.LanguageManagerAvailableLanguages}</Text>
                 <Text size={200} className={styles.languageCount}>
-                  {addedCount} active{pendingCount > 0 ? `, ${pendingCount} updating` : ''}
+                  {activeLabel}
                 </Text>
               </div>
               <Button
@@ -393,13 +397,13 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
                 disabled={loading}
                 className={styles.refreshButton}
               >
-                {loading ? 'Loading...' : 'Refresh'}
+                {loading ? strings.LanguageManagerLoading : strings.Refresh}
               </Button>
             </div>
 
             {loading ? (
               <div className={styles.loadingContainer}>
-                <Spinner label="Loading language support..." />
+                <Spinner label={strings.LanguageManagerLoadingSupport} />
               </div>
             ) : (
               <div className={styles.languageGrid}>

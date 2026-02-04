@@ -1,63 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
 <List xmlns:ows="Microsoft SharePoint"
-      Title="List Schema"
-      Name="ListSchema"
+      Title="Alerts"
+      Name="Alerts"
       Direction="$Resources:Direction;"
-      Url="Lists/ListSchema"
+      Url="Lists/Alerts"
       BaseType="0"
       EnableContentTypes="FALSE"
       FolderCreation="FALSE"
       VersioningEnabled="FALSE"
-      DisableAttachments="TRUE"
-      xmlns="http://schemas.microsoft.com/sharepoint/"
-      RootWebOnly="FALSE">
+      DisableAttachments="FALSE"
+      xmlns="http://schemas.microsoft.com/sharepoint/">
   <MetaData>
-    <ContentTypes>
-    <ContentType ID="0x0100d98ec6bd89534e598115ef0bcf6aed4b"
-      Name="Alert">
-        <FieldRefs>
-          <FieldRef ID="{fa564e0f-0c70-4ab9-b863-0177e6ddd247}" Name="Title" />
-          <!-- Custom Field refs -->
-          <FieldRef ID="{a0f13f11-da45-4ad2-a62d-24d0ba05c88f}" Name="Description" />
-          <FieldRef ID="{ef3702e0-1f86-43df-84bd-b60465b71214}" Name="AlertType" />
-          <FieldRef ID="{fc28694b-a92b-422d-96e9-63fb2d4a8617}" Name="Link" />
-          <FieldRef ID="{70dc2ff6-28ba-452e-84a5-ccbbd2e855cb}" Name="StartDateTime" />
-          <FieldRef ID="{7f50a89a-5101-40b5-b978-c70124358c1a}" Name="EndDateTime" />
-        </FieldRefs>
-      </ContentType>
-    </ContentTypes>
     <Fields>
       <Field ID="{fa564e0f-0c70-4ab9-b863-0177e6ddd247}" Type="Text" Name="Title" DisplayName="Title" Required="FALSE" SourceID="http://schemas.microsoft.com/sharepoint/v3" StaticName="Title" FromBaseType="TRUE" ColName="nvarchar1" />
-      <!--Custom fields -->
-      <Field AppendOnly="FALSE" DisplayName="Description" Format="Dropdown" IsolateStyles="FALSE" Name="Description" NumLines="6" RichText="TRUE" RichTextMode="Compatible" Title="Description" Type="Note" ID="{a0f13f11-da45-4ad2-a62d-24d0ba05c88f}" SourceID="{1c92b8bd-d888-46d8-8184-75f09b737015}" StaticName="Description" ColName="ntext2" RowOrdinal="0" Required="TRUE" />
-      <Field DisplayName="Alert Type" FillInChoice="FALSE" Format="Dropdown" Name="AlertType" Title="AlertType" Type="Choice" ID="{ef3702e0-1f86-43df-84bd-b60465b71214}" SourceID="{1c92b8bd-d888-46d8-8184-75f09b737015}" StaticName="AlertType" ColName="nvarchar4" RowOrdinal="0" Required="TRUE"><CHOICES><CHOICE>Interruption</CHOICE><CHOICE>Warning</CHOICE><CHOICE>Info</CHOICE></CHOICES><Default>Maintenance</Default></Field>
-      <Field DisplayName="Link" Format="Hyperlink" Name="Link" Title="Link" Type="URL" ID="{fc28694b-a92b-422d-96e9-63fb2d4a8617}" SourceID="{1c92b8bd-d888-46d8-8184-75f09b737015}" StaticName="Link" ColName="nvarchar5" RowOrdinal="0" ColName2="nvarchar6" RowOrdinal2="0" Required="TRUE" />
-      <Field DisplayName="Start Date/Time" FriendlyDisplayFormat="Disabled" Format="DateTime" Name="StartDateTime" Title="StartDateTime" Type="DateTime" ID="{70dc2ff6-28ba-452e-84a5-ccbbd2e855cb}" SourceID="{1c92b8bd-d888-46d8-8184-75f09b737015}" StaticName="StartDateTime" ColName="datetime1" RowOrdinal="0" CustomFormatter="" Required="TRUE" EnforceUniqueValues="FALSE" Indexed="FALSE" CalType="0" Version="1"><Default><Today /></Default></Field>
-      <Field DisplayName="End Date/Time" FriendlyDisplayFormat="Disabled" Format="DateTime" Name="EndDateTime" Title="EndDateTime" Type="DateTime" ID="{7f50a89a-5101-40b5-b978-c70124358c1a}" SourceID="{1c92b8bd-d888-46d8-8184-75f09b737015}" StaticName="EndDateTime" ColName="datetime2" RowOrdinal="0" CustomFormatter="" Required="TRUE" EnforceUniqueValues="FALSE" Indexed="FALSE" CalType="0" Version="1"><Default /></Field>
+
+      <Field ID="{a0f13f11-da45-4ad2-a62d-24d0ba05c88f}" Name="Description" DisplayName="Description" Type="Note" NumLines="6" RichText="TRUE" RichTextMode="Compatible" Required="TRUE" />
+      <Field ID="{ef3702e0-1f86-43df-84bd-b60465b71214}" Name="AlertType" DisplayName="Alert Type" Type="Choice" Format="Dropdown" Required="TRUE">
+        <CHOICES>
+          <CHOICE>Info</CHOICE>
+          <CHOICE>Warning</CHOICE>
+          <CHOICE>Maintenance</CHOICE>
+          <CHOICE>Interruption</CHOICE>
+        </CHOICES>
+        <Default>Info</Default>
+      </Field>
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e01}" Name="Priority" DisplayName="Priority" Type="Choice" Format="Dropdown">
+        <CHOICES>
+          <CHOICE>low</CHOICE>
+          <CHOICE>medium</CHOICE>
+          <CHOICE>high</CHOICE>
+          <CHOICE>critical</CHOICE>
+        </CHOICES>
+        <Default>medium</Default>
+      </Field>
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e02}" Name="IsPinned" DisplayName="IsPinned" Type="Boolean" />
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e03}" Name="NotificationType" DisplayName="NotificationType" Type="Choice" Format="Dropdown">
+        <CHOICES>
+          <CHOICE>none</CHOICE>
+          <CHOICE>browser</CHOICE>
+          <CHOICE>email</CHOICE>
+          <CHOICE>both</CHOICE>
+        </CHOICES>
+        <Default>none</Default>
+      </Field>
+
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e04}" Name="LinkUrl" DisplayName="LinkUrl" Type="Text" />
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e05}" Name="LinkDescription" DisplayName="LinkDescription" Type="Text" />
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e06}" Name="TargetSites" DisplayName="TargetSites" Type="Note" NumLines="6" RichText="FALSE" />
+
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e07}" Name="Status" DisplayName="Status" Type="Choice" Format="Dropdown">
+        <CHOICES>
+          <CHOICE>Active</CHOICE>
+          <CHOICE>Expired</CHOICE>
+          <CHOICE>Scheduled</CHOICE>
+          <CHOICE>Draft</CHOICE>
+        </CHOICES>
+        <Default>Active</Default>
+      </Field>
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e08}" Name="ScheduledStart" DisplayName="ScheduledStart" Type="DateTime" Format="DateTime" />
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e09}" Name="ScheduledEnd" DisplayName="ScheduledEnd" Type="DateTime" Format="DateTime" />
+
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e10}" Name="Metadata" DisplayName="Metadata" Type="Note" NumLines="6" RichText="FALSE" />
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e11}" Name="ItemType" DisplayName="ItemType" Type="Choice" Format="Dropdown" Indexed="TRUE">
+        <CHOICES>
+          <CHOICE>alert</CHOICE>
+          <CHOICE>template</CHOICE>
+          <CHOICE>draft</CHOICE>
+          <CHOICE>settings</CHOICE>
+        </CHOICES>
+        <Default>alert</Default>
+      </Field>
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e12}" Name="TargetLanguage" DisplayName="TargetLanguage" Type="Choice" Format="Dropdown">
+        <CHOICES>
+          <CHOICE>all</CHOICE>
+          <CHOICE>en-us</CHOICE>
+          <CHOICE>fr-fr</CHOICE>
+          <CHOICE>de-de</CHOICE>
+          <CHOICE>es-es</CHOICE>
+          <CHOICE>sv-se</CHOICE>
+          <CHOICE>fi-fi</CHOICE>
+          <CHOICE>da-dk</CHOICE>
+          <CHOICE>nb-no</CHOICE>
+        </CHOICES>
+        <Default>all</Default>
+      </Field>
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e13}" Name="LanguageGroup" DisplayName="LanguageGroup" Type="Text" />
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e14}" Name="AvailableForAll" DisplayName="AvailableForAll" Type="Boolean" />
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e16}" Name="TranslationStatus" DisplayName="TranslationStatus" Type="Choice" Format="Dropdown">
+        <CHOICES>
+          <CHOICE>Draft</CHOICE>
+          <CHOICE>InReview</CHOICE>
+          <CHOICE>Approved</CHOICE>
+        </CHOICES>
+        <Default>Approved</Default>
+      </Field>
+      <Field ID="{b5b2b1f1-3f1c-4b3f-9f28-0a9f7d5f6e15}" Name="TargetUsers" DisplayName="TargetUsers" Type="UserMulti" UserSelectionMode="PeopleAndGroups" UserSelectionScope="0" Mult="TRUE" />
     </Fields>
+
     <Views>
       <View BaseViewID="1"
             Type="HTML"
             WebPartZoneID="Main"
-            DisplayName="$Resources:core,objectiv_schema_mwsidcamlidC24;"
+            DisplayName="All Items"
             DefaultView="TRUE"
             MobileView="TRUE"
             MobileDefaultView="TRUE"
             SetupPath="pages\viewpage.aspx"
             ImageUrl="/_layouts/images/generic.png"
             Url="AllItems.aspx">
-        <XslLink Default="TRUE">main.xsl</XslLink>
-        <JSLink>clienttemplates.js</JSLink>
         <RowLimit Paged="TRUE">30</RowLimit>
         <Toolbar Type="Standard" />
         <ViewFields>
-          <!-- Name is the InternalName -->
           <FieldRef Name="Title"></FieldRef>
-          <!-- Custom field refs-->
-          <FieldRef Name="Description" ></FieldRef>
-          <FieldRef Name="AlertType" ></FieldRef>
-          <FieldRef Name="Link" ></FieldRef>
-          <FieldRef Name="StartDateTime" ></FieldRef>
-          <FieldRef Name="EndDateTime" ></FieldRef>
+          <FieldRef Name="AlertType"></FieldRef>
+          <FieldRef Name="Priority"></FieldRef>
+          <FieldRef Name="Status"></FieldRef>
+          <FieldRef Name="ScheduledStart"></FieldRef>
+          <FieldRef Name="ScheduledEnd"></FieldRef>
         </ViewFields>
         <Query>
           <OrderBy>
@@ -66,6 +125,7 @@
         </Query>
       </View>
     </Views>
+
     <Forms>
       <Form Type="DisplayForm" Url="DispForm.aspx" SetupPath="pages\form.aspx" WebPartZoneID="Main" />
       <Form Type="EditForm" Url="EditForm.aspx" SetupPath="pages\form.aspx" WebPartZoneID="Main" />

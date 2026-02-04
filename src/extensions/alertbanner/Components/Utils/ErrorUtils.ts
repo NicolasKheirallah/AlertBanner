@@ -46,8 +46,11 @@ export class ErrorUtils {
 
     const message = this.getErrorMessage(error).toLowerCase();
     const status = this.getErrorStatus(error);
+    const code = (this.getErrorCode(error) || "").toLowerCase();
 
     return (
+      code === 'itemnotfound' ||
+      code === 'notfound' ||
       message.includes('list_not_found') ||
       message.includes('not found') ||
       message.includes('does not exist') ||

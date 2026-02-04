@@ -1,7 +1,8 @@
-import { IAlertItem } from "../Alerts/IAlerts";
+import { TargetLanguage } from "../Alerts/IAlerts";
 import { ILanguageContent } from "../Services/LanguageAwarenessService";
 import { validationService } from "../Services/ValidationService";
 import { VALIDATION_MESSAGES } from "./AppConstants";
+import { ILanguagePolicy, normalizeLanguagePolicy } from "../Services/LanguagePolicyService";
 
 export interface IFormErrors {
   [key: string]: string;
@@ -10,6 +11,8 @@ export interface IFormErrors {
 export interface IValidationOptions {
   useMultiLanguage: boolean;
   getString?: (key: string, ...args: any[]) => string;
+  languagePolicy?: ILanguagePolicy;
+  tenantDefaultLanguage?: TargetLanguage;
 }
 
 /**
@@ -43,38 +46,121 @@ export const validateAlertData = (
 
   // Multi-language validation
   if (useMultiLanguage) {
+    const policy = normalizeLanguagePolicy(options.languagePolicy);
     const languageContent = alert.languageContent as ILanguageContent[] | undefined;
 
     if (!languageContent || languageContent.length === 0) {
       errors.title = getLocalizedString('CreateAlertLanguageRequired');
     } else {
+      const fallbackLanguage = policy.fallbackLanguage === "tenant-default"
+        ? (options.tenantDefaultLanguage || TargetLanguage.EnglishUS)
+        : policy.fallbackLanguage;
+      const fallbackContent = languageContent.find(content => content.language === fallbackLanguage);
+      const resolveFieldSatisfied = (content: ILanguageContent, field: "title" | "description" | "linkDescription"): boolean => {
+        const value = (content as any)[field] as string | undefined;
+        if (value && value.trim().length > 0) {
+          return true;
+        }
+        if (!policy.inheritance.enabled) {
+          return false;
+        }
+        if (!policy.inheritance.fields[field]) {
+          return false;
+        }
+        const fallbackValue = fallbackContent ? (fallbackContent as any)[field] as string | undefined : undefined;
+        return !!fallbackValue && fallbackValue.trim().length > 0;
+      };
+
+      if (policy.preventDuplicateLanguages) {
+        const seen = new Set<string>();
+        const duplicates = new Set<string>();
+        languageContent.forEach(content => {
+          if (seen.has(content.language)) {
+            duplicates.add(content.language);
+          } else {
+            seen.add(content.language);
+          }
+        });
+        if (duplicates.size > 0) {
+          errors.languageDuplicate = getLocalizedString('DuplicateLanguagesNotAllowed', Array.from(duplicates).join(', '));
+        }
+      }
+
+      let hasCompleteLanguage = false;
+      
       languageContent.forEach((content, index) => {
         const languagePrefix = `${content.language}_${index}`;
+        const titleTrimmed = content.title?.trim() || '';
+        const descriptionTrimmed = content.description?.trim() || '';
+        const linkTrimmed = content.linkDescription?.trim() || '';
+        const hasAnyContent = !!titleTrimmed || !!descriptionTrimmed || !!linkTrimmed;
 
-        if (!content.title?.trim()) {
-          errors[`title_${languagePrefix}`] = getLocalizedString('CreateAlertLanguageTitleRequired', content.language);
-          // Also set generic title error for first language
-          if (index === 0 && !errors.title) {
-            errors.title = getLocalizedString('CreateAlertLanguageTitleRequired', content.language);
+        const titleOk = resolveFieldSatisfied(content, "title") && titleTrimmed.length >= 3 || (!titleTrimmed && resolveFieldSatisfied(content, "title"));
+        const descriptionOk = resolveFieldSatisfied(content, "description") && descriptionTrimmed.length >= 10 || (!descriptionTrimmed && resolveFieldSatisfied(content, "description"));
+        const linkRequired = policy.requireLinkDescriptionWhenUrl && !!alert.linkUrl;
+        const linkOk = !linkRequired || resolveFieldSatisfied(content, "linkDescription");
+
+        // Validate title length
+        const enforceThisLanguage =
+          policy.completenessRule === "allSelectedComplete" ||
+          (policy.completenessRule === "requireDefaultLanguageComplete" && content.language === fallbackLanguage) ||
+          (policy.completenessRule === "atLeastOneComplete" && hasAnyContent);
+
+        if (enforceThisLanguage) {
+          if (!titleTrimmed && !resolveFieldSatisfied(content, "title")) {
+            errors[`title_${languagePrefix}`] = getLocalizedString('CreateAlertLanguageTitleRequired', content.language);
+            if (index === 0 && !errors.title) {
+              errors.title = getLocalizedString('CreateAlertLanguageTitleRequired', content.language);
+            }
+          } else if (titleTrimmed && titleTrimmed.length < 3) {
+            errors[`title_${languagePrefix}`] = getLocalizedString('TitleMinLength');
+            if (index === 0 && !errors.title) {
+              errors.title = getLocalizedString('TitleMinLength');
+            }
+          }
+
+          if (!descriptionTrimmed && !resolveFieldSatisfied(content, "description")) {
+            errors[`description_${languagePrefix}`] = getLocalizedString('CreateAlertLanguageDescriptionRequired', content.language);
+            if (index === 0 && !errors.description) {
+              errors.description = getLocalizedString('CreateAlertLanguageDescriptionRequired', content.language);
+            }
+          } else if (descriptionTrimmed && descriptionTrimmed.length < 10) {
+            errors[`description_${languagePrefix}`] = getLocalizedString('DescriptionMinLength');
+            if (index === 0 && !errors.description) {
+              errors.description = getLocalizedString('DescriptionMinLength');
+            }
+          }
+
+          if (linkRequired && !linkOk) {
+            errors[`linkDescription_${languagePrefix}`] = getLocalizedString('CreateAlertLanguageLinkDescriptionRequired', content.language);
+            if (index === 0 && !errors.linkDescription) {
+              errors.linkDescription = getLocalizedString('CreateAlertLanguageLinkDescriptionRequired', content.language);
+            }
           }
         }
 
-        if (!content.description?.trim()) {
-          errors[`description_${languagePrefix}`] = getLocalizedString('CreateAlertLanguageDescriptionRequired', content.language);
-          // Also set generic description error for first language
-          if (index === 0 && !errors.description) {
-            errors.description = getLocalizedString('CreateAlertLanguageDescriptionRequired', content.language);
-          }
-        }
-
-        if (alert.linkUrl && !content.linkDescription?.trim()) {
-          errors[`linkDescription_${languagePrefix}`] = getLocalizedString('CreateAlertLanguageLinkDescriptionRequired', content.language);
-          // Also set generic linkDescription error for first language
-          if (index === 0 && !errors.linkDescription) {
-            errors.linkDescription = getLocalizedString('CreateAlertLanguageLinkDescriptionRequired', content.language);
-          }
+        // Check if this language is complete
+        if (titleOk && descriptionOk && (!linkRequired || linkOk)) {
+          hasCompleteLanguage = true;
         }
       });
+      
+      // Ensure at least one language has complete content
+      if (policy.completenessRule === "atLeastOneComplete" && !hasCompleteLanguage && languageContent.length > 0) {
+        errors.languageContent = getLocalizedString('CreateAlertLanguageAtLeastOneComplete');
+      }
+
+      if (policy.completenessRule === "requireDefaultLanguageComplete" && languageContent.length > 0) {
+        const defaultLangContent = languageContent.find(content => content.language === fallbackLanguage);
+        const defaultComplete = defaultLangContent
+          ? resolveFieldSatisfied(defaultLangContent, "title") &&
+            resolveFieldSatisfied(defaultLangContent, "description") &&
+            (!policy.requireLinkDescriptionWhenUrl || !alert.linkUrl || resolveFieldSatisfied(defaultLangContent, "linkDescription"))
+          : false;
+        if (!defaultComplete) {
+          errors.languageContent = getLocalizedString('CreateAlertDefaultLanguageRequired', fallbackLanguage);
+        }
+      }
     }
   } else {
     // Single language validation

@@ -30,16 +30,17 @@ export interface IAttachmentManagerProps {
   alertService: SharePointAlertService;
   listId: string;
   itemId?: number;
+  siteId?: string;
   attachments: IAttachment[];
   onAttachmentsChange: (attachments: IAttachment[]) => void;
   disabled?: boolean;
-  maxFileSize?: number; // in MB
+  maxFileSize?: number;
   allowedFormats?: string[];
 }
 
 interface IUploadProgress {
   fileName: string;
-  progress: number; // 0-100
+  progress: number;
   status: 'uploading' | 'completed' | 'error';
 }
 
@@ -48,6 +49,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   alertService,
   listId,
   itemId,
+  siteId,
   attachments,
   onAttachmentsChange,
   disabled = false,
@@ -66,7 +68,6 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
     }
   }, []);
 
-  // Drag and drop handlers
   const handleDragEnter = React.useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -78,7 +79,6 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   const handleDragLeave = React.useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set to false if leaving the drop zone entirely
     if (e.currentTarget === dropZoneRef.current) {
       setIsDragOver(false);
     }
@@ -112,13 +112,12 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
     try {
       logger.info('AttachmentManager', 'Starting attachment upload', { fileName: file.name, itemId });
 
-      // Simulate progress for better UX (SharePoint doesn't provide real progress)
       progressCallback(10);
 
       const arrayBuffer = await file.arrayBuffer();
       progressCallback(30);
 
-      const result = await alertService.addAttachment(listId, itemId, file.name, arrayBuffer);
+      const result = await alertService.addAttachment(listId, itemId, file.name, arrayBuffer, siteId);
 
       progressCallback(90);
 
@@ -136,26 +135,25 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       logger.error('AttachmentManager', 'Failed to upload attachment', error);
       throw error;
     }
-  }, [context, listId, itemId]);
+  }, [context, listId, itemId, siteId]);
 
   const processFiles = React.useCallback(async (filesToProcess: File[]) => {
     if (!itemId) {
-      alert('Please save the alert first before adding attachments.');
+      alert(strings.AttachmentManagerSaveAlertFirst);
       return;
     }
 
     const validFiles: File[] = [];
     const errors: string[] = [];
 
-    // Validate all files
     filesToProcess.forEach(file => {
       const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
       const fileSizeMB = file.size / (1024 * 1024);
 
       if (!allowedFormats.includes(fileExtension)) {
-        errors.push(`${file.name}: Invalid file format (allowed: ${allowedFormats.join(', ')})`);
+        errors.push(Text.format(strings.AttachmentManagerInvalidFormat, file.name, allowedFormats.join(', ')));
       } else if (fileSizeMB > maxFileSize) {
-        errors.push(`${file.name}: File size exceeds ${maxFileSize}MB limit (${fileSizeMB.toFixed(2)}MB)`);
+        errors.push(Text.format(strings.AttachmentManagerFileTooLarge, file.name, maxFileSize.toString(), fileSizeMB.toFixed(2)));
       } else {
         validFiles.push(file);
       }
@@ -172,7 +170,6 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
     setIsUploading(true);
     const newAttachments: IAttachment[] = [];
 
-    // Initialize progress tracking for each file
     const initialProgress: IUploadProgress[] = validFiles.map(file => ({
       fileName: file.name,
       progress: 0,
@@ -193,12 +190,10 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
 
           newAttachments.push(attachment);
 
-          // Mark as completed
           setUploadProgress(prev => prev.map((p, idx) =>
             idx === i ? { ...p, status: 'completed' as const, progress: 100 } : p
           ));
         } catch (error) {
-          // Mark as error
           setUploadProgress(prev => prev.map((p, idx) =>
             idx === i ? { ...p, status: 'error' as const } : p
           ));
@@ -206,21 +201,18 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
         }
       }
 
-      // Update attachments list
       if (newAttachments.length > 0) {
         onAttachmentsChange([...attachments, ...newAttachments]);
         logger.info('AttachmentManager', 'All attachments uploaded successfully', { count: newAttachments.length });
       }
     } catch (error) {
       logger.error('AttachmentManager', 'Attachment upload process failed', error);
-      alert('Failed to upload some attachments. Please try again.');
+      alert(strings.AttachmentManagerUploadFailed);
     } finally {
       setIsUploading(false);
-      // Clear progress after 2 seconds
       setTimeout(() => {
         setUploadProgress([]);
       }, 2000);
-      // Reset input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -242,9 +234,8 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
     }
 
     try {
-      await alertService.deleteAttachment(listId, itemId, attachment.fileName);
+      await alertService.deleteAttachment(listId, itemId, attachment.fileName, siteId);
 
-      // Update attachments list
       const updatedAttachments = attachments.filter(a => a.fileName !== attachment.fileName);
       onAttachmentsChange(updatedAttachments);
 
@@ -253,7 +244,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       logger.error('AttachmentManager', 'Failed to delete attachment', error);
       alert(strings.AttachmentManagerDeleteError);
     }
-  }, [context, listId, itemId, attachments, onAttachmentsChange]);
+  }, [context, listId, itemId, siteId, attachments, onAttachmentsChange]);
 
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return '';
@@ -270,31 +261,19 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   const getFileIcon = (fileName: string): React.ReactElement => {
     const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
 
-    // Map file extensions to specific icons
     const iconMap: { [key: string]: React.ReactElement } = {
-      // PDF
       '.pdf': <DocumentPdf24Regular />,
-
-      // Text/Word
       '.doc': <DocumentText24Regular />,
       '.docx': <DocumentText24Regular />,
       '.txt': <DocumentText24Regular />,
-
-      // Excel
       '.xls': <DocumentTableRegular />,
       '.xlsx': <DocumentTableRegular />,
       '.csv': <DocumentTableRegular />,
-
-      // PowerPoint
       '.ppt': <DocumentBulletList24Regular />,
       '.pptx': <DocumentBulletList24Regular />,
-
-      // Archives
       '.zip': <Folder24Regular />,
       '.rar': <Folder24Regular />,
       '.7z': <Folder24Regular />,
-
-      // Images
       '.jpg': <Image24Regular />,
       '.jpeg': <Image24Regular />,
       '.png': <Image24Regular />,
@@ -337,7 +316,6 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
         </div>
       )}
 
-      {/* Drag and Drop Zone */}
       {itemId && !isUploading && (
         <div
           ref={dropZoneRef}
@@ -357,7 +335,6 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
         </div>
       )}
 
-      {/* Upload Progress Indicators */}
       {uploadProgress.length > 0 && (
         <div className={styles.progressContainer}>
           <div className={styles.progressTitle}>{strings.AttachmentManagerProgressTitle}</div>

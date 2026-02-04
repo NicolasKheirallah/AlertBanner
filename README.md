@@ -541,8 +541,8 @@ npm install
 npm run build
 
 # Bundle and package for production
-gulp bundle --ship
-gulp package-solution --ship
+npm run bundle -- --production
+npm run package-solution -- --production
 ```
 
 #### 2. Deploy to App Catalog

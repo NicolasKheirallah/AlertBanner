@@ -14,6 +14,7 @@ export interface IRetryOptions {
   useJitter?: boolean;
   shouldRetry?: (error: any, attempt: number) => boolean;
   onRetry?: (error: any, attempt: number, delay: number) => void;
+  suppressFailureLog?: (error: any, attempt: number) => boolean;
 }
 
 export interface IRetryResult<T> {
@@ -53,7 +54,8 @@ export class RetryUtils {
       useExponentialBackoff = true,
       useJitter = true,
       shouldRetry = (error) => ErrorUtils.isRetryableError(error),
-      onRetry
+      onRetry,
+      suppressFailureLog
     } = options;
 
     let lastError: any;
@@ -68,11 +70,14 @@ export class RetryUtils {
         const isLastAttempt = attempt === maxRetries;
 
         if (!isRetryable || isLastAttempt) {
-          logger.error(
-            'RetryUtils',
-            `Operation failed after ${attempt} attempt(s)`,
-            ErrorUtils.getErrorInfo(error)
-          );
+          const shouldSuppress = suppressFailureLog ? suppressFailureLog(error, attempt) : false;
+          if (!shouldSuppress) {
+            logger.error(
+              'RetryUtils',
+              `Operation failed after ${attempt} attempt(s)`,
+              ErrorUtils.getErrorInfo(error)
+            );
+          }
           throw ErrorUtils.toError(error);
         }
 

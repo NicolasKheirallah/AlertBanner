@@ -1,4 +1,4 @@
-import { IAlertItem, IAlertListItem, AlertPriority, NotificationType, ContentType, TargetLanguage, IPersonField } from '../Alerts/IAlerts';
+import { IAlertItem, IAlertListItem, AlertPriority, NotificationType, ContentType, TargetLanguage, IPersonField, TranslationStatus } from '../Alerts/IAlerts';
 import { logger } from '../Services/LoggerService';
 import { JsonUtils } from './JsonUtils';
 import { SiteIdUtils } from './SiteIdUtils';
@@ -219,6 +219,7 @@ export class AlertTransformers {
       TargetLanguage: fields.TargetLanguage || '',
       LanguageGroup: fields.LanguageGroup || '',
       AvailableForAll: fields.AvailableForAll || false,
+      TranslationStatus: fields.TranslationStatus || TranslationStatus.Approved
     };
   }
 
@@ -287,6 +288,7 @@ export class AlertTransformers {
       availableForAll: typeof fields.AvailableForAll === 'boolean'
         ? fields.AvailableForAll
         : Boolean(fields.AvailableForAll),
+      translationStatus: (fields.TranslationStatus as TranslationStatus) || TranslationStatus.Approved,
       scheduledStart: fields.ScheduledStart || undefined,
       scheduledEnd: fields.ScheduledEnd || undefined,
       metadata: this.parseMetadata(fields.Metadata),

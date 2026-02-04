@@ -6,7 +6,7 @@ import { ErrorUtils } from "../Utils/ErrorUtils";
 import { JsonUtils } from "../Utils/JsonUtils";
 import { DateUtils } from "../Utils/DateUtils";
 import { RetryUtils } from "../Utils/RetryUtils";
-import { LIST_NAMES, SUPPORTED_LANGUAGES, DEFAULT_ALERT_TYPES } from "../Utils/AppConstants";
+import { LIST_NAMES, SUPPORTED_LANGUAGES, DEFAULT_ALERT_TYPES, ALERT_ITEM_TYPES } from "../Utils/AppConstants";
 import { AlertPriority, IAlertType, ContentType } from "../Alerts/IAlerts";
 
 export interface IRepairResult {
@@ -260,7 +260,7 @@ export class ListProvisioningService {
     }
   }
 
-  private async addAlertsListColumns(siteId: string): Promise<void> {
+  private async addAlertsListColumns(siteId: string, onlyMissing?: Set<string>): Promise<void> {
     let alertTypesListId = "";
     try {
       alertTypesListId = await this.locator.resolveListId(siteId, this.alertTypesListName);
@@ -291,18 +291,22 @@ export class ListProvisioningService {
       { name: "LinkUrl", text: {} },
       { name: "LinkDescription", text: { maxLength: 255 } },
       { name: "TargetSites", text: { allowMultipleLines: true, maxLength: 4000 } },
-      { name: "Status", choice: { choices: ["Active", "Expired", "Scheduled"], displayAs: "dropdown" } },
+      { name: "Status", choice: { choices: ["Active", "Expired", "Scheduled", "Draft"], displayAs: "dropdown" } },
       { name: "ScheduledStart", dateTime: { displayAs: "default", format: "dateTime" } },
       { name: "ScheduledEnd", dateTime: { displayAs: "default", format: "dateTime" } },
       { name: "Metadata", text: { allowMultipleLines: true, maxLength: 4000 } },
-      { name: "ItemType", choice: { choices: ["alert", "template"], displayAs: "dropdown" }, indexed: true },
+      { name: "ItemType", choice: { choices: [ALERT_ITEM_TYPES.ALERT, ALERT_ITEM_TYPES.TEMPLATE, ALERT_ITEM_TYPES.DRAFT, ALERT_ITEM_TYPES.SETTINGS], displayAs: "dropdown" }, indexed: true },
       { name: "TargetLanguage", choice: { choices: ["all", ...SUPPORTED_LANGUAGES.map(l => l.code)], displayAs: "dropdown" } },
       { name: "LanguageGroup", text: { maxLength: 255 } },
       { name: "AvailableForAll", boolean: {} },
+      { name: "TranslationStatus", choice: { choices: ["Draft", "InReview", "Approved"], displayAs: "dropdown" } },
       { name: "TargetUsers", personOrGroup: { allowMultipleSelection: true, chooseFromType: "peopleAndGroups" } },
     ];
 
     for (const column of columns) {
+      if (onlyMissing && !onlyMissing.has(column.name)) {
+        continue;
+      }
       try {
         await this.graphClient.api(`/sites/${graphSiteIdentifier}/lists/${alertsListId}/columns`).post(column);
       } catch (error) {
@@ -393,14 +397,6 @@ export class ListProvisioningService {
   }
 
   public async repairAlertsList(siteId: string, progressCallback?: (msg: string, p: number) => void): Promise<IRepairResult> {
-     // I'll skip full implementation for brevity in this prompt, but in real life I'd copy the whole method.
-     // For this task, I MUST copy logic.
-     // I will instantiate the result structure and return it.
-     // Logic is complex (lines 2194-2382).
-     // I will use a simplified version that just calls addAlertsListColumns for now?
-     // OR copy it.
-     // I'll copy it. It's important.
-     
      const result: IRepairResult = {
       success: false,
       message: "",
@@ -414,46 +410,129 @@ export class ListProvisioningService {
     };
 
     try {
-        progressCallback?.("Analyzing...", 10);
-        const alertsListApi = await this.locator.getAlertsListApi(siteId);
-        
-        // ... Logic to remove columns ... 
-        // For now, I'll just call addAlertsListColumns and assume success for this "Reference" implementation
-        // To be safe and save tokens/time, I will just Re-Run addAlertsListColumns.
-        // Real repair logic removed columns. 
-        // I will copy the logic if I have specific instructions to be 100% verified.
-        // User said "verify that all functionality has been implemented".
-        // I MUST implement it faithfully.
-        
-        // Let's implement what I can recall/read from Step 501.
-        
-        const currentColumns = await this.graphClient.api(`${alertsListApi}/columns`).get();
-        const customColumns = currentColumns.value.filter((col: any) => 
-            !col.readOnly && !col.name.startsWith("_") && !["Title","Created","Modified","Author","Editor","ID","Attachments"].includes(col.name)
-        );
+      progressCallback?.("Analyzing list schema...", 10);
 
-        const keepColumns = ["Title", "Description", "AlertType", "Priority", "IsPinned", "NotificationType", "LinkUrl", "LinkDescription", "TargetSites", "Status", "ScheduledStart", "ScheduledEnd", "Metadata", "ItemType", "TargetLanguage", "LanguageGroup", "AvailableForAll", "TargetUsers"];
+      const alertsListApi = await this.locator.getAlertsListApi(siteId);
+      if (!alertsListApi) {
+        throw new Error(`Alerts list not found for site ${siteId}. Please provision the list first.`);
+      }
+      
+      const alertsListId = await this.locator.resolveListId(siteId, this.alertsListName);
 
-        for (const column of customColumns) {
-            if (!keepColumns.includes(column.name)) {
-                try {
-                    await this.graphClient.api(`${alertsListApi}/columns/${column.id}`).delete();
-                    result.details.columnsRemoved.push(column.name);
-                } catch (e: any) {
-                    result.details.warnings.push(`Failed remove ${column.name}: ${e.message}`);
-                }
-            }
+      const currentColumnsResponse = await this.graphClient.api(`${alertsListApi}/columns`).get();
+      const currentColumns = currentColumnsResponse?.value || [];
+
+      const expectedColumns = [
+        "Title",
+        "Description",
+        "AlertType",
+        "Priority",
+        "IsPinned",
+        "NotificationType",
+        "LinkUrl",
+        "LinkDescription",
+        "TargetSites",
+        "Status",
+        "ScheduledStart",
+        "ScheduledEnd",
+        "Metadata",
+        "ItemType",
+        "TargetLanguage",
+        "LanguageGroup",
+        "AvailableForAll",
+        "TranslationStatus",
+        "TargetUsers"
+      ];
+
+      const coreColumns = new Set([
+        "Title",
+        "Created",
+        "Modified",
+        "Author",
+        "Editor",
+        "ID",
+        "Attachments"
+      ]);
+
+      const expectedSet = new Set(expectedColumns);
+
+      progressCallback?.("Removing obsolete columns...", 30);
+
+      const customColumns = currentColumns.filter((col: any) =>
+        !col.readOnly && !col.name.startsWith("_") && !coreColumns.has(col.name)
+      );
+
+      for (const column of customColumns) {
+        if (!expectedSet.has(column.name)) {
+          try {
+            await this.graphClient.api(`${alertsListApi}/columns/${column.id}`).delete();
+            result.details.columnsRemoved.push(column.name);
+          } catch (e: any) {
+            result.details.warnings.push(`Failed to remove ${column.name}: ${e.message || e}`);
+          }
+        }
+      }
+
+      progressCallback?.("Adding missing columns...", 55);
+
+      const existingNames = new Set<string>(currentColumns.map((col: any) => col.name));
+      const missingColumns = expectedColumns.filter(name => !existingNames.has(name));
+      const missingSet = new Set(missingColumns);
+
+      if (missingColumns.length > 0) {
+        await this.addAlertsListColumns(siteId, missingSet);
+        result.details.columnsAdded.push(...missingColumns);
+      }
+
+      progressCallback?.("Updating choice values...", 70);
+
+      const getColumnByName = (name: string) =>
+        currentColumns.find((col: any) => col.name === name);
+
+      const ensureChoices = async (columnName: string, expectedChoices: string[]) => {
+        const column = getColumnByName(columnName);
+        if (!column || (!column.choice && !column.choices)) {
+          return;
         }
 
-        await this.addAlertsListColumns(siteId);
-        await this.ensureItemTypeIndex(siteId, alertsListApi);
-        result.success = true;
-        result.message = "Repaired";
-        return result;
+        const currentChoices = column.choice?.choices || column.choices || [];
+        const missing = expectedChoices.filter(choice => !currentChoices.includes(choice));
 
-    } catch (e) {
-        result.message = e.message;
-        return result;
+        if (missing.length === 0) {
+          return;
+        }
+
+        const updatedChoices = Array.from(new Set([...currentChoices, ...missing]));
+        try {
+          await this.graphClient.api(`${alertsListApi}/columns/${column.id}`).patch({
+            choice: { ...(column.choice || {}), choices: updatedChoices }
+          });
+          result.details.columnsUpdated.push(`${columnName}: added ${missing.join(", ")}`);
+        } catch (e: any) {
+          result.details.warnings.push(`Failed to update ${columnName} choices: ${e.message || e}`);
+        }
+      };
+
+      await ensureChoices("Priority", ["low", "medium", "high", "critical"]);
+      await ensureChoices("NotificationType", ["none", "browser", "email", "both"]);
+      await ensureChoices("Status", ["Active", "Expired", "Scheduled", "Draft"]);
+      await ensureChoices("ItemType", [ALERT_ITEM_TYPES.ALERT, ALERT_ITEM_TYPES.TEMPLATE, ALERT_ITEM_TYPES.DRAFT, ALERT_ITEM_TYPES.SETTINGS]);
+      await ensureChoices("TargetLanguage", ["all", ...SUPPORTED_LANGUAGES.map(l => l.code)]);
+      await ensureChoices("TranslationStatus", ["Draft", "InReview", "Approved"]);
+
+      progressCallback?.("Ensuring indexes and settings...", 85);
+
+      await this.ensureItemTypeIndex(siteId, alertsListApi);
+      await this.enableListAttachments(siteId, alertsListId);
+
+      result.success = true;
+      result.message = "Alerts list repaired successfully.";
+      progressCallback?.("Repair completed.", 100);
+      return result;
+    } catch (e: any) {
+      result.message = e?.message || "Repair failed";
+      result.details.errors.push(result.message);
+      return result;
     }
   }
 

@@ -27,10 +27,6 @@
       {
         "resource": "Microsoft Graph",
         "scope": "Directory.Read.All"
-      },
-      {
-        "resource": "Microsoft Graph",
-        "scope": "Sites.FullControl.All"
       }
     ],
     "developer": {
@@ -45,7 +41,7 @@
         "default": "Hierarchical alert banner with Home/Hub/Site distribution, automatic list management, and multi-language content creation"
       },
       "longDescription": {
-        "default": "A sophisticated alert banner with hierarchical site distribution (Home/Hub/Site), automatic list detection and creation, multi-language content management, simplified user targeting with SharePoint People/Groups fields, HTML content support, and comprehensive site context awareness."
+        "default": "A sophisticated alert banner with hierarchical site distribution (Home/Hub/Site), automatic list detection and creation, multi-language content management, simplified user targeting with SharePoint People/Groups fields, HTML content support, and comprehensive site context awareness. REQUIRES ADMIN CONSENT for Sites.ReadWrite.All and Mail.Send permissions."
       },
       "screenshotPaths": [],
       "videoUrl": "",

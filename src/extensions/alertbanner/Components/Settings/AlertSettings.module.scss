@@ -587,6 +587,9 @@
   // Calculate height dynamically based on available space
   max-height: calc(100vh - 300px); // Account for header, tabs, and filters
 
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+
   // Better scrollbar styling
   &::-webkit-scrollbar {
     width: 8px;
@@ -605,9 +608,6 @@
       background: #a8a8a8;
     }
   }
-
-  scrollbar-width: thin;
-  scrollbar-color: #c1c1c1 #f1f1f1;
 
   .filterSection:has(.advancedFilters)~& {
     max-height: calc(100vh - 450px);

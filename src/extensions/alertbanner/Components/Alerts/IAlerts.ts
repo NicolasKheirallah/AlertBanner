@@ -24,6 +24,7 @@ export interface IAlertItem {
   targetLanguage: TargetLanguage;
   languageGroup?: string;
   availableForAll?: boolean;
+  translationStatus?: TranslationStatus;
   // Attachments support
   attachments?: {
     fileName: string;
@@ -64,6 +65,7 @@ export interface IAlertListItem {
   TargetLanguage?: string;
   LanguageGroup?: string;
   AvailableForAll?: boolean;
+  TranslationStatus?: string;
 
   // Targeting
   TargetUsers?: any[]; // SharePoint People/Groups field data
@@ -87,6 +89,12 @@ export enum ContentType {
   Alert = "alert",
   Template = "template",
   Draft = "draft"
+}
+
+export enum TranslationStatus {
+  Draft = "Draft",
+  InReview = "InReview",
+  Approved = "Approved"
 }
 
 export enum TargetLanguage {
@@ -127,6 +135,7 @@ export interface IAlertsBannerApplicationCustomizerProperties {
   alertTypesJson: string; // Property to hold the alert types JSON
   userTargetingEnabled: boolean; // Enable user targeting feature
   notificationsEnabled: boolean; // Enable notifications feature
+  enableTargetSite: boolean; // Enable targeting specific sites (default: false)
 }
 
 export interface IAlertsProps {
@@ -136,10 +145,12 @@ export interface IAlertsProps {
   alertTypesJson: string; // Property to receive the alert types JSON
   userTargetingEnabled?: boolean;
   notificationsEnabled?: boolean;
+  enableTargetSite?: boolean; // Control visibility of target site selector
   onSettingsChange?: (settings: {
     alertTypesJson: string;
     userTargetingEnabled: boolean;
     notificationsEnabled: boolean;
+    enableTargetSite: boolean;
   }) => void;
 }
 

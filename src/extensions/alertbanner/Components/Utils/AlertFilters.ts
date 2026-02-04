@@ -152,13 +152,19 @@ export class AlertFilters {
 
   /**
    * Filter out templates, drafts, and auto-saved items (common exclusion pattern)
+   * Alerts with empty/null ItemType are treated as valid alerts (backward compatibility)
    */
   public static excludeNonPublicAlerts(alerts: IAlertItem[]): IAlertItem[] {
-    return alerts.filter(alert =>
-      !this.isTemplate(alert) &&
-      !this.isDraft(alert) &&
-      !this.isAutoSaved(alert)
-    );
+    return alerts.filter(alert => {
+      // If contentType is not set, treat as a regular alert (backward compatibility)
+      const isTemplate = alert.contentType === ContentType.Template;
+      const isDraft = alert.contentType === ContentType.Draft ||
+                      alert.status?.toLowerCase() === 'draft';
+      const isAutoSaved = this.isAutoSaved(alert);
+      const isSettings = alert.contentType === 'settings' as ContentType;
+      
+      return !isTemplate && !isDraft && !isAutoSaved && !isSettings;
+    });
   }
 
   /**

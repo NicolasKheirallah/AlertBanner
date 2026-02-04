@@ -17,6 +17,10 @@
   margin-bottom: 20px;
 }
 
+.policyHint {
+  color: var(--colorNeutralForeground2);
+}
+
 .availableLanguages {
   display: flex;
   flex-wrap: wrap;
@@ -65,6 +69,11 @@
   flex-direction: column;
   gap: 16px;
   padding: 0 4px;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
 }
 
 .tabHeader {

@@ -90,7 +90,8 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
         siteIds: uniqueSortedSiteIds,
         alertTypesJson: props.alertTypesJson,
         userTargetingEnabled: !!props.userTargetingEnabled,
-        notificationsEnabled: !!props.notificationsEnabled
+        notificationsEnabled: !!props.notificationsEnabled,
+        enableTargetSite: !!props.enableTargetSite
       });
     }
 
@@ -215,9 +216,9 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     };
   }, []);
 
-  const handleSettingsChange = React.useCallback((settings: ISettingsData) => {
+  const handleSettingsChange = React.useCallback((settings: ISettingsData & { enableTargetSite?: boolean }) => {
     if (props.onSettingsChange) {
-      props.onSettingsChange(settings);
+      props.onSettingsChange(settings as any);
     }
     // The context will handle reloading alert types if they changed via its own logic
   }, [props.onSettingsChange]);
@@ -247,58 +248,55 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     }
   }, [carouselEnabled, alerts.length, carouselInterval]);
 
-  if (isLoading) {
+  if (isLoading && !isInEditMode) {
     return null; // Hide loading, let alerts load silently in the background
-  }
-
-  if (hasError) {
-    return (
-      <div 
-        className={styles.errorContainer}
-        style={{
-          padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-          backgroundColor: tokens.colorNeutralBackground1,
-          borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
-          fontFamily: tokens.fontFamilyBase,
-        }}
-      >
-        <MessageBar 
-          intent="error"
-          className={styles.errorMessageBar}
-          style={{
-            borderRadius: tokens.borderRadiusMedium,
-            boxShadow: tokens.shadow4,
-          }}
-        >
-          <MessageBarBody>
-            <MessageBarTitle style={{ 
-              color: tokens.colorPaletteRedForeground1,
-              fontWeight: tokens.fontWeightSemibold,
-              fontSize: tokens.fontSizeBase300
-            }}>
-              {strings.AlertsLoadErrorTitle}
-            </MessageBarTitle>
-            <div style={{
-              marginTop: tokens.spacingVerticalXS,
-              fontSize: tokens.fontSizeBase200,
-              lineHeight: tokens.lineHeightBase200,
-            }}>
-              {errorMessage || strings.AlertsLoadErrorFallback}
-            </div>
-          </MessageBarBody>
-        </MessageBar>
-      </div>
-    );
   }
 
   const hasAlerts = alerts.length > 0;
 
-  if (!hasAlerts && !isInEditMode) {
+  if (!hasAlerts && !isInEditMode && !hasError) {
     return null; // Hide component completely if no alerts and not in edit mode
   }
 
   return (
     <div className={styles.alerts}>
+      {hasError && (
+        <div 
+          className={styles.errorContainer}
+          style={{
+            padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+            backgroundColor: tokens.colorNeutralBackground1,
+            borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+            fontFamily: tokens.fontFamilyBase,
+          }}
+        >
+          <MessageBar 
+            intent="error"
+            className={styles.errorMessageBar}
+            style={{
+              borderRadius: tokens.borderRadiusMedium,
+              boxShadow: tokens.shadow4,
+            }}
+          >
+            <MessageBarBody>
+              <MessageBarTitle style={{ 
+                color: tokens.colorPaletteRedForeground1,
+                fontWeight: tokens.fontWeightSemibold,
+                fontSize: tokens.fontSizeBase300
+              }}>
+                {strings.AlertsLoadErrorTitle}
+              </MessageBarTitle>
+              <div style={{
+                marginTop: tokens.spacingVerticalXS,
+                fontSize: tokens.fontSizeBase200,
+                lineHeight: tokens.lineHeightBase200,
+              }}>
+                {errorMessage || strings.AlertsLoadErrorFallback}
+              </div>
+            </MessageBarBody>
+          </MessageBar>
+        </div>
+      )}
       {hasAlerts && (
         <div
           className={styles.carousel}
@@ -328,6 +326,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
           alertTypesJson={props.alertTypesJson}
           userTargetingEnabled={props.userTargetingEnabled || false}
           notificationsEnabled={props.notificationsEnabled || false}
+          enableTargetSite={props.enableTargetSite || false}
           graphClient={props.graphClient}
           context={props.context}
           onSettingsChange={handleSettingsChange}

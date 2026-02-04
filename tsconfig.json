@@ -1,5 +1,5 @@
 {
-  "extends": "./node_modules/@microsoft/rush-stack-compiler-5.3/includes/tsconfig-web.json",
+  "extends": "./node_modules/@microsoft/spfx-web-build-rig/profiles/default/tsconfig-base.json",
   "compilerOptions": {
     "target": "ES6",
     "forceConsistentCasingInFileNames": true,
@@ -12,26 +12,25 @@
     "skipLibCheck": true,
     "outDir": "lib",
     "inlineSources": false,
-        "strict": false, // Enable gradually
+    "strict": false,
     "noImplicitAny": true,
-    "noImplicitReturns": false, // Too many violations initially
+    "noImplicitReturns": false,
     "noImplicitThis": false,
-    "noUnusedLocals": false, // Too many violations initially 
-    "noUnusedParameters": false, // Too many violations initially
-    "exactOptionalPropertyTypes": false, // Enable after fixing interfaces
-    "noUncheckedIndexedAccess": false, // Enable after array access fixes
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": false,
-    "strictNullChecks": true, // ENABLED: catches null/undefined errors
+    "strictNullChecks": true,
     "strictBindCallApply": false,
     "strictFunctionTypes": false,
-    "strictPropertyInitialization": false, // Enable after constructor fixes
-    "useUnknownInCatchVariables": false, // Enable after error handling fixes
+    "strictPropertyInitialization": false,
+    "useUnknownInCatchVariables": false,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "preserveSymlinks": false,
-    
     "typeRoots": [
       "./node_modules/@types",
       "./node_modules/@microsoft",

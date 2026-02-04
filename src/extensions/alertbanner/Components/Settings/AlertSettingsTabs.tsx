@@ -22,9 +22,10 @@ export interface IAlertSettingsTabsProps {
   alertTypesJson: string;
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
+  enableTargetSite: boolean;
   graphClient: MSGraphClientV3;
   context: ApplicationCustomizerContext;
-  onSettingsChange: (settings: ISettingsData) => void;
+  onSettingsChange: (settings: ISettingsData & { enableTargetSite: boolean }) => void;
 }
 
 const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
@@ -32,6 +33,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   alertTypesJson,
   userTargetingEnabled,
   notificationsEnabled,
+  enableTargetSite,
   graphClient,
   context,
   onSettingsChange
@@ -47,10 +49,11 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   // Site context (removed unused variable)
 
   // Settings state
-  const [settings, setSettings] = React.useState<ISettingsData>({
+  const [settings, setSettings] = React.useState<ISettingsData & { enableTargetSite: boolean }>({
     alertTypesJson,
     userTargetingEnabled,
-    notificationsEnabled
+    notificationsEnabled,
+    enableTargetSite
   });
 
   // Alert types state
@@ -165,9 +168,10 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     setSettings({
       alertTypesJson,
       userTargetingEnabled,
-      notificationsEnabled
+      notificationsEnabled,
+      enableTargetSite
     });
-  }, [alertTypesJson, userTargetingEnabled, notificationsEnabled]);
+  }, [alertTypesJson, userTargetingEnabled, notificationsEnabled, enableTargetSite]);
 
   const handleSettingsChange = React.useCallback((newSettings: ISettingsData) => {
     setSettings(newSettings);
@@ -247,6 +251,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 alertTypes={alertTypes}
                 userTargetingEnabled={userTargetingEnabled}
                 notificationsEnabled={notificationsEnabled}
+                enableTargetSite={settings.enableTargetSite}
                 siteDetector={siteDetector.current}
                 alertService={alertService.current}
                 graphClient={graphClient}

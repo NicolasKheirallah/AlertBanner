@@ -73,13 +73,13 @@ export class SiteContextService {
       // Get current site info
       const hostname = new URL(this._context.pageContext.web.absoluteUrl).hostname;
       const siteId = this._context.pageContext.site.id.toString();
-      const webId = this._context.pageContext.web.id.toString();
-      const graphId = `${hostname},${siteId},${webId}`;
+      const siteCollectionUrl = this._context.pageContext.site.absoluteUrl || this._context.pageContext.web.absoluteUrl;
+      const graphId = this.buildGraphSiteIdentifier(siteCollectionUrl);
 
       // Get current site info
       this._currentSiteInfo = {
-        id: graphId, // Use composite ID for consistency with Graph responses
-        url: this._context.pageContext.web.absoluteUrl,
+        id: siteId,
+        url: siteCollectionUrl,
         name: this._context.pageContext.web.title,
         type: 'current',
         graphId: graphId

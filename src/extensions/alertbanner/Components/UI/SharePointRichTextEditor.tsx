@@ -51,6 +51,8 @@ export interface ISharePointRichTextEditorProps {
   debounceMs?: number;
   // Image upload folder customization
   imageFolderName?: string; // Custom folder name for image uploads (e.g., alert title)
+  // Disable image upload for cross-site editing scenarios
+  disableImageUpload?: boolean;
 }
 
 const escapeHtmlAttribute = (value: string): string => {
@@ -121,7 +123,8 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
   ariaLabel,
   ariaDescribedBy,
   debounceMs = 300,
-  imageFolderName
+  imageFolderName,
+  disableImageUpload = false
 }) => {
   const [internalValue, setInternalValue] = React.useState(value);
   const [characterCount, setCharacterCount] = React.useState(0);
@@ -389,16 +392,8 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
     let cancelled = false;
 
     const locateToolbar = () => {
-      const editorElement = document.getElementById(uniqueId);
-      if (!editorElement) {
-        if (!cancelled) {
-          window.setTimeout(locateToolbar, 100);
-        }
-        return;
-      }
-
-      const container = editorElement.closest('.ql-container');
-      const toolbar = container?.previousElementSibling as HTMLElement | null;
+      const editor = richTextRef.current?.getEditor?.();
+      const toolbar = editor?.getModule?.('toolbar')?.container as HTMLElement | undefined;
 
       if (!toolbar) {
         if (!cancelled) {
@@ -492,15 +487,17 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
           onEmojiSelect={handleInsertEmoji}
           disabled={disabled}
         />
-        <ImageUpload
-          context={context}
-          folderName={imageFolderName}
-          onImageUploaded={handleInsertUploadedImage}
-          disabled={disabled}
-        />
+        {!disableImageUpload && (
+          <ImageUpload
+            context={context}
+            folderName={imageFolderName}
+            onImageUploaded={handleInsertUploadedImage}
+            disabled={disabled}
+          />
+        )}
       </div>
     );
-  }, [context, disabled, handleInsertEmoji, handleInsertUploadedImage, imageFolderName]);
+  }, [context, disabled, disableImageUpload, handleInsertEmoji, handleInsertUploadedImage, imageFolderName]);
 
   return (
     <div className={`${styles.field} ${className || ''} ${currentError ? styles.error : ''}`}>
@@ -549,11 +546,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
           aria-invalid={!!currentError}
         />
 
-        {context && (
-          toolbarElement
-            ? createPortal(renderMediaToolbar(), toolbarElement)
-            : renderMediaToolbar()
-        )}
+        {context && toolbarElement && createPortal(renderMediaToolbar(), toolbarElement)}
       </div>
 
       {currentError && (

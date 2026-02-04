@@ -14,8 +14,9 @@ import AlertPreview from "../../UI/AlertPreview";
 import AlertTemplates, { IAlertTemplate } from "../../UI/AlertTemplates";
 import SiteSelector from "../../UI/SiteSelector";
 import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
-import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage, IPersonField, IAlertItem } from "../../Alerts/IAlerts";
+import { AlertPriority, NotificationType, IAlertType, ContentType, TargetLanguage, IPersonField, IAlertItem, TranslationStatus } from "../../Alerts/IAlerts";
 import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
+import { DEFAULT_LANGUAGE_POLICY, ILanguagePolicy } from "../../Services/LanguagePolicyService";
 import { SiteContextDetector, ISiteValidationResult } from "../../Utils/SiteContextDetector";
 import { SharePointAlertService } from "../../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
@@ -74,6 +75,7 @@ export interface ICreateAlertTabProps {
   alertTypes: IAlertType[];
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
+  enableTargetSite?: boolean; // Optional - defaults to false
   siteDetector: SiteContextDetector;
   alertService: SharePointAlertService;
   graphClient: MSGraphClientV3;
@@ -97,6 +99,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   alertTypes,
   userTargetingEnabled,
   notificationsEnabled,
+  enableTargetSite = false, // Default to false
   siteDetector,
   alertService,
   graphClient,
@@ -138,6 +141,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   const [languageService] = React.useState(() => new LanguageAwarenessService(graphClient, context));
   const [supportedLanguages, setSupportedLanguages] = React.useState<ISupportedLanguage[]>([]);
   const [useMultiLanguage, setUseMultiLanguage] = React.useState(false);
+  const [languagePolicy, setLanguagePolicy] = React.useState<ILanguagePolicy>(DEFAULT_LANGUAGE_POLICY);
   const notificationService = React.useMemo(() => NotificationService.getInstance(context), [context]);
 
   // Draft state
@@ -185,6 +189,20 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   React.useEffect(() => {
     loadSupportedLanguages();
   }, [loadSupportedLanguages, languageUpdateTrigger]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    alertService.getLanguagePolicy()
+      .then(policy => {
+        if (isMounted) {
+          setLanguagePolicy(policy);
+        }
+      })
+      .catch(error => {
+        logger.warn('CreateAlertTab', 'Failed to load language policy', error);
+      });
+    return () => { isMounted = false; };
+  }, [alertService]);
 
   // Load drafts
   const loadDrafts = React.useCallback(async () => {
@@ -234,7 +252,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           language: TargetLanguage.EnglishUS,
           title: prev.title,
           description: prev.description,
-          linkDescription: prev.linkUrl ? prev.linkDescription : undefined
+          linkDescription: prev.linkUrl ? prev.linkDescription : undefined,
+          translationStatus: languagePolicy.workflow.enabled ? languagePolicy.workflow.defaultStatus : TranslationStatus.Approved
         };
         // Generate a unique languageGroup ID for sharing resources (images) across language variants
         const languageGroup = prev.languageGroup || `lg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -344,6 +363,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   const validateForm = React.useCallback((): boolean => {
     const validationErrors = validateAlertData(newAlert, {
       useMultiLanguage,
+      languagePolicy,
+      tenantDefaultLanguage: languageService.getTenantDefaultLanguage(),
       getString: (key: string, ...args: Array<string | number>) => {
         const template = STRINGS_DICTIONARY[key] ?? key;
         if (args.length === 0) {
@@ -356,7 +377,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
 
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
-  }, [newAlert, useMultiLanguage]);
+  }, [newAlert, useMultiLanguage, languagePolicy, languageService, setErrors]);
   
   const handlePeoplePickerChange = React.useCallback((items: any[]) => {
     const users: IPersonField[] = [];
@@ -416,7 +437,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           status: 'Active' as 'Active' | 'Expired' | 'Scheduled',
           targetSites: newAlert.targetSites,
           id: '0',
-          targetUsers: [...(newAlert.targetUsers || []), ...(newAlert.targetGroups || [])]
+          targetUsers: [...(newAlert.targetUsers || []), ...(newAlert.targetGroups || [])],
+          languageGroup: newAlert.languageGroup
         }, newAlert.languageContent);
 
         const alertItems = languageService.generateAlertItems(multiLanguageAlert);
@@ -457,7 +479,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
           scheduledEnd: newAlert.scheduledEnd?.toISOString(),
           contentType: newAlert.contentType,
           targetLanguage: newAlert.targetLanguage,
-          targetUsers: [...(newAlert.targetUsers || []), ...(newAlert.targetGroups || [])]
+          targetUsers: [...(newAlert.targetUsers || []), ...(newAlert.targetGroups || [])],
+          translationStatus: languagePolicy.workflow.enabled ? languagePolicy.workflow.defaultStatus : TranslationStatus.Approved
         };
 
         await alertService.createAlert(alertData);
@@ -508,7 +531,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     } finally {
       setIsCreatingAlert(false);
     }
-  }, [validateForm, setIsCreatingAlert, setCreationProgress, alertService, newAlert, setNewAlert, alertTypes, setShowTemplates, useMultiLanguage, languageService, context.pageContext.user.displayName]);
+  }, [validateForm, setIsCreatingAlert, setCreationProgress, alertService, newAlert, setNewAlert, alertTypes, setShowTemplates, useMultiLanguage, languageService, context.pageContext.user.displayName, languagePolicy]);
 
   const handleSaveAsDraft = React.useCallback(async () => {
     // Basic validation for drafts (less strict than full validation)
@@ -840,6 +863,8 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                     linkUrl={newAlert.linkUrl}
                     context={context}
                     imageFolderName={newAlert.languageGroup}
+                    tenantDefaultLanguage={languageService.getTenantDefaultLanguage()}
+                    languagePolicy={languagePolicy}
                   />
                 </SharePointSection>
               )}
@@ -920,21 +945,23 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                 )}
               </SharePointSection>
 
-              <SharePointSection title={strings.CreateAlertTargetSitesSectionTitle}>
-                <SiteSelector
-                  selectedSites={newAlert.targetSites}
-                  onSitesChange={(sites) => {
-                    setNewAlert(prev => ({ ...prev, targetSites: sites }));
-                    if (errors.targetSites) setErrors(prev => ({ ...prev, targetSites: undefined }));
-                  }}
-                  siteDetector={siteDetector}
-                  graphClient={graphClient}
-                  showPermissionStatus={true}
-                />
-                {errors.targetSites && (
-                  <div className={styles.errorMessage}>{errors.targetSites}</div>
-                )}
-              </SharePointSection>
+              {enableTargetSite && (
+                <SharePointSection title={strings.CreateAlertTargetSitesSectionTitle}>
+                  <SiteSelector
+                    selectedSites={newAlert.targetSites}
+                    onSitesChange={(sites) => {
+                      setNewAlert(prev => ({ ...prev, targetSites: sites }));
+                      if (errors.targetSites) setErrors(prev => ({ ...prev, targetSites: undefined }));
+                    }}
+                    siteDetector={siteDetector}
+                    graphClient={graphClient}
+                    showPermissionStatus={true}
+                  />
+                  {errors.targetSites && (
+                    <div className={styles.errorMessage}>{errors.targetSites}</div>
+                  )}
+                </SharePointSection>
+              )}
 
               <SharePointSection title={strings.CreateAlertSchedulingSectionTitle}>
                 <SharePointInput

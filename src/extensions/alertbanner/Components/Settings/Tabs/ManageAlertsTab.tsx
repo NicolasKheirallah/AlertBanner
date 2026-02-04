@@ -17,8 +17,9 @@ import AlertPreview from "../../UI/AlertPreview";
 import SiteSelector from "../../UI/SiteSelector";
 import AttachmentManager from "../../UI/AttachmentManager";
 import ImageManager from "../../UI/ImageManager";
-import { AlertPriority, NotificationType, IAlertType, TargetLanguage, ContentType, IPersonField } from "../../Alerts/IAlerts";
+import { AlertPriority, NotificationType, IAlertType, TargetLanguage, ContentType, IPersonField, TranslationStatus } from "../../Alerts/IAlerts";
 import { LanguageAwarenessService, ILanguageContent, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
+import { DEFAULT_LANGUAGE_POLICY, ILanguagePolicy } from "../../Services/LanguagePolicyService";
 import { logger } from '../../Services/LoggerService';
 import { NotificationService } from '../../Services/NotificationService';
 import { SiteContextDetector } from "../../Utils/SiteContextDetector";
@@ -102,6 +103,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [supportedLanguages, setSupportedLanguages] = React.useState<ISupportedLanguage[]>([]);
   const [useMultiLanguage, setUseMultiLanguage] = React.useState(false);
   const [tenantDefaultLanguage, setTenantDefaultLanguage] = React.useState<TargetLanguage>(TargetLanguage.EnglishUS);
+  const [languagePolicy, setLanguagePolicy] = React.useState<ILanguagePolicy>(DEFAULT_LANGUAGE_POLICY);
   const [showPreview, setShowPreview] = React.useState(true);
   const [supplementalAlertTypes, setSupplementalAlertTypes] = React.useState<IAlertType[]>([]);
   
@@ -117,6 +119,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [searchTerm, setSearchTerm] = React.useState<string>('');
   const [showFilters, setShowFilters] = React.useState(false);
   const [alertsListId, setAlertsListId] = React.useState<string>("");
+  const [editingAlertSiteId, setEditingAlertSiteId] = React.useState<string>("");
+  const [editingAlertListId, setEditingAlertListId] = React.useState<string>("");
 
   React.useEffect(() => {
     const fetchListId = async () => {
@@ -129,6 +133,30 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     };
     fetchListId();
   }, [alertService]);
+
+  React.useEffect(() => {
+    if (!editingAlert) {
+      setEditingAlertSiteId("");
+      setEditingAlertListId("");
+      return;
+    }
+
+    const parsed = alertService.parseAlertId(editingAlert.id);
+    const siteId = parsed.siteId;
+    setEditingAlertSiteId(siteId);
+
+    const fetchEditingListId = async () => {
+      try {
+        const id = await alertService.getAlertsListId(siteId);
+        setEditingAlertListId(id);
+      } catch (error) {
+        logger.warn('ManageAlertsTab', 'Failed to resolve alerts list ID for editing alert', { siteId, error });
+        setEditingAlertListId("");
+      }
+    };
+
+    fetchEditingListId();
+  }, [editingAlert?.id, alertService]);
 
   // Initialize services with useMemo to prevent recreation
   const languageService = React.useMemo(() =>
@@ -216,16 +244,32 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   React.useEffect(() => {
     const loadLanguageSettings = async () => {
       try {
-        const languages = LanguageAwarenessService.getSupportedLanguages();
-        setSupportedLanguages(languages);
+        const baseLanguages = LanguageAwarenessService.getSupportedLanguages();
+        const supportedLanguageCodes = await alertService.getSupportedLanguages();
+
+        const updatedLanguages = baseLanguages.map(lang => ({
+          ...lang,
+          columnExists: supportedLanguageCodes.includes(lang.code) || lang.code === TargetLanguage.EnglishUS,
+          isSupported: supportedLanguageCodes.includes(lang.code) || lang.code === TargetLanguage.EnglishUS
+        }));
+
+        setSupportedLanguages(updatedLanguages);
         const defaultLang = languageService.getTenantDefaultLanguage();
         setTenantDefaultLanguage(defaultLang);
+        const policy = await alertService.getLanguagePolicy();
+        setLanguagePolicy(policy);
       } catch (error) {
         logger.error('ManageAlertsTab', 'Error loading language settings', error);
+        const fallbackLanguages = LanguageAwarenessService.getSupportedLanguages();
+        setSupportedLanguages(fallbackLanguages.map(lang => ({
+          ...lang,
+          columnExists: lang.code === TargetLanguage.EnglishUS,
+          isSupported: lang.code === TargetLanguage.EnglishUS
+        })));
       }
     };
     loadLanguageSettings();
-  }, [languageService]);
+  }, [languageService, alertService]);
 
   // Initialize language content when switching to multi-language mode in edit
   React.useEffect(() => {
@@ -236,7 +280,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         title: editingAlert.title,
         description: editingAlert.description,
         linkDescription: editingAlert.linkDescription || undefined,
-        availableForAll: editingAlert.targetLanguage === tenantDefaultLanguage
+        availableForAll: editingAlert.targetLanguage === tenantDefaultLanguage,
+        translationStatus: languagePolicy.workflow.enabled ? languagePolicy.workflow.defaultStatus : TranslationStatus.Approved
       };
       
       setEditingAlert(prev => prev ? {
@@ -258,7 +303,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         } : null);
       }
     }
-  }, [useMultiLanguage, editingAlert?.id, tenantDefaultLanguage]); // Only run when useMultiLanguage changes or alert ID changes
+  }, [useMultiLanguage, editingAlert?.id, tenantDefaultLanguage, languagePolicy]); // Only run when useMultiLanguage changes or alert ID changes
 
 
   const loadExistingAlerts = React.useCallback(async () => {
@@ -304,12 +349,18 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     });
 
     try {
+      setEditErrors({});
       setSupplementalAlertTypes([]);
       const siteIdForAlert = alertService.getAlertSiteId(alert.id);
       alertService.getAlertTypes(siteIdForAlert)
         .then(types => setSupplementalAlertTypes(types))
         .catch(error => {
           logger.warn('ManageAlertsTab', 'Failed to load alert types for alert site', { siteIdForAlert, error });
+        });
+      alertService.getLanguagePolicy(siteIdForAlert)
+        .then(policy => setLanguagePolicy(policy))
+        .catch(error => {
+          logger.warn('ManageAlertsTab', 'Failed to load language policy for alert site', { siteIdForAlert, error });
         });
 
       // Check if this is a multi-language alert (has languageGroup)
@@ -322,7 +373,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           languageGroup: alert.languageGroup,
           variantCount: languageVariants.length
         });
-        const languageContent = languageService?.getLanguageContent(languageVariants, alert.languageGroup) || [];
+        const languageContent = (languageService?.getLanguageContent(languageVariants, alert.languageGroup) || []).map(content => ({
+          ...content,
+          translationStatus: content.translationStatus || (languagePolicy.workflow.enabled ? languagePolicy.workflow.defaultStatus : TranslationStatus.Approved)
+        }));
 
         const editingData: IEditingAlert = {
           ...alert,
@@ -339,6 +393,16 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         });
         setEditingAlert(editingData);
         setUseMultiLanguage(true);
+
+        if (languagePolicy.preventDuplicateLanguages) {
+          const duplicates = languageService?.detectDuplicateLanguages(existingAlerts, alert.languageGroup) || [];
+          if (duplicates.length > 0) {
+            setEditErrors(prev => ({
+              ...prev,
+              languageDuplicate: Text.format(strings.DuplicateLanguagesNotAllowed, duplicates.join(', '))
+            }));
+          }
+        }
       } else {
         // Single language alert
         const editingData: IEditingAlert = {
@@ -357,13 +421,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         setUseMultiLanguage(false);
       }
       
-      setEditErrors({});
       setShowPreview(true); // Ensure preview is visible when opening edit
     } catch (error) {
       logger.error('ManageAlertsTab', 'Error opening edit dialog', error);
       notificationService.showError('Failed to open edit dialog. Please try again.', 'Edit Failed');
     }
-  }, [setEditingAlert, existingAlerts, languageService, notificationService, alertService, setSupplementalAlertTypes]);
+  }, [setEditingAlert, existingAlerts, languageService, notificationService, alertService, setSupplementalAlertTypes, languagePolicy, setEditErrors]);
 
   const handlePeoplePickerChange = React.useCallback((items: any[]) => {
     const users: IPersonField[] = [];
@@ -446,6 +509,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
     const validationErrors = validateAlertData(editingAlert, {
       useMultiLanguage,
+      languagePolicy,
+      tenantDefaultLanguage,
       getString: (key: string, ...args: Array<string | number>) => {
         const template = STRINGS_DICTIONARY[key] ?? key;
         if (args.length === 0) {
@@ -458,7 +523,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
     setEditErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
-  }, [editingAlert, useMultiLanguage]);
+  }, [editingAlert, useMultiLanguage, languagePolicy, tenantDefaultLanguage]);
 
   const handleSaveEdit = React.useCallback(async () => {
     if (!editingAlert || !validateEditForm()) return;
@@ -471,12 +536,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           // Get all alerts in this language group and deduplicate by language
           const allGroupAlerts = existingAlerts.filter(a => a.languageGroup === editingAlert.languageGroup);
 
-          const seenLanguages = new Set<string>();
+          const dedupLanguages = new Set<string>();
           const groupAlerts = allGroupAlerts.filter(alert => {
-            if (seenLanguages.has(alert.targetLanguage)) {
+            if (dedupLanguages.has(alert.targetLanguage)) {
               return false;
             }
-            seenLanguages.add(alert.targetLanguage);
+            dedupLanguages.add(alert.targetLanguage);
             return true;
           });
 
@@ -487,7 +552,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             description: content.description,
             linkDescription: content.linkDescription || '',
             targetLanguage: content.language,
-            availableForAll: content.availableForAll
+            availableForAll: content.availableForAll,
+            translationStatus: content.translationStatus || (languagePolicy.workflow.enabled ? languagePolicy.workflow.defaultStatus : TranslationStatus.Approved)
           }));
 
           // Update each language variant
@@ -509,6 +575,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 scheduledStart: updatedAlert.scheduledStart?.toISOString(),
                 scheduledEnd: updatedAlert.scheduledEnd?.toISOString(),
                 availableForAll: updatedAlert.availableForAll,
+                translationStatus: updatedAlert.translationStatus,
                 targetSites: editingAlert.targetSites,
                 targetUsers: [...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])]
               });
@@ -530,6 +597,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 targetLanguage: updatedAlert.targetLanguage,
                 languageGroup: updatedAlert.languageGroup,
                 availableForAll: updatedAlert.availableForAll,
+                translationStatus: updatedAlert.translationStatus,
                 targetUsers: [...(editingAlert.targetUsers || []), ...(editingAlert.targetGroups || [])]
               });
             }
@@ -537,10 +605,20 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
           // Delete language variants that were removed from the editor
           const updatedLanguages = editingAlert.languageContent.map(c => c.language);
-          const toDelete = groupAlerts.filter(a => !updatedLanguages.includes(a.targetLanguage));
+          const seenLanguages = new Set<string>();
+          const toDelete = allGroupAlerts.filter(a => {
+            if (!updatedLanguages.includes(a.targetLanguage)) {
+              return true;
+            }
+            if (seenLanguages.has(a.targetLanguage)) {
+              return true;
+            }
+            seenLanguages.add(a.targetLanguage);
+            return false;
+          });
 
           logger.info('ManageAlertsTab', 'Processing language variant deletions', {
-            currentLanguages: groupAlerts.map(a => a.targetLanguage),
+            currentLanguages: allGroupAlerts.map(a => a.targetLanguage),
             updatedLanguages,
             toDelete: toDelete.map(a => ({ id: a.id, language: a.targetLanguage }))
           });
@@ -600,7 +678,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     } finally {
       setIsEditingAlert(false);
     }
-  }, [editingAlert, validateEditForm, setIsEditingAlert, alertService, setEditingAlert, setEditErrors, loadExistingAlerts, useMultiLanguage, existingAlerts, notificationService]);
+  }, [editingAlert, validateEditForm, setIsEditingAlert, alertService, setEditingAlert, setEditErrors, loadExistingAlerts, useMultiLanguage, existingAlerts, notificationService, languagePolicy]);
 
   const handleCancelEdit = React.useCallback(() => {
     setEditingAlert(null);
@@ -614,6 +692,25 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     if (!editingAlert) return undefined;
     return alertTypes.find(type => type.name === editingAlert.AlertType);
   }, [alertTypes, editingAlert]);
+
+  const normalizeSiteId = React.useCallback((value?: string): string => {
+    if (!value) return "";
+    return value.toLowerCase().replace(/[{}]/g, "");
+  }, []);
+
+  const isCrossSiteAlert = React.useMemo(() => {
+    if (!editingAlertSiteId) return false;
+    const currentSiteId = normalizeSiteId(context.pageContext.site.id.toString());
+    const editingSite = normalizeSiteId(editingAlertSiteId);
+    return editingSite.length > 0 && editingSite !== currentSiteId;
+  }, [editingAlertSiteId, context.pageContext.site.id, normalizeSiteId]);
+
+  const editingItemId = React.useMemo(() => {
+    if (!editingAlert) return undefined;
+    const parsed = alertService.parseAlertId(editingAlert.id);
+    const itemId = parseInt(parsed.itemId, 10);
+    return Number.isNaN(itemId) ? undefined : itemId;
+  }, [editingAlert?.id, alertService]);
 
   // Helper function to check if date matches filter
   const matchesDateFilter = React.useCallback((alert: IAlertItem): boolean => {
@@ -1315,6 +1412,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         error={editErrors.description}
                         description={strings.ManageAlertsDescriptionHelp || strings.CreateAlertDescriptionHelp}
                         imageFolderName={editingAlert.languageGroup || editingAlert.title || 'Untitled_Alert'}
+                        disableImageUpload={isCrossSiteAlert}
                       />
                     </SharePointSection>
                   </>
@@ -1330,20 +1428,29 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                       errors={editErrors}
                       linkUrl={editingAlert.linkUrl}
                       tenantDefaultLanguage={tenantDefaultLanguage}
+                      languagePolicy={languagePolicy}
                       context={context}
                       imageFolderName={editingAlert.languageGroup}
+                      disableImageUpload={isCrossSiteAlert}
                     />
                   </SharePointSection>
                 )}
 
                 {/* Image Manager */}
-                {editingAlert.languageGroup && (
+                {editingAlert.languageGroup && !isCrossSiteAlert && (
                   <SharePointSection title={strings.ImageManagerTitle || "Images"}>
                     <ImageManager
                       context={context}
                       imageStorageService={imageStorageService}
                       folderName={editingAlert.languageGroup}
                     />
+                  </SharePointSection>
+                )}
+                {editingAlert.languageGroup && isCrossSiteAlert && (
+                  <SharePointSection title={strings.ImageManagerTitle || "Images"}>
+                    <div className={styles.infoMessage}>
+                      Image management is disabled for alerts created on other sites. Open the source site to manage images.
+                    </div>
                   </SharePointSection>
                 )}
 
@@ -1355,8 +1462,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 <AttachmentManager
                   context={context}
                   alertService={alertService}
-                  listId={alertsListId}
-                  itemId={parseInt(editingAlert.id)}
+                  listId={editingAlertListId || alertsListId}
+                  itemId={editingItemId}
+                  siteId={editingAlertSiteId || undefined}
                   attachments={editingAlert.attachments || []}
                   onAttachmentsChange={(newAttachments) => {
                     setEditingAlert(prev => prev ? { ...prev, attachments: newAttachments } : null);
@@ -1365,15 +1473,21 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
                 {/* Image Manager */}
                 <SharePointSection title={strings.ManageAlertsUploadedImagesSectionTitle || 'Uploaded Images'}>
-                  <ImageManager
-                    context={context}
-                    imageStorageService={imageStorageService}
-                    folderName={editingAlert.languageGroup || editingAlert.title}
-                    onImageDeleted={() => {
-                      // Optional: Refresh or notify on image deletion
-                      logger.info('ManageAlertsTab', 'Image deleted from alert folder');
-                    }}
-                  />
+                  {!isCrossSiteAlert ? (
+                    <ImageManager
+                      context={context}
+                      imageStorageService={imageStorageService}
+                      folderName={editingAlert.languageGroup || editingAlert.title}
+                      onImageDeleted={() => {
+                        // Optional: Refresh or notify on image deletion
+                        logger.info('ManageAlertsTab', 'Image deleted from alert folder');
+                      }}
+                    />
+                  ) : (
+                    <div className={styles.infoMessage}>
+                      Image management is disabled for alerts created on other sites. Open the source site to manage images.
+                    </div>
+                  )}
                 </SharePointSection>
 
                 <SharePointSection title={strings.CreateAlertConfigurationSectionTitle}>

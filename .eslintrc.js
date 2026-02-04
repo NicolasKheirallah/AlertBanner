@@ -1,3 +1,5 @@
+require('@rushstack/eslint-patch/modern-module-resolution');
+
 module.exports = {
   root: true, // This prevents looking up parent directories
   env: {
@@ -5,6 +7,7 @@ module.exports = {
     es6: true,
     node: true
   },
+  plugins: ['@typescript-eslint', 'react-hooks'],
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module'

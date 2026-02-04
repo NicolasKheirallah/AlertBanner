@@ -1,9 +1,11 @@
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { MSGraphClientV3 } from '@microsoft/sp-http';
-import { TargetLanguage, ContentType } from '../Alerts/IAlerts';
+import { Guid } from '@microsoft/sp-core-library';
+import { TargetLanguage, TranslationStatus } from '../Alerts/IAlerts';
 import { IAlertItem } from "../Alerts/IAlerts";
 import { SUPPORTED_LANGUAGES } from '../Utils/AppConstants';
 import { logger } from './LoggerService';
+import { ILanguagePolicy, normalizeLanguagePolicy } from './LanguagePolicyService';
 
 export interface ISupportedLanguage {
   code: TargetLanguage;
@@ -20,6 +22,7 @@ export interface ILanguageContent {
   description: string;
   linkDescription?: string;
   availableForAll?: boolean; // If true, this version can be shown to users of other languages
+  translationStatus?: TranslationStatus;
 }
 
 export interface IMultiLanguageAlert {
@@ -103,11 +106,6 @@ export class LanguageAwarenessService {
 
   private async resolveUserPreferredLanguage(): Promise<TargetLanguage> {
     try {
-      const browserLanguage = this.getBrowserLanguage();
-      if (browserLanguage) {
-        return browserLanguage;
-      }
-
       const userLanguage = await this.getGraphUserLanguage();
       if (userLanguage) {
         return userLanguage;
@@ -118,6 +116,11 @@ export class LanguageAwarenessService {
         return sharePointLanguage;
       }
 
+      const browserLanguage = this.getBrowserLanguage();
+      if (browserLanguage) {
+        return browserLanguage;
+      }
+
       return this.getTenantDefaultLanguage();
     } catch (error) {
       logger.error('LanguageAwarenessService', 'Error detecting user preferred language', error);
@@ -126,13 +129,19 @@ export class LanguageAwarenessService {
   }
 
   private getBrowserLanguage(): TargetLanguage | null {
-    const browserLanguage = navigator.language?.toLowerCase();
-    if (!browserLanguage) {
-      return null;
+    // Check full array of preferred languages (navigator.languages is supported in modern browsers)
+    const languages = navigator.languages || [navigator.language];
+    
+    for (const lang of languages) {
+      if (lang) {
+        const mappedLanguage = this.mapLanguageCode(lang.toLowerCase());
+        if (mappedLanguage) {
+          return mappedLanguage;
+        }
+      }
     }
-
-    const mappedLanguage = this.mapLanguageCode(browserLanguage);
-    return mappedLanguage || null;
+    
+    return null;
   }
 
   private async getGraphUserLanguage(): Promise<TargetLanguage | null> {
@@ -153,6 +162,11 @@ export class LanguageAwarenessService {
   }
 
   private getSharePointLanguage(): TargetLanguage | null {
+    const contextLanguage = this.context?.pageContext?.cultureInfo?.currentUICultureName;
+    if (contextLanguage) {
+      return this.mapLanguageCode(contextLanguage.toLowerCase());
+    }
+
     const spLanguage = (window as any).SPClientContext?.web?.language;
     if (spLanguage) {
       return this.mapSharePointLCID(spLanguage);
@@ -213,8 +227,9 @@ export class LanguageAwarenessService {
   /**
    * Filter and prioritize alerts based on user's preferred language with fallback logic
    */
-  public filterAlertsForUser(alerts: IAlertItem[], userLanguage: TargetLanguage): IAlertItem[] {
+  public filterAlertsForUser(alerts: IAlertItem[], userLanguage: TargetLanguage, policy?: ILanguagePolicy): IAlertItem[] {
     const tenantDefault = this.getTenantDefaultLanguage();
+    const effectivePolicy = normalizeLanguagePolicy(policy);
     
     // Group alerts by language group
     const alertGroups = new Map<string, IAlertItem[]>();
@@ -247,31 +262,47 @@ export class LanguageAwarenessService {
     const selectedAlerts: IAlertItem[] = [];
     
     alertGroups.forEach(groupAlerts => {
+      let candidateAlerts = groupAlerts;
+      if (effectivePolicy.workflow.enabled && effectivePolicy.workflow.requireApprovedForDisplay) {
+        candidateAlerts = groupAlerts.filter(alert =>
+          (alert.translationStatus || TranslationStatus.Approved) === TranslationStatus.Approved
+        );
+        if (candidateAlerts.length === 0) {
+          return;
+        }
+      }
+
       // Try to find alert in user's preferred language
-      let selectedAlert = groupAlerts.find(alert => alert.targetLanguage === userLanguage);
+      let selectedAlert = candidateAlerts.find(alert => alert.targetLanguage === userLanguage);
       
       // If not found, try to find alert marked as "available for all"
       if (!selectedAlert) {
-        const fallbackContent = this.getLanguageContent(groupAlerts, groupAlerts[0].languageGroup!);
-        const availableForAllContent = fallbackContent.find(content => content.availableForAll);
-        
-        if (availableForAllContent) {
-          selectedAlert = groupAlerts.find(alert => alert.targetLanguage === availableForAllContent.language);
+        const availableForAllAlert = candidateAlerts.find(alert => alert.availableForAll);
+        if (availableForAllAlert) {
+          selectedAlert = availableForAllAlert;
         }
       }
       
+      // If still not found, fall back to configured policy language
+      if (!selectedAlert) {
+        const fallbackLanguage = effectivePolicy.fallbackLanguage === "tenant-default"
+          ? tenantDefault
+          : effectivePolicy.fallbackLanguage;
+        selectedAlert = candidateAlerts.find(alert => alert.targetLanguage === fallbackLanguage);
+      }
+
       // If still not found, fall back to tenant default language
       if (!selectedAlert) {
-        selectedAlert = groupAlerts.find(alert => alert.targetLanguage === tenantDefault);
+        selectedAlert = candidateAlerts.find(alert => alert.targetLanguage === tenantDefault);
       }
       
       // Last resort: pick the first available alert in the group
       if (!selectedAlert) {
-        selectedAlert = groupAlerts[0];
+        selectedAlert = candidateAlerts[0];
       }
       
       if (selectedAlert) {
-        selectedAlerts.push(selectedAlert);
+        selectedAlerts.push(this.applyFieldInheritance(selectedAlert, candidateAlerts, effectivePolicy, tenantDefault));
       }
     });
     
@@ -282,7 +313,7 @@ export class LanguageAwarenessService {
    * Create a multi-language alert with content for each language
    */
   public createMultiLanguageAlert(baseAlert: Omit<IAlertItem, 'title' | 'description' | 'linkDescription'>, content: ILanguageContent[]): IMultiLanguageAlert {
-    const languageGroup = `lang-group-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    const languageGroup = baseAlert.languageGroup || `lang-group-${Guid.newGuid().toString()}`;
 
     return {
       baseAlert: {
@@ -292,6 +323,42 @@ export class LanguageAwarenessService {
       content,
       languageGroup
     };
+  }
+
+  /**
+   * Validate multi-language content has at least one complete language
+   */
+  public validateMultiLanguageContent(content: ILanguageContent[]): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (content.length === 0) {
+      errors.push('At least one language must be added');
+      return { isValid: false, errors };
+    }
+
+    let hasCompleteLanguage = false;
+
+    content.forEach(langContent => {
+      const langErrors: string[] = [];
+      
+      if (!langContent.title || langContent.title.trim().length < 3) {
+        langErrors.push(`Title is required (min 3 characters)`);
+      }
+      
+      if (!langContent.description || langContent.description.trim().length < 10) {
+        langErrors.push(`Description is required (min 10 characters)`);
+      }
+
+      if (langErrors.length === 0) {
+        hasCompleteLanguage = true;
+      }
+    });
+
+    if (!hasCompleteLanguage) {
+      errors.push('At least one language must have complete content (title and description)');
+    }
+
+    return { isValid: errors.length === 0, errors };
   }
 
   /**
@@ -306,6 +373,7 @@ export class LanguageAwarenessService {
       linkDescription: content.linkDescription || '',
       targetLanguage: content.language,
       languageGroup: multiLangAlert.languageGroup,
+      translationStatus: content.translationStatus || TranslationStatus.Approved,
       id: '0' // Will be set by SharePoint when created
     }));
   }
@@ -330,7 +398,57 @@ export class LanguageAwarenessService {
       title: alert.title,
       description: alert.description,
       linkDescription: alert.linkDescription,
-      availableForAll: alert.availableForAll
+      availableForAll: alert.availableForAll,
+      translationStatus: alert.translationStatus || TranslationStatus.Approved
     }));
+  }
+
+  public detectDuplicateLanguages(alerts: IAlertItem[], languageGroup: string): TargetLanguage[] {
+    const groupAlerts = alerts.filter(alert => alert.languageGroup === languageGroup);
+    const seen = new Set<string>();
+    const duplicates = new Set<TargetLanguage>();
+    groupAlerts.forEach(alert => {
+      const lang = alert.targetLanguage;
+      if (seen.has(lang)) {
+        duplicates.add(lang);
+      } else {
+        seen.add(lang);
+      }
+    });
+    return Array.from(duplicates);
+  }
+
+  private applyFieldInheritance(
+    selectedAlert: IAlertItem,
+    groupAlerts: IAlertItem[],
+    policy: ILanguagePolicy,
+    tenantDefault: TargetLanguage
+  ): IAlertItem {
+    if (!policy.inheritance.enabled) {
+      return selectedAlert;
+    }
+
+    const fallbackLanguage = policy.fallbackLanguage === "tenant-default" ? tenantDefault : policy.fallbackLanguage;
+    const fallbackAlert = groupAlerts.find(alert => alert.targetLanguage === fallbackLanguage)
+      || groupAlerts.find(alert => alert.availableForAll)
+      || groupAlerts[0];
+
+    if (!fallbackAlert) {
+      return selectedAlert;
+    }
+
+    const merged: IAlertItem = { ...selectedAlert };
+
+    if (policy.inheritance.fields.title && !merged.title?.trim()) {
+      merged.title = fallbackAlert.title;
+    }
+    if (policy.inheritance.fields.description && !merged.description?.trim()) {
+      merged.description = fallbackAlert.description;
+    }
+    if (policy.inheritance.fields.linkDescription && !merged.linkDescription?.trim()) {
+      merged.linkDescription = fallbackAlert.linkDescription;
+    }
+
+    return merged;
   }
 }

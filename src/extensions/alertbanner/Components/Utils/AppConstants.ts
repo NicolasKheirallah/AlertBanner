@@ -13,6 +13,13 @@ export const LIST_NAMES = {
   ALERT_TYPES: 'AlertBannerTypes'
 } as const;
 
+export const ALERT_ITEM_TYPES = {
+  ALERT: "alert",
+  TEMPLATE: "template",
+  DRAFT: "draft",
+  SETTINGS: "settings"
+} as const;
+
 /**
  * SharePoint field names
  */
@@ -164,6 +171,9 @@ export const VALIDATION_MESSAGES = {
   CreateAlertLanguageTitleRequired: 'Title is required for {0}',
   CreateAlertLanguageDescriptionRequired: 'Description is required for {0}',
   CreateAlertLanguageLinkDescriptionRequired: 'Link description is required for {0} when URL is provided',
+  CreateAlertLanguageAtLeastOneComplete: 'At least one language must have complete content (title and description)',
+  CreateAlertDefaultLanguageRequired: 'Default language ({0}) must have complete content',
+  DuplicateLanguagesNotAllowed: 'Duplicate language variants detected: {0}',
   TitleRequired: 'Title is required',
   TitleMinLength: 'Title must be at least 3 characters',
   TitleMaxLength: 'Title cannot exceed 100 characters',

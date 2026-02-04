@@ -191,13 +191,13 @@
   padding-right: 40px;
   cursor: pointer;
 
-  &:disabled {
-    cursor: not-allowed;
-  }
-
   // Ensure consistent height with inputs
   min-height: 32px;
   height: auto;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
 }
 
 // Toggle styles

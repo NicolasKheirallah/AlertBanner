@@ -7,17 +7,21 @@ import { logger } from "./LoggerService";
 import { ErrorUtils } from "../Utils/ErrorUtils";
 import { JsonUtils } from "../Utils/JsonUtils";
 import { StringUtils } from "../Utils/StringUtils";
-import { LIST_NAMES, SUPPORTED_LANGUAGES, DEFAULT_ALERT_TYPES } from "../Utils/AppConstants";
+import { LIST_NAMES, SUPPORTED_LANGUAGES, DEFAULT_ALERT_TYPES, API_CONFIG, ALERT_ITEM_TYPES } from "../Utils/AppConstants";
 import { IAlertItem, IAlertType, ContentType, AlertPriority } from "../Alerts/IAlerts";
 import { SPHttpClient } from "@microsoft/sp-http";
+import { RetryUtils } from "../Utils/RetryUtils";
+import { PermissionService } from "./PermissionService";
+import { DEFAULT_LANGUAGE_POLICY, ILanguagePolicy, normalizeLanguagePolicy } from "./LanguagePolicyService";
 
 export class AlertOperationsService {
   private graphClient: MSGraphClientV3;
   private context: ApplicationCustomizerContext;
   private locator: SharePointListLocator;
-  // We keep validatedListSchemas locally or inside Locator. 
-  // For now, local set to avoid re-validating every time is fine, scoped to this service instance.
+  private permissionService: PermissionService;
   private validatedListSchemas: Set<string> = new Set();
+  private readonly maxItemsToFetch: number = API_CONFIG.MAX_PAGE_SIZE * 5;
+  private readonly languagePolicyTitle = "LanguagePolicy";
 
   constructor(
     graphClient: MSGraphClientV3,
@@ -27,11 +31,18 @@ export class AlertOperationsService {
     this.graphClient = graphClient;
     this.context = context;
     this.locator = locator;
+    this.permissionService = PermissionService.getInstance(context);
   }
 
   public async getActiveAlerts(siteId: string): Promise<IAlertItem[]> {
     const dateTimeNow = new Date().toISOString();
     const alertsListApi = await this.locator.getAlertsListApi(siteId);
+    
+    if (!alertsListApi) {
+      logger.info('AlertOperationsService', `Alerts list not found for site ${siteId}, returning empty results`);
+      return [];
+    }
+    
     const availableColumns = await this.locator.getAvailableColumns(alertsListApi);
 
     const filterParts: string[] = [];
@@ -41,17 +52,12 @@ export class AlertOperationsService {
     if (availableColumns.has("ScheduledEnd")) {
       filterParts.push(`(fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null)`);
     }
-    if (availableColumns.has("ItemType")) {
-      filterParts.push(`(fields/ItemType ne 'template')`);
-      filterParts.push(`(fields/ItemType ne 'draft')`);
-    }
-    if (availableColumns.has("Status")) {
-      filterParts.push(`(fields/Status ne 'draft')`);
-    }
-
     const filterQuery = filterParts.length > 0 ? filterParts.join(" and ") : undefined;
     const baseFields = ["Title", "AlertType", "Description", "ScheduledStart", "ScheduledEnd", "Priority", "IsPinned", "NotificationType", "LinkUrl", "LinkDescription", "TargetSites", "Status", "ItemType", "TargetLanguage", "LanguageGroup", "Attachments"];
     const optionalFields = ["AvailableForAll", "Metadata"];
+    if (availableColumns.has("TranslationStatus")) {
+      optionalFields.push("TranslationStatus");
+    }
     
     const selectedFields = [
       ...baseFields.filter(f => availableColumns.has(f) || ["Title", "Attachments"].includes(f)),
@@ -59,30 +65,58 @@ export class AlertOperationsService {
     ];
     if (!selectedFields.includes("Title")) selectedFields.unshift("Title");
 
-    try {
-      let request = this.graphClient.api(`${alertsListApi}/items`)
+    const executeQuery = async (listApi: string): Promise<IAlertItem[]> => {
+      let request = this.graphClient.api(`${listApi}/items`)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .expand(`fields($select=${selectedFields.join(",")})`)
         .orderby(availableColumns.has("ScheduledStart") ? "fields/ScheduledStart desc" : "fields/Created desc")
-        .top(25);
+        .top(API_CONFIG.MAX_PAGE_SIZE);
 
       if (filterQuery) request = request.filter(filterQuery);
 
-      const response = await request.get();
+      const items = await this.fetchPagedItems(request);
       const resolvedSiteId = await this.locator.ensureGraphSiteIdentifier(siteId);
-      
-      let alerts = response.value.map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, resolvedSiteId));
+      const listId = await this.locator.resolveListId(siteId, LIST_NAMES.ALERTS);
+
+      let alerts = items.map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, resolvedSiteId));
+      alerts = await this.attachAttachments(siteId, listId, items, alerts);
       return AlertFilters.excludeNonPublicAlerts(alerts);
+    };
+
+    try {
+      return await executeQuery(alertsListApi);
     } catch (error) {
+      const statusCode = (error as any)?.statusCode || (error as any)?.status || (error as any)?.code;
+      const errorMessage = (error as any)?.message || "";
+      const isNotFound = statusCode === 404 || statusCode === "itemNotFound" || errorMessage.toLowerCase().includes("not found");
+
+      if (isNotFound) {
+        logger.warn("AlertOperationsService", `Alerts list not found for site ${siteId}. Invalidating cache and retrying.`, { siteId });
+        await this.locator.invalidateListId(siteId, LIST_NAMES.ALERTS);
+
+        try {
+          const refreshedListApi = await this.locator.getAlertsListApi(siteId);
+          if (!refreshedListApi) {
+            return [];
+          }
+          return await executeQuery(refreshedListApi);
+        } catch (retryError) {
+          logger.warn("AlertOperationsService", `Retry failed after invalidating cache for site ${siteId}.`, retryError);
+          return [];
+        }
+      }
+
       logger.error("AlertOperationsService", `Failed to get active alerts from ${siteId}`, error);
       return [];
     }
   }
 
+
   public async createAlert(alert: Omit<IAlertItem, "id" | "createdDate" | "createdBy" | "status"> & Partial<Pick<IAlertItem, "status">>): Promise<IAlertItem> {
-      // Logic copied from Original, condensed
-      try {
-        const siteId = this.context.pageContext.site.id.toString();
+    const siteId = this.context.pageContext.site.id.toString();
+    
+    return this.permissionService.executeWriteOperation(
+      async () => {
         if (!alert.title?.trim()) throw new Error("Alert title is required");
         if (!alert.description?.trim()) throw new Error("Alert description is required");
         if (!alert.AlertType?.trim()) throw new Error("Alert type is required");
@@ -90,12 +124,14 @@ export class AlertOperationsService {
 
         const alertsListApi = await this.locator.getAlertsListApi(siteId);
         
-        // Validation Logic (Schema check) - simplified to use availableColumns from Locator
+        if (!alertsListApi) {
+          throw new Error(`Alerts list not found for site ${siteId}. Please create the list first.`);
+        }
+        
         const availableColumns = await this.locator.getAvailableColumns(alertsListApi);
         const required = ["Title", "Description", "AlertType", "Priority", "IsPinned"];
         const missing = required.filter(c => !availableColumns.has(c));
-        if (missing.length > 0 && !availableColumns.has("Title")) { // Locator fallback might have Title only. 
-            // If fallback, we might not know real columns. Trust the post.
+        if (missing.length > 0 && !availableColumns.has("Title")) {
         }
 
         const fields: any = {
@@ -121,58 +157,95 @@ export class AlertOperationsService {
         fields.TargetLanguage = alert.targetLanguage;
         if (alert.languageGroup) fields.LanguageGroup = alert.languageGroup;
         fields.AvailableForAll = Boolean(alert.availableForAll);
+        if (alert.translationStatus && availableColumns.has("TranslationStatus")) {
+          fields.TranslationStatus = alert.translationStatus;
+        }
 
         let response = await this.graphClient.api(`${alertsListApi}/items`).post({ fields });
         
-        // Retrieve created
         const created = await this.graphClient.api(`${alertsListApi}/items/${response.id}`).expand("fields").get();
         return AlertTransformers.mapSharePointItemToAlert(created, siteId);
-      } catch (e) {
-          logger.error("AlertOperationsService", "Create failed", e);
-          throw e;
+      },
+      {
+        operation: 'CREATE_ALERT',
+        targetSite: siteId,
+        targetList: LIST_NAMES.ALERTS,
+        justification: `Creating ${alert.contentType || 'alert'}: ${alert.title}`
       }
+    );
   }
 
   public async updateAlert(alertId: string, updates: Partial<IAlertItem>): Promise<IAlertItem> {
-      try {
-          const { siteId, itemId } = this.parseAlertId(alertId);
-          const alertsListApi = await this.locator.getAlertsListApi(siteId);
+    const { siteId, itemId } = this.parseAlertId(alertId);
+    
+    return this.permissionService.executeWriteOperation(
+      async () => {
+        const alertsListApi = await this.locator.getAlertsListApi(siteId);
+        
+        if (!alertsListApi) {
+          throw new Error(`Alerts list not found for site ${siteId}. Please create the list first.`);
+        }
 
-          const fields: any = {};
-          if (updates.title) fields.Title = updates.title;
-          if (updates.description) fields.Description = updates.description;
-          if (updates.AlertType) fields.AlertType = updates.AlertType;
-          if (updates.priority) fields.Priority = updates.priority;
-          if (updates.isPinned !== undefined) fields.IsPinned = updates.isPinned;
-          if (updates.notificationType) fields.NotificationType = updates.notificationType;
-          if (updates.linkUrl !== undefined) fields.LinkUrl = updates.linkUrl;
-          if (updates.linkDescription !== undefined) fields.LinkDescription = updates.linkDescription;
-          if (updates.targetSites) fields.TargetSites = JsonUtils.safeStringify(updates.targetSites);
-          if (updates.scheduledStart !== undefined) fields.ScheduledStart = updates.scheduledStart;
-          if (updates.scheduledEnd !== undefined) fields.ScheduledEnd = updates.scheduledEnd;
-          if (updates.targetUsers !== undefined) fields.TargetUsers = updates.targetUsers;
-          if (updates.metadata) fields.Metadata = JsonUtils.safeStringify(updates.metadata);
-          if (updates.status) fields.Status = updates.status;
+        const fields: any = {};
+        if (updates.title) fields.Title = updates.title;
+        if (updates.description) fields.Description = updates.description;
+        if (updates.AlertType) fields.AlertType = updates.AlertType;
+        if (updates.priority) fields.Priority = updates.priority;
+        if (updates.isPinned !== undefined) fields.IsPinned = updates.isPinned;
+        if (updates.notificationType) fields.NotificationType = updates.notificationType;
+        if (updates.linkUrl !== undefined) fields.LinkUrl = updates.linkUrl;
+        if (updates.linkDescription !== undefined) fields.LinkDescription = updates.linkDescription;
+        if (updates.targetSites) fields.TargetSites = JsonUtils.safeStringify(updates.targetSites);
+        if (updates.scheduledStart !== undefined) fields.ScheduledStart = updates.scheduledStart;
+        if (updates.scheduledEnd !== undefined) fields.ScheduledEnd = updates.scheduledEnd;
+        if (updates.targetUsers !== undefined) fields.TargetUsers = updates.targetUsers;
+        if (updates.metadata) fields.Metadata = JsonUtils.safeStringify(updates.metadata);
+        if (updates.status) fields.Status = updates.status;
+        if (updates.translationStatus) {
+          try {
+            const availableColumns = await this.locator.getAvailableColumns(alertsListApi);
+            if (availableColumns.has("TranslationStatus")) {
+              fields.TranslationStatus = updates.translationStatus;
+            }
+          } catch (error) {
+            logger.warn("AlertOperationsService", "Unable to verify TranslationStatus column; skipping update", error);
+          }
+        }
 
-          await this.graphClient.api(`${alertsListApi}/items/${itemId}/fields`).patch(fields);
-          
-          const updated = await this.graphClient.api(`${alertsListApi}/items/${itemId}`).expand("fields").get();
-          return AlertTransformers.mapSharePointItemToAlert(updated, siteId);
-      } catch (e) {
-          logger.error("AlertOperationsService", "Update failed", e);
-          throw e;
+        await this.graphClient.api(`${alertsListApi}/items/${itemId}/fields`).patch(fields);
+        
+        const updated = await this.graphClient.api(`${alertsListApi}/items/${itemId}`).expand("fields").get();
+        return AlertTransformers.mapSharePointItemToAlert(updated, siteId);
+      },
+      {
+        operation: 'UPDATE_ALERT',
+        targetSite: siteId,
+        targetList: LIST_NAMES.ALERTS,
+        justification: `Updating alert ${itemId}`
       }
+    );
   }
 
   public async deleteAlert(alertId: string): Promise<void> {
-      try {
-          const { siteId, itemId } = this.parseAlertId(alertId);
+    const { siteId, itemId } = this.parseAlertId(alertId);
+    
+    return this.permissionService.executeWriteOperation(
+      async () => {
           const alertsListApi = await this.locator.getAlertsListApi(siteId);
+          
+          if (!alertsListApi) {
+            throw new Error(`Alerts list not found for site ${siteId}. Please create the list first.`);
+          }
+          
           await this.graphClient.api(`${alertsListApi}/items/${itemId}`).delete();
-      } catch (e) {
-          logger.error("AlertOperationsService", "Delete failed", e);
-          throw e;
+      },
+      {
+        operation: 'DELETE_ALERT',
+        targetSite: siteId,
+        targetList: LIST_NAMES.ALERTS,
+        justification: `Deleting alert item ${itemId}`
       }
+    );
   }
 
   public async deleteAlerts(alertIds: string[]): Promise<void> {
@@ -192,8 +265,7 @@ export class AlertOperationsService {
   public async getAlertTypes(siteIdOverride?: string): Promise<IAlertType[]> {
       const siteId = siteIdOverride || this.context.pageContext.site.id.toString();
       try {
-          const listApi = await this.locator.getAlertTypesListApi(siteId); // Should Locator ensure existence? No. Provisioning does.
-          // But here we just want to READ. If it fails, return defaults.
+          const listApi = await this.locator.getAlertTypesListApi(siteId);
           const response = await this.graphClient.api(`${listApi}/items`).expand("fields").orderby("fields/SortOrder").get();
           
           if (!response.value || response.value.length === 0) return DEFAULT_ALERT_TYPES.map(t => ({ ...t }));
@@ -215,26 +287,44 @@ export class AlertOperationsService {
   public async getDraftAlerts(siteId: string): Promise<IAlertItem[]> {
     try {
       const alertsListApi = await this.locator.getAlertsListApi(siteId);
-      const currentUser = this.context.pageContext.user.loginName;
+      
+      if (!alertsListApi) {
+        return [];
+      }
+      
+      const currentUserEmail =
+        this.context.pageContext.user.email ||
+        (this.context.pageContext.user as any)?.userPrincipalName ||
+        "";
       const availableColumns = await this.locator.getAvailableColumns(alertsListApi);
 
       const baseFields = ["Title", "AlertType", "Description", "Priority", "IsPinned", "NotificationType", "LinkUrl", "LinkDescription", "TargetSites", "Status", "ItemType", "TargetLanguage", "LanguageGroup", "ScheduledStart", "ScheduledEnd", "TargetUsers", "Author", "Modified"];
       const selectedFields = baseFields.filter(f => availableColumns.has(f) || ["Title"].includes(f));
       
       const filters: string[] = [];
-      if (availableColumns.has("ItemType")) filters.push("fields/ItemType eq 'draft'");
-      if (availableColumns.has("Author") && currentUser) filters.push(`fields/Author/Email eq '${currentUser}'`);
+      if (availableColumns.has("ItemType")) {
+        filters.push("fields/ItemType eq 'draft'");
+      } else if (availableColumns.has("Status")) {
+        filters.push("tolower(fields/Status) eq 'draft'");
+      }
+      if (availableColumns.has("Author") && currentUserEmail) {
+        const safeEmail = currentUserEmail.replace(/'/g, "''");
+        filters.push(`fields/Author/Email eq '${safeEmail}'`);
+      }
 
       let request = this.graphClient.api(`${alertsListApi}/items`)
          .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
          .expand(`fields($select=${selectedFields.join(",")})`)
-         .top(50);
+         .top(API_CONFIG.MAX_PAGE_SIZE);
       
       if (filters.length > 0) request = request.filter(filters.join(" and "));
       request = request.orderby(availableColumns.has("Modified") ? "fields/Modified desc" : "fields/Title asc");
 
-      const response = await request.get();
-      return response.value.map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, siteId));
+      const items = await this.fetchPagedItems(request);
+      const listId = await this.locator.resolveListId(siteId, LIST_NAMES.ALERTS);
+      let alerts = items.map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, siteId));
+      alerts = await this.attachAttachments(siteId, listId, items, alerts);
+      return alerts;
     } catch (e) {
       logger.warn("AlertOperationsService", "Failed to get drafts", e);
       return [];
@@ -251,9 +341,11 @@ export class AlertOperationsService {
       return this.deleteAlert(draftId);
   }
 
-  public async addAttachment(listId: string, itemId: number, fileName: string, fileContent: ArrayBuffer): Promise<{ fileName: string; serverRelativeUrl: string }> {
+  public async addAttachment(listId: string, itemId: number, fileName: string, fileContent: ArrayBuffer, siteId?: string): Promise<{ fileName: string; serverRelativeUrl: string }> {
       try {
-          const siteUrl = this.context.pageContext.web.absoluteUrl;
+          const siteUrl = siteId
+            ? await this.locator.getSiteUrlFromIdentifier(siteId)
+            : this.context.pageContext.web.absoluteUrl;
           const uploadUrl = `${siteUrl}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/add(FileName='${encodeURIComponent(fileName)}')`;
           const response = await this.context.spHttpClient.post(uploadUrl, SPHttpClient.configurations.v1, {
               headers: { 'Accept': 'application/json;odata=verbose', 'Content-Type': 'application/octet-stream' },
@@ -268,9 +360,11 @@ export class AlertOperationsService {
       }
   }
 
-  public async deleteAttachment(listId: string, itemId: number, fileName: string): Promise<void> {
+  public async deleteAttachment(listId: string, itemId: number, fileName: string, siteId?: string): Promise<void> {
       try {
-          const siteUrl = this.context.pageContext.web.absoluteUrl;
+          const siteUrl = siteId
+            ? await this.locator.getSiteUrlFromIdentifier(siteId)
+            : this.context.pageContext.web.absoluteUrl;
           const deleteUrl = `${siteUrl}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/getByFileName('${encodeURIComponent(fileName)}')`;
           await this.context.spHttpClient.post(deleteUrl, SPHttpClient.configurations.v1, {
               headers: { 'Accept': 'application/json;odata=verbose', 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' }
@@ -284,20 +378,23 @@ export class AlertOperationsService {
   public async getAlertsForSite(siteId: string): Promise<IAlertItem[]> {
       try {
           const alertsListApi = await this.locator.getAlertsListApi(siteId);
-          // Fetch all non-draft/template items
-          const response = await this.graphClient.api(`${alertsListApi}/items`)
+          let request = this.graphClient.api(`${alertsListApi}/items`)
               .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
               .expand("fields")
-              .top(50) 
-              .orderby("fields/Created desc")
-              .get();
+              .top(API_CONFIG.MAX_PAGE_SIZE) 
+              .orderby("fields/Created desc");
           
-          return response.value.filter((item: any) => {
+          const items = await this.fetchPagedItems(request);
+          const listId = await this.locator.resolveListId(siteId, LIST_NAMES.ALERTS);
+          const filteredItems = items.filter((item: any) => {
               const type = (item.fields?.ItemType || "").toLowerCase();
               const status = (item.fields?.Status || "").toLowerCase();
               const title = item.fields?.Title || "";
-              return type !== "draft" && type !== "template" && status !== "draft" && !title.startsWith("[Auto-saved]") && !title.startsWith("[auto-saved]");
-          }).map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, siteId));
+              return type !== "draft" && type !== "template" && type !== ALERT_ITEM_TYPES.SETTINGS && status !== "draft" && !title.startsWith("[Auto-saved]") && !title.startsWith("[auto-saved]");
+          });
+          let alerts = filteredItems.map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, siteId));
+          alerts = await this.attachAttachments(siteId, listId, filteredItems, alerts);
+          return alerts;
       } catch (e) {
           logger.warn("AlertOperationsService", `Failed to get alerts for site ${siteId}`, e);
           return [];
@@ -307,21 +404,109 @@ export class AlertOperationsService {
   public async getTemplateAlerts(siteId: string): Promise<IAlertItem[]> {
       try {
           const alertsListApi = await this.locator.getAlertsListApi(siteId);
-          // Simplified query
-          const response = await this.graphClient.api(`${alertsListApi}/items`)
+          let request = this.graphClient.api(`${alertsListApi}/items`)
              .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
              .filter("fields/ItemType eq 'template'")
              .expand("fields")
-             .get();
-          return response.value.map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, siteId));
+             .top(API_CONFIG.MAX_PAGE_SIZE);
+
+          const items = await this.fetchPagedItems(request);
+          const listId = await this.locator.resolveListId(siteId, LIST_NAMES.ALERTS);
+          let alerts = items.map((item: any) => AlertTransformers.mapSharePointItemToAlert(item, siteId));
+          alerts = await this.attachAttachments(siteId, listId, items, alerts);
+          return alerts;
       } catch (e) {
           logger.warn("AlertOperationsService", `Failed to get templates ${siteId}`, e);
           return [];
       }
   }
 
+  public async getLanguagePolicy(siteId?: string): Promise<ILanguagePolicy> {
+    const targetSiteId = siteId || this.context.pageContext.site.id.toString();
+    try {
+      const alertsListApi = await this.locator.getAlertsListApi(targetSiteId);
+      if (!alertsListApi) {
+        return DEFAULT_LANGUAGE_POLICY;
+      }
+
+      const availableColumns = await this.locator.getAvailableColumns(alertsListApi);
+      if (!availableColumns.has("ItemType") || !availableColumns.has("Metadata")) {
+        return DEFAULT_LANGUAGE_POLICY;
+      }
+
+      const response = await this.graphClient
+        .api(`${alertsListApi}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .expand("fields($select=Title,Metadata,ItemType)")
+        .filter(`fields/ItemType eq '${ALERT_ITEM_TYPES.SETTINGS}'`)
+        .top(5)
+        .get();
+
+      const items = response?.value || [];
+      const policyItem = items.find((item: any) => (item.fields?.Title || "").toLowerCase() === this.languagePolicyTitle.toLowerCase())
+        || items[0];
+
+      const raw = policyItem?.fields?.Metadata;
+      const parsed = JsonUtils.safeParse(raw);
+      return normalizeLanguagePolicy(parsed || {});
+    } catch (e) {
+      logger.warn("AlertOperationsService", "Failed to load language policy", e);
+      return DEFAULT_LANGUAGE_POLICY;
+    }
+  }
+
+  public async saveLanguagePolicy(policy: ILanguagePolicy, siteId?: string): Promise<void> {
+    const targetSiteId = siteId || this.context.pageContext.site.id.toString();
+
+    return this.permissionService.executeWriteOperation(
+      async () => {
+        const alertsListApi = await this.locator.getAlertsListApi(targetSiteId);
+        if (!alertsListApi) {
+          throw new Error(`Alerts list not found for site ${targetSiteId}. Please create the list first.`);
+        }
+
+        const availableColumns = await this.locator.getAvailableColumns(alertsListApi);
+        const payloadMetadata = JsonUtils.safeStringify(policy) || JsonUtils.safeStringify(DEFAULT_LANGUAGE_POLICY) || "{}";
+
+        const response = await this.graphClient
+          .api(`${alertsListApi}/items`)
+          .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+          .expand("fields($select=Title,ItemType)")
+          .filter(`fields/ItemType eq '${ALERT_ITEM_TYPES.SETTINGS}'`)
+          .top(5)
+          .get();
+
+        const items = response?.value || [];
+        const existing = items.find((item: any) => (item.fields?.Title || "").toLowerCase() === this.languagePolicyTitle.toLowerCase())
+          || items[0];
+
+        const fields: any = {
+          Title: this.languagePolicyTitle,
+          Metadata: payloadMetadata,
+          ItemType: ALERT_ITEM_TYPES.SETTINGS
+        };
+
+        if (availableColumns.has("Status")) {
+          fields.Status = "Active";
+        }
+
+        if (existing?.id) {
+          await this.graphClient.api(`${alertsListApi}/items/${existing.id}/fields`).patch(fields);
+          return;
+        }
+
+        await this.graphClient.api(`${alertsListApi}/items`).post({ fields });
+      },
+      {
+        operation: "UPDATE_LANGUAGE_POLICY",
+        targetSite: targetSiteId,
+        targetList: LIST_NAMES.ALERTS,
+        justification: "Update language policy configuration"
+      }
+    );
+  }
+
   public async updateAlertStatuses(siteIds?: string[]): Promise<void> {
-    // Left empty for Facade to handle hierarchy-based updates
   }
 
   public async saveAlertTypes(alertTypes: IAlertType[]): Promise<void> {
@@ -329,13 +514,11 @@ export class AlertOperationsService {
       const siteId = this.context.pageContext.site.id.toString();
       const alertTypesListApi = await this.locator.getAlertTypesListApi(siteId);
 
-      // Clear existing items
       const existingItems = await this.graphClient.api(`${alertTypesListApi}/items`).expand("fields").get();
       for (const item of existingItems.value) {
           await this.graphClient.api(`${alertTypesListApi}/items/${item.id}`).delete();
       }
 
-      // Add new items
       for (let i = 0; i < alertTypes.length; i++) {
         const alertType = alertTypes[i];
         await this.graphClient.api(`${alertTypesListApi}/items`).post({
@@ -354,5 +537,92 @@ export class AlertOperationsService {
        logger.error("AlertOperationsService", "Failed to save alert types", error);
        throw error;
     }
+  }
+
+  private async fetchPagedItems(request: any): Promise<any[]> {
+    const items: any[] = [];
+
+    interface GraphResponse {
+      value?: any[];
+      '@odata.nextLink'?: string;
+    }
+
+    let response: GraphResponse = await RetryUtils.executeWithRetry(() => request.get(), {
+      suppressFailureLog: (error) => ErrorUtils.isListNotFoundError(error)
+    });
+    if (Array.isArray(response?.value)) {
+      items.push(...response.value);
+    }
+
+    let nextLink = response?.['@odata.nextLink'];
+    while (nextLink && items.length < this.maxItemsToFetch) {
+      const nextRequest = this.graphClient.api(nextLink);
+      response = await RetryUtils.executeWithRetry(() => nextRequest.get());
+      if (Array.isArray(response?.value)) {
+        items.push(...response.value);
+      }
+      nextLink = response?.['@odata.nextLink'];
+    }
+
+    return items;
+  }
+
+  private async attachAttachments(
+    siteId: string,
+    listId: string,
+    items: any[],
+    alerts: IAlertItem[]
+  ): Promise<IAlertItem[]> {
+    const attachmentsTasks = items.map(async (item: any, index: number) => {
+      const hasAttachments = Boolean(item?.fields?.Attachments);
+      if (!hasAttachments) {
+        return;
+      }
+
+      try {
+        const attachments = await this.getAttachmentsForItem(siteId, listId, item.id);
+        alerts[index].attachments = attachments;
+      } catch (error) {
+        logger.warn("AlertOperationsService", "Failed to fetch attachments", {
+          itemId: item.id,
+          siteId,
+          error
+        });
+      }
+    });
+
+    await Promise.allSettled(attachmentsTasks);
+    return alerts;
+  }
+
+  private async getAttachmentsForItem(
+    siteId: string,
+    listId: string,
+    itemId: number | string
+  ): Promise<{ fileName: string; serverRelativeUrl: string; size?: number }[]> {
+    const siteUrl = await this.locator.getSiteUrlFromIdentifier(siteId);
+    const safeItemId = typeof itemId === "string" ? parseInt(itemId, 10) : itemId;
+
+    if (!safeItemId || Number.isNaN(safeItemId)) {
+      return [];
+    }
+
+    const attachmentUrl = `${siteUrl}/_api/web/lists(guid'${listId}')/items(${safeItemId})/AttachmentFiles?$select=FileName,ServerRelativeUrl,Length`;
+    const response = await this.context.spHttpClient.get(attachmentUrl, SPHttpClient.configurations.v1, {
+      headers: { "Accept": "application/json;odata=nometadata" }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    const files = data?.value || data?.d?.results || [];
+
+    return files.map((file: any) => ({
+      fileName: file.FileName || file.Name || "",
+      serverRelativeUrl: file.ServerRelativeUrl || file.serverRelativeUrl,
+      size: file.Length || file.length || undefined
+    }));
   }
 }

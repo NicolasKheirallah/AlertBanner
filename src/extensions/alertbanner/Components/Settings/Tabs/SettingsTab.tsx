@@ -12,19 +12,23 @@ import {
 import {
   SharePointButton,
   SharePointInput,
+  SharePointSelect,
   SharePointToggle,
   SharePointSection
 } from "../../UI/SharePointControls";
 import { SharePointAlertService, IRepairResult } from "../../Services/SharePointAlertService";
 import { StorageService } from "../../Services/StorageService";
 import LanguageFieldManager from "../../UI/LanguageFieldManager";
-import { LanguageAwarenessService } from "../../Services/LanguageAwarenessService";
+import { LanguageAwarenessService, ISupportedLanguage } from "../../Services/LanguageAwarenessService";
+import { DEFAULT_LANGUAGE_POLICY, ILanguagePolicy } from "../../Services/LanguagePolicyService";
 import { NotificationService } from "../../Services/NotificationService";
 import ProgressIndicator, { StepStatus, IProgressStep } from "../../UI/ProgressIndicator";
 import RepairDialog from "../../UI/RepairDialog";
 import { logger } from '../../Services/LoggerService';
 import styles from "../AlertSettings.module.scss";
 import { CAROUSEL_CONFIG } from "../../Utils/AppConstants";
+import { TranslationStatus } from "../../Alerts/IAlerts";
+import * as strings from 'AlertBannerApplicationCustomizerStrings';
 
 const useCardStyles = makeStyles({
   languageGrid: {
@@ -74,6 +78,7 @@ export interface ISettingsData {
   alertTypesJson: string;
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
+  enableTargetSite: boolean;
 }
 
 export interface ISettingsTabProps {
@@ -117,6 +122,9 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
   const [preCreationLanguages, setPreCreationLanguages] = React.useState<string[]>(['en-us']); // English selected by default
   const [creationSteps, setCreationSteps] = React.useState<IProgressStep[]>([]);
+  const [languagePolicy, setLanguagePolicy] = React.useState<ILanguagePolicy>(DEFAULT_LANGUAGE_POLICY);
+  const [policyLanguages, setPolicyLanguages] = React.useState<ISupportedLanguage[]>([]);
+  const [isSavingPolicy, setIsSavingPolicy] = React.useState(false);
   const notificationService = React.useMemo(() => 
     context ? NotificationService.getInstance(context) : null, 
     [context]
@@ -134,6 +142,35 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       setCarouselInterval(savedCarouselInterval / 1000);
     }
   }, []);
+
+  React.useEffect(() => {
+    if (!alertsListExists) return;
+    let isMounted = true;
+    const loadPolicy = async () => {
+      try {
+        const [policy, supportedLanguageCodes] = await Promise.all([
+          alertService.getLanguagePolicy(),
+          alertService.getSupportedLanguages()
+        ]);
+
+        if (!isMounted) return;
+        setLanguagePolicy(policy);
+
+        const baseLanguages = LanguageAwarenessService.getSupportedLanguages();
+        const updatedLanguages = baseLanguages.map(lang => ({
+          ...lang,
+          columnExists: supportedLanguageCodes.includes(lang.code) || lang.code === 'en-us',
+          isSupported: supportedLanguageCodes.includes(lang.code) || lang.code === 'en-us'
+        }));
+        setPolicyLanguages(updatedLanguages.filter(lang => lang.isSupported && lang.columnExists));
+      } catch (error) {
+        logger.warn('SettingsTab', 'Failed to load language policy', error);
+      }
+    };
+
+    loadPolicy();
+    return () => { isMounted = false; };
+  }, [alertService, alertsListExists]);
 
   const handleCarouselEnabledChange = React.useCallback((checked: boolean) => {
     setCarouselEnabled(checked);
@@ -163,6 +200,45 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     setSettings(updatedSettings);
     onSettingsChange(updatedSettings);
   }, [settings, setSettings, onSettingsChange]);
+
+  const completenessOptions = React.useMemo(() => ([
+    { value: "allSelectedComplete", label: strings.LanguagePolicyCompletenessAll },
+    { value: "atLeastOneComplete", label: strings.LanguagePolicyCompletenessAtLeastOne },
+    { value: "requireDefaultLanguageComplete", label: strings.LanguagePolicyCompletenessDefault }
+  ]), []);
+
+  const fallbackOptions = React.useMemo(() => {
+    const options = [{
+      value: "tenant-default",
+      label: strings.LanguagePolicyFallbackTenantDefault
+    }];
+    policyLanguages.forEach(lang => {
+      options.push({
+        value: lang.code,
+        label: `${lang.flag} ${lang.nativeName} (${lang.name})`
+      });
+    });
+    return options;
+  }, [policyLanguages]);
+
+  const workflowStatusOptions = React.useMemo(() => ([
+    { value: TranslationStatus.Draft, label: strings.TranslationStatusDraft },
+    { value: TranslationStatus.InReview, label: strings.TranslationStatusInReview },
+    { value: TranslationStatus.Approved, label: strings.TranslationStatusApproved }
+  ]), []);
+
+  const handleSaveLanguagePolicy = React.useCallback(async () => {
+    setIsSavingPolicy(true);
+    try {
+      await alertService.saveLanguagePolicy(languagePolicy);
+      notificationService?.showSuccess(strings.LanguagePolicySavedSuccess, strings.LanguagePolicyTitle);
+    } catch (error) {
+      logger.error('SettingsTab', 'Failed to save language policy', error);
+      notificationService?.showError(strings.LanguagePolicySavedFailed, strings.LanguagePolicyTitle);
+    } finally {
+      setIsSavingPolicy(false);
+    }
+  }, [alertService, languagePolicy, notificationService]);
 
 
   const checkListsExistence = React.useCallback(async () => {
@@ -451,6 +527,13 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
             description="⚠️ Send browser notifications for critical and high-priority alerts. Users may need to grant browser permission. Disabled by default to reduce interruptions."
           />
 
+          <SharePointToggle
+            label="Enable Target Site Selection"
+            checked={settings.enableTargetSite}
+            onChange={(checked) => handleSettingsChange({ enableTargetSite: checked })}
+            description="Allow administrators to choose which specific sites will display each alert. When disabled, alerts are automatically targeted to the current site only."
+          />
+
         </div>
       </SharePointSection>
 
@@ -620,15 +703,152 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
             <div className={styles.additionalOptions}>
               <h3 className={styles.languageManagementTitle}>
                 <LocalLanguage24Regular style={{ marginRight: '8px' }} />
-                Manage Language Support
+                {strings.ManageLanguagesForList}
               </h3>
               <p className={styles.languageManagementDescription}>
-                Add or update multi-language support for your existing alert lists. This will add additional language-specific columns to support content in multiple languages.
+                {strings.LanguageManagerDescription}
               </p>
               <LanguageFieldManager 
                 alertService={alertService}
                 onLanguageChange={onLanguageChange}
               />
+
+              <Card>
+                <CardHeader
+                  header={
+                    <div className={cardStyles.cardHeader}>
+                      <Globe24Regular />
+                      <Text weight="semibold">{strings.LanguagePolicyTitle}</Text>
+                    </div>
+                  }
+                  description={<Text size={200}>{strings.LanguagePolicyDescription}</Text>}
+                />
+                <CardPreview>
+                  <div className={cardStyles.cardContent}>
+                    <div className={styles.settingsGrid}>
+                      <SharePointSelect
+                        label={strings.LanguagePolicyFallbackLanguageLabel}
+                        value={languagePolicy.fallbackLanguage}
+                        onChange={(value) => setLanguagePolicy(prev => ({ ...prev, fallbackLanguage: value as any }))}
+                        options={fallbackOptions}
+                        description={strings.LanguagePolicyFallbackLanguageDescription}
+                      />
+
+                      <SharePointSelect
+                        label={strings.LanguagePolicyCompletenessRuleLabel}
+                        value={languagePolicy.completenessRule}
+                        onChange={(value) => setLanguagePolicy(prev => ({ ...prev, completenessRule: value as any }))}
+                        options={completenessOptions}
+                        description={strings.LanguagePolicyCompletenessRuleDescription}
+                      />
+
+                      <SharePointToggle
+                        label={strings.LanguagePolicyRequireLinkDescriptionLabel}
+                        checked={languagePolicy.requireLinkDescriptionWhenUrl}
+                        onChange={(checked) => setLanguagePolicy(prev => ({ ...prev, requireLinkDescriptionWhenUrl: checked }))}
+                        description={strings.LanguagePolicyRequireLinkDescriptionDescription}
+                      />
+
+                      <SharePointToggle
+                        label={strings.LanguagePolicyPreventDuplicatesLabel}
+                        checked={languagePolicy.preventDuplicateLanguages}
+                        onChange={(checked) => setLanguagePolicy(prev => ({ ...prev, preventDuplicateLanguages: checked }))}
+                        description={strings.LanguagePolicyPreventDuplicatesDescription}
+                      />
+                    </div>
+
+                    <div className={styles.settingsGrid}>
+                      <SharePointToggle
+                        label={strings.LanguagePolicyInheritanceEnable}
+                        checked={languagePolicy.inheritance.enabled}
+                        onChange={(checked) => setLanguagePolicy(prev => ({ ...prev, inheritance: { ...prev.inheritance, enabled: checked } }))}
+                        description={strings.LanguagePolicyInheritanceDescription}
+                      />
+
+                      {languagePolicy.inheritance.enabled && (
+                        <>
+                          <Checkbox
+                            checked={languagePolicy.inheritance.fields.title}
+                            label={strings.LanguagePolicyInheritanceTitleField}
+                            onChange={(_, data) => setLanguagePolicy(prev => ({
+                              ...prev,
+                              inheritance: {
+                                ...prev.inheritance,
+                                fields: { ...prev.inheritance.fields, title: !!data.checked }
+                              }
+                            }))}
+                          />
+                          <Checkbox
+                            checked={languagePolicy.inheritance.fields.description}
+                            label={strings.LanguagePolicyInheritanceDescriptionField}
+                            onChange={(_, data) => setLanguagePolicy(prev => ({
+                              ...prev,
+                              inheritance: {
+                                ...prev.inheritance,
+                                fields: { ...prev.inheritance.fields, description: !!data.checked }
+                              }
+                            }))}
+                          />
+                          <Checkbox
+                            checked={languagePolicy.inheritance.fields.linkDescription}
+                            label={strings.LanguagePolicyInheritanceLinkDescriptionField}
+                            onChange={(_, data) => setLanguagePolicy(prev => ({
+                              ...prev,
+                              inheritance: {
+                                ...prev.inheritance,
+                                fields: { ...prev.inheritance.fields, linkDescription: !!data.checked }
+                              }
+                            }))}
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    <div className={styles.settingsGrid}>
+                      <SharePointToggle
+                        label={strings.LanguagePolicyWorkflowEnable}
+                        checked={languagePolicy.workflow.enabled}
+                        onChange={(checked) => setLanguagePolicy(prev => ({ ...prev, workflow: { ...prev.workflow, enabled: checked } }))}
+                        description={strings.LanguagePolicyWorkflowDescription}
+                      />
+
+                      {languagePolicy.workflow.enabled && (
+                        <>
+                          <SharePointSelect
+                            label={strings.LanguagePolicyWorkflowDefaultStatusLabel}
+                            value={languagePolicy.workflow.defaultStatus}
+                            onChange={(value) => setLanguagePolicy(prev => ({
+                              ...prev,
+                              workflow: { ...prev.workflow, defaultStatus: value as TranslationStatus }
+                            }))}
+                            options={workflowStatusOptions}
+                          />
+
+                          <SharePointToggle
+                            label={strings.LanguagePolicyWorkflowRequireApproved}
+                            checked={languagePolicy.workflow.requireApprovedForDisplay}
+                            onChange={(checked) => setLanguagePolicy(prev => ({
+                              ...prev,
+                              workflow: { ...prev.workflow, requireApprovedForDisplay: checked }
+                            }))}
+                            description={strings.LanguagePolicyWorkflowRequireApprovedDescription}
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    <div className={styles.actionButtonsRow}>
+                      <SharePointButton
+                        variant="primary"
+                        onClick={handleSaveLanguagePolicy}
+                        disabled={isSavingPolicy}
+                      >
+                        {isSavingPolicy ? strings.LanguagePolicySaving : strings.LanguagePolicySaveButton}
+                      </SharePointButton>
+                    </div>
+                  </div>
+                </CardPreview>
+              </Card>
             </div>
           </div>
         </SharePointSection>

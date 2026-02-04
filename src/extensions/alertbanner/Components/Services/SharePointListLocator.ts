@@ -184,10 +184,49 @@ export class SharePointListLocator {
     );
   }
 
-  public async getAlertsListApi(siteId: string): Promise<string> {
-    const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
-    const listId = await this.resolveListId(siteId, LIST_NAMES.ALERTS);
-    return `/sites/${graphSiteIdentifier}/lists/${listId}`;
+  public async invalidateListId(siteId: string, listTitle: string): Promise<void> {
+    try {
+      const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
+      const cacheKey = this.getListCacheKey(graphSiteIdentifier, listTitle);
+      this.listIdCache.delete(cacheKey);
+    } catch (error) {
+      logger.warn("SharePointListLocator", "Failed to invalidate list cache entry", { siteId, listTitle, error });
+    }
+  }
+
+  public async getAlertsListApi(siteId: string): Promise<string | null> {
+    try {
+      const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
+      const listId = await this.resolveListId(siteId, LIST_NAMES.ALERTS);
+      return `/sites/${graphSiteIdentifier}/lists/${listId}`;
+    } catch (error: any) {
+      if (error.name === 'LIST_NOT_FOUND' || error.message?.includes('LIST_NOT_FOUND')) {
+        // Fallback: if we were given a composite Graph ID, try the site collection root
+        if (siteId?.includes(',')) {
+          const siteGuid = SiteIdUtils.extractGuidFromGraphId(siteId);
+          if (siteGuid) {
+            try {
+              const rootGraphId = await this.ensureGraphSiteIdentifier(siteGuid);
+              const rootListId = await this.resolveListId(siteGuid, LIST_NAMES.ALERTS);
+              logger.warn("SharePointListLocator", "Alerts list not found on web, falling back to site collection root.", {
+                siteId,
+                siteGuid,
+                rootGraphId
+              });
+              return `/sites/${rootGraphId}/lists/${rootListId}`;
+            } catch (rootError) {
+              logger.warn("SharePointListLocator", "Alerts list not found on site collection root either.", {
+                siteId,
+                siteGuid,
+                rootError
+              });
+            }
+          }
+        }
+        return null;
+      }
+      throw error;
+    }
   }
 
   public async getAlertTypesListApi(siteId: string): Promise<string> {
