@@ -1,6 +1,11 @@
 import * as React from "react";
-import { logger } from '../Services/LoggerService';
-import { MessageBar, MessageBarBody, MessageBarTitle, tokens } from "@fluentui/react-components";
+import { logger } from "../Services/LoggerService";
+import {
+  MessageBar,
+  MessageBarBody,
+  MessageBarTitle,
+  tokens,
+} from "@fluentui/react-components";
 import styles from "./Alerts.module.scss";
 import { IAlertsProps, IAlertType, AlertPriority } from "./IAlerts";
 import AlertItem from "../AlertItem/AlertItem";
@@ -13,34 +18,44 @@ import { ArrayUtils } from "../Utils/ArrayUtils";
 import { StringUtils } from "../Utils/StringUtils";
 import { CAROUSEL_CONFIG } from "../Utils/AppConstants";
 import { ErrorBoundary } from "../Utils/ErrorBoundary";
-import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import * as strings from "AlertBannerApplicationCustomizerStrings";
 
 const Alerts: React.FC<IAlertsProps> = (props) => {
-  const { state, initializeAlerts, removeAlert, hideAlertForever } = useAlerts();
+  const {
+    state,
+    initializeAlerts,
+    removeAlert,
+    hideAlertForever,
+    updateCarouselSettings,
+  } = useAlerts();
   const { alerts, alertTypes, isLoading, hasError, errorMessage } = state;
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInEditMode, setIsInEditMode] = React.useState(false);
-  
-  // Carousel settings
-  const [carouselEnabled, setCarouselEnabled] = React.useState(false);
-  const [carouselInterval, setCarouselInterval] = React.useState<number>(CAROUSEL_CONFIG.DEFAULT_INTERVAL);
-  const carouselTimer = React.useRef<number | null>(null);
-  const storageService = React.useRef<StorageService>(StorageService.getInstance());
 
-  const defaultAlertType = React.useMemo<IAlertType>(() => ({
-    name: strings.DefaultAlertTypeName,
-    iconName: "Info",
-    backgroundColor: tokens.colorNeutralBackground1,
-    textColor: tokens.colorNeutralForeground1,
-    additionalStyles: "",
-    priorityStyles: {
-      [AlertPriority.Critical]: `border: 2px solid ${tokens.colorPaletteRedForeground1};`,
-      [AlertPriority.High]: `border: 1px solid ${tokens.colorPaletteDarkOrangeForeground1};`,
-      [AlertPriority.Medium]: "",
-      [AlertPriority.Low]: ""
-    }
-  }), []);
+  // Carousel settings from context
+  const { carouselEnabled, carouselInterval } = state;
+  const carouselTimer = React.useRef<number | null>(null);
+  const storageService = React.useRef<StorageService>(
+    StorageService.getInstance(),
+  );
+
+  const defaultAlertType = React.useMemo<IAlertType>(
+    () => ({
+      name: strings.DefaultAlertTypeName,
+      iconName: "Info",
+      backgroundColor: tokens.colorNeutralBackground1,
+      textColor: tokens.colorNeutralForeground1,
+      additionalStyles: "",
+      priorityStyles: {
+        [AlertPriority.Critical]: `border: 2px solid ${tokens.colorPaletteRedForeground1};`,
+        [AlertPriority.High]: `border: 1px solid ${tokens.colorPaletteDarkOrangeForeground1};`,
+        [AlertPriority.Medium]: "",
+        [AlertPriority.Low]: "",
+      },
+    }),
+    [],
+  );
 
   // Store initial props to prevent unnecessary re-initialization
   const previousInitPropsRef = React.useRef<{
@@ -55,8 +70,8 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   // Initialize alerts and edit mode detection on mount
   React.useEffect(() => {
     const normalizedSiteIds = (props.siteIds ?? [])
-      .map(id => (id ?? '').toString().trim())
-      .filter(id => StringUtils.isNotEmpty(id));
+      .map((id) => (id ?? "").toString().trim())
+      .filter((id) => StringUtils.isNotEmpty(id));
     const uniqueSortedSiteIds = ArrayUtils.unique(normalizedSiteIds).sort();
 
     const nextInitProps = {
@@ -65,23 +80,28 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       userTargetingEnabled: !!props.userTargetingEnabled,
       notificationsEnabled: !!props.notificationsEnabled,
       graphClient: props.graphClient,
-      context: props.context
+      context: props.context,
     };
 
     const prevInitProps = previousInitPropsRef.current;
-    const hasInitPropsChanged = !prevInitProps ||
+    const hasInitPropsChanged =
+      !prevInitProps ||
       prevInitProps.graphClient !== nextInitProps.graphClient ||
       prevInitProps.context !== nextInitProps.context ||
       prevInitProps.alertTypesJson !== nextInitProps.alertTypesJson ||
-      prevInitProps.userTargetingEnabled !== nextInitProps.userTargetingEnabled ||
-      prevInitProps.notificationsEnabled !== nextInitProps.notificationsEnabled ||
+      prevInitProps.userTargetingEnabled !==
+        nextInitProps.userTargetingEnabled ||
+      prevInitProps.notificationsEnabled !==
+        nextInitProps.notificationsEnabled ||
       prevInitProps.siteIds.length !== nextInitProps.siteIds.length ||
-      prevInitProps.siteIds.some((id, index) => id !== nextInitProps.siteIds[index]);
+      prevInitProps.siteIds.some(
+        (id, index) => id !== nextInitProps.siteIds[index],
+      );
 
     if (hasInitPropsChanged) {
       previousInitPropsRef.current = {
         ...nextInitProps,
-        siteIds: [...nextInitProps.siteIds]
+        siteIds: [...nextInitProps.siteIds],
       };
 
       initializeAlerts({
@@ -91,7 +111,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
         alertTypesJson: props.alertTypesJson,
         userTargetingEnabled: !!props.userTargetingEnabled,
         notificationsEnabled: !!props.notificationsEnabled,
-        enableTargetSite: !!props.enableTargetSite
+        enableTargetSite: !!props.enableTargetSite,
       });
     }
 
@@ -102,8 +122,8 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     props.alertTypesJson,
     props.userTargetingEnabled,
     props.notificationsEnabled,
-    (props.siteIds || []).join('|'),
-    initializeAlerts
+    (props.siteIds || []).join("|"),
+    initializeAlerts,
   ]);
 
   // Monitor for edit mode changes using MutationObserver with debouncing
@@ -112,9 +132,12 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
 
     const checkEditMode = () => {
       const newEditMode = EditModeDetector.isPageInEditMode(props.context);
-      setIsInEditMode(prevMode => {
+      setIsInEditMode((prevMode) => {
         if (prevMode !== newEditMode) {
-          logger.debug('Alerts', `Edit mode changed: ${prevMode} -> ${newEditMode}`);
+          logger.debug(
+            "Alerts",
+            `Edit mode changed: ${prevMode} -> ${newEditMode}`,
+          );
         }
         return newEditMode;
       });
@@ -131,16 +154,18 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
 
     observer.observe(document.body, {
       attributes: true,
-      attributeFilter: ['class'],
-      subtree: false
+      attributeFilter: ["class"],
+      subtree: false,
     });
 
     const observeCommandBar = () => {
-      const commandBar = document.querySelector('[data-automation-id="pageCommandBarRegion"]');
+      const commandBar = document.querySelector(
+        '[data-automation-id="pageCommandBarRegion"]',
+      );
       if (commandBar) {
         observer.observe(commandBar, {
           childList: true,
-          subtree: true
+          subtree: true,
         });
       }
     };
@@ -171,7 +196,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   React.useEffect(() => {
     if (carouselEnabled && alerts.length > 1) {
       carouselTimer.current = window.setInterval(() => {
-        setCurrentIndex(prevIndex => (prevIndex + 1) % alerts.length);
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % alerts.length);
       }, carouselInterval);
     } else if (carouselTimer.current) {
       window.clearInterval(carouselTimer.current);
@@ -186,42 +211,41 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     };
   }, [carouselEnabled, carouselInterval, alerts.length]);
 
+  // Load initial carousel settings from storage into context on mount
   React.useEffect(() => {
-    const savedCarouselEnabled = storageService.current.getFromLocalStorage<boolean>('carouselEnabled');
-    const savedCarouselInterval = storageService.current.getFromLocalStorage<number>('carouselInterval');
+    const savedCarouselEnabled =
+      storageService.current.getFromLocalStorage<boolean>("carouselEnabled");
+    const savedCarouselInterval =
+      storageService.current.getFromLocalStorage<number>("carouselInterval");
+
+    const settings: { carouselEnabled?: boolean; carouselInterval?: number } =
+      {};
 
     if (savedCarouselEnabled !== null) {
-      setCarouselEnabled(savedCarouselEnabled);
+      settings.carouselEnabled = savedCarouselEnabled;
     }
-    if (savedCarouselInterval && savedCarouselInterval >= CAROUSEL_CONFIG.MIN_INTERVAL && savedCarouselInterval <= CAROUSEL_CONFIG.MAX_INTERVAL) {
-      setCarouselInterval(savedCarouselInterval);
+    if (
+      savedCarouselInterval &&
+      savedCarouselInterval >= CAROUSEL_CONFIG.MIN_INTERVAL &&
+      savedCarouselInterval <= CAROUSEL_CONFIG.MAX_INTERVAL
+    ) {
+      settings.carouselInterval = savedCarouselInterval;
     }
 
-    // Listen for carousel settings changes from the settings panel
-    const handleCarouselSettingsChange = (event: CustomEvent): void => {
-      const { carouselEnabled: newEnabled, carouselInterval: newInterval } = event.detail;
+    if (Object.keys(settings).length > 0) {
+      updateCarouselSettings(settings);
+    }
+  }, [updateCarouselSettings]);
 
-      if (newEnabled !== undefined && newEnabled !== null) {
-        setCarouselEnabled(newEnabled);
+  const handleSettingsChange = React.useCallback(
+    (settings: ISettingsData & { enableTargetSite?: boolean }) => {
+      if (props.onSettingsChange) {
+        props.onSettingsChange(settings);
       }
-      if (newInterval && newInterval >= CAROUSEL_CONFIG.MIN_INTERVAL && newInterval <= CAROUSEL_CONFIG.MAX_INTERVAL) {
-        setCarouselInterval(newInterval);
-      }
-    };
-
-    window.addEventListener('carouselSettingsChanged', handleCarouselSettingsChange as EventListener);
-
-    return () => {
-      window.removeEventListener('carouselSettingsChanged', handleCarouselSettingsChange as EventListener);
-    };
-  }, []);
-
-  const handleSettingsChange = React.useCallback((settings: ISettingsData & { enableTargetSite?: boolean }) => {
-    if (props.onSettingsChange) {
-      props.onSettingsChange(settings as any);
-    }
-    // The context will handle reloading alert types if they changed via its own logic
-  }, [props.onSettingsChange]);
+      // The context will handle reloading alert types if they changed via its own logic
+    },
+    [props.onSettingsChange],
+  );
 
   // Carousel navigation with useCallback optimization
   const goToNext = React.useCallback(() => {
@@ -229,7 +253,9 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   }, [alerts.length]);
 
   const goToPrevious = React.useCallback(() => {
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + alerts.length) % alerts.length);
+    setCurrentIndex(
+      (prevIndex) => (prevIndex - 1 + alerts.length) % alerts.length,
+    );
   }, [alerts.length]);
 
   // Carousel pause functionality with useCallback optimization
@@ -243,54 +269,34 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   const handleMouseLeave = React.useCallback(() => {
     if (carouselEnabled && alerts.length > 1) {
       carouselTimer.current = window.setInterval(() => {
-        setCurrentIndex(prevIndex => (prevIndex + 1) % alerts.length);
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % alerts.length);
       }, carouselInterval);
     }
   }, [carouselEnabled, alerts.length, carouselInterval]);
 
-  if (isLoading && !isInEditMode) {
-    return null; // Hide loading, let alerts load silently in the background
+  // Edit mode guard disabled — always show alerts area
+  // if (isLoading && !isInEditMode) {
+  if (isLoading) {
+    return null;
   }
 
   const hasAlerts = alerts.length > 0;
 
-  if (!hasAlerts && !isInEditMode && !hasError) {
-    return null; // Hide component completely if no alerts and not in edit mode
-  }
+  // Edit mode guard disabled — always show component (even with no alerts, so settings gear is visible)
+  // if (!hasAlerts && !isInEditMode && !hasError) {
+  //   return null;
+  // }
 
   return (
     <div className={styles.alerts}>
       {hasError && (
-        <div 
-          className={styles.errorContainer}
-          style={{
-            padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-            backgroundColor: tokens.colorNeutralBackground1,
-            borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
-            fontFamily: tokens.fontFamilyBase,
-          }}
-        >
-          <MessageBar 
-            intent="error"
-            className={styles.errorMessageBar}
-            style={{
-              borderRadius: tokens.borderRadiusMedium,
-              boxShadow: tokens.shadow4,
-            }}
-          >
+        <div className={`${styles.errorContainer} ${styles.errorWrapper}`}>
+          <MessageBar intent="error" className={styles.errorMessageBar}>
             <MessageBarBody>
-              <MessageBarTitle style={{ 
-                color: tokens.colorPaletteRedForeground1,
-                fontWeight: tokens.fontWeightSemibold,
-                fontSize: tokens.fontSizeBase300
-              }}>
+              <MessageBarTitle className={styles.errorTitle}>
                 {strings.AlertsLoadErrorTitle}
               </MessageBarTitle>
-              <div style={{
-                marginTop: tokens.spacingVerticalXS,
-                fontSize: tokens.fontSizeBase200,
-                lineHeight: tokens.lineHeightBase200,
-              }}>
+              <div className={styles.errorDetail}>
                 {errorMessage || strings.AlertsLoadErrorFallback}
               </div>
             </MessageBarBody>
@@ -303,13 +309,20 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <ErrorBoundary componentName="AlertItem" onError={(error) => logger.error('Alerts', 'Alert rendering failed', error)}>
+          <ErrorBoundary
+            componentName="AlertItem"
+            onError={(error) =>
+              logger.error("Alerts", "Alert rendering failed", error)
+            }
+          >
             <AlertItem
               key={alerts[currentIndex].id}
               item={alerts[currentIndex]}
               remove={removeAlert}
               hideForever={hideAlertForever}
-              alertType={alertTypes[alerts[currentIndex].AlertType] || defaultAlertType}
+              alertType={
+                alertTypes[alerts[currentIndex].AlertType] || defaultAlertType
+              }
               isCarousel={true}
               currentIndex={currentIndex + 1}
               totalAlerts={alerts.length}
@@ -320,18 +333,21 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
           </ErrorBoundary>
         </div>
       )}
-      {isInEditMode && (
-        <AlertSettingsTabs
-          isInEditMode={isInEditMode}
-          alertTypesJson={props.alertTypesJson}
-          userTargetingEnabled={props.userTargetingEnabled || false}
-          notificationsEnabled={props.notificationsEnabled || false}
-          enableTargetSite={props.enableTargetSite || false}
-          graphClient={props.graphClient}
-          context={props.context}
-          onSettingsChange={handleSettingsChange}
-        />
-      )}
+      {/* Edit mode guard disabled — always render settings */}
+      {/* {isInEditMode && ( */}
+      <AlertSettingsTabs
+        isInEditMode={isInEditMode}
+        alertTypesJson={props.alertTypesJson}
+        userTargetingEnabled={props.userTargetingEnabled || false}
+        notificationsEnabled={props.notificationsEnabled || false}
+        enableTargetSite={props.enableTargetSite || false}
+        emailServiceAccount={props.emailServiceAccount}
+        copilotEnabled={props.copilotEnabled || false}
+        graphClient={props.graphClient}
+        context={props.context}
+        onSettingsChange={handleSettingsChange}
+      />
+      {/* )} */}
     </div>
   );
 };

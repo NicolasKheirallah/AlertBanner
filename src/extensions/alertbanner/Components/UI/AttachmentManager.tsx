@@ -15,6 +15,8 @@ import {
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { SharePointAlertService } from '../Services/SharePointAlertService';
 import { logger } from '../Services/LoggerService';
+import { NotificationService } from '../Services/NotificationService';
+import { useFluentDialogs } from '../Hooks/useFluentDialogs';
 import styles from './AttachmentManager.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text } from '@microsoft/sp-core-library';
@@ -61,6 +63,11 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   const [isDragOver, setIsDragOver] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const dropZoneRef = React.useRef<HTMLDivElement>(null);
+  const notificationService = React.useMemo(
+    () => NotificationService.getInstance(context),
+    [context],
+  );
+  const { confirm, dialogs } = useFluentDialogs();
 
   const handleButtonClick = React.useCallback(() => {
     if (fileInputRef.current) {
@@ -139,7 +146,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
 
   const processFiles = React.useCallback(async (filesToProcess: File[]) => {
     if (!itemId) {
-      alert(strings.AttachmentManagerSaveAlertFirst);
+      notificationService.showWarning(strings.AttachmentManagerSaveAlertFirst, strings.AttachmentManagerTitle);
       return;
     }
 
@@ -160,7 +167,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
     });
 
     if (errors.length > 0) {
-      alert(`Some files were rejected:\n\n${errors.join('\n')}`);
+      notificationService.showWarning(errors.join(" "), strings.AttachmentManagerTitle);
     }
 
     if (validFiles.length === 0) {
@@ -207,7 +214,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       }
     } catch (error) {
       logger.error('AttachmentManager', 'Attachment upload process failed', error);
-      alert(strings.AttachmentManagerUploadFailed);
+      notificationService.showError(strings.AttachmentManagerUploadFailed, strings.AttachmentManagerTitle);
     } finally {
       setIsUploading(false);
       setTimeout(() => {
@@ -217,7 +224,15 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
         fileInputRef.current.value = '';
       }
     }
-  }, [allowedFormats, maxFileSize, uploadAttachment, attachments, onAttachmentsChange, itemId]);
+  }, [
+    allowedFormats,
+    maxFileSize,
+    uploadAttachment,
+    attachments,
+    onAttachmentsChange,
+    itemId,
+    notificationService,
+  ]);
 
   const handleFileChange = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -229,7 +244,12 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   const handleRemoveAttachment = React.useCallback(async (attachment: IAttachment) => {
     if (!itemId) return;
 
-    if (!confirm(Text.format(strings.AttachmentManagerDeleteConfirm, attachment.fileName))) {
+    const shouldDelete = await confirm({
+      title: strings.AttachmentManagerTitle,
+      message: Text.format(strings.AttachmentManagerDeleteConfirm, attachment.fileName),
+      confirmText: strings.Delete,
+    });
+    if (!shouldDelete) {
       return;
     }
 
@@ -242,9 +262,9 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
       logger.info('AttachmentManager', 'Attachment deleted successfully', { fileName: attachment.fileName });
     } catch (error) {
       logger.error('AttachmentManager', 'Failed to delete attachment', error);
-      alert(strings.AttachmentManagerDeleteError);
+      notificationService.showError(strings.AttachmentManagerDeleteError, strings.AttachmentManagerTitle);
     }
-  }, [context, listId, itemId, siteId, attachments, onAttachmentsChange]);
+  }, [context, listId, itemId, siteId, attachments, onAttachmentsChange, confirm, notificationService]);
 
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return '';
@@ -287,6 +307,7 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
 
   return (
     <div className={styles.attachmentManager}>
+      {dialogs}
       <div className={styles.header}>
         <div className={styles.title}>{strings.AttachmentManagerTitle}</div>
         <input

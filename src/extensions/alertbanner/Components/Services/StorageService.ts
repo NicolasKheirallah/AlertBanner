@@ -1,6 +1,6 @@
 import { IAlertItem } from "../Alerts/IAlerts";
-import { JsonUtils } from '../Utils/JsonUtils';
-import { logger } from './LoggerService';
+import { JsonUtils } from "../Utils/JsonUtils";
+import { logger } from "./LoggerService";
 
 export interface IStorageOptions {
   expirationTime?: number; // In milliseconds
@@ -28,13 +28,17 @@ export class StorageService {
   }
 
   // Local Storage (Persistent)
-  public saveToLocalStorage<T>(key: string, data: T, options?: IStorageOptions): void {
+  public saveToLocalStorage<T>(
+    key: string,
+    data: T,
+    options?: IStorageOptions,
+  ): void {
     try {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       const storageData = {
         data,
         timestamp: Date.now(),
-        expiration: options?.expirationTime || this.defaultExpirationTime
+        expiration: options?.expirationTime || this.defaultExpirationTime,
       };
 
       const serialized = JsonUtils.safeStringify(storageData);
@@ -42,11 +46,18 @@ export class StorageService {
         localStorage.setItem(fullKey, serialized);
       }
     } catch (error) {
-      logger.warn('StorageService', `Failed to save to localStorage: ${key}`, error);
+      logger.warn(
+        "StorageService",
+        `Failed to save to localStorage: ${key}`,
+        error,
+      );
     }
   }
 
-  public getFromLocalStorage<T>(key: string, options?: IStorageOptions): T | null {
+  public getFromLocalStorage<T>(
+    key: string,
+    options?: IStorageOptions,
+  ): T | null {
     try {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       const data = localStorage.getItem(fullKey);
@@ -64,7 +75,11 @@ export class StorageService {
 
       return parsedData.data as T;
     } catch (error) {
-      logger.warn('StorageService', `Failed to read from localStorage: ${key}`, error);
+      logger.warn(
+        "StorageService",
+        `Failed to read from localStorage: ${key}`,
+        error,
+      );
       return null;
     }
   }
@@ -74,17 +89,25 @@ export class StorageService {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       localStorage.removeItem(fullKey);
     } catch (error) {
-      logger.warn('StorageService', `Failed to remove from localStorage: ${key}`, error);
+      logger.warn(
+        "StorageService",
+        `Failed to remove from localStorage: ${key}`,
+        error,
+      );
     }
   }
 
   // Session Storage (Session-based)
-  public saveToSessionStorage<T>(key: string, data: T, options?: IStorageOptions): void {
+  public saveToSessionStorage<T>(
+    key: string,
+    data: T,
+    options?: IStorageOptions,
+  ): void {
     try {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       const storageData = {
         data,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       const serialized = JsonUtils.safeStringify(storageData);
@@ -92,11 +115,18 @@ export class StorageService {
         sessionStorage.setItem(fullKey, serialized);
       }
     } catch (error) {
-      logger.warn('StorageService', `Failed to save to sessionStorage: ${key}`, error);
+      logger.warn(
+        "StorageService",
+        `Failed to save to sessionStorage: ${key}`,
+        error,
+      );
     }
   }
 
-  public getFromSessionStorage<T>(key: string, options?: IStorageOptions): T | null {
+  public getFromSessionStorage<T>(
+    key: string,
+    options?: IStorageOptions,
+  ): T | null {
     try {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       const data = sessionStorage.getItem(fullKey);
@@ -106,24 +136,35 @@ export class StorageService {
       const parsedData = JsonUtils.safeParse(data);
       return parsedData ? (parsedData.data as T) : null;
     } catch (error) {
-      logger.warn('StorageService', `Failed to read from sessionStorage: ${key}`, error);
+      logger.warn(
+        "StorageService",
+        `Failed to read from sessionStorage: ${key}`,
+        error,
+      );
       return null;
     }
   }
 
-  public removeFromSessionStorage(key: string, options?: IStorageOptions): void {
+  public removeFromSessionStorage(
+    key: string,
+    options?: IStorageOptions,
+  ): void {
     try {
       const fullKey = this.getFullKey(key, options?.userSpecific);
       sessionStorage.removeItem(fullKey);
     } catch (error) {
-      logger.warn('StorageService', `Failed to remove from sessionStorage: ${key}`, error);
+      logger.warn(
+        "StorageService",
+        `Failed to remove from sessionStorage: ${key}`,
+        error,
+      );
     }
   }
 
   // Alert-specific methods
   public saveAlerts(alerts: IAlertItem[]): void {
     this.saveToLocalStorage<IAlertItem[]>("AllAlerts", alerts, {
-      expirationTime: this.defaultExpirationTime
+      expirationTime: this.defaultExpirationTime,
     });
   }
 
@@ -133,32 +174,62 @@ export class StorageService {
 
   public saveDismissedAlerts(alertIds: string[]): void {
     this.saveToSessionStorage<string[]>("DismissedAlerts", alertIds, {
-      userSpecific: true
+      userSpecific: true,
     });
   }
 
   public getDismissedAlerts(): string[] {
-    return this.getFromSessionStorage<string[]>("DismissedAlerts", {
-      userSpecific: true
-    }) || [];
+    return (
+      this.getFromSessionStorage<string[]>("DismissedAlerts", {
+        userSpecific: true,
+      }) || []
+    );
   }
 
   public saveHiddenAlerts(alertIds: string[]): void {
     this.saveToLocalStorage<string[]>("HiddenAlerts", alertIds, {
-      userSpecific: true
+      userSpecific: true,
     });
   }
 
   public getHiddenAlerts(): string[] {
-    return this.getFromLocalStorage<string[]>("HiddenAlerts", {
-      userSpecific: true
-    }) || [];
+    return (
+      this.getFromLocalStorage<string[]>("HiddenAlerts", {
+        userSpecific: true,
+      }) || []
+    );
   }
 
   public clearAllAlertData(): void {
     this.removeFromLocalStorage("AllAlerts");
     this.removeFromSessionStorage("DismissedAlerts", { userSpecific: true });
     this.removeFromLocalStorage("HiddenAlerts", { userSpecific: true });
+  }
+
+  /**
+   * Listen for storage changes from other tabs/windows.
+   * When alert-related keys change, invokes the callback so the
+   * context can re-read dismissed/hidden state.
+   * @returns Cleanup function to remove the listener
+   */
+  public initCrossTabSync(onAlertStorageChange: () => void): () => void {
+    const handler = (event: StorageEvent): void => {
+      if (!event.key) return;
+
+      const alertPrefix = "AlertsBanner_";
+      if (event.key.startsWith(alertPrefix)) {
+        logger.debug("StorageService", "Cross-tab storage change detected", {
+          key: event.key,
+        });
+        onAlertStorageChange();
+      }
+    };
+
+    window.addEventListener("storage", handler);
+
+    return () => {
+      window.removeEventListener("storage", handler);
+    };
   }
 
   // Helper methods

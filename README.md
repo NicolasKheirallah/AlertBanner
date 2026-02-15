@@ -2,8 +2,7 @@
 
 ## Summary
 
-The **Alert Banner SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display Announcements and Alert notifications prominently as a Banner on  Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
-
+The **Alert Banner SPFx Extension** is a custom SharePoint Framework (SPFx) extension designed to display Announcements and Alert notifications prominently as a Banner on Modern SharePoint sites. These alerts are dynamically retrieved from a SharePoint list using the Microsoft Graph API, ensuring users receive important updates and information seamlessly integrated with Microsoft 365 services.
 
 ## Screenshots
 
@@ -148,29 +147,30 @@ Additionally, this project serves as an opportunity to refresh and enhance codin
 
 ## Solution
 
-| Solution     | Author(s)                                         |
-| ------------ | ------------------------------------------------- |
+| Solution     | Author(s)                                                  |
+| ------------ | ---------------------------------------------------------- |
 | alert-banner | [Nicolas Kheirallah](https://github.com/nicolasKheirallah) |
 
 ## Version History
 
-| Version | Date               | Comments                                        |
-| ------- | ------------------ | ----------------------------------------------- |
-| 4.0 | October 16, 2025 | Redesign,Added Image support, Fixed critical carousel settings page reload/crash bug with event-based state management, implemented proper color contrast for alert previews (WCAG AAA compliance), fixed SiteContextDetector with proper Graph API site ID extraction and hub site detection, comprehensive code cleanup, , enhanced error handling in multi-site operations, production-ready TypeScript improvements with explicit typing |
-| 3.1 | October 10, 2025 | Code quality improvements: Removed dark mode support, fixed deprecated JavaScript methods (.substr), eliminated @ts-ignore directives for better TypeScript safety, browser notifications disabled by default (can be enabled in settings), comprehensive code cleanup and production readiness enhancements |
-| 3.0 | August 31, 2025 |  Enhanced multi-language support with persistent language selection, improved UI/UX with proper input field containment, streamlined codebase, and robust API consistency improvements |
-| 2.4 | August 30, 2025 | Simplified user targeting with SharePoint People/Groups fields (replacing JSON-based rules), removed rich media complexity in favor of HTML description field, enhanced template with better SharePoint integration, comprehensive CRUD operations, and  better logging and error handling |
-| 2.3 | August 29, 2025 | Dynamic language targeting with intelligent fallback system, language-aware audience filtering, dynamic SharePoint choice field management, comprehensive multi-language content editing, and full end-to-end language workflow integration |
-| 2.2 | August 27, 2025 | Production-Ready Release: Comprehensive logging, accessibility (WCAG 2.1 AA), input validation, error boundaries, performance optimizations, TypeScript enhancements, and responsive UI fixes |
-| 2.1     | August 16, 2025   | Enhanced multi-language list creation with UI improvements and error handling refinements |
-| 2.0     | August 13, 2025   | Major release: Hierarchical alert system with Home/Hub/Site distribution, automatic list management, multi-language content creation, and enhanced site context awareness |
-| 1.6     | August 13, 2025   | Added comprehensive multi-language support with 8 languages, automatic language detection, and localization framework |
-| 1.5     | August 12, 2025   | Removed dialog, integrated content directly into banner, added "Read More" functionality |
-| 1.4     | March 5, 2025     | Enhanced UI with modern dialog and improved link styling |
-| 1.3     | March 3, 2025     | Added alert prioritization, user targeting, notifications, rich media support |
-| 1.2     | October 11, 2024  | Added dynamic alerttypes, added support for homesite, hubsite and local site |
-| 1.1     | August 17, 2024   | Added caching and session management for alerts |
-| 1.0     | July 15, 2024     | Initial release                                 |
+| Version | Date              | Comments                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 5.0     | February 15, 2026 | **Copilot Integration**: Added "Magic Draft" with tone selection, "Governance Check" for compliance, and **AI Translation** for instant multi-language content generation. Refactored UI with Fluent UI 2 components, improved error handling for Graph API, and fixed permission issues.                                                                                                                                                    |
+| 4.0     | October 16, 2025  | Redesign,Added Image support, Fixed critical carousel settings page reload/crash bug with event-based state management, implemented proper color contrast for alert previews (WCAG AAA compliance), fixed SiteContextDetector with proper Graph API site ID extraction and hub site detection, comprehensive code cleanup, , enhanced error handling in multi-site operations, production-ready TypeScript improvements with explicit typing |
+| 3.1     | October 10, 2025  | Code quality improvements: Removed dark mode support, fixed deprecated JavaScript methods (.substr), eliminated @ts-ignore directives for better TypeScript safety, browser notifications disabled by default (can be enabled in settings), comprehensive code cleanup and production readiness enhancements                                                                                                                                 |
+| 3.0     | August 31, 2025   | Enhanced multi-language support with persistent language selection, improved UI/UX with proper input field containment, streamlined codebase, and robust API consistency improvements                                                                                                                                                                                                                                                        |
+| 2.4     | August 30, 2025   | Simplified user targeting with SharePoint People/Groups fields (replacing JSON-based rules), removed rich media complexity in favor of HTML description field, enhanced template with better SharePoint integration, comprehensive CRUD operations, and better logging and error handling                                                                                                                                                    |
+| 2.3     | August 29, 2025   | Dynamic language targeting with intelligent fallback system, language-aware audience filtering, dynamic SharePoint choice field management, comprehensive multi-language content editing, and full end-to-end language workflow integration                                                                                                                                                                                                  |
+| 2.2     | August 27, 2025   | Production-Ready Release: Comprehensive logging, accessibility (WCAG 2.1 AA), input validation, error boundaries, performance optimizations, TypeScript enhancements, and responsive UI fixes                                                                                                                                                                                                                                                |
+| 2.1     | August 16, 2025   | Enhanced multi-language list creation with UI improvements and error handling refinements                                                                                                                                                                                                                                                                                                                                                    |
+| 2.0     | August 13, 2025   | Major release: Hierarchical alert system with Home/Hub/Site distribution, automatic list management, multi-language content creation, and enhanced site context awareness                                                                                                                                                                                                                                                                    |
+| 1.6     | August 13, 2025   | Added comprehensive multi-language support with 8 languages, automatic language detection, and localization framework                                                                                                                                                                                                                                                                                                                        |
+| 1.5     | August 12, 2025   | Removed dialog, integrated content directly into banner, added "Read More" functionality                                                                                                                                                                                                                                                                                                                                                     |
+| 1.4     | March 5, 2025     | Enhanced UI with modern dialog and improved link styling                                                                                                                                                                                                                                                                                                                                                                                     |
+| 1.3     | March 3, 2025     | Added alert prioritization, user targeting, notifications, rich media support                                                                                                                                                                                                                                                                                                                                                                |
+| 1.2     | October 11, 2024  | Added dynamic alerttypes, added support for homesite, hubsite and local site                                                                                                                                                                                                                                                                                                                                                                 |
+| 1.1     | August 17, 2024   | Added caching and session management for alerts                                                                                                                                                                                                                                                                                                                                                                                              |
+| 1.0     | July 15, 2024     | Initial release                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ## Disclaimer
 
@@ -250,12 +250,13 @@ The Alert Banner extension uses an intelligent hierarchical system to display al
 ### Alert Hierarchy
 
 - **Home Site Alerts**: Displayed on ALL sites across the tenant - perfect for organization-wide announcements
-- **Hub Site Alerts**: Displayed on the hub site and all sites connected to that hub - ideal for department or division updates  
+- **Hub Site Alerts**: Displayed on the hub site and all sites connected to that hub - ideal for department or division updates
 - **Current Site Alerts**: Displayed only on the specific site - best for site-specific notifications
 
 ### Automatic Site Detection
 
 The extension automatically detects:
+
 - **Your organization's Home Site** (if configured)
 - **Hub Site connections** for the current site
 - **Site relationships** and permissions
@@ -264,6 +265,7 @@ The extension automatically detects:
 ### Alert List Management
 
 The extension provides intelligent list management:
+
 - **Automatic Detection**: Checks if alert lists exist on relevant sites
 - **One-Click Creation**: Create missing alert lists directly from settings
 - **Permission Validation**: Shows what you can access and create
@@ -299,8 +301,9 @@ Beyond the 8 built-in languages, administrators can add custom languages:
 ### Language Fallback System
 
 The extension uses an intelligent fallback system:
+
 - **Primary**: Shows content in user's preferred language
-- **Secondary**: Falls back to English if preferred language content is missing  
+- **Secondary**: Falls back to English if preferred language content is missing
 - **Tertiary**: Uses default Title/Description fields as final fallback
 
 ### Best Practices for Multi-Language Content
@@ -316,11 +319,11 @@ The Alert Banner extension implements a sophisticated three-tier alert system th
 
 ### Alert Distribution Strategy
 
-| Alert Level | Scope | Use Cases | Creation Location |
-|-------------|--------|-----------|-------------------|
-| **Home Site** | All sites in tenant | Organization announcements, company-wide news, emergency notifications | Home Site alerts list |
-| **Hub Site** | Hub and connected sites | Department updates, division-wide communications, shared resources | Hub Site alerts list |
-| **Site-Specific** | Individual site only | Team notifications, project updates, site maintenance | Current site alerts list |
+| Alert Level       | Scope                   | Use Cases                                                              | Creation Location        |
+| ----------------- | ----------------------- | ---------------------------------------------------------------------- | ------------------------ |
+| **Home Site**     | All sites in tenant     | Organization announcements, company-wide news, emergency notifications | Home Site alerts list    |
+| **Hub Site**      | Hub and connected sites | Department updates, division-wide communications, shared resources     | Hub Site alerts list     |
+| **Site-Specific** | Individual site only    | Team notifications, project updates, site maintenance                  | Current site alerts list |
 
 ### How It Works
 
@@ -352,18 +355,21 @@ The Settings dialog includes a comprehensive List Management section that provid
 ### Best Practices
 
 #### For Home Site Alerts
+
 - Use for critical, tenant-wide communications
 - Keep content concise and universally relevant
 - Consider multi-language content for global organizations
 - Use high priority levels sparingly
 
-#### For Hub Site Alerts  
+#### For Hub Site Alerts
+
 - Focus on department or division-specific content
 - Leverage user targeting for role-specific messages
 - Coordinate with hub site owners for content strategy
 - Use medium priority for most communications
 
 #### For Site-Specific Alerts
+
 - Perfect for team notifications and project updates
 - Use lower priority levels for routine communications
 - Use HTML content in descriptions for rich formatting
@@ -375,23 +381,23 @@ The Alert Banner extension automatically creates and manages SharePoint lists wi
 
 #### Core Alert Fields:
 
-| Field Name      | Field Type                     | Description                                        |
-|-----------------|--------------------------------|----------------------------------------------------|
-| Title           | Single line of text            | The main heading of the alert                      |
-| Description     | Multiple lines of text (Rich)  | Detailed message content with HTML support        |
-| AlertType       | Choice                         | Type of alert (Info, Warning, etc.)               |
-| Priority        | Choice                         | Low, Medium, High, Critical                        |
-| IsPinned        | Yes/No                         | Whether the alert should be pinned to the top     |
-| ScheduledStart  | Date and Time                  | When the alert should begin displaying             |
-| ScheduledEnd    | Date and Time                  | When the alert should stop displaying             |
-| TargetUsers     | Person or Group (Multi)        | SharePoint users/groups who can see this alert    |
-| NotificationType| Choice                         | None, Browser, Email, Both                         |
-| LinkUrl         | Single line of text            | Optional action link URL                           |
-| LinkDescription | Single line of text            | Description for the action link                    |
-| ItemType        | Choice                         | Alert or Template                                  |
-| TargetLanguage  | Choice (Dynamic)               | Language targeting with automatic management       |
-| LanguageGroup   | Single line of text            | Groups related language variants                   |
-| AvailableForAll | Yes/No                         | Allow content to be shown to other languages      |
+| Field Name       | Field Type                    | Description                                    |
+| ---------------- | ----------------------------- | ---------------------------------------------- |
+| Title            | Single line of text           | The main heading of the alert                  |
+| Description      | Multiple lines of text (Rich) | Detailed message content with HTML support     |
+| AlertType        | Choice                        | Type of alert (Info, Warning, etc.)            |
+| Priority         | Choice                        | Low, Medium, High, Critical                    |
+| IsPinned         | Yes/No                        | Whether the alert should be pinned to the top  |
+| ScheduledStart   | Date and Time                 | When the alert should begin displaying         |
+| ScheduledEnd     | Date and Time                 | When the alert should stop displaying          |
+| TargetUsers      | Person or Group (Multi)       | SharePoint users/groups who can see this alert |
+| NotificationType | Choice                        | None, Browser, Email, Both                     |
+| LinkUrl          | Single line of text           | Optional action link URL                       |
+| LinkDescription  | Single line of text           | Description for the action link                |
+| ItemType         | Choice                        | Alert or Template                              |
+| TargetLanguage   | Choice (Dynamic)              | Language targeting with automatic management   |
+| LanguageGroup    | Single line of text           | Groups related language variants               |
+| AvailableForAll  | Yes/No                        | Allow content to be shown to other languages   |
 
 #### Language Targeting:
 
@@ -403,6 +409,7 @@ Multi-language support is managed through a simple choice field approach:
 - **Dynamic Management**: The Language Management interface automatically adds new language options to the TargetLanguage choice field
 
 **How it works:**
+
 1. Create separate alert items for each language version
 2. Use the same LanguageGroup value to link related language variants
 3. Set TargetLanguage to specify which users should see each version
@@ -419,6 +426,7 @@ Multi-language support is managed through a simple choice field approach:
 ### User Interface Components
 
 #### Alert Display
+
 - **Banner Integration**: Alerts display prominently in the SharePoint page banner
 - **Visual Priority Indicators**: Color-coded styling based on alert priority levels
 - **Expandable Content**: Click to expand/collapse detailed alert information
@@ -426,6 +434,7 @@ Multi-language support is managed through a simple choice field approach:
 - **Accessibility First**: Full keyboard navigation and screen reader support
 
 #### Management Interface
+
 - **Comprehensive Settings Panel**: All configuration options accessible through intuitive interface
 - **CRUD Operations**: Create, read, update, and delete alerts with full form validation
 - **Multi-Language Content Editor**: Tabbed interface for managing content across multiple languages
@@ -440,41 +449,41 @@ Alert types can be customized dynamically using a JSON configuration property. T
 
 ```json
 [
-    {
-       "name":"Info",
-       "iconName":"Info12",
-       "backgroundColor":"#389899",
-       "textColor":"#ffffff",
-       "additionalStyles":"",
-       "priorityStyles": {
-          "critical": "border: 2px solid #E81123;",
-          "high": "border: 1px solid #EA4300;",
-          "medium": "",
-          "low": ""
-       }
-    },
-    {
-       "name":"Warning",
-       "iconName":"ShieldAlert",
-       "backgroundColor":"#f1c40f",
-       "textColor":"#ffffff",
-       "additionalStyles":""
-    },
-    {
-       "name":"Maintenance",
-       "iconName":"CRMServices",
-       "backgroundColor":"#afd6d6",
-       "textColor":"#ffffff",
-       "additionalStyles":""
-    },
-    {
-       "name":"Interruption",
-       "iconName":"IncidentTriangle",
-       "backgroundColor":"#c54644",
-       "textColor":"#ffffff",
-       "additionalStyles":""
+  {
+    "name": "Info",
+    "iconName": "Info12",
+    "backgroundColor": "#389899",
+    "textColor": "#ffffff",
+    "additionalStyles": "",
+    "priorityStyles": {
+      "critical": "border: 2px solid #E81123;",
+      "high": "border: 1px solid #EA4300;",
+      "medium": "",
+      "low": ""
     }
- ]
+  },
+  {
+    "name": "Warning",
+    "iconName": "ShieldAlert",
+    "backgroundColor": "#f1c40f",
+    "textColor": "#ffffff",
+    "additionalStyles": ""
+  },
+  {
+    "name": "Maintenance",
+    "iconName": "CRMServices",
+    "backgroundColor": "#afd6d6",
+    "textColor": "#ffffff",
+    "additionalStyles": ""
+  },
+  {
+    "name": "Interruption",
+    "iconName": "IncidentTriangle",
+    "backgroundColor": "#c54644",
+    "textColor": "#ffffff",
+    "additionalStyles": ""
+  }
+]
 ```
 
 ### User Targeting:
@@ -529,6 +538,7 @@ The Alert Banner is optimized for performance:
 ### Step-by-Step Deployment
 
 #### 1. Build and Package
+
 ```bash
 # Clone the repository
 git clone https://github.com/NicolasKheirallah/AlertBanner.git
@@ -546,20 +556,24 @@ npm run package-solution -- --production
 ```
 
 #### 2. Deploy to App Catalog
+
 1. Navigate to your SharePoint tenant App Catalog
 2. Upload the `.sppkg` file from the `/sharepoint/solution/` folder
 3. When prompted, check "Make this solution available to all sites in the organization"
 4. Click "Deploy"
 
 #### 3. Add Extension to Sites
+
 The extension can be deployed in three ways:
 
 **Option A: Tenant-wide Deployment (Recommended)**
+
 1. Go to SharePoint Admin Center
 2. Navigate to "Advanced" > "Extensions"
 3. Add the Alert Banner extension with appropriate scoping
 
 **Option B: Site Collection Feature**
+
 1. Go to Site Settings > Site Collection Features
 2. Activate "Alert Banner Application Customizer"
 
@@ -573,17 +587,20 @@ m365 spo customaction add --webUrl "https://yourtenant.sharepoint.com/sites/your
 ### Configuration and Usage
 
 #### Initial Setup
+
 1. **Automatic Site Detection**: The extension detects your site hierarchy (Home Site, Hub Site, Current Site)
 2. **List Status Check**: Verifies which sites have alert lists and your permissions
 3. **Settings Access**: Open the Settings dialog in edit mode to manage the extension
 4. **List Creation**: Use the integrated List Management to create missing alert lists with one click
 
 #### Alert List Configuration
+
 Use the field configuration table in the [Managing Alerts](#managing-alerts) section to set up your SharePoint list fields correctly.
 
 #### User Permissions
+
 - **Read permissions**: Required for viewing alerts
-- **Contribute permissions**: Needed for dismissing alerts  
+- **Contribute permissions**: Needed for dismissing alerts
 - **Design/Full Control**: Required for configuring alert settings
 
 ## Troubleshooting
@@ -591,12 +608,14 @@ Use the field configuration table in the [Managing Alerts](#managing-alerts) sec
 ### Common Issues and Solutions
 
 #### Extension Not Visible After Deployment
+
 1. **Clear browser cache**: Hard refresh (Ctrl+F5) or clear SharePoint cache
 2. **Check deployment status**: Verify the .sppkg file was successfully deployed in App Catalog
 3. **Verify feature activation**: Ensure the site collection feature is activated
 4. **Check permissions**: User needs at least read access to the site
 
 #### Alerts Not Displaying
+
 1. **Site Hierarchy**: Check if alerts exist at the appropriate level (Home/Hub/Current site)
 2. **List Management**: Use Settings → List Management to verify alert lists exist
 3. **List fields**: Ensure all required fields exist with correct types
@@ -607,12 +626,14 @@ Use the field configuration table in the [Managing Alerts](#managing-alerts) sec
 8. **Browser console**: Check for JavaScript errors or network issues
 
 #### Language/Localization Issues
+
 1. **Missing translations**: Check browser console for warnings about missing string keys
 2. **Language not switching**: Clear browser local storage for the site
 3. **Date format issues**: Verify browser locale settings
 4. **Text overflow**: Some languages require more space - check responsive layout
 
 #### Performance Issues
+
 1. **Large alert lists**: Consider archiving old alerts or implementing pagination
 2. **HTML content**: Optimize embedded images and media in descriptions
 3. **Network latency**: Check SharePoint service health and connectivity

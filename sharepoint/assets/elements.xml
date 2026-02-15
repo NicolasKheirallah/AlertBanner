@@ -4,6 +4,6 @@
         Title="alertbanner"
         Location="ClientSideExtension.ApplicationCustomizer"
         ClientSideComponentId="4b274e80-896b-4c87-9a78-d751d9dff522"
-        ClientSideComponentProperties="{&quot;alertTypesJson&quot;:&quot;[]&quot;,&quot;userTargetingEnabled&quot;:true,&quot;notificationsEnabled&quot;:true}">
+        ClientSideComponentProperties="{&quot;alertTypesJson&quot;:&quot;[]&quot;,&quot;userTargetingEnabled&quot;:true,&quot;notificationsEnabled&quot;:false,&quot;enableTargetSite&quot;:false,&quot;emailServiceAccount&quot;:&quot;&quot;,&quot;copilotEnabled&quot;:false}">
     </CustomAction>
 </Elements>

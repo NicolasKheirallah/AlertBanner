@@ -98,6 +98,8 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CreateAlertHidePreview: string;
   CreateAlertShowPreview: string;
   CreateAlertAutoSaving: string;
+  CreateAlertAutoSavePending: string;
+  CreateAlertAutoSaveRetrying: string;
   CreateAlertAutoSavedAt: string;
   CreateAlertSaveDraftButtonLabel: string;
   CreateAlertResetFormButtonLabel: string;
@@ -367,6 +369,7 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   OpenSettings: string;
   ExpandAlert: string;
   CollapseAlert: string;
+  AlertContentLabel: string;
   AlertActions: string;
   PinAlert: string;
   UnpinAlert: string;
@@ -632,9 +635,42 @@ declare interface IAlertBannerApplicationCustomizerStrings {
 
   // Manage Alerts - Missing strings
   ManageAlertsCrossSiteImagesNotice: string;
+
+  // Copilot Features
+  EnableCopilotLabel: string;
+  EnableCopilotDescription: string;
+  CopilotOverwriteConfirmation: string;
+  CopilotDefaultLanguageRequired: string;
+  CopilotTranslationFailed: string;
+  CopilotDraftButton: string;
+  CopilotDraftTitle: string;
+  CopilotKeywordsLabel: string;
+  CopilotKeywordsPlaceholder: string;
+  CopilotToneLabel: string;
+  CopilotToneProfessional: string;
+  CopilotToneUrgent: string;
+  CopilotToneCasual: string;
+  CopilotGeneratingLabel: string;
+  CopilotGenerateButton: string;
+  CopilotDraftGenerationFailed: string;
+  CopilotUnexpectedError: string;
+  CopilotErrorTitle: string;
+  CopilotCheckingLabel: string;
+  CopilotGovernanceButton: string;
+  CopilotGovernanceAnalysisTitle: string;
+  CopilotNoIssuesFound: string;
+  CopilotAnalyzeFailed: string;
+  CopilotTranslatingLabel: string;
+  CopilotTranslateButton: string;
+  CopilotOverwriteConfirmationTitle: string;
+  CopilotOverwriteConfirmButton: string;
+  CopilotGovernanceStatusGreen: string;
+  CopilotGovernanceStatusYellow: string;
+  CopilotGovernanceStatusRed: string;
+  CopilotGovernanceSummaryLabel: string;
 }
 
-declare module 'AlertBannerApplicationCustomizerStrings' {
+declare module "AlertBannerApplicationCustomizerStrings" {
   const strings: IAlertBannerApplicationCustomizerStrings;
   export = strings;
 }

@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from "react";
 import {
   Tab,
   TabList,
@@ -10,22 +10,41 @@ import {
   Badge,
   Checkbox,
   MessageBar,
-  MessageBarBody
-} from '@fluentui/react-components';
+  MessageBarBody,
+  Spinner,
+  Dialog,
+  DialogSurface,
+  DialogTitle,
+  DialogBody,
+  DialogActions,
+  DialogContent,
+} from "@fluentui/react-components";
 import {
   Add24Regular,
   Dismiss24Regular,
-  Globe24Regular
-} from '@fluentui/react-icons';
-import { SharePointInput, SharePointSelect, ISharePointSelectOption } from './SharePointControls';
-import SharePointRichTextEditor from './SharePointRichTextEditor';
-import { ILanguageContent, ISupportedLanguage } from '../Services/LanguageAwarenessService';
-import { TargetLanguage, TranslationStatus } from '../Alerts/IAlerts';
-import styles from './MultiLanguageContentEditor.module.scss';
-import * as strings from 'AlertBannerApplicationCustomizerStrings';
-import { Text as CoreText } from '@microsoft/sp-core-library';
-import { ILanguagePolicy, normalizeLanguagePolicy } from '../Services/LanguagePolicyService';
-
+  Globe24Regular,
+} from "@fluentui/react-icons";
+import {
+  SharePointInput,
+  SharePointSelect,
+  ISharePointSelectOption,
+} from "./SharePointControls";
+import SharePointRichTextEditor from "./SharePointRichTextEditor";
+import {
+  ILanguageContent,
+  ISupportedLanguage,
+} from "../Services/LanguageAwarenessService";
+import { TargetLanguage, TranslationStatus } from "../Alerts/IAlerts";
+import styles from "./MultiLanguageContentEditor.module.scss";
+import * as strings from "AlertBannerApplicationCustomizerStrings";
+import { Text as CoreText } from "@microsoft/sp-core-library";
+import {
+  ILanguagePolicy,
+  normalizeLanguagePolicy,
+} from "../Services/LanguagePolicyService";
+import { CopilotService } from "../Services/CopilotService";
+import { SparkleRegular } from "@fluentui/react-icons";
+import { logger } from "../Services/LoggerService";
 
 export interface IMultiLanguageContentEditorProps {
   content: ILanguageContent[];
@@ -35,12 +54,15 @@ export interface IMultiLanguageContentEditorProps {
   linkUrl?: string;
   tenantDefaultLanguage?: TargetLanguage;
   context?: any;
-  imageFolderName?: string; 
+  imageFolderName?: string;
   disableImageUpload?: boolean;
   languagePolicy?: ILanguagePolicy;
+  copilotService?: CopilotService;
 }
 
-const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = ({
+const MultiLanguageContentEditor: React.FC<
+  IMultiLanguageContentEditorProps
+> = ({
   content,
   onContentChange,
   availableLanguages,
@@ -50,12 +72,30 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
   context,
   imageFolderName,
   disableImageUpload = false,
-  languagePolicy
+  languagePolicy,
+  copilotService,
 }) => {
-  const [selectedTab, setSelectedTab] = React.useState<string>('');
-  const effectivePolicy = React.useMemo(() => normalizeLanguagePolicy(languagePolicy), [languagePolicy]);
-  const fallbackLanguage = effectivePolicy.fallbackLanguage === "tenant-default" ? tenantDefaultLanguage : effectivePolicy.fallbackLanguage;
-  
+  const [selectedTab, setSelectedTab] = React.useState<string>("");
+  const [translatingLanguages, setTranslatingLanguages] = React.useState<
+    string[]
+  >([]);
+  const [confirmOverwriteLang, setConfirmOverwriteLang] = React.useState<
+    string | null
+  >(null);
+  const [translationError, setTranslationError] = React.useState<string | null>(
+    null,
+  );
+  const [noDefaultContentError, setNoDefaultContentError] =
+    React.useState(false);
+  const effectivePolicy = React.useMemo(
+    () => normalizeLanguagePolicy(languagePolicy),
+    [languagePolicy],
+  );
+  const fallbackLanguage =
+    effectivePolicy.fallbackLanguage === "tenant-default"
+      ? tenantDefaultLanguage
+      : effectivePolicy.fallbackLanguage;
+
   React.useEffect(() => {
     if (content.length > 0 && !selectedTab) {
       setSelectedTab(content[0].language);
@@ -63,16 +103,18 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
   }, [content.length, selectedTab]);
 
   const addLanguage = (language: TargetLanguage) => {
-    const languageInfo = availableLanguages.find(l => l.code === language);
+    const languageInfo = availableLanguages.find((l) => l.code === language);
     if (!languageInfo) return;
 
     const newContent: ILanguageContent = {
       language,
-      title: '',
-      description: '',
-      linkDescription: linkUrl ? '' : undefined,
+      title: "",
+      description: "",
+      linkDescription: linkUrl ? "" : undefined,
       availableForAll: language === tenantDefaultLanguage,
-      translationStatus: effectivePolicy.workflow.enabled ? effectivePolicy.workflow.defaultStatus : TranslationStatus.Approved
+      translationStatus: effectivePolicy.workflow.enabled
+        ? effectivePolicy.workflow.defaultStatus
+        : TranslationStatus.Approved,
     };
 
     const updatedContent = [...content, newContent];
@@ -81,42 +123,131 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
   };
 
   const removeLanguage = (language: TargetLanguage) => {
-    const updatedContent = content.filter(c => c.language !== language);
+    const updatedContent = content.filter((c) => c.language !== language);
     onContentChange(updatedContent);
-    
+
     // Switch tab if we removed the current tab
     if (selectedTab === language && updatedContent.length > 0) {
       setSelectedTab(updatedContent[0].language);
     } else if (updatedContent.length === 0) {
-      setSelectedTab('');
+      setSelectedTab("");
     }
   };
 
-  const updateContent = (language: TargetLanguage, field: keyof ILanguageContent, value: string | boolean) => {
-    const updatedContent = content.map(c => 
-      c.language === language 
-        ? { ...c, [field]: value }
-        : c
+  const updateContent = (
+    language: TargetLanguage,
+    field: keyof ILanguageContent,
+    value: string | boolean,
+  ) => {
+    const updatedContent = content.map((c) =>
+      c.language === language ? { ...c, [field]: value } : c,
     );
     onContentChange(updatedContent);
   };
 
   const getLanguageInfo = (language: TargetLanguage) => {
-    return availableLanguages.find(l => l.code === language);
+    return availableLanguages.find((l) => l.code === language);
+  };
+
+  /**
+   * Translates the default language content into the specified target language
+   * using the CopilotService. Translates title and description in parallel.
+   */
+  const handleTranslate = async (
+    targetLanguage: string,
+    targetLangName: string,
+  ): Promise<void> => {
+    if (!copilotService) return;
+
+    const defaultContent = content.find(
+      (c) => c.language === tenantDefaultLanguage,
+    );
+    if (
+      !defaultContent ||
+      (!defaultContent.title && !defaultContent.description)
+    ) {
+      setNoDefaultContentError(true);
+      return;
+    }
+
+    setTranslatingLanguages((prev) => [...prev, targetLanguage]);
+
+    try {
+      const promises: Promise<{
+        field: "title" | "description";
+        value: string;
+      }>[] = [];
+
+      if (defaultContent.title) {
+        promises.push(
+          copilotService
+            .translateText(defaultContent.title, targetLangName)
+            .then((res) => ({
+              field: "title" as const,
+              value: res.isError ? "" : res.content,
+            })),
+        );
+      }
+
+      if (defaultContent.description) {
+        promises.push(
+          copilotService
+            .translateText(defaultContent.description, targetLangName)
+            .then((res) => ({
+              field: "description" as const,
+              value: res.isError ? "" : res.content,
+            })),
+        );
+      }
+
+      const results = await Promise.all(promises);
+
+      const updatedContentList = content.map((c) => {
+        if (c.language === targetLanguage) {
+          const updates: Partial<ILanguageContent> = {};
+          results.forEach((r) => {
+            if (r.value) updates[r.field] = r.value;
+          });
+          return { ...c, ...updates };
+        }
+        return c;
+      });
+
+      onContentChange(updatedContentList);
+    } catch (e) {
+      logger.error("MultiLanguageContentEditor", "Translation failed", e);
+      setTranslationError(strings.CopilotTranslationFailed);
+    } finally {
+      setTranslatingLanguages((prev) =>
+        prev.filter((l) => l !== targetLanguage),
+      );
+    }
   };
 
   const getAvailableLanguagesToAdd = () => {
-    const usedLanguages = content.map(c => c.language);
-    return availableLanguages.filter(lang => 
-      lang.isSupported && lang.columnExists && !usedLanguages.includes(lang.code)
+    const usedLanguages = content.map((c) => c.language);
+    return availableLanguages.filter(
+      (lang) =>
+        lang.isSupported &&
+        lang.columnExists &&
+        !usedLanguages.includes(lang.code),
     );
   };
 
-  const translationStatusOptions: ISharePointSelectOption[] = React.useMemo(() => ([
-    { value: TranslationStatus.Draft, label: strings.TranslationStatusDraft },
-    { value: TranslationStatus.InReview, label: strings.TranslationStatusInReview },
-    { value: TranslationStatus.Approved, label: strings.TranslationStatusApproved }
-  ]), []);
+  const translationStatusOptions: ISharePointSelectOption[] = React.useMemo(
+    () => [
+      { value: TranslationStatus.Draft, label: strings.TranslationStatusDraft },
+      {
+        value: TranslationStatus.InReview,
+        label: strings.TranslationStatusInReview,
+      },
+      {
+        value: TranslationStatus.Approved,
+        label: strings.TranslationStatusApproved,
+      },
+    ],
+    [],
+  );
 
   const fallbackLanguageLabel = React.useMemo(() => {
     if (effectivePolicy.fallbackLanguage === "tenant-default") {
@@ -133,22 +264,34 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
           header={
             <div className={styles.cardHeader}>
               <Globe24Regular />
-              <Text size={400} weight="semibold">{strings.MultiLanguageContent}</Text>
-              <Badge size="small" color="informative">{CoreText.format(strings.MultiLanguageEditorLanguageCount, content.length.toString())}</Badge>
+              <Text size={400} weight="semibold">
+                {strings.MultiLanguageContent}
+              </Text>
+              <Badge size="small" color="informative">
+                {CoreText.format(
+                  strings.MultiLanguageEditorLanguageCount,
+                  content.length.toString(),
+                )}
+              </Badge>
             </div>
           }
         />
 
         {/* Language Selector */}
         <div className={styles.languageSelector}>
-          <Text size={300} weight="semibold">{strings.MultiLanguageEditorAddLanguagesLabel}</Text>
+          <Text size={300} weight="semibold">
+            {strings.MultiLanguageEditorAddLanguagesLabel}
+          </Text>
           {effectivePolicy.inheritance.enabled && (
             <Text size={200} className={styles.policyHint}>
-              {CoreText.format(strings.LanguagePolicyInheritanceHint, fallbackLanguageLabel)}
+              {CoreText.format(
+                strings.LanguagePolicyInheritanceHint,
+                fallbackLanguageLabel,
+              )}
             </Text>
           )}
           <div className={styles.availableLanguages}>
-            {getAvailableLanguagesToAdd().map(language => (
+            {getAvailableLanguagesToAdd().map((language) => (
               <button
                 key={language.code}
                 className={styles.languageButton}
@@ -157,7 +300,7 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
               >
                 <span>{language.flag}</span>
                 <span>{language.nativeName}</span>
-                <Add24Regular style={{ width: '14px', height: '14px' }} />
+                <Add24Regular style={{ width: "14px", height: "14px" }} />
               </button>
             ))}
           </div>
@@ -178,15 +321,24 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
         {/* Content Tabs */}
         {content.length > 0 ? (
           <div className={styles.tabsContainer}>
-            <TabList selectedValue={selectedTab} onTabSelect={(_, data) => setSelectedTab(data.value as string)}>
-              {content.map(contentItem => {
+            <TabList
+              selectedValue={selectedTab}
+              onTabSelect={(_, data) => setSelectedTab(data.value as string)}
+            >
+              {content.map((contentItem) => {
                 const langInfo = getLanguageInfo(contentItem.language);
                 return (
                   <Tab key={contentItem.language} value={contentItem.language}>
                     <span className={styles.tabFlag}>{langInfo?.flag}</span>
                     {langInfo?.nativeName}
                     {(!contentItem.title || !contentItem.description) && (
-                      <Badge size="small" color="warning" className={styles.tabBadge}>{strings.MultiLanguageEditorIncompleteBadge}</Badge>
+                      <Badge
+                        size="small"
+                        color="warning"
+                        className={styles.tabBadge}
+                      >
+                        {strings.MultiLanguageEditorIncompleteBadge}
+                      </Badge>
                     )}
                   </Tab>
                 );
@@ -194,9 +346,9 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
             </TabList>
 
             {/* Tab Content */}
-            {content.map(contentItem => {
+            {content.map((contentItem) => {
               if (selectedTab !== contentItem.language) return null;
-              
+
               const langInfo = getLanguageInfo(contentItem.language);
               return (
                 <div key={contentItem.language} className={styles.tabContent}>
@@ -204,114 +356,236 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
                     <div className={styles.languageInfo}>
                       <span>{langInfo?.flag}</span>
                       <span>{langInfo?.nativeName}</span>
-                      <span className={styles.langCode}>({langInfo?.name})</span>
+                      <span className={styles.langCode}>
+                        ({langInfo?.name})
+                      </span>
                     </div>
-                      {content.length > 1 && (
+                    {content.length > 1 && (
+                      <Button
+                        appearance="subtle"
+                        icon={<Dismiss24Regular />}
+                        onClick={() => removeLanguage(contentItem.language)}
+                        className={styles.removeButton}
+                        size="small"
+                      >
+                        {strings.MultiLanguageEditorRemoveButton}
+                      </Button>
+                    )}
+                  </div>
+
+                  {copilotService &&
+                    contentItem.language !== tenantDefaultLanguage && (
+                      <div style={{ marginBottom: "16px" }}>
                         <Button
                           appearance="subtle"
-                          icon={<Dismiss24Regular />}
-                          onClick={() => removeLanguage(contentItem.language)}
-                          className={styles.removeButton}
+                          disabled={translatingLanguages.includes(
+                            contentItem.language,
+                          )}
+                          icon={
+                            translatingLanguages.includes(
+                              contentItem.language,
+                            ) ? (
+                              <Spinner size="tiny" />
+                            ) : (
+                              <SparkleRegular />
+                            )
+                          }
                           size="small"
-                        >
-                          {strings.MultiLanguageEditorRemoveButton}
-                        </Button>
-                      )}
-                    </div>
+                          title={strings.CopilotDraftButton}
+                          onClick={() => {
+                            // Check if content exists that would be overwritten
+                            if (contentItem.title || contentItem.description) {
+                              setConfirmOverwriteLang(contentItem.language);
+                              return;
+                            }
 
-                    <div className={styles.contentFields}>
+                            // No existing content, translate directly
+                            handleTranslate(
+                              contentItem.language,
+                              langInfo?.nativeName || contentItem.language,
+                            );
+                          }}
+                        >
+                          {translatingLanguages.includes(contentItem.language)
+                            ? strings.CopilotTranslatingLabel
+                            : strings.CopilotTranslateButton}
+                        </Button>
+                      </div>
+                    )}
+
+                  <div className={styles.contentFields}>
+                    <Field
+                      label={strings.MultiLanguageEditorTitleLabel}
+                      required
+                      validationState={
+                        errors[`title_${contentItem.language}`]
+                          ? "error"
+                          : undefined
+                      }
+                      validationMessage={
+                        errors[`title_${contentItem.language}`]
+                      }
+                    >
+                      {/** Determine placeholder text using available language info */}
+                      <SharePointInput
+                        label=""
+                        placeholder={CoreText.format(
+                          strings.MultiLanguageEditorTitlePlaceholder,
+                          langInfo?.nativeName ||
+                            langInfo?.name ||
+                            contentItem.language,
+                        )}
+                        value={contentItem.title}
+                        onChange={(value) =>
+                          updateContent(contentItem.language, "title", value)
+                        }
+                        error={errors[`title_${contentItem.language}`]}
+                      />
+                    </Field>
+
+                    <Field
+                      label={strings.MultiLanguageEditorDescriptionLabel}
+                      required
+                      validationState={
+                        errors[`description_${contentItem.language}`]
+                          ? "error"
+                          : undefined
+                      }
+                      validationMessage={
+                        errors[`description_${contentItem.language}`]
+                      }
+                    >
+                      <SharePointRichTextEditor
+                        label=""
+                        value={contentItem.description}
+                        onChange={(value) =>
+                          updateContent(
+                            contentItem.language,
+                            "description",
+                            value,
+                          )
+                        }
+                        placeholder={CoreText.format(
+                          strings.MultiLanguageEditorDescriptionPlaceholder,
+                          langInfo?.nativeName ||
+                            langInfo?.name ||
+                            contentItem.language,
+                        )}
+                        context={context}
+                        imageFolderName={imageFolderName}
+                        disableImageUpload={disableImageUpload}
+                      />
+                    </Field>
+
+                    {linkUrl && (
                       <Field
-                        label={strings.MultiLanguageEditorTitleLabel}
-                        required
-                        validationState={errors[`title_${contentItem.language}`] ? 'error' : undefined}
-                        validationMessage={errors[`title_${contentItem.language}`]}
+                        label={strings.MultiLanguageEditorLinkDescriptionLabel}
+                        validationState={
+                          errors[`linkDescription_${contentItem.language}`]
+                            ? "error"
+                            : undefined
+                        }
+                        validationMessage={
+                          errors[`linkDescription_${contentItem.language}`]
+                        }
                       >
-                        {/** Determine placeholder text using available language info */}
                         <SharePointInput
                           label=""
-                          placeholder={CoreText.format(strings.MultiLanguageEditorTitlePlaceholder, (langInfo?.nativeName || langInfo?.name || contentItem.language))}
-                          value={contentItem.title}
-                          onChange={(value) => updateContent(contentItem.language, 'title', value)}
-                          error={errors[`title_${contentItem.language}`]}
+                          placeholder={CoreText.format(
+                            strings.MultiLanguageEditorLinkDescriptionPlaceholder,
+                            langInfo?.nativeName ||
+                              langInfo?.name ||
+                              contentItem.language,
+                          )}
+                          value={contentItem.linkDescription || ""}
+                          onChange={(value) =>
+                            updateContent(
+                              contentItem.language,
+                              "linkDescription",
+                              value,
+                            )
+                          }
+                          error={
+                            errors[`linkDescription_${contentItem.language}`]
+                          }
                         />
                       </Field>
+                    )}
 
-                      <Field
-                        label={strings.MultiLanguageEditorDescriptionLabel}
-                        required
-                        validationState={errors[`description_${contentItem.language}`] ? 'error' : undefined}
-                        validationMessage={errors[`description_${contentItem.language}`]}
-                      >
-                        <SharePointRichTextEditor
-                          label=""
-                          value={contentItem.description}
-                          onChange={(value) => updateContent(contentItem.language, 'description', value)}
-                          placeholder={CoreText.format(strings.MultiLanguageEditorDescriptionPlaceholder, (langInfo?.nativeName || langInfo?.name || contentItem.language))}
-                          context={context}
-                          imageFolderName={imageFolderName}
-                          disableImageUpload={disableImageUpload}
-                        />
-                      </Field>
+                    {effectivePolicy.workflow.enabled && (
+                      <SharePointSelect
+                        label={strings.TranslationStatusLabel}
+                        value={
+                          contentItem.translationStatus ||
+                          effectivePolicy.workflow.defaultStatus
+                        }
+                        onChange={(value) =>
+                          updateContent(
+                            contentItem.language,
+                            "translationStatus",
+                            value,
+                          )
+                        }
+                        options={translationStatusOptions}
+                        description={strings.TranslationStatusDescription}
+                      />
+                    )}
 
-                      {linkUrl && (
-                        <Field
-                          label={strings.MultiLanguageEditorLinkDescriptionLabel}
-                          validationState={errors[`linkDescription_${contentItem.language}`] ? 'error' : undefined}
-                          validationMessage={errors[`linkDescription_${contentItem.language}`]}
-                        >
-                              <SharePointInput
-                                label=""
-                                placeholder={CoreText.format(strings.MultiLanguageEditorLinkDescriptionPlaceholder, (langInfo?.nativeName || langInfo?.name || contentItem.language))}
-                                value={contentItem.linkDescription || ''}
-                                onChange={(value) => updateContent(contentItem.language, 'linkDescription', value)}
-                                error={errors[`linkDescription_${contentItem.language}`]}
-                              />
-                        </Field>
-                      )}
-
-                      {effectivePolicy.workflow.enabled && (
-                        <SharePointSelect
-                          label={strings.TranslationStatusLabel}
-                          value={contentItem.translationStatus || effectivePolicy.workflow.defaultStatus}
-                          onChange={(value) => updateContent(contentItem.language, 'translationStatus', value)}
-                          options={translationStatusOptions}
-                          description={strings.TranslationStatusDescription}
-                        />
-                      )}
-
-                      <div className={styles.fieldRow}>
-                        <Checkbox
-                          checked={!!contentItem.availableForAll}
-                          onChange={(_, data) => updateContent(contentItem.language, 'availableForAll', !!data.checked)}
-                          label={strings.MultiLanguageEditorFallbackLabel}
-                        />
-                      </div>
+                    <div className={styles.fieldRow}>
+                      <Checkbox
+                        checked={!!contentItem.availableForAll}
+                        onChange={(_, data) =>
+                          updateContent(
+                            contentItem.language,
+                            "availableForAll",
+                            !!data.checked,
+                          )
+                        }
+                        label={strings.MultiLanguageEditorFallbackLabel}
+                      />
                     </div>
                   </div>
-                );
+                </div>
+              );
             })}
           </div>
-          ) : (
+        ) : (
           <div className={styles.emptyState}>
             <Globe24Regular className={styles.emptyIcon} />
-            <Text size={400} weight="semibold">{strings.MultiLanguageEditorNoLanguagesTitle}</Text>
-            <Text size={300}>{strings.MultiLanguageEditorNoLanguagesDescription}</Text>
+            <Text size={400} weight="semibold">
+              {strings.MultiLanguageEditorNoLanguagesTitle}
+            </Text>
+            <Text size={300}>
+              {strings.MultiLanguageEditorNoLanguagesDescription}
+            </Text>
           </div>
         )}
 
         {/* Summary */}
         {content.length > 0 && (
           <div className={styles.summary}>
-            <Text size={300} weight="semibold">{strings.MultiLanguageEditorSummaryTitle}</Text>
+            <Text size={300} weight="semibold">
+              {strings.MultiLanguageEditorSummaryTitle}
+            </Text>
             <ul className={styles.summaryList}>
-              {content.map(contentItem => {
+              {content.map((contentItem) => {
                 const langInfo = getLanguageInfo(contentItem.language);
                 const isComplete = contentItem.title && contentItem.description;
                 return (
                   <li key={contentItem.language} className={styles.summaryItem}>
-                    <span>{langInfo?.flag} {langInfo?.nativeName}: </span>
-                    <span className={isComplete ? styles.statusComplete : styles.statusIncomplete}>
-                      {isComplete ? strings.MultiLanguageEditorSummaryComplete : strings.MultiLanguageEditorSummaryIncomplete}
+                    <span>
+                      {langInfo?.flag} {langInfo?.nativeName}:{" "}
+                    </span>
+                    <span
+                      className={
+                        isComplete
+                          ? styles.statusComplete
+                          : styles.statusIncomplete
+                      }
+                    >
+                      {isComplete
+                        ? strings.MultiLanguageEditorSummaryComplete
+                        : strings.MultiLanguageEditorSummaryIncomplete}
                     </span>
                   </li>
                 );
@@ -320,6 +594,98 @@ const MultiLanguageContentEditor: React.FC<IMultiLanguageContentEditorProps> = (
           </div>
         )}
       </Card>
+
+      {/* Overwrite Confirmation Dialog */}
+      <Dialog
+        open={!!confirmOverwriteLang}
+        onOpenChange={(_, data) => {
+          if (!data.open) setConfirmOverwriteLang(null);
+        }}
+      >
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>
+              {strings.CopilotOverwriteConfirmationTitle}
+            </DialogTitle>
+            <DialogContent>
+              {strings.CopilotOverwriteConfirmation}
+            </DialogContent>
+            <DialogActions>
+              <Button
+                appearance="secondary"
+                onClick={() => setConfirmOverwriteLang(null)}
+              >
+                {strings.Cancel}
+              </Button>
+              <Button
+                appearance="primary"
+                onClick={() => {
+                  if (confirmOverwriteLang) {
+                    const langInfo = getLanguageInfo(
+                      confirmOverwriteLang as TargetLanguage,
+                    );
+                    handleTranslate(
+                      confirmOverwriteLang,
+                      langInfo?.nativeName || confirmOverwriteLang,
+                    );
+                  }
+                  setConfirmOverwriteLang(null);
+                }}
+              >
+                {strings.CopilotOverwriteConfirmButton}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      {/* No Default Content Error Dialog */}
+      <Dialog
+        open={noDefaultContentError}
+        onOpenChange={(_, data) => {
+          if (!data.open) setNoDefaultContentError(false);
+        }}
+      >
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>{strings.CopilotDefaultLanguageRequired}</DialogTitle>
+            <DialogContent>
+              {strings.CopilotDefaultLanguageRequired}
+            </DialogContent>
+            <DialogActions>
+              <Button
+                appearance="primary"
+                onClick={() => setNoDefaultContentError(false)}
+              >
+                {strings.Close}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      {/* Translation Error Dialog */}
+      <Dialog
+        open={!!translationError}
+        onOpenChange={(_, data) => {
+          if (!data.open) setTranslationError(null);
+        }}
+      >
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>{strings.CopilotTranslationFailed}</DialogTitle>
+            <DialogContent>{translationError}</DialogContent>
+            <DialogActions>
+              <Button
+                appearance="primary"
+                onClick={() => setTranslationError(null)}
+              >
+                {strings.Close}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
     </div>
   );
 };

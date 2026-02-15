@@ -1,8 +1,18 @@
-import { IAlertItem, IAlertListItem, AlertPriority, NotificationType, ContentType, TargetLanguage, IPersonField, TranslationStatus } from '../Alerts/IAlerts';
-import { logger } from '../Services/LoggerService';
-import { JsonUtils } from './JsonUtils';
-import { SiteIdUtils } from './SiteIdUtils';
-import { DEFAULT_ALERT_TYPE_NAME } from './AppConstants';
+import {
+  IAlertItem,
+  IAlertListItem,
+  AlertPriority,
+  NotificationType,
+  ContentType,
+  TargetLanguage,
+  IPersonField,
+  TranslationStatus,
+  ContentStatus,
+} from "../Alerts/IAlerts";
+import { logger } from "../Services/LoggerService";
+import { JsonUtils } from "./JsonUtils";
+import { SiteIdUtils } from "./SiteIdUtils";
+import { DEFAULT_ALERT_TYPE_NAME } from "./AppConstants";
 
 /**
  * Utility class for transforming SharePoint items to alert objects
@@ -22,7 +32,7 @@ export class AlertTransformers {
       return raw.map(String).filter(Boolean);
     }
 
-    if (typeof raw === 'string') {
+    if (typeof raw === "string") {
       const trimmed = raw.trim();
       if (!trimmed) {
         return [];
@@ -35,7 +45,10 @@ export class AlertTransformers {
       }
 
       // Fall back to CSV parsing
-      return trimmed.split(',').map(site => site.trim()).filter(Boolean);
+      return trimmed
+        .split(",")
+        .map((site) => site.trim())
+        .filter(Boolean);
     }
 
     return [];
@@ -45,13 +58,16 @@ export class AlertTransformers {
    * Map Person field data from SharePoint to IPersonField
    * Handles multiple SharePoint field formats
    */
-  public static mapPersonFieldData(personField: any, isGroup: boolean): IPersonField {
+  public static mapPersonFieldData(
+    personField: any,
+    isGroup: boolean,
+  ): IPersonField {
     // Handle SharePoint lookup field format
     if (personField.LookupId && personField.LookupValue) {
       return {
         id: personField.LookupId.toString(),
         displayName: personField.LookupValue,
-        isGroup: isGroup
+        isGroup: isGroup,
       };
     }
 
@@ -59,10 +75,10 @@ export class AlertTransformers {
     if (personField.ID || personField.id) {
       return {
         id: (personField.ID || personField.id).toString(),
-        displayName: personField.Title || personField.displayName || '',
+        displayName: personField.Title || personField.displayName || "",
         email: personField.EMail || personField.email,
         loginName: personField.Name || personField.loginName,
-        isGroup: isGroup
+        isGroup: isGroup,
       };
     }
 
@@ -72,7 +88,7 @@ export class AlertTransformers {
       displayName: personField.displayName || personField.title || "",
       email: personField.email || personField.mail || "",
       loginName: personField.loginName || personField.userPrincipalName || "",
-      isGroup: isGroup
+      isGroup: isGroup,
     };
   }
 
@@ -88,14 +104,19 @@ export class AlertTransformers {
     try {
       if (Array.isArray(targetUsersField)) {
         return targetUsersField.map((user: any) =>
-          this.mapPersonFieldData(user, user.isGroup || false)
+          this.mapPersonFieldData(user, user.isGroup || false),
         );
       } else {
         // Handle single user case
-        return [this.mapPersonFieldData(targetUsersField, targetUsersField.isGroup || false)];
+        return [
+          this.mapPersonFieldData(
+            targetUsersField,
+            targetUsersField.isGroup || false,
+          ),
+        ];
       }
     } catch (error) {
-      logger.warn('AlertTransformers', 'Error processing target users', error);
+      logger.warn("AlertTransformers", "Error processing target users", error);
       return [];
     }
   }
@@ -109,7 +130,8 @@ export class AlertTransformers {
     }
 
     try {
-      const priority = AlertPriority[priorityField as keyof typeof AlertPriority];
+      const priority =
+        AlertPriority[priorityField as keyof typeof AlertPriority];
       return priority || AlertPriority.Medium;
     } catch {
       return AlertPriority.Medium;
@@ -124,11 +146,11 @@ export class AlertTransformers {
     // Check ItemType field first (preferred)
     if (fields.ItemType) {
       const itemType = fields.ItemType.toLowerCase();
-      if (itemType === 'template') {
+      if (itemType === "template") {
         return ContentType.Template;
-      } else if (itemType === 'alert') {
+      } else if (itemType === "alert") {
         return ContentType.Alert;
-      } else if (itemType === 'draft') {
+      } else if (itemType === "draft") {
         return ContentType.Draft;
       }
     }
@@ -136,9 +158,9 @@ export class AlertTransformers {
     // Fall back to ContentType field
     if (fields.ContentType) {
       const contentType = fields.ContentType.toLowerCase();
-      if (contentType === 'template') {
+      if (contentType === "template") {
         return ContentType.Template;
-      } else if (contentType === 'draft') {
+      } else if (contentType === "draft") {
         return ContentType.Draft;
       }
     }
@@ -151,21 +173,22 @@ export class AlertTransformers {
    * Extract created date from SharePoint item
    */
   public static extractCreatedDate(item: any, fields: any): string {
-    return item.createdDateTime ||
-           fields?.CreatedDateTime ||
-           fields?.Created ||
-           "";
+    return (
+      item.createdDateTime || fields?.CreatedDateTime || fields?.Created || ""
+    );
   }
 
   /**
    * Extract created by from SharePoint item
    */
   public static extractCreatedBy(item: any, fields: any): string {
-    return item.createdBy?.user?.displayName ||
-           fields?.CreatedBy?.LookupValue ||
-           fields?.Author?.LookupValue ||
-           item.author?.Title ||
-           "Unknown";
+    return (
+      item.createdBy?.user?.displayName ||
+      fields?.CreatedBy?.LookupValue ||
+      fields?.Author?.LookupValue ||
+      item.author?.Title ||
+      "Unknown"
+    );
   }
 
   /**
@@ -176,15 +199,19 @@ export class AlertTransformers {
       return undefined;
     }
 
-    if (typeof value !== 'string') {
+    if (typeof value !== "string") {
       return value;
     }
 
     const parsed = JsonUtils.safeParse(value);
     if (parsed === null) {
-      logger.warn('AlertTransformers', 'Failed to parse alert metadata; ignoring value', {
-        valueSnippet: value.slice(0, 100)
-      });
+      logger.warn(
+        "AlertTransformers",
+        "Failed to parse alert metadata; ignoring value",
+        {
+          valueSnippet: value.slice(0, 100),
+        },
+      );
     }
     return parsed || undefined;
   }
@@ -196,30 +223,36 @@ export class AlertTransformers {
   public static createOriginalListItem(item: any, fields: any): IAlertListItem {
     return {
       Id: parseInt(item.id.toString()),
-      Title: fields.Title || '',
-      Description: fields.Description || '',
-      AlertType: fields.AlertType?.LookupValue || fields.AlertType || '',
+      Title: fields.Title || "",
+      Description: fields.Description || "",
+      AlertType: fields.AlertType?.LookupValue || fields.AlertType || "",
       Priority: fields.Priority || AlertPriority.Medium,
       IsPinned: fields.IsPinned || false,
       NotificationType: fields.NotificationType || NotificationType.None,
-      LinkUrl: fields.LinkUrl || '',
-      LinkDescription: fields.LinkDescription || '',
-      TargetSites: fields.TargetSites || '',
-      Status: fields.Status || 'Active',
+      LinkUrl: fields.LinkUrl || "",
+      LinkDescription: fields.LinkDescription || "",
+      TargetSites: fields.TargetSites || "",
+      Status: fields.Status || "Active",
       Created: fields.Created || item.createdDateTime,
       Author: {
-        Title: item.createdBy?.user?.displayName || item.author?.Title || 'Unknown'
+        Title:
+          item.createdBy?.user?.displayName || item.author?.Title || "Unknown",
       },
       ScheduledStart: fields.ScheduledStart || undefined,
       ScheduledEnd: fields.ScheduledEnd || undefined,
       Metadata: fields.Metadata || undefined,
 
       // Language and classification properties (Row-Based Localization)
-      ItemType: fields.ItemType || '',
-      TargetLanguage: fields.TargetLanguage || '',
-      LanguageGroup: fields.LanguageGroup || '',
+      ItemType: fields.ItemType || "",
+      TargetLanguage: fields.TargetLanguage || "",
+      LanguageGroup: fields.LanguageGroup || "",
       AvailableForAll: fields.AvailableForAll || false,
-      TranslationStatus: fields.TranslationStatus || TranslationStatus.Approved
+      TranslationStatus: fields.TranslationStatus || TranslationStatus.Approved,
+      ContentStatus: fields.ContentStatus || ContentStatus.Draft,
+      Reviewer: fields.Reviewer || undefined,
+      ReviewNotes: fields.ReviewNotes || "",
+      SubmittedDate: fields.SubmittedDate || undefined,
+      ReviewedDate: fields.ReviewedDate || undefined,
     };
   }
 
@@ -229,11 +262,11 @@ export class AlertTransformers {
    */
   private static normalizeSiteIdForAlertId(siteId: string): string {
     if (!siteId) {
-      return '';
+      return "";
     }
 
     // If composite format (e.g., "hostname,siteGuid,webGuid"), extract the site GUID (middle part)
-    if (siteId.includes(',')) {
+    if (siteId.includes(",")) {
       const extracted = SiteIdUtils.extractGuidFromGraphId(siteId);
       if (extracted) return extracted;
     }
@@ -251,7 +284,7 @@ export class AlertTransformers {
   public static mapSharePointItemToAlert(
     item: any,
     siteId: string,
-    includeOriginalItem: boolean = false
+    includeOriginalItem: boolean = false,
   ): IAlertItem {
     const fields = item.fields;
 
@@ -263,6 +296,11 @@ export class AlertTransformers {
     const createdDate = this.extractCreatedDate(item, fields);
     const createdBy = this.extractCreatedBy(item, fields);
 
+    // Approval Workflow
+    const reviewer = fields.Reviewer
+      ? this.mapTargetUsers(fields.Reviewer)
+      : undefined;
+
     // Normalize site ID to ensure consistent alert IDs regardless of input format
     const normalizedSiteId = this.normalizeSiteIdForAlertId(siteId);
 
@@ -270,7 +308,10 @@ export class AlertTransformers {
       id: `${normalizedSiteId}-${item.id}`,
       title: fields.Title || "",
       description: fields.Description || "",
-      AlertType: fields.AlertType?.LookupValue || fields.AlertType || DEFAULT_ALERT_TYPE_NAME,
+      AlertType:
+        fields.AlertType?.LookupValue ||
+        fields.AlertType ||
+        DEFAULT_ALERT_TYPE_NAME,
       priority: priority,
       isPinned: fields.IsPinned || false,
       targetUsers: targetUsers,
@@ -278,25 +319,37 @@ export class AlertTransformers {
       linkUrl: fields.LinkUrl || "",
       linkDescription: fields.LinkDescription || "Learn More",
       targetSites: targetSites,
-      status: fields.Status || 'Active',
+      status: fields.Status || "Active",
       createdDate,
       createdBy,
       contentType: contentType,
       modified: item.lastModifiedDateTime || fields.Modified,
-      targetLanguage: (fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
+      targetLanguage:
+        (fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
       languageGroup: fields.LanguageGroup || undefined,
-      availableForAll: typeof fields.AvailableForAll === 'boolean'
-        ? fields.AvailableForAll
-        : Boolean(fields.AvailableForAll),
-      translationStatus: (fields.TranslationStatus as TranslationStatus) || TranslationStatus.Approved,
+      availableForAll:
+        typeof fields.AvailableForAll === "boolean"
+          ? fields.AvailableForAll
+          : Boolean(fields.AvailableForAll),
+      translationStatus:
+        (fields.TranslationStatus as TranslationStatus) ||
+        TranslationStatus.Approved,
+      contentStatus:
+        (fields.ContentStatus as ContentStatus) || ContentStatus.Draft,
+      reviewer: reviewer,
+      reviewNotes: fields.ReviewNotes || "",
+      submittedDate: fields.SubmittedDate || undefined,
+      reviewedDate: fields.ReviewedDate || undefined,
       scheduledStart: fields.ScheduledStart || undefined,
       scheduledEnd: fields.ScheduledEnd || undefined,
       metadata: this.parseMetadata(fields.Metadata),
-      attachments: fields.AttachmentFiles?.map((file: any) => ({
-        fileName: file.FileName || file.fileName || '',
-        serverRelativeUrl: file.ServerRelativeUrl || file.serverRelativeUrl || '',
-        size: file.Length || file.length || undefined
-      })) || []
+      attachments:
+        fields.AttachmentFiles?.map((file: any) => ({
+          fileName: file.FileName || file.fileName || "",
+          serverRelativeUrl:
+            file.ServerRelativeUrl || file.serverRelativeUrl || "",
+          size: file.Length || file.length || undefined,
+        })) || [],
     };
 
     // Add original list item if requested (for SharePointAlertService)

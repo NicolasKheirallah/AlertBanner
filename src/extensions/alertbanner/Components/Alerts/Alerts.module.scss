@@ -90,6 +90,27 @@
 .errorMessageBar {
   max-width: 1200px;
   margin: 0 auto;
+  border-radius: var(--borderRadiusMedium, 4px);
+  box-shadow: var(--shadow4, 0 1.6px 3.6px rgba(0,0,0,.132));
+}
+
+.errorWrapper {
+  padding: var(--spacingVerticalS, 8px) var(--spacingHorizontalM, 12px);
+  background-color: var(--colorNeutralBackground1, #fff);
+  border-bottom: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+  font-family: var(--fontFamilyBase, 'Segoe UI', sans-serif);
+}
+
+.errorTitle {
+  color: var(--colorPaletteRedForeground1, #c4314b);
+  font-weight: var(--fontWeightSemibold, 600);
+  font-size: var(--fontSizeBase300, 14px);
+}
+
+.errorDetail {
+  margin-top: var(--spacingVerticalXS, 4px);
+  font-size: var(--fontSizeBase200, 12px);
+  line-height: var(--lineHeightBase200, 16px);
 }
 
 // Responsive design

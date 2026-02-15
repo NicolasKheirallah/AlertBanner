@@ -8,7 +8,7 @@ import {
   PlaceholderName,
 } from "@microsoft/sp-application-base";
 import { IAlertsBannerApplicationCustomizerProperties } from "./Components/Alerts/IAlerts";
-import { MSGraphClientV3 } from "@microsoft/sp-http";
+import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
 import { AlertsProvider } from "./Components/Context/AlertsContext";
 import { LocalizationService } from "./Components/Services/LocalizationService";
 import { LocalizationProvider } from "./Components/Hooks/useLocalization";
@@ -18,11 +18,14 @@ import { SiteContextService } from "./Components/Services/SiteContextService";
 import { setIconOptions } from "@fluentui/style-utilities";
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
+  private static readonly COMPONENT_ID = "4b274e80-896b-4c87-9a78-d751d9dff522";
+  private static readonly SETTINGS_PERSIST_DEBOUNCE_MS = 800;
   private _topPlaceholderContent: PlaceholderContent | undefined;
   private _customProperties: IAlertsBannerApplicationCustomizerProperties;
   private _siteIds: string[] | null = null; // Cache site IDs to prevent recalculation
   private _isRendering: boolean = false; // Prevent concurrent renders
   private _lastRenderedSiteId: string | null = null; // Track last site to detect SPA navigation
+  private _settingsPersistDebounceId: number | null = null;
 
   @override
   public async onInit(): Promise<void> {
@@ -124,7 +127,17 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       this._customProperties.enableTargetSite !== undefined ?
       this._customProperties.enableTargetSite : false;
 
+    this._customProperties.emailServiceAccount =
+      this._customProperties.emailServiceAccount !== undefined ?
+      this._customProperties.emailServiceAccount : "";
+
+    this._customProperties.copilotEnabled =
+      this._customProperties.copilotEnabled !== undefined ?
+      this._customProperties.copilotEnabled : false;
+
+    this._loadSettingsSnapshot();
     this._persistCustomProperties();
+    this._persistSettingsSnapshot();
   }
 
   private _persistCustomProperties(): void {
@@ -132,10 +145,16 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     this.properties.userTargetingEnabled = this._customProperties.userTargetingEnabled;
     this.properties.notificationsEnabled = this._customProperties.notificationsEnabled;
     this.properties.enableTargetSite = this._customProperties.enableTargetSite;
+    this.properties.emailServiceAccount = this._customProperties.emailServiceAccount;
+    this.properties.copilotEnabled = this._customProperties.copilotEnabled;
   }
 
   @override
   public onDispose(): void {
+    if (this._settingsPersistDebounceId) {
+      window.clearTimeout(this._settingsPersistDebounceId);
+      this._settingsPersistDebounceId = null;
+    }
     this.context.placeholderProvider.changedEvent.remove(
       this,
       this._renderTopPlaceholder
@@ -171,12 +190,16 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     userTargetingEnabled: boolean;
     notificationsEnabled: boolean;
     enableTargetSite: boolean;
+    emailServiceAccount?: string;
+    copilotEnabled?: boolean;
   }): void => {
     const hasChanged =
       this._customProperties.alertTypesJson !== settings.alertTypesJson ||
       this._customProperties.userTargetingEnabled !== settings.userTargetingEnabled ||
       this._customProperties.notificationsEnabled !== settings.notificationsEnabled ||
-      this._customProperties.enableTargetSite !== settings.enableTargetSite;
+      this._customProperties.enableTargetSite !== settings.enableTargetSite ||
+      this._customProperties.emailServiceAccount !== settings.emailServiceAccount ||
+      this._customProperties.copilotEnabled !== settings.copilotEnabled;
 
     if (!hasChanged) {
       return;
@@ -187,11 +210,185 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       alertTypesJson: settings.alertTypesJson,
       userTargetingEnabled: settings.userTargetingEnabled,
       notificationsEnabled: settings.notificationsEnabled,
-      enableTargetSite: settings.enableTargetSite
+      enableTargetSite: settings.enableTargetSite,
+      emailServiceAccount: settings.emailServiceAccount,
+      copilotEnabled: settings.copilotEnabled,
     };
 
     this._persistCustomProperties();
+    this._scheduleSettingsPersistence();
   };
+
+  private _getSettingsSnapshotKey(): string {
+    return `alertbanner-settings-${this.context.pageContext.site.id.toString()}`;
+  }
+
+  private _loadSettingsSnapshot(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(this._getSettingsSnapshotKey());
+      if (!raw) {
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as Partial<IAlertsBannerApplicationCustomizerProperties>;
+
+      if (typeof parsed.alertTypesJson === "string") {
+        this._customProperties.alertTypesJson = parsed.alertTypesJson;
+      }
+      if (typeof parsed.userTargetingEnabled === "boolean") {
+        this._customProperties.userTargetingEnabled = parsed.userTargetingEnabled;
+      }
+      if (typeof parsed.notificationsEnabled === "boolean") {
+        this._customProperties.notificationsEnabled = parsed.notificationsEnabled;
+      }
+      if (typeof parsed.enableTargetSite === "boolean") {
+        this._customProperties.enableTargetSite = parsed.enableTargetSite;
+      }
+      if (typeof parsed.emailServiceAccount === "string") {
+        this._customProperties.emailServiceAccount = parsed.emailServiceAccount;
+      }
+      if (typeof parsed.copilotEnabled === "boolean") {
+        this._customProperties.copilotEnabled = parsed.copilotEnabled;
+      }
+    } catch (error) {
+      logger.warn(
+        "ApplicationCustomizer",
+        "Failed to load settings snapshot from localStorage",
+        error,
+      );
+    }
+  }
+
+  private _persistSettingsSnapshot(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        this._getSettingsSnapshotKey(),
+        JSON.stringify({
+          alertTypesJson: this._customProperties.alertTypesJson,
+          userTargetingEnabled: this._customProperties.userTargetingEnabled,
+          notificationsEnabled: this._customProperties.notificationsEnabled,
+          enableTargetSite: this._customProperties.enableTargetSite,
+          emailServiceAccount: this._customProperties.emailServiceAccount,
+          copilotEnabled: this._customProperties.copilotEnabled,
+        }),
+      );
+    } catch (error) {
+      logger.warn(
+        "ApplicationCustomizer",
+        "Failed to persist settings snapshot to localStorage",
+        error,
+      );
+    }
+  }
+
+  private _scheduleSettingsPersistence(): void {
+    this._persistSettingsSnapshot();
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (this._settingsPersistDebounceId) {
+      window.clearTimeout(this._settingsPersistDebounceId);
+    }
+
+    this._settingsPersistDebounceId = window.setTimeout(() => {
+      this._settingsPersistDebounceId = null;
+      void this._persistCustomActionProperties();
+    }, AlertsBannerApplicationCustomizer.SETTINGS_PERSIST_DEBOUNCE_MS);
+  }
+
+  private async _persistCustomActionProperties(): Promise<void> {
+    try {
+      const webUrl = this.context.pageContext.web.absoluteUrl;
+      const listUrl = `${webUrl}/_api/web/UserCustomActions?$select=Id,ClientSideComponentId`;
+      const listResponse = await this.context.spHttpClient.get(
+        listUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;odata=nometadata",
+          },
+        },
+      );
+
+      if (!listResponse.ok) {
+        logger.warn(
+          "ApplicationCustomizer",
+          "Failed to query user custom actions for settings persistence",
+          { status: listResponse.status },
+        );
+        return;
+      }
+
+      const actions = (await listResponse.json()) as {
+        value?: Array<{ Id: string; ClientSideComponentId?: string }>;
+      };
+
+      const customAction = actions.value?.find(
+        (action) =>
+          (action.ClientSideComponentId || "")
+            .replace(/[{}]/g, "")
+            .toLowerCase() ===
+          AlertsBannerApplicationCustomizer.COMPONENT_ID,
+      );
+
+      if (!customAction?.Id) {
+        logger.warn(
+          "ApplicationCustomizer",
+          "No matching custom action found for settings persistence",
+        );
+        return;
+      }
+
+      const updateUrl = `${webUrl}/_api/web/UserCustomActions(guid'${customAction.Id}')`;
+      const updateResponse = await this.context.spHttpClient.post(
+        updateUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;odata=verbose",
+            "Content-Type": "application/json;odata=verbose",
+            "X-HTTP-Method": "MERGE",
+            "IF-MATCH": "*",
+          },
+          body: JSON.stringify({
+            __metadata: { type: "SP.UserCustomAction" },
+            ClientSideComponentProperties: JSON.stringify({
+              alertTypesJson: this._customProperties.alertTypesJson,
+              userTargetingEnabled: this._customProperties.userTargetingEnabled,
+              notificationsEnabled: this._customProperties.notificationsEnabled,
+              enableTargetSite: this._customProperties.enableTargetSite,
+              emailServiceAccount: this._customProperties.emailServiceAccount || "",
+              copilotEnabled: !!this._customProperties.copilotEnabled,
+            }),
+          }),
+        },
+      );
+
+      if (!updateResponse.ok) {
+        logger.warn(
+          "ApplicationCustomizer",
+          "Failed to persist custom action settings",
+          { status: updateResponse.status },
+        );
+      }
+    } catch (error) {
+      logger.warn(
+        "ApplicationCustomizer",
+        "Error while persisting custom action settings",
+        error,
+      );
+    }
+  }
 
   private async _renderAlertsComponent(): Promise<void> {
     if (this._isRendering) {
@@ -252,6 +449,8 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
             userTargetingEnabled: this._customProperties.userTargetingEnabled,
             notificationsEnabled: this._customProperties.notificationsEnabled,
             enableTargetSite: this._customProperties.enableTargetSite,
+            emailServiceAccount: this._customProperties.emailServiceAccount,
+            copilotEnabled: this._customProperties.copilotEnabled,
             onSettingsChange: this._handleSettingsChange
           }
         );

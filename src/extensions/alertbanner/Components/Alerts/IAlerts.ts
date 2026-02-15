@@ -25,6 +25,12 @@ export interface IAlertItem {
   languageGroup?: string;
   availableForAll?: boolean;
   translationStatus?: TranslationStatus;
+  // Approval Workflow
+  contentStatus?: ContentStatus;
+  reviewer?: IPersonField[];
+  reviewNotes?: string;
+  submittedDate?: string;
+  reviewedDate?: string;
   // Attachments support
   attachments?: {
     fileName: string;
@@ -66,6 +72,11 @@ export interface IAlertListItem {
   LanguageGroup?: string;
   AvailableForAll?: boolean;
   TranslationStatus?: string;
+  ContentStatus?: string;
+  Reviewer?: any[];
+  ReviewNotes?: string;
+  SubmittedDate?: string;
+  ReviewedDate?: string;
 
   // Targeting
   TargetUsers?: any[]; // SharePoint People/Groups field data
@@ -75,47 +86,54 @@ export enum AlertPriority {
   Low = "low",
   Medium = "medium",
   High = "high",
-  Critical = "critical"
+  Critical = "critical",
 }
 
 export enum NotificationType {
   None = "none",
   Browser = "browser",
   Email = "email",
-  Both = "both"
+  Both = "both",
 }
 
 export enum ContentType {
   Alert = "alert",
   Template = "template",
-  Draft = "draft"
+  Draft = "draft",
 }
 
 export enum TranslationStatus {
   Draft = "Draft",
   InReview = "InReview",
-  Approved = "Approved"
+  Approved = "Approved",
+}
+
+export enum ContentStatus {
+  Draft = "Draft",
+  PendingReview = "PendingReview",
+  Approved = "Approved",
+  Rejected = "Rejected",
 }
 
 export enum TargetLanguage {
   EnglishUS = "en-us",
-  FrenchFR = "fr-fr", 
+  FrenchFR = "fr-fr",
   GermanDE = "de-de",
   SpanishES = "es-es",
   SwedishSE = "sv-se",
   FinnishFI = "fi-fi",
   DanishDK = "da-dk",
   NorwegianNO = "nb-no",
-  All = "all" // For items that should show to all languages
+  All = "all", // For items that should show to all languages
 }
 
 // Interface for SharePoint Person field data
 export interface IPersonField {
-  id: string;          // User/Group ID
+  id: string; // User/Group ID
   displayName: string; // Display name
-  email?: string;      // Email address (for users)
-  loginName?: string;  // Login name
-  isGroup: boolean;    // Whether this is a group or individual user
+  email?: string; // Email address (for users)
+  loginName?: string; // Login name
+  isGroup: boolean; // Whether this is a group or individual user
 }
 
 // Interface for targeting rules
@@ -123,10 +141,10 @@ export interface ITargetingRule {
   // Support for People fields
   targetUsers?: IPersonField[]; // Individual users from People field
   targetGroups?: IPersonField[]; // SharePoint groups from People field
-  
+
   // Legacy targeting with string arrays
-  audiences?: string[]; 
-  
+  audiences?: string[];
+
   // Operation to apply
   operation: "anyOf" | "allOf" | "noneOf";
 }
@@ -136,6 +154,8 @@ export interface IAlertsBannerApplicationCustomizerProperties {
   userTargetingEnabled: boolean; // Enable user targeting feature
   notificationsEnabled: boolean; // Enable notifications feature
   enableTargetSite: boolean; // Enable targeting specific sites (default: false)
+  emailServiceAccount?: string; // Service account email for Graph API sendMail
+  copilotEnabled?: boolean; // Enable Copilot features
 }
 
 export interface IAlertsProps {
@@ -146,11 +166,15 @@ export interface IAlertsProps {
   userTargetingEnabled?: boolean;
   notificationsEnabled?: boolean;
   enableTargetSite?: boolean; // Control visibility of target site selector
+  emailServiceAccount?: string; // Service account email for email notifications
+  copilotEnabled?: boolean; // Enable Copilot features
   onSettingsChange?: (settings: {
     alertTypesJson: string;
     userTargetingEnabled: boolean;
     notificationsEnabled: boolean;
     enableTargetSite: boolean;
+    emailServiceAccount?: string;
+    copilotEnabled?: boolean;
   }) => void;
 }
 
@@ -191,5 +215,6 @@ export interface IAlertType {
   backgroundColor: string;
   textColor: string;
   additionalStyles?: string;
+  defaultPriority?: AlertPriority; // Optional default priority to be selected when this type is chosen
   priorityStyles?: { [key in AlertPriority]?: string }; // Different styles based on priority
 }

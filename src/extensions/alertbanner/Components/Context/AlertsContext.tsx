@@ -1,6 +1,15 @@
 import * as React from "react";
 import { createContext, useReducer, useContext, useCallback } from "react";
-import { IAlertType, AlertPriority, IPersonField, ITargetingRule, ContentType, TargetLanguage, NotificationType, IAlertItem } from "../Alerts/IAlerts";
+import {
+  IAlertType,
+  AlertPriority,
+  IPersonField,
+  ITargetingRule,
+  ContentType,
+  TargetLanguage,
+  NotificationType,
+  IAlertItem,
+} from "../Alerts/IAlerts";
 import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
@@ -8,7 +17,10 @@ import UserTargetingService from "../Services/UserTargetingService";
 import { NotificationService } from "../Services/NotificationService";
 import StorageService from "../Services/StorageService";
 import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
-import { DEFAULT_LANGUAGE_POLICY, ILanguagePolicy } from "../Services/LanguagePolicyService";
+import {
+  DEFAULT_LANGUAGE_POLICY,
+  ILanguagePolicy,
+} from "../Services/LanguagePolicyService";
 import { logger } from "../Services/LoggerService";
 import { validationService } from "../Services/ValidationService";
 import { AlertTransformers } from "../Utils/AlertTransformers";
@@ -25,18 +37,24 @@ interface AlertsState {
   errorMessage?: string;
   userDismissedAlerts: string[];
   userHiddenAlerts: string[];
+  carouselEnabled: boolean;
+  carouselInterval: number;
 }
 
 type AlertsAction =
-  | { type: 'SET_ALERTS'; payload: IAlertItem[] }
-  | { type: 'SET_ALERT_TYPES'; payload: { [key: string]: IAlertType } }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: { hasError: boolean; message?: string } }
-  | { type: 'DISMISS_ALERT'; payload: string }
-  | { type: 'HIDE_ALERT_FOREVER'; payload: string }
-  | { type: 'SET_DISMISSED_ALERTS'; payload: string[] }
-  | { type: 'SET_HIDDEN_ALERTS'; payload: string[] }
-  | { type: 'BATCH_UPDATE'; payload: Partial<AlertsState> };
+  | { type: "SET_ALERTS"; payload: IAlertItem[] }
+  | { type: "SET_ALERT_TYPES"; payload: { [key: string]: IAlertType } }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_ERROR"; payload: { hasError: boolean; message?: string } }
+  | { type: "DISMISS_ALERT"; payload: string }
+  | { type: "HIDE_ALERT_FOREVER"; payload: string }
+  | { type: "SET_DISMISSED_ALERTS"; payload: string[] }
+  | { type: "SET_HIDDEN_ALERTS"; payload: string[] }
+  | {
+      type: "SET_CAROUSEL_SETTINGS";
+      payload: { carouselEnabled?: boolean; carouselInterval?: number };
+    }
+  | { type: "BATCH_UPDATE"; payload: Partial<AlertsState> };
 
 const initialState: AlertsState = {
   alerts: [],
@@ -45,48 +63,64 @@ const initialState: AlertsState = {
   hasError: false,
   errorMessage: undefined,
   userDismissedAlerts: [],
-  userHiddenAlerts: []
+  userHiddenAlerts: [],
+  carouselEnabled: false,
+  carouselInterval: 5000,
 };
 
-const alertsReducer = (state: AlertsState, action: AlertsAction): AlertsState => {
+const alertsReducer = (
+  state: AlertsState,
+  action: AlertsAction,
+): AlertsState => {
   switch (action.type) {
-    case 'SET_ALERTS':
+    case "SET_ALERTS":
       return { ...state, alerts: action.payload };
 
-    case 'SET_ALERT_TYPES':
+    case "SET_ALERT_TYPES":
       return { ...state, alertTypes: action.payload };
 
-    case 'SET_LOADING':
+    case "SET_LOADING":
       return { ...state, isLoading: action.payload };
 
-    case 'SET_ERROR':
+    case "SET_ERROR":
       return {
         ...state,
         hasError: action.payload.hasError,
-        errorMessage: action.payload.message
+        errorMessage: action.payload.message,
       };
 
-    case 'DISMISS_ALERT':
+    case "DISMISS_ALERT":
       return {
         ...state,
-        alerts: state.alerts.filter(alert => alert.id !== action.payload),
-        userDismissedAlerts: [...state.userDismissedAlerts, action.payload]
+        alerts: state.alerts.filter((alert) => alert.id !== action.payload),
+        userDismissedAlerts: [...state.userDismissedAlerts, action.payload],
       };
 
-    case 'HIDE_ALERT_FOREVER':
+    case "HIDE_ALERT_FOREVER":
       return {
         ...state,
-        alerts: state.alerts.filter(alert => alert.id !== action.payload),
-        userHiddenAlerts: [...state.userHiddenAlerts, action.payload]
+        alerts: state.alerts.filter((alert) => alert.id !== action.payload),
+        userHiddenAlerts: [...state.userHiddenAlerts, action.payload],
       };
 
-    case 'SET_DISMISSED_ALERTS':
+    case "SET_DISMISSED_ALERTS":
       return { ...state, userDismissedAlerts: action.payload };
 
-    case 'SET_HIDDEN_ALERTS':
+    case "SET_HIDDEN_ALERTS":
       return { ...state, userHiddenAlerts: action.payload };
 
-    case 'BATCH_UPDATE':
+    case "SET_CAROUSEL_SETTINGS":
+      return {
+        ...state,
+        ...(action.payload.carouselEnabled !== undefined && {
+          carouselEnabled: action.payload.carouselEnabled,
+        }),
+        ...(action.payload.carouselInterval !== undefined && {
+          carouselInterval: action.payload.carouselInterval,
+        }),
+      };
+
+    case "BATCH_UPDATE":
       return { ...state, ...action.payload };
 
     default:
@@ -102,6 +136,10 @@ interface AlertsContextProps {
   hideAlertForever: (id: string) => void;
   initializeAlerts: (options: AlertsContextOptions) => Promise<void>;
   refreshAlerts: () => Promise<void>;
+  updateCarouselSettings: (settings: {
+    carouselEnabled?: boolean;
+    carouselInterval?: number;
+  }) => void;
 }
 
 const AlertsContext = createContext<AlertsContextProps | undefined>(undefined);
@@ -116,9 +154,11 @@ export interface AlertsContextOptions {
   enableTargetSite?: boolean;
 }
 
-export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [state, dispatch] = useReducer(alertsReducer, initialState);
-  
+
   const storageService = React.useMemo(() => StorageService.getInstance(), []);
 
   const servicesRef = React.useRef<{
@@ -133,18 +173,23 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Load alert types from JSON (fallback)
   const loadAlertTypes = useCallback((alertTypesJson: string) => {
-    const endPerformanceTracking = logger.startPerformanceTracking('loadAlertTypes');
+    const endPerformanceTracking =
+      logger.startPerformanceTracking("loadAlertTypes");
 
     try {
       // Validate JSON with security checks before parsing
       const validation = validationService.validateJson(alertTypesJson, 10);
 
       if (!validation.isValid) {
-        logger.error("AlertsContext", "Invalid alert types JSON - security validation failed", {
-          errors: validation.errors,
-          jsonPreview: alertTypesJson.substring(0, 100)
-        });
-        dispatch({ type: 'SET_ALERT_TYPES', payload: {} });
+        logger.error(
+          "AlertsContext",
+          "Invalid alert types JSON - security validation failed",
+          {
+            errors: validation.errors,
+            jsonPreview: alertTypesJson.substring(0, 100),
+          },
+        );
+        dispatch({ type: "SET_ALERT_TYPES", payload: {} });
         return;
       }
 
@@ -156,12 +201,19 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         alertTypesMap[type.name] = type;
       });
 
-      dispatch({ type: 'SET_ALERT_TYPES', payload: alertTypesMap });
-      logger.info('AlertsContext', `Loaded ${alertTypesData.length} alert types (validated)`);
-
+      dispatch({ type: "SET_ALERT_TYPES", payload: alertTypesMap });
+      logger.info(
+        "AlertsContext",
+        `Loaded ${alertTypesData.length} alert types (validated)`,
+      );
     } catch (error) {
-      logger.error("AlertsContext", "Error processing alert types JSON", error, { alertTypesJson });
-      dispatch({ type: 'SET_ALERT_TYPES', payload: {} });
+      logger.error(
+        "AlertsContext",
+        "Error processing alert types JSON",
+        error,
+        { alertTypesJson },
+      );
+      dispatch({ type: "SET_ALERT_TYPES", payload: {} });
     } finally {
       endPerformanceTracking();
     }
@@ -169,14 +221,17 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Load alert types from SharePoint list (primary source)
   const loadAlertTypesFromList = useCallback(async (): Promise<boolean> => {
-    const endPerformanceTracking = logger.startPerformanceTracking('loadAlertTypesFromList');
+    const endPerformanceTracking = logger.startPerformanceTracking(
+      "loadAlertTypesFromList",
+    );
 
     try {
       if (!servicesRef.current.sharePointAlertService) {
         return false;
       }
 
-      const alertTypesData = await servicesRef.current.sharePointAlertService.getAlertTypes();
+      const alertTypesData =
+        await servicesRef.current.sharePointAlertService.getAlertTypes();
       if (!alertTypesData || alertTypesData.length === 0) {
         return false;
       }
@@ -188,11 +243,18 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       });
 
-      dispatch({ type: 'SET_ALERT_TYPES', payload: alertTypesMap });
-      logger.info('AlertsContext', `Loaded ${alertTypesData.length} alert types from SharePoint list`);
+      dispatch({ type: "SET_ALERT_TYPES", payload: alertTypesMap });
+      logger.info(
+        "AlertsContext",
+        `Loaded ${alertTypesData.length} alert types from SharePoint list`,
+      );
       return true;
     } catch (error) {
-      logger.warn('AlertsContext', 'Failed to load alert types from SharePoint list', error);
+      logger.warn(
+        "AlertsContext",
+        "Failed to load alert types from SharePoint list",
+        error,
+      );
       return false;
     } finally {
       endPerformanceTracking();
@@ -200,12 +262,19 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   // Map SharePoint item to alert using consolidated transformer
-  const mapSharePointItemToAlert = useCallback((item: any, siteId: string): IAlertItem => {
-    return AlertTransformers.mapSharePointItemToAlert(item, siteId, false);
-  }, []);
+  const mapSharePointItemToAlert = useCallback(
+    (item: any, siteId: string): IAlertItem => {
+      return AlertTransformers.mapSharePointItemToAlert(item, siteId, false);
+    },
+    [],
+  );
 
-  const alertCacheRef = React.useRef<Map<string, { alerts: IAlertItem[]; timestamp: number }>>(new Map());
-  const pendingRequestsRef = React.useRef<Map<string, Promise<IAlertItem[]>>>(new Map());
+  const alertCacheRef = React.useRef<
+    Map<string, { alerts: IAlertItem[]; timestamp: number }>
+  >(new Map());
+  const pendingRequestsRef = React.useRef<Map<string, Promise<IAlertItem[]>>>(
+    new Map(),
+  );
   const CACHE_DURATION = CACHE_CONFIG.ALERTS_CACHE_DURATION;
 
   // Normalize site ID to extract the site GUID for consistent deduplication
@@ -233,252 +302,331 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       scheduledEnd: alert.scheduledEnd,
       metadata: alert.metadata ?? null,
       targetSites: alert.targetSites ?? [],
-      attachments: (alert.attachments || []).map(attachment => ({
+      attachments: (alert.attachments || []).map((attachment) => ({
         fileName: attachment.fileName,
         url: attachment.serverRelativeUrl,
-        size: attachment.size ?? null
+        size: attachment.size ?? null,
       })),
-      targetUsers: alert.targetUsers ?? []
+      targetUsers: alert.targetUsers ?? [],
     };
 
-    return JsonUtils.safeStringify(signaturePayload) || '';
+    return JsonUtils.safeStringify(signaturePayload) || "";
   }, []);
 
-  const fetchAlerts = useCallback(async (siteId: string): Promise<IAlertItem[]> => {
-    // Check for pending request first (request deduplication)
-    const pendingRequest = pendingRequestsRef.current.get(siteId);
-    if (pendingRequest) {
-      logger.debug('AlertsContext', `Reusing pending request for site ${siteId}`);
-      return pendingRequest;
-    }
-
-    // Check cache
-    const cached = alertCacheRef.current.get(siteId);
-    const now = Date.now();
-    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-      logger.debug('AlertsContext', `Using cached alerts for site ${siteId}`, {
-        alertCount: cached.alerts.length,
-        cacheAge: now - cached.timestamp
-      });
-      return cached.alerts;
-    }
-
-    const dateTimeNow = new Date().toISOString();
-
-    // Create new request and store it in pending map
-    const requestPromise = (async () => {
-      try {
-      // Use the centralized service to fetch active alerts
-      // This handles date filtering, custom field fallback, and ensures consistent logic
-      if (!servicesRef.current.sharePointAlertService) {
-        throw new Error('SharePointAlertService not initialized');
+  const fetchAlerts = useCallback(
+    async (siteId: string): Promise<IAlertItem[]> => {
+      // Check for pending request first (request deduplication)
+      const pendingRequest = pendingRequestsRef.current.get(siteId);
+      if (pendingRequest) {
+        logger.debug(
+          "AlertsContext",
+          `Reusing pending request for site ${siteId}`,
+        );
+        return pendingRequest;
       }
-      
-      let alerts = await servicesRef.current.sharePointAlertService.getActiveAlerts(siteId);
 
-
-
-      // Filter out templates, drafts, and auto-saved items is already handled by SharePointAlertService.getActiveAlerts
-      // alerts = AlertFilters.excludeNonPublicAlerts(alerts);
-
-        // Cache the results
-        alertCacheRef.current.set(siteId, { alerts, timestamp: now });
-        logger.info('AlertsContext', `Fetched and cached ${alerts.length} alerts for site ${siteId}`);
-
-        return alerts;
-      } catch (error) {
-        logger.error('AlertsContext', `Error fetching alerts from site ${siteId}`, error, { siteId });
-        return [];
-      } finally {
-        // Remove from pending requests map when done
-        pendingRequestsRef.current.delete(siteId);
+      // Check cache
+      const cached = alertCacheRef.current.get(siteId);
+      const now = Date.now();
+      if (cached && now - cached.timestamp < CACHE_DURATION) {
+        logger.debug(
+          "AlertsContext",
+          `Using cached alerts for site ${siteId}`,
+          {
+            alertCount: cached.alerts.length,
+            cacheAge: now - cached.timestamp,
+          },
+        );
+        return cached.alerts;
       }
-    })();
 
-    // Store the promise in pending requests
-    pendingRequestsRef.current.set(siteId, requestPromise);
-    return requestPromise;
-  }, [mapSharePointItemToAlert]);
+      const dateTimeNow = new Date().toISOString();
+
+      // Create new request and store it in pending map
+      const requestPromise = (async () => {
+        try {
+          // Use the centralized service to fetch active alerts
+          // This handles date filtering, custom field fallback, and ensures consistent logic
+          if (!servicesRef.current.sharePointAlertService) {
+            throw new Error("SharePointAlertService not initialized");
+          }
+
+          let alerts =
+            await servicesRef.current.sharePointAlertService.getActiveAlerts(
+              siteId,
+            );
+
+          // Filter out templates, drafts, and auto-saved items is already handled by SharePointAlertService.getActiveAlerts
+          // alerts = AlertFilters.excludeNonPublicAlerts(alerts);
+
+          // Cache the results
+          alertCacheRef.current.set(siteId, { alerts, timestamp: now });
+          logger.info(
+            "AlertsContext",
+            `Fetched and cached ${alerts.length} alerts for site ${siteId}`,
+          );
+
+          return alerts;
+        } catch (error) {
+          logger.error(
+            "AlertsContext",
+            `Error fetching alerts from site ${siteId}`,
+            error,
+            { siteId },
+          );
+          return [];
+        } finally {
+          // Remove from pending requests map when done
+          pendingRequestsRef.current.delete(siteId);
+        }
+      })();
+
+      // Store the promise in pending requests
+      pendingRequestsRef.current.set(siteId, requestPromise);
+      return requestPromise;
+    },
+    [mapSharePointItemToAlert],
+  );
 
   // Sort alerts by priority
-  const sortAlertsByPriority = useCallback((alertsToSort: IAlertItem[]): IAlertItem[] => {
-    const priorityOrder: { [key in AlertPriority]: number } = {
-      [AlertPriority.Critical]: 0,
-      [AlertPriority.High]: 1,
-      [AlertPriority.Medium]: 2,
-      [AlertPriority.Low]: 3
-    };
+  const sortAlertsByPriority = useCallback(
+    (alertsToSort: IAlertItem[]): IAlertItem[] => {
+      const priorityOrder: { [key in AlertPriority]: number } = {
+        [AlertPriority.Critical]: 0,
+        [AlertPriority.High]: 1,
+        [AlertPriority.Medium]: 2,
+        [AlertPriority.Low]: 3,
+      };
 
-    return [...alertsToSort].sort((a, b) => {
-      // First sort by pinned status
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
+      return [...alertsToSort].sort((a, b) => {
+        // First sort by pinned status
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
 
-      // Then sort by priority
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    });
-  }, []);
+        // Then sort by priority
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      });
+    },
+    [],
+  );
 
   // Remove duplicates using AlertFilters utility
-  const removeDuplicateAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
-    return AlertFilters.removeDuplicates(alertsToFilter);
-  }, []);
+  const removeDuplicateAlerts = useCallback(
+    (alertsToFilter: IAlertItem[]): IAlertItem[] => {
+      return AlertFilters.removeDuplicates(alertsToFilter);
+    },
+    [],
+  );
 
   // Check if alerts have changed
-  const areAlertsDifferent = useCallback((newAlerts: IAlertItem[], cachedAlerts: IAlertItem[] | null): boolean => {
-    if (!cachedAlerts) return true;
-    if (newAlerts.length !== cachedAlerts.length) return true;
+  const areAlertsDifferent = useCallback(
+    (newAlerts: IAlertItem[], cachedAlerts: IAlertItem[] | null): boolean => {
+      if (!cachedAlerts) return true;
+      if (newAlerts.length !== cachedAlerts.length) return true;
 
-    // Use Map for O(1) lookups
-    const cachedMap = new Map(cachedAlerts.map(a => [a.id, a]));
+      // Use Map for O(1) lookups
+      const cachedMap = new Map(cachedAlerts.map((a) => [a.id, a]));
 
-    for (const newAlert of newAlerts) {
-      const cachedAlert = cachedMap.get(newAlert.id);
-      if (!cachedAlert) {
-        return true;
-      }
-
-      // Fast comparison using modified timestamp if available
-      // This avoids expensive JSON serialization for most cases
-      if (newAlert.modified && cachedAlert.modified) {
-        if (newAlert.modified !== cachedAlert.modified) {
+      for (const newAlert of newAlerts) {
+        const cachedAlert = cachedMap.get(newAlert.id);
+        if (!cachedAlert) {
           return true;
         }
-        continue;
+
+        // Fast comparison using modified timestamp if available
+        // This avoids expensive JSON serialization for most cases
+        if (newAlert.modified && cachedAlert.modified) {
+          if (newAlert.modified !== cachedAlert.modified) {
+            return true;
+          }
+          continue;
+        }
+
+        // Fallback to deep signature comparison if timestamp is missing
+        const cachedSignature = createAlertSignature(cachedAlert);
+        const currentSignature = createAlertSignature(newAlert);
+
+        if (currentSignature !== cachedSignature) {
+          return true;
+        }
       }
 
-      // Fallback to deep signature comparison if timestamp is missing
-      const cachedSignature = createAlertSignature(cachedAlert);
-      const currentSignature = createAlertSignature(newAlert);
-
-      if (currentSignature !== cachedSignature) {
-        return true;
-      }
-    }
-
-    return false;
-  }, [createAlertSignature]);
+      return false;
+    },
+    [createAlertSignature],
+  );
 
   // Filter alerts based on user preferences using AlertFilters utility
-  const filterAlerts = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
-    return AlertFilters.filterDismissedAndHidden(
-      alertsToFilter,
-      state.userDismissedAlerts,
-      state.userHiddenAlerts
-    );
-  }, [state.userDismissedAlerts, state.userHiddenAlerts]);
+  const filterAlerts = useCallback(
+    (alertsToFilter: IAlertItem[]): IAlertItem[] => {
+      return AlertFilters.filterDismissedAndHidden(
+        alertsToFilter,
+        state.userDismissedAlerts,
+        state.userHiddenAlerts,
+      );
+    },
+    [state.userDismissedAlerts, state.userHiddenAlerts],
+  );
 
   // Filter alerts by target sites using AlertFilters utility
-  const filterAlertsByTargetSites = useCallback((alertsToFilter: IAlertItem[]): IAlertItem[] => {
-    const scopedSiteIds = servicesRef.current.options?.siteIds || [];
-    return AlertFilters.filterByTargetSites(alertsToFilter, scopedSiteIds);
-  }, []);
+  const filterAlertsByTargetSites = useCallback(
+    (alertsToFilter: IAlertItem[]): IAlertItem[] => {
+      const scopedSiteIds = servicesRef.current.options?.siteIds || [];
+      return AlertFilters.filterByTargetSites(alertsToFilter, scopedSiteIds);
+    },
+    [],
+  );
 
   // Apply language-aware filtering to show appropriate language variants
-  const applyLanguageAwareFiltering = useCallback(async (alertsToFilter: IAlertItem[]): Promise<IAlertItem[]> => {
-    if (!servicesRef.current.languageAwarenessService) {
-      return alertsToFilter; // No language service, return as-is
-    }
+  const applyLanguageAwareFiltering = useCallback(
+    async (alertsToFilter: IAlertItem[]): Promise<IAlertItem[]> => {
+      if (!servicesRef.current.languageAwarenessService) {
+        return alertsToFilter; // No language service, return as-is
+      }
 
-    try {
-      const userLanguage = await servicesRef.current.languageAwarenessService.getUserPreferredLanguage();
-      const filteredAlerts = servicesRef.current.languageAwarenessService.filterAlertsForUser(
-        alertsToFilter,
-        userLanguage,
-        servicesRef.current.languagePolicy || DEFAULT_LANGUAGE_POLICY
-      );
-      
-      logger.info('AlertsContext', `Applied language filtering: ${userLanguage}`, {
-        originalCount: alertsToFilter.length,
-        filteredCount: filteredAlerts.length,
-        userLanguage
-      });
-      
-      return filteredAlerts;
-    } catch (error) {
-      logger.warn('AlertsContext', 'Error applying language filtering, using all alerts', error);
-      return alertsToFilter;
-    }
-  }, []);
+      try {
+        const userLanguage =
+          await servicesRef.current.languageAwarenessService.getUserPreferredLanguage();
+        const filteredAlerts =
+          servicesRef.current.languageAwarenessService.filterAlertsForUser(
+            alertsToFilter,
+            userLanguage,
+            servicesRef.current.languagePolicy || DEFAULT_LANGUAGE_POLICY,
+          );
+
+        logger.info(
+          "AlertsContext",
+          `Applied language filtering: ${userLanguage}`,
+          {
+            originalCount: alertsToFilter.length,
+            filteredCount: filteredAlerts.length,
+            userLanguage,
+          },
+        );
+
+        return filteredAlerts;
+      } catch (error) {
+        logger.warn(
+          "AlertsContext",
+          "Error applying language filtering, using all alerts",
+          error,
+        );
+        return alertsToFilter;
+      }
+    },
+    [],
+  );
 
   // Send notifications
-  const sendNotifications = useCallback(async (alertsToNotify: IAlertItem[]): Promise<void> => {
-    if (!servicesRef.current.options?.notificationsEnabled || alertsToNotify.length === 0 || !servicesRef.current.notificationService) return;
+  const sendNotifications = useCallback(
+    async (alertsToNotify: IAlertItem[]): Promise<void> => {
+      if (
+        !servicesRef.current.options?.notificationsEnabled ||
+        alertsToNotify.length === 0 ||
+        !servicesRef.current.notificationService
+      )
+        return;
 
-    for (const alert of alertsToNotify) {
-      if (alert.notificationType !== NotificationType.Browser && alert.notificationType !== NotificationType.Both) {
-        continue;
+      for (const alert of alertsToNotify) {
+        if (
+          alert.notificationType !== NotificationType.Browser &&
+          alert.notificationType !== NotificationType.Both
+        ) {
+          continue;
+        }
+
+        await servicesRef.current.notificationService.showInfo(
+          `New alert: ${alert.title}`,
+          "Alert Notification",
+        );
       }
-
-      await servicesRef.current.notificationService.showInfo(`New alert: ${alert.title}`, 'Alert Notification');
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Initialize alerts
-  const initializeAlerts = useCallback(async (initOptions: AlertsContextOptions): Promise<void> => {
-    try {
-      servicesRef.current.options = initOptions;
-      servicesRef.current.graphClient = initOptions.graphClient;
+  const initializeAlerts = useCallback(
+    async (initOptions: AlertsContextOptions): Promise<void> => {
+      try {
+        servicesRef.current.options = initOptions;
+        servicesRef.current.graphClient = initOptions.graphClient;
 
-      // Initialize services
-      servicesRef.current.userTargetingService = UserTargetingService.getInstance(servicesRef.current.graphClient, initOptions.context);
-      servicesRef.current.notificationService = NotificationService.getInstance(initOptions.context);
-      servicesRef.current.languageAwarenessService = new LanguageAwarenessService(servicesRef.current.graphClient, initOptions.context);
-      servicesRef.current.sharePointAlertService = new SharePointAlertService(servicesRef.current.graphClient, initOptions.context);
-      servicesRef.current.languagePolicy = await servicesRef.current.sharePointAlertService
-        .getLanguagePolicy()
-        .catch(() => DEFAULT_LANGUAGE_POLICY);
+        // Initialize services
+        servicesRef.current.userTargetingService =
+          UserTargetingService.getInstance(
+            servicesRef.current.graphClient,
+            initOptions.context,
+          );
+        servicesRef.current.notificationService =
+          NotificationService.getInstance(initOptions.context);
+        servicesRef.current.languageAwarenessService =
+          new LanguageAwarenessService(
+            servicesRef.current.graphClient,
+            initOptions.context,
+          );
+        servicesRef.current.sharePointAlertService = new SharePointAlertService(
+          servicesRef.current.graphClient,
+          initOptions.context,
+        );
+        servicesRef.current.languagePolicy =
+          await servicesRef.current.sharePointAlertService
+            .getLanguagePolicy()
+            .catch(() => DEFAULT_LANGUAGE_POLICY);
 
-      alertCacheRef.current.clear();
+        alertCacheRef.current.clear();
 
-      dispatch({ type: 'SET_LOADING', payload: true });
+        dispatch({ type: "SET_LOADING", payload: true });
 
-      // Initialize user targeting service first
-      if (servicesRef.current.options.userTargetingEnabled) {
-        await servicesRef.current.userTargetingService.initialize();
-      }
-
-      // Load alert types from SharePoint list first, fall back to JSON if needed
-      const loadedFromList = await loadAlertTypesFromList();
-      if (!loadedFromList) {
-        loadAlertTypes(servicesRef.current.options.alertTypesJson);
-      }
-
-      // Get user's dismissed and hidden alerts - batch update to reduce re-renders
-      if (servicesRef.current.options.userTargetingEnabled) {
-        const dismissedAlerts = servicesRef.current.userTargetingService.getUserDismissedAlerts();
-        const hiddenAlerts = servicesRef.current.userTargetingService.getUserHiddenAlerts();
-
-        dispatch({ 
-          type: 'BATCH_UPDATE', 
-          payload: { 
-            userDismissedAlerts: dismissedAlerts,
-            userHiddenAlerts: hiddenAlerts
-          } 
-        });
-      }
-
-      // Fetch and process alerts
-      await refreshAlerts();
-
-    } catch (error) {
-      logger.error("AlertsContext", "Error initializing alerts", error, {
-        options: servicesRef.current.options
-      });
-      dispatch({
-        type: 'SET_ERROR',
-        payload: {
-          hasError: true,
-          message: "Failed to load alerts. Please try refreshing the page."
+        // Initialize user targeting service first
+        if (servicesRef.current.options.userTargetingEnabled) {
+          await servicesRef.current.userTargetingService.initialize();
         }
-      });
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [loadAlertTypes]);
+
+        // Load alert types from SharePoint list first, fall back to JSON if needed
+        const loadedFromList = await loadAlertTypesFromList();
+        if (!loadedFromList) {
+          loadAlertTypes(servicesRef.current.options.alertTypesJson);
+        }
+
+        // Get user's dismissed and hidden alerts - batch update to reduce re-renders
+        if (servicesRef.current.options.userTargetingEnabled) {
+          const dismissedAlerts =
+            servicesRef.current.userTargetingService.getUserDismissedAlerts();
+          const hiddenAlerts =
+            servicesRef.current.userTargetingService.getUserHiddenAlerts();
+
+          dispatch({
+            type: "BATCH_UPDATE",
+            payload: {
+              userDismissedAlerts: dismissedAlerts,
+              userHiddenAlerts: hiddenAlerts,
+            },
+          });
+        }
+
+        // Fetch and process alerts
+        await refreshAlerts();
+      } catch (error) {
+        logger.error("AlertsContext", "Error initializing alerts", error, {
+          options: servicesRef.current.options,
+        });
+        dispatch({
+          type: "SET_ERROR",
+          payload: {
+            hasError: true,
+            message: "Failed to load alerts. Please try refreshing the page.",
+          },
+        });
+        dispatch({ type: "SET_LOADING", payload: false });
+      }
+    },
+    [loadAlertTypes],
+  );
 
   // Refresh alerts
   const refreshAlerts = useCallback(async (): Promise<void> => {
-    if (!servicesRef.current.options || !servicesRef.current.graphClient) return;
+    if (!servicesRef.current.options || !servicesRef.current.graphClient)
+      return;
 
     try {
       const allAlerts: IAlertItem[] = [];
@@ -489,7 +637,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Normalize site IDs and remove duplicates
       const dedupMap = new Map<string, string>();
-      (siteIds || []).forEach(siteId => {
+      (siteIds || []).forEach((siteId) => {
         const dedupKey = createSiteDedupKey(siteId);
         if (dedupKey && !dedupMap.has(dedupKey)) {
           dedupMap.set(dedupKey, siteId);
@@ -498,27 +646,27 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const uniqueSiteIds = Array.from(dedupMap.values());
 
-      logger.info('AlertsContext', 'Processing sites for alert refresh', {
+      logger.info("AlertsContext", "Processing sites for alert refresh", {
         totalSiteIds: siteIds.length,
-        uniqueSiteIds: uniqueSiteIds.length
+        uniqueSiteIds: uniqueSiteIds.length,
       });
 
       for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
         const batch = uniqueSiteIds.slice(i, i + batchSize);
-        const batchPromises = batch.map(siteId => fetchAlerts(siteId));
+        const batchPromises = batch.map((siteId) => fetchAlerts(siteId));
         const batchResults = await Promise.allSettled(batchPromises);
 
         batchResults.forEach((result, index) => {
-          if (result.status === 'fulfilled') {
-            logger.debug('AlertsContext', `Site returned alerts successfully`, {
+          if (result.status === "fulfilled") {
+            logger.debug("AlertsContext", `Site returned alerts successfully`, {
               siteId: batch[index],
-              alertCount: result.value.length
+              alertCount: result.value.length,
             });
             allAlerts.push(...result.value);
           } else {
-            logger.warn('AlertsContext', `Site failed to return alerts`, {
+            logger.warn("AlertsContext", `Site failed to return alerts`, {
               siteId: batch[index],
-              error: result.reason
+              error: result.reason,
             });
           }
         });
@@ -526,8 +674,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // If no alerts were fetched, handle gracefully
       if (allAlerts.length === 0) {
-        dispatch({ type: 'SET_ALERTS', payload: [] });
-        dispatch({ type: 'SET_LOADING', payload: false });
+        dispatch({ type: "SET_ALERTS", payload: [] });
+        dispatch({ type: "SET_LOADING", payload: false });
         return;
       }
 
@@ -535,12 +683,13 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const uniqueAlerts = removeDuplicateAlerts(allAlerts);
 
       // Compare with cached alerts
-      const cachedAlerts = storageService.getFromLocalStorage<IAlertItem[]>('AllAlerts');
+      const cachedAlerts =
+        storageService.getFromLocalStorage<IAlertItem[]>("AllAlerts");
       const alertsAreDifferent = areAlertsDifferent(uniqueAlerts, cachedAlerts);
 
       // Update cache if needed
       if (alertsAreDifferent) {
-        storageService.saveToLocalStorage('AllAlerts', uniqueAlerts);
+        storageService.saveToLocalStorage("AllAlerts", uniqueAlerts);
       }
 
       // Get alerts to display
@@ -549,8 +698,14 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       alertsToShow = filterAlertsByTargetSites(alertsToShow);
 
       // Apply user targeting if enabled
-      if (servicesRef.current.options.userTargetingEnabled && servicesRef.current.userTargetingService) {
-        alertsToShow = await servicesRef.current.userTargetingService.filterAlertsForCurrentUser(alertsToShow);
+      if (
+        servicesRef.current.options.userTargetingEnabled &&
+        servicesRef.current.userTargetingService
+      ) {
+        alertsToShow =
+          await servicesRef.current.userTargetingService.filterAlertsForCurrentUser(
+            alertsToShow,
+          );
       }
 
       // Apply language-aware filtering to show appropriate language variants
@@ -561,7 +716,10 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Limit the number of alerts to prevent performance issues
       if (alertsToShow.length > 20) {
-        logger.warn('AlertsContext', `Limiting alerts to 20 for performance (found ${alertsToShow.length})`);
+        logger.warn(
+          "AlertsContext",
+          `Limiting alerts to 20 for performance (found ${alertsToShow.length})`,
+        );
         alertsToShow = alertsToShow.slice(0, 20);
       }
 
@@ -569,9 +727,12 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       alertsToShow = sortAlertsByPriority(alertsToShow);
 
       // Send notifications for critical/high priority alerts if they're new
-      if (servicesRef.current.options.notificationsEnabled && alertsAreDifferent) {
-        const highPriorityAlerts = alertsToShow.filter(alert =>
-          [AlertPriority.Critical, AlertPriority.High].includes(alert.priority)
+      if (
+        servicesRef.current.options.notificationsEnabled &&
+        alertsAreDifferent
+      ) {
+        const highPriorityAlerts = alertsToShow.filter((alert) =>
+          [AlertPriority.Critical, AlertPriority.High].includes(alert.priority),
         );
 
         // Only send notifications for the first 5 high priority alerts to avoid spamming
@@ -581,19 +742,18 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // Update state
-      dispatch({ type: 'SET_ALERTS', payload: alertsToShow });
-      dispatch({ type: 'SET_LOADING', payload: false });
-
+      dispatch({ type: "SET_ALERTS", payload: alertsToShow });
+      dispatch({ type: "SET_LOADING", payload: false });
     } catch (error) {
-      logger.error('AlertsContext', 'Error refreshing alerts', error);
+      logger.error("AlertsContext", "Error refreshing alerts", error);
       dispatch({
-        type: 'SET_ERROR',
+        type: "SET_ERROR",
         payload: {
           hasError: true,
-          message: "Failed to refresh alerts. Please try again."
-        }
+          message: "Failed to refresh alerts. Please try again.",
+        },
       });
-      dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({ type: "SET_LOADING", payload: false });
     }
   }, [
     filterAlerts,
@@ -604,38 +764,63 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     sendNotifications,
     fetchAlerts,
     createSiteDedupKey,
-    applyLanguageAwareFiltering
+    applyLanguageAwareFiltering,
   ]);
 
   // Handle removing an alert
   const removeAlert = useCallback((id: string): void => {
-    dispatch({ type: 'DISMISS_ALERT', payload: id });
+    dispatch({ type: "DISMISS_ALERT", payload: id });
 
     // Add to user's dismissed alerts if targeting is enabled
-    if (servicesRef.current.options?.userTargetingEnabled && servicesRef.current.userTargetingService) {
+    if (
+      servicesRef.current.options?.userTargetingEnabled &&
+      servicesRef.current.userTargetingService
+    ) {
       servicesRef.current.userTargetingService.addUserDismissedAlert(id);
     }
   }, []);
 
   // Handle hiding an alert forever
   const hideAlertForever = useCallback((id: string): void => {
-    dispatch({ type: 'HIDE_ALERT_FOREVER', payload: id });
+    dispatch({ type: "HIDE_ALERT_FOREVER", payload: id });
 
     // Add to user's hidden alerts if targeting is enabled
-    if (servicesRef.current.options?.userTargetingEnabled && servicesRef.current.userTargetingService) {
+    if (
+      servicesRef.current.options?.userTargetingEnabled &&
+      servicesRef.current.userTargetingService
+    ) {
       servicesRef.current.userTargetingService.addUserHiddenAlert(id);
     }
   }, []);
 
+  // Update carousel settings
+  const updateCarouselSettings = useCallback(
+    (settings: { carouselEnabled?: boolean; carouselInterval?: number }) => {
+      dispatch({ type: "SET_CAROUSEL_SETTINGS", payload: settings });
+    },
+    [],
+  );
+
   // The value we'll provide to consumers
-  const value = React.useMemo(() => ({
-    state,
-    dispatch,
-    removeAlert,
-    hideAlertForever,
-    initializeAlerts,
-    refreshAlerts
-  }), [state, removeAlert, hideAlertForever, initializeAlerts, refreshAlerts]);
+  const value = React.useMemo(
+    () => ({
+      state,
+      dispatch,
+      removeAlert,
+      hideAlertForever,
+      initializeAlerts,
+      refreshAlerts,
+      updateCarouselSettings,
+    }),
+    [
+      state,
+      removeAlert,
+      hideAlertForever,
+      initializeAlerts,
+      refreshAlerts,
+      updateCarouselSettings,
+    ],
+  );
 
   // Periodic cleanup of expired cache entries
   const cleanupExpiredCache = useCallback(() => {
@@ -650,7 +835,10 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     if (cleanedCount > 0) {
-      logger.debug('AlertsContext', `Cleaned up ${cleanedCount} expired cache entries`);
+      logger.debug(
+        "AlertsContext",
+        `Cleaned up ${cleanedCount} expired cache entries`,
+      );
     }
   }, []);
 
@@ -660,16 +848,31 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => clearInterval(cleanupInterval);
   }, [cleanupExpiredCache]);
 
+  // Cross-tab sync: re-read dismissed/hidden state when another tab changes localStorage
+  React.useEffect(() => {
+    const storage = StorageService.getInstance();
+
+    const cleanup = storage.initCrossTabSync(() => {
+      logger.info(
+        "AlertsContext",
+        "Cross-tab storage change detected, refreshing state",
+      );
+      refreshAlerts();
+    });
+
+    return cleanup;
+  }, [refreshAlerts]);
+
   const cleanup = useCallback(() => {
-    logger.info('AlertsContext', 'Cleaning up AlertsContext resources');
+    logger.info("AlertsContext", "Cleaning up AlertsContext resources");
     alertCacheRef.current.clear();
     pendingRequestsRef.current.clear();
     servicesRef.current = {};
 
     // Dispatch final cleanup state
-    dispatch({ type: 'SET_ALERTS', payload: [] });
-    dispatch({ type: 'SET_LOADING', payload: false });
-    dispatch({ type: 'SET_ERROR', payload: { hasError: false } });
+    dispatch({ type: "SET_ALERTS", payload: [] });
+    dispatch({ type: "SET_LOADING", payload: false });
+    dispatch({ type: "SET_ERROR", payload: { hasError: false } });
   }, []);
 
   React.useEffect(() => {
@@ -677,16 +880,14 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [cleanup]);
 
   return (
-    <AlertsContext.Provider value={value}>
-      {children}
-    </AlertsContext.Provider>
+    <AlertsContext.Provider value={value}>{children}</AlertsContext.Provider>
   );
 };
 
 export const useAlerts = () => {
   const context = useContext(AlertsContext);
   if (context === undefined) {
-    throw new Error('useAlerts must be used within an AlertsProvider');
+    throw new Error("useAlerts must be used within an AlertsProvider");
   }
   return context;
 };

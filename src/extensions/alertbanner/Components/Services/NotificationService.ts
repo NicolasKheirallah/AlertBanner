@@ -107,11 +107,6 @@ export class NotificationService {
     } catch (error) {
       logger.error('NotificationService', 'Failed to show notification, falling back to console', error);
       logger.info('NotificationService', `[${options.type.toUpperCase()}] ${options.title}: ${options.message}`);
-      
-      // Ultimate fallback to alert (only for critical errors)
-      if (options.type === NotificationType.Error) {
-        alert(`${options.title}: ${options.message}`);
-      }
     }
   }
 

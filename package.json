@@ -16,8 +16,8 @@
     "lint:fix": "eslint src/**/*.{ts,tsx} --fix"
   },
   "dependencies": {
-    "@fluentui/react-components": "^9.72.11",
-    "@fluentui/react-icons": "^2.0.318",
+    "@fluentui/react-components": "^9.73.0",
+    "@fluentui/react-icons": "^2.0.319",
     "@fluentui/style-utilities": "^8.14.0",
     "@microsoft/decorators": "1.22.2",
     "@microsoft/mgt": "^4.6.0",

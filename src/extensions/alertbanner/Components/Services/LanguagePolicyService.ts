@@ -10,7 +10,7 @@ export interface ILanguagePolicy {
   fallbackLanguage: TargetLanguage | "tenant-default";
   completenessRule: TranslationCompletenessRule;
   requireLinkDescriptionWhenUrl: boolean;
-  preventDuplicateLanguages: boolean;
+
   inheritance: {
     enabled: boolean;
     fields: {
@@ -31,29 +31,31 @@ export const DEFAULT_LANGUAGE_POLICY: ILanguagePolicy = {
   fallbackLanguage: TargetLanguage.EnglishUS,
   completenessRule: "allSelectedComplete",
   requireLinkDescriptionWhenUrl: true,
-  preventDuplicateLanguages: true,
+
   inheritance: {
     enabled: false,
     fields: {
       title: true,
       description: true,
-      linkDescription: true
-    }
+      linkDescription: true,
+    },
   },
   workflow: {
     enabled: false,
     defaultStatus: TranslationStatus.Draft,
-    requireApprovedForDisplay: true
-  }
+    requireApprovedForDisplay: true,
+  },
 };
 
 const validCompletenessRules: TranslationCompletenessRule[] = [
   "atLeastOneComplete",
   "allSelectedComplete",
-  "requireDefaultLanguageComplete"
+  "requireDefaultLanguageComplete",
 ];
 
-export const normalizeLanguagePolicy = (policy?: Partial<ILanguagePolicy>): ILanguagePolicy => {
+export const normalizeLanguagePolicy = (
+  policy?: Partial<ILanguagePolicy>,
+): ILanguagePolicy => {
   const merged: ILanguagePolicy = {
     ...DEFAULT_LANGUAGE_POLICY,
     ...policy,
@@ -62,13 +64,13 @@ export const normalizeLanguagePolicy = (policy?: Partial<ILanguagePolicy>): ILan
       ...(policy?.inheritance || {}),
       fields: {
         ...DEFAULT_LANGUAGE_POLICY.inheritance.fields,
-        ...(policy?.inheritance?.fields || {})
-      }
+        ...(policy?.inheritance?.fields || {}),
+      },
     },
     workflow: {
       ...DEFAULT_LANGUAGE_POLICY.workflow,
-      ...(policy?.workflow || {})
-    }
+      ...(policy?.workflow || {}),
+    },
   };
 
   if (!validCompletenessRules.includes(merged.completenessRule)) {

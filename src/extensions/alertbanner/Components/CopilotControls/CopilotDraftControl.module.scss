@@ -1,0 +1,35 @@
+
+
+.popoverContent {
+  width: 320px;
+  padding: 16px;
+}
+
+.popoverTitle {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fieldGroup {
+  margin-bottom: 12px;
+}
+
+.toneGroup {
+  margin-bottom: 16px;
+}
+
+.fieldLabel {
+  margin-bottom: 4px;
+}
+
+.fullWidth {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

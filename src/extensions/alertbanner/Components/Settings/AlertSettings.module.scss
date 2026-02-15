@@ -221,6 +221,18 @@
   border-top: 1px solid #edebe9;
 }
 
+.copilotActionsRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.autoSaveIndicator {
+  margin-left: auto;
+  font-size: 12px;
+  color: #666;
+}
+
 // Alert types section
 .typeFormWithPreview {
   display: grid;
@@ -969,6 +981,24 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
   }
+}
+
+// Skeleton loading placeholder
+.skeletonLine {
+  background: linear-gradient(
+    90deg,
+    var(--colorNeutralBackground3, #f3f2f1) 25%,
+    var(--colorNeutralBackground4, #edebe9) 50%,
+    var(--colorNeutralBackground3, #f3f2f1) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .alertMetaData {

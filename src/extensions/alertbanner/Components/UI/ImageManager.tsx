@@ -4,6 +4,8 @@ import { SharePointButton } from './SharePointControls';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { ImageStorageService, IExistingImage } from '../Services/ImageStorageService';
 import { logger } from '../Services/LoggerService';
+import { NotificationService } from '../Services/NotificationService';
+import { useFluentDialogs } from '../Hooks/useFluentDialogs';
 import { DateUtils } from '../Utils/DateUtils';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './ImageManager.module.scss';
@@ -26,6 +28,11 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   onImageDeleted
 }) => {
   const [images, setImages] = React.useState<IExistingImage[]>([]);
+  const notificationService = React.useMemo(
+    () => NotificationService.getInstance(context),
+    [context],
+  );
+  const { confirm, dialogs } = useFluentDialogs();
 
   const fetchFolderImages = React.useCallback(async (): Promise<IExistingImage[]> => {
     return await imageStorageService.listImages(folderName);
@@ -59,30 +66,39 @@ const ImageManager: React.FC<IImageManagerProps> = ({
         if (onImageDeleted) {
           onImageDeleted();
         }
+        notificationService.showSuccess("Image deleted successfully.", strings.Delete);
       },
       onError: (err) => {
-        alert(Text.format(strings.ImageManagerDeleteError, err.message || ''));
+        notificationService.showError(
+          Text.format(strings.ImageManagerDeleteError, err.message || ''),
+          strings.Delete,
+        );
       },
       logErrors: true
     }
   );
 
   const handleDeleteImage = React.useCallback(async (image: IExistingImage) => {
-    if (!confirm(Text.format(strings.ImageManagerDeleteConfirm, image.name))) {
+    const shouldDelete = await confirm({
+      title: strings.Delete,
+      message: Text.format(strings.ImageManagerDeleteConfirm, image.name),
+      confirmText: strings.Delete,
+    });
+    if (!shouldDelete) {
       return;
     }
     await deleteImage(image);
-  }, [deleteImage]);
+  }, [deleteImage, confirm]);
 
   const handleCopyUrl = React.useCallback((image: IExistingImage) => {
     const fullUrl = `${window.location.origin}${image.serverRelativeUrl}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
-      alert(strings.ImageManagerCopySuccess);
+      notificationService.showSuccess(strings.ImageManagerCopySuccess, strings.ImageManagerCopyUrl);
     }).catch(err => {
       logger.error('ImageManager', 'Error copying URL', err);
-      alert(strings.ImageManagerCopyError);
+      notificationService.showError(strings.ImageManagerCopyError, strings.ImageManagerCopyUrl);
     });
-  }, []);
+  }, [notificationService]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
@@ -93,6 +109,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   if (isLoading) {
     return (
       <div className={styles.container}>
+        {dialogs}
         <div className={styles.loading}>{strings.ImageManagerLoading}</div>
       </div>
     );
@@ -101,6 +118,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   if (error) {
     return (
       <div className={styles.container}>
+        {dialogs}
         <div className={styles.error}>{Text.format(strings.ImageManagerError, error.message || '')}</div>
       </div>
     );
@@ -109,6 +127,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
   if (images.length === 0) {
     return (
       <div className={styles.container}>
+        {dialogs}
         <div className={styles.emptyState}>
           <Image24Regular className={styles.emptyIcon} />
           <p>{strings.ImageManagerEmpty}</p>
@@ -119,6 +138,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
 
   return (
     <div className={styles.container}>
+      {dialogs}
       <div className={styles.header}>
         <h4>{Text.format(strings.ImageManagerHeaderTitle, images.length.toString())}</h4>
         <SharePointButton variant="secondary" onClick={loadImages}>

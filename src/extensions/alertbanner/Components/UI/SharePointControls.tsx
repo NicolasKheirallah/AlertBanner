@@ -1,5 +1,8 @@
 import * as React from "react";
-import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
+import {
+  PeoplePicker,
+  PrincipalType,
+} from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import styles from "./SharePointControls.module.scss";
 
 const generateId = (() => {
@@ -7,7 +10,10 @@ const generateId = (() => {
   return () => `sp-control-${counter++}`;
 })();
 
-export interface ISharePointButtonProps {
+export interface ISharePointButtonProps extends Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  "onClick" | "disabled" | "type" | "className"
+> {
   children?: React.ReactNode;
   onClick?: () => void;
   variant?: "primary" | "secondary" | "danger";
@@ -24,9 +30,10 @@ export const SharePointButton: React.FC<ISharePointButtonProps> = ({
   disabled = false,
   icon,
   className,
-  type = "button"
+  type = "button",
+  ...rest
 }) => {
-  const buttonClass = `${styles.button} ${styles[variant]} ${className || ''}`;
+  const buttonClass = `${styles.button} ${styles[variant]} ${className || ""}`;
 
   return (
     <button
@@ -34,6 +41,7 @@ export const SharePointButton: React.FC<ISharePointButtonProps> = ({
       className={buttonClass}
       onClick={onClick}
       disabled={disabled}
+      {...rest}
     >
       {icon && <span className={styles.buttonIcon}>{icon}</span>}
       {children}
@@ -50,7 +58,14 @@ export interface ISharePointInputProps {
   disabled?: boolean;
   error?: string;
   description?: string;
-  type?: "text" | "email" | "url" | "password" | "datetime-local" | "date" | "time";
+  type?:
+    | "text"
+    | "email"
+    | "url"
+    | "password"
+    | "datetime-local"
+    | "date"
+    | "time";
   className?: string;
 }
 
@@ -64,14 +79,14 @@ export const SharePointInput: React.FC<ISharePointInputProps> = ({
   error,
   description,
   type = "text",
-  className
+  className,
 }) => {
   const inputId = React.useMemo(() => generateId(), []);
   const errorId = `${inputId}-error`;
   const descId = `${inputId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ''}`}>
+    <div className={`${styles.field} ${className || ""}`}>
       <label htmlFor={inputId} className={styles.label}>
         {label}
         {required && <span className={styles.required}>*</span>}
@@ -90,7 +105,7 @@ export const SharePointInput: React.FC<ISharePointInputProps> = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`${styles.input} ${error ? styles.inputError : ''}`}
+        className={`${styles.input} ${error ? styles.inputError : ""}`}
         aria-describedby={description ? descId : error ? errorId : undefined}
         aria-invalid={!!error}
         required={required}
@@ -128,14 +143,14 @@ export const SharePointTextArea: React.FC<ISharePointTextAreaProps> = ({
   error,
   description,
   rows = 4,
-  className
+  className,
 }) => {
   const textareaId = React.useMemo(() => generateId(), []);
   const errorId = `${textareaId}-error`;
   const descId = `${textareaId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ''}`}>
+    <div className={`${styles.field} ${className || ""}`}>
       <label htmlFor={textareaId} className={styles.label}>
         {label}
         {required && <span className={styles.required}>*</span>}
@@ -154,7 +169,7 @@ export const SharePointTextArea: React.FC<ISharePointTextAreaProps> = ({
         placeholder={placeholder}
         disabled={disabled}
         rows={rows}
-        className={`${styles.textarea} ${error ? styles.inputError : ''}`}
+        className={`${styles.textarea} ${error ? styles.inputError : ""}`}
         aria-describedby={description ? descId : error ? errorId : undefined}
         aria-invalid={!!error}
         required={required}
@@ -198,14 +213,14 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
   disabled = false,
   error,
   description,
-  className
+  className,
 }) => {
   const selectId = React.useMemo(() => generateId(), []);
   const errorId = `${selectId}-error`;
   const descId = `${selectId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ''}`}>
+    <div className={`${styles.field} ${className || ""}`}>
       <label htmlFor={selectId} className={styles.label}>
         {label}
         {required && <span className={styles.required}>*</span>}
@@ -222,7 +237,7 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`${styles.select} ${error ? styles.inputError : ''}`}
+        className={`${styles.select} ${error ? styles.inputError : ""}`}
         aria-describedby={description ? descId : error ? errorId : undefined}
         aria-invalid={!!error}
         required={required}
@@ -267,13 +282,13 @@ export const SharePointToggle: React.FC<ISharePointToggleProps> = ({
   onChange,
   disabled = false,
   description,
-  className
+  className,
 }) => {
   const toggleId = React.useMemo(() => generateId(), []);
   const descId = `${toggleId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ''}`}>
+    <div className={`${styles.field} ${className || ""}`}>
       <div className={styles.toggleContainer}>
         <button
           id={toggleId}
@@ -302,7 +317,7 @@ export const SharePointToggle: React.FC<ISharePointToggleProps> = ({
   );
 };
 
-export interface ISharePointSectionProps{
+export interface ISharePointSectionProps {
   title: string;
   children: React.ReactNode;
   collapsed?: boolean;
@@ -315,10 +330,10 @@ export const SharePointSection: React.FC<ISharePointSectionProps> = ({
   children,
   collapsed = false,
   onToggle,
-  className
+  className,
 }) => {
   return (
-    <div className={`${styles.section} ${className || ''}`}>
+    <div className={`${styles.section} ${className || ""}`}>
       <div
         className={styles.sectionHeader}
         onClick={onToggle ? () => onToggle(!collapsed) : undefined}
@@ -327,17 +342,15 @@ export const SharePointSection: React.FC<ISharePointSectionProps> = ({
       >
         <h3 className={styles.sectionTitle}>{title}</h3>
         {onToggle && (
-          <span className={`${styles.sectionToggle} ${collapsed ? styles.collapsed : ''}`}>
+          <span
+            className={`${styles.sectionToggle} ${collapsed ? styles.collapsed : ""}`}
+          >
             ⌄
           </span>
         )}
       </div>
 
-      {!collapsed && (
-        <div className={styles.sectionContent}>
-          {children}
-        </div>
-      )}
+      {!collapsed && <div className={styles.sectionContent}>{children}</div>}
     </div>
   );
 };
@@ -369,47 +382,68 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
   disabled = false,
   onChange,
   defaultSelectedUsers,
-  principalTypes = [PrincipalType.User, PrincipalType.SharePointGroup, PrincipalType.SecurityGroup],
+  principalTypes = [
+    PrincipalType.User,
+    PrincipalType.SharePointGroup,
+    PrincipalType.SecurityGroup,
+  ],
   resolveDelay = 1000,
   className,
   description,
-  error
+  error,
 }) => {
   const pickerId = React.useMemo(() => generateId(), []);
   const errorId = `${pickerId}-error`;
   const descId = `${pickerId}-desc`;
 
   // Defensive check: ensure context is defined and has necessary properties
-  const isContextValid = context && context.pageContext && context.pageContext.web && context.pageContext.web.absoluteUrl;
-  
+  const isContextValid =
+    context &&
+    context.pageContext &&
+    context.pageContext.web &&
+    context.pageContext.web.absoluteUrl;
+
   if (!isContextValid) {
     // If context is invalid, we can try to fall back or show a warning.
     // For PeoplePicker, we absolutely need the web URL to call the API.
     // We can try to use window.location.origin + context.pageContext.web.serverRelativeUrl if available?
     let fallbackUrl = "";
-    if (context && context.pageContext && context.pageContext.web && context.pageContext.web.serverRelativeUrl) {
-        fallbackUrl = window.location.origin + context.pageContext.web.serverRelativeUrl;
-        // Hack: patch the context object if we can
-        try {
-            context.pageContext.web.absoluteUrl = fallbackUrl;
-        } catch (e) {
-            // Immutable?
-        }
+    if (
+      context &&
+      context.pageContext &&
+      context.pageContext.web &&
+      context.pageContext.web.serverRelativeUrl
+    ) {
+      fallbackUrl =
+        window.location.origin + context.pageContext.web.serverRelativeUrl;
+      // Hack: patch the context object if we can
+      try {
+        context.pageContext.web.absoluteUrl = fallbackUrl;
+      } catch (e) {
+        // Immutable?
+      }
     }
 
-    if (!fallbackUrl && (!context || !context.pageContext || !context.pageContext.web || !context.pageContext.web.absoluteUrl)) {
-        return (
-        <div className={`${styles.field} ${className || ''}`}>
-            <div className={styles.error}>
-            People Picker Error: Context is not properly initialized (missing absoluteUrl). Please refresh the page.
-            </div>
+    if (
+      !fallbackUrl &&
+      (!context ||
+        !context.pageContext ||
+        !context.pageContext.web ||
+        !context.pageContext.web.absoluteUrl)
+    ) {
+      return (
+        <div className={`${styles.field} ${className || ""}`}>
+          <div className={styles.error}>
+            People Picker Error: Context is not properly initialized (missing
+            absoluteUrl). Please refresh the page.
+          </div>
         </div>
-        );
+      );
     }
   }
 
   return (
-    <div className={`${styles.field} ${className || ''}`}>
+    <div className={`${styles.field} ${className || ""}`}>
       <div className={styles.peoplePickerContainer}>
         <PeoplePicker
           context={context}

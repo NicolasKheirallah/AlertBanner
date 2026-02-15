@@ -4,6 +4,7 @@ import { ImageAdd24Regular } from '@fluentui/react-icons';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { ImageStorageService } from '../Services/ImageStorageService';
 import { logger } from '../Services/LoggerService';
+import { NotificationService } from '../Services/NotificationService';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './ImageUpload.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
@@ -27,6 +28,10 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
   if (!storageServiceRef.current) {
     storageServiceRef.current = new ImageStorageService(context);
   }
+  const notificationService = React.useMemo(
+    () => NotificationService.getInstance(context),
+    [context],
+  );
 
   // Upload image using useAsyncOperation
   const { loading: isUploading, execute: uploadImage } = useAsyncOperation(
@@ -49,7 +54,7 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
       onError: (error) => {
         logger.error('ImageUpload', 'Image upload failed', error);
         const errorMessage = error instanceof Error ? error.message : strings.ImageUploadFailure;
-        alert(errorMessage);
+        notificationService.showError(errorMessage, strings.ImageUploadFailure);
       },
       logErrors: true
     }
@@ -77,12 +82,12 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
     }
 
     if (!file.type?.startsWith('image/')) {
-      alert(strings.ImageUploadInvalidFile);
+      notificationService.showWarning(strings.ImageUploadInvalidFile, strings.ImageUploadFailure);
       return;
     }
 
     await uploadImage(file);
-  }, [uploadImage]);
+  }, [uploadImage, notificationService]);
 
   const label = strings.UploadImage;
 
