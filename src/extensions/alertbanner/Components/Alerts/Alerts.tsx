@@ -281,6 +281,9 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   }
 
   const hasAlerts = alerts.length > 0;
+  const canAccessSettings =
+    isInEditMode ||
+    !!props.context?.pageContext?.legacyPageContext?.isSiteAdmin;
 
   // Edit mode guard disabled — always show component (even with no alerts, so settings gear is visible)
   // if (!hasAlerts && !isInEditMode && !hasError) {
@@ -335,18 +338,20 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       )}
       {/* Edit mode guard disabled — always render settings */}
       {/* {isInEditMode && ( */}
-      <AlertSettingsTabs
-        isInEditMode={isInEditMode}
-        alertTypesJson={props.alertTypesJson}
-        userTargetingEnabled={props.userTargetingEnabled || false}
-        notificationsEnabled={props.notificationsEnabled || false}
-        enableTargetSite={props.enableTargetSite || false}
-        emailServiceAccount={props.emailServiceAccount}
-        copilotEnabled={props.copilotEnabled || false}
-        graphClient={props.graphClient}
-        context={props.context}
-        onSettingsChange={handleSettingsChange}
-      />
+      {canAccessSettings && (
+        <AlertSettingsTabs
+          isInEditMode={isInEditMode}
+          alertTypesJson={props.alertTypesJson}
+          userTargetingEnabled={props.userTargetingEnabled || false}
+          notificationsEnabled={props.notificationsEnabled || false}
+          enableTargetSite={props.enableTargetSite || false}
+          emailServiceAccount={props.emailServiceAccount}
+          copilotEnabled={props.copilotEnabled || false}
+          graphClient={props.graphClient}
+          context={props.context}
+          onSettingsChange={handleSettingsChange}
+        />
+      )}
       {/* )} */}
     </div>
   );

@@ -4,6 +4,7 @@ import {
   LocalLanguage24Regular,
   Wrench24Regular,
   Globe24Regular,
+  ArrowClockwise24Regular,
 } from "@fluentui/react-icons";
 import {
   Card,
@@ -13,6 +14,9 @@ import {
   Checkbox,
   makeStyles,
   tokens,
+  MessageBar,
+  MessageBarBody,
+  MessageBarTitle,
 } from "@fluentui/react-components";
 import {
   SharePointButton,
@@ -41,6 +45,7 @@ import ProgressIndicator, {
   IProgressStep,
 } from "../../UI/ProgressIndicator";
 import RepairDialog from "../../UI/RepairDialog";
+import PermissionStatus from "../../UI/PermissionStatus";
 import { logger } from "../../Services/LoggerService";
 import { EmailNotificationService } from "../../Services/EmailNotificationService";
 import styles from "../AlertSettings.module.scss";
@@ -116,6 +121,8 @@ export interface ISettingsTabProps {
   alertService: SharePointAlertService;
   onSettingsChange: (settings: ISettingsData) => void;
   onLanguageChange?: (languages: string[]) => void;
+  onDirtyStateChange?: (isDirty: boolean) => void;
+  canEdit?: boolean;
   context?: any; // ApplicationCustomizerContext for notifications
 }
 
@@ -133,6 +140,8 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   alertService,
   onSettingsChange,
   onLanguageChange,
+  onDirtyStateChange,
+  canEdit = true,
   context,
 }) => {
   const cardStyles = useCardStyles();
@@ -140,8 +149,15 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const storageService = React.useRef<StorageService>(
     StorageService.getInstance(),
   );
+  const [draftSettings, setDraftSettings] = React.useState<ISettingsData>(
+    settings,
+  );
   const [carouselEnabled, setCarouselEnabled] = React.useState(false);
-  const [carouselInterval, setCarouselInterval] = React.useState(5);
+  const [carouselInterval, setCarouselInterval] = React.useState("5");
+  const [savedCarouselSettings, setSavedCarouselSettings] = React.useState<{
+    enabled: boolean;
+    interval: number;
+  }>({ enabled: false, interval: 5 });
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
   const [preCreationLanguages, setPreCreationLanguages] = React.useState<
     string[]
@@ -150,14 +166,29 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const [languagePolicy, setLanguagePolicy] = React.useState<ILanguagePolicy>(
     DEFAULT_LANGUAGE_POLICY,
   );
+  const [savedLanguagePolicy, setSavedLanguagePolicy] =
+    React.useState<ILanguagePolicy>(DEFAULT_LANGUAGE_POLICY);
   const [policyLanguages, setPolicyLanguages] = React.useState<
     ISupportedLanguage[]
   >([]);
   const [isSavingPolicy, setIsSavingPolicy] = React.useState(false);
+  const [isSavingAll, setIsSavingAll] = React.useState(false);
+  const [showAdvancedLocalization, setShowAdvancedLocalization] =
+    React.useState(false);
+  const [showAdvancedMaintenance, setShowAdvancedMaintenance] =
+    React.useState(false);
+  const [lastSavedAt, setLastSavedAt] = React.useState<Date | null>(null);
+  const importInputRef = React.useRef<HTMLInputElement | null>(null);
+  const isSiteAdmin = !!context?.pageContext?.legacyPageContext?.isSiteAdmin;
+  const canPersistSettings = canEdit && isSiteAdmin;
   const notificationService = React.useMemo(
     () => (context ? NotificationService.getInstance(context) : null),
     [context],
   );
+
+  React.useEffect(() => {
+    setDraftSettings(settings);
+  }, [settings]);
 
   // Load carousel settings from StorageService on mount
   React.useEffect(() => {
@@ -168,13 +199,19 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
 
     if (savedCarouselEnabled !== null) {
       setCarouselEnabled(savedCarouselEnabled);
+      setSavedCarouselSettings((prev) => ({
+        ...prev,
+        enabled: savedCarouselEnabled,
+      }));
     }
     if (
       savedCarouselInterval &&
       savedCarouselInterval >= CAROUSEL_CONFIG.MIN_INTERVAL &&
       savedCarouselInterval <= CAROUSEL_CONFIG.MAX_INTERVAL
     ) {
-      setCarouselInterval(savedCarouselInterval / 1000);
+      const seconds = savedCarouselInterval / 1000;
+      setCarouselInterval(seconds.toString());
+      setSavedCarouselSettings((prev) => ({ ...prev, interval: seconds }));
     }
   }, []);
 
@@ -190,6 +227,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
 
         if (!isMounted) return;
         setLanguagePolicy(policy);
+        setSavedLanguagePolicy(policy);
 
         const baseLanguages = LanguageAwarenessService.getSupportedLanguages();
         const updatedLanguages = baseLanguages.map((lang) => ({
@@ -218,45 +256,123 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const handleCarouselEnabledChange = React.useCallback(
     (checked: boolean) => {
       setCarouselEnabled(checked);
-      storageService.current.saveToLocalStorage("carouselEnabled", checked);
-
-      // Update context to notify Alerts component about carousel settings change
-      updateCarouselSettings({
-        carouselEnabled: checked,
-        carouselInterval: carouselInterval * 1000,
-      });
     },
-    [carouselInterval, updateCarouselSettings],
+    [],
   );
 
   const handleCarouselIntervalChange = React.useCallback(
     (value: string) => {
-      const seconds = parseInt(value);
-      if (seconds >= 2 && seconds <= 30) {
-        setCarouselInterval(seconds);
-        storageService.current.saveToLocalStorage(
-          "carouselInterval",
-          seconds * 1000,
-        );
-
-        // Update context to notify Alerts component about carousel settings change
-        updateCarouselSettings({
-          carouselEnabled,
-          carouselInterval: seconds * 1000,
-        });
-      }
+      setCarouselInterval(value);
     },
-    [carouselEnabled, updateCarouselSettings],
+    [],
   );
 
   const handleSettingsChange = React.useCallback(
     (newSettings: Partial<ISettingsData>) => {
-      const updatedSettings = { ...settings, ...newSettings };
-      setSettings(updatedSettings);
-      onSettingsChange(updatedSettings);
+      setDraftSettings((prev) => ({ ...prev, ...newSettings }));
     },
-    [settings, setSettings, onSettingsChange],
+    [],
   );
+
+  const isValidEmailAddress = React.useCallback((value: string): boolean => {
+    if (!value.trim()) {
+      return true;
+    }
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  }, []);
+
+  const carouselIntervalNumber = React.useMemo(
+    () => Number.parseInt(carouselInterval, 10),
+    [carouselInterval],
+  );
+
+  const preflightErrors = React.useMemo(() => {
+    const errors: string[] = [];
+
+    if (!Number.isInteger(carouselIntervalNumber)) {
+      errors.push(strings.SettingsValidationCarouselNumber);
+    } else if (
+      carouselIntervalNumber < CAROUSEL_CONFIG.MIN_INTERVAL / 1000 ||
+      carouselIntervalNumber > CAROUSEL_CONFIG.MAX_INTERVAL / 1000
+    ) {
+      errors.push(
+        strings.SettingsValidationCarouselRange
+          .replace("{0}", String(CAROUSEL_CONFIG.MIN_INTERVAL / 1000))
+          .replace("{1}", String(CAROUSEL_CONFIG.MAX_INTERVAL / 1000)),
+      );
+    }
+
+    if (
+      draftSettings.notificationsEnabled &&
+      !isValidEmailAddress(draftSettings.emailServiceAccount || "")
+    ) {
+      errors.push(strings.SettingsValidationEmail);
+    }
+
+    try {
+      JSON.parse(draftSettings.alertTypesJson || "[]");
+    } catch (error) {
+      errors.push(strings.SettingsValidationAlertTypesJson);
+    }
+
+    return errors;
+  }, [
+    carouselIntervalNumber,
+    draftSettings.alertTypesJson,
+    draftSettings.emailServiceAccount,
+    draftSettings.notificationsEnabled,
+    isValidEmailAddress,
+  ]);
+
+  const preflightWarnings = React.useMemo(() => {
+    const warnings: string[] = [];
+
+    if (
+      draftSettings.notificationsEnabled &&
+      !(draftSettings.emailServiceAccount || "").trim()
+    ) {
+      warnings.push(strings.SettingsWarningNotificationsWithoutEmail);
+    }
+
+    if (!canPersistSettings) {
+      warnings.push(strings.SettingsReadOnlyWarning);
+    }
+
+    return warnings;
+  }, [
+    canPersistSettings,
+    draftSettings.emailServiceAccount,
+    draftSettings.notificationsEnabled,
+  ]);
+
+  const settingsDirty = React.useMemo(() => {
+    return JSON.stringify(draftSettings) !== JSON.stringify(settings);
+  }, [draftSettings, settings]);
+
+  const carouselDirty = React.useMemo(() => {
+    return (
+      carouselEnabled !== savedCarouselSettings.enabled ||
+      carouselIntervalNumber !== savedCarouselSettings.interval
+    );
+  }, [
+    carouselEnabled,
+    carouselIntervalNumber,
+    savedCarouselSettings.enabled,
+    savedCarouselSettings.interval,
+  ]);
+
+  const languagePolicyDirty = React.useMemo(() => {
+    return (
+      JSON.stringify(languagePolicy || {}) !==
+      JSON.stringify(savedLanguagePolicy || {})
+    );
+  }, [languagePolicy, savedLanguagePolicy]);
+
+  const hasUnsavedChanges = settingsDirty || carouselDirty || languagePolicyDirty;
+
+  React.useEffect(() => {
+    onDirtyStateChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onDirtyStateChange]);
 
   const completenessOptions = React.useMemo(
     () => [
@@ -311,6 +427,8 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     setIsSavingPolicy(true);
     try {
       await alertService.saveLanguagePolicy(languagePolicy);
+      setSavedLanguagePolicy(languagePolicy);
+      setLastSavedAt(new Date());
       notificationService?.showSuccess(
         strings.LanguagePolicySavedSuccess,
         strings.LanguagePolicyTitle,
@@ -325,6 +443,200 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       setIsSavingPolicy(false);
     }
   }, [alertService, languagePolicy, notificationService]);
+
+  const syncCarouselToContext = React.useCallback(
+    (enabled: boolean, intervalSeconds: number) => {
+      storageService.current.saveToLocalStorage("carouselEnabled", enabled);
+      storageService.current.saveToLocalStorage(
+        "carouselInterval",
+        intervalSeconds * 1000,
+      );
+      updateCarouselSettings({
+        carouselEnabled: enabled,
+        carouselInterval: intervalSeconds * 1000,
+      });
+      setSavedCarouselSettings({
+        enabled,
+        interval: intervalSeconds,
+      });
+    },
+    [updateCarouselSettings],
+  );
+
+  const handleDiscardChanges = React.useCallback(() => {
+    setDraftSettings(settings);
+    setCarouselEnabled(savedCarouselSettings.enabled);
+    setCarouselInterval(String(savedCarouselSettings.interval));
+    setLanguagePolicy(savedLanguagePolicy);
+  }, [savedCarouselSettings, savedLanguagePolicy, settings]);
+
+  const handleResetToDefaults = React.useCallback(() => {
+    setDraftSettings((prev) => ({
+      ...prev,
+      userTargetingEnabled: true,
+      notificationsEnabled: false,
+      enableTargetSite: false,
+      emailServiceAccount: "",
+      copilotEnabled: false,
+    }));
+    setCarouselEnabled(false);
+    setCarouselInterval("5");
+    setLanguagePolicy(DEFAULT_LANGUAGE_POLICY);
+  }, []);
+
+  const handleSaveAll = React.useCallback(async () => {
+    if (preflightErrors.length > 0 || !canPersistSettings) {
+      return;
+    }
+
+    setIsSavingAll(true);
+    try {
+      if (settingsDirty) {
+        setSettings(draftSettings);
+        onSettingsChange(draftSettings);
+      }
+
+      if (carouselDirty) {
+        syncCarouselToContext(carouselEnabled, carouselIntervalNumber);
+      }
+
+      if (languagePolicyDirty) {
+        await alertService.saveLanguagePolicy(languagePolicy);
+        setSavedLanguagePolicy(languagePolicy);
+      }
+
+      setLastSavedAt(new Date());
+      notificationService?.showSuccess(
+        strings.SettingsSavedSuccess,
+        strings.SettingsTabTitle,
+      );
+    } catch (error) {
+      logger.error("SettingsTab", "Failed to save settings", error);
+      notificationService?.showError(
+        strings.FailedToSaveSettings,
+        strings.SettingsTabTitle,
+      );
+    } finally {
+      setIsSavingAll(false);
+    }
+  }, [
+    alertService,
+    canPersistSettings,
+    carouselDirty,
+    carouselEnabled,
+    carouselIntervalNumber,
+    draftSettings,
+    languagePolicy,
+    languagePolicyDirty,
+    notificationService,
+    onSettingsChange,
+    preflightErrors.length,
+    setSettings,
+    settingsDirty,
+    syncCarouselToContext,
+  ]);
+
+  const handleExportSettings = React.useCallback(() => {
+    const payload = {
+      schemaVersion: 2,
+      exportedAt: new Date().toISOString(),
+      settings: draftSettings,
+      carousel: {
+        enabled: carouselEnabled,
+        intervalSeconds: Number.isInteger(carouselIntervalNumber)
+          ? carouselIntervalNumber
+          : 5,
+      },
+      languagePolicy,
+    };
+
+    try {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "alert-banner-settings.json";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      notificationService?.showSuccess(
+        strings.SettingsExportSuccess,
+        strings.SettingsTabTitle,
+      );
+    } catch (error) {
+      logger.error("SettingsTab", "Failed to export settings", error);
+      notificationService?.showError(
+        strings.SettingsExportFailed,
+        strings.SettingsTabTitle,
+      );
+    }
+  }, [
+    carouselEnabled,
+    carouselIntervalNumber,
+    draftSettings,
+    languagePolicy,
+    notificationService,
+  ]);
+
+  const handleImportSettingsClick = React.useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  const handleImportSettingsFile = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      try {
+        const fileText = await file.text();
+        const parsed = JSON.parse(fileText) as {
+          settings?: Partial<ISettingsData>;
+          carousel?: { enabled?: boolean; intervalSeconds?: number };
+          languagePolicy?: ILanguagePolicy;
+        };
+
+        if (parsed.settings) {
+          setDraftSettings((prev) => ({ ...prev, ...parsed.settings }));
+        }
+        if (parsed.carousel) {
+          if (typeof parsed.carousel.enabled === "boolean") {
+            setCarouselEnabled(parsed.carousel.enabled);
+          }
+          if (
+            typeof parsed.carousel.intervalSeconds === "number" &&
+            Number.isInteger(parsed.carousel.intervalSeconds)
+          ) {
+            setCarouselInterval(String(parsed.carousel.intervalSeconds));
+          }
+        }
+        if (parsed.languagePolicy) {
+          setLanguagePolicy({
+            ...DEFAULT_LANGUAGE_POLICY,
+            ...parsed.languagePolicy,
+          });
+        }
+
+        notificationService?.showSuccess(
+          strings.SettingsImportSuccess,
+          strings.SettingsTabTitle,
+        );
+      } catch (error) {
+        logger.error("SettingsTab", "Failed to import settings", error);
+        notificationService?.showError(
+          strings.SettingsImportFailed,
+          strings.SettingsTabTitle,
+        );
+      } finally {
+        event.target.value = "";
+      }
+    },
+    [notificationService],
+  );
 
   const checkListsExistence = React.useCallback(async () => {
     setIsCheckingLists(true);
@@ -368,26 +680,32 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     const steps: IProgressStep[] = [
       {
         id: "check-lists",
-        name: "Checking existing lists",
-        description: "Verifying what lists need to be created",
+        name: strings.SettingsProgressCheckListsName,
+        description: strings.SettingsProgressCheckListsDescription,
         status: StepStatus.InProgress,
       },
       {
         id: "create-lists",
-        name: "Creating SharePoint lists",
-        description: "Setting up Alerts and AlertBannerTypes lists",
+        name: strings.SettingsProgressCreateListsName,
+        description: strings.SettingsProgressCreateListsDescription,
         status: StepStatus.Pending,
       },
     ];
 
     // Add language steps if multiple languages selected
     if (preCreationLanguages.length > 1) {
-      preCreationLanguages.forEach((lang, index) => {
+      preCreationLanguages.forEach((lang) => {
         if (lang !== "en-us") {
           steps.push({
             id: `add-language-${lang}`,
-            name: `Adding ${lang.toUpperCase()} language support`,
-            description: `Creating language-specific columns for ${lang}`,
+            name: strings.SettingsProgressAddLanguageName.replace(
+              "{0}",
+              lang.toUpperCase(),
+            ),
+            description: strings.SettingsProgressAddLanguageDescription.replace(
+              "{0}",
+              lang,
+            ),
             status: StepStatus.Pending,
           });
         }
@@ -396,8 +714,8 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
 
     steps.push({
       id: "finalize",
-      name: "Finalizing setup",
-      description: "Completing configuration and verification",
+      name: strings.SettingsProgressFinalizeName,
+      description: strings.SettingsProgressFinalizeDescription,
       status: StepStatus.Pending,
     });
 
@@ -423,11 +741,11 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       ) {
         if (notificationService) {
           notificationService.showInfo(
-            "All required lists already exist on this site.",
-            "Lists Already Exist",
+            strings.SettingsListsAlreadyExistMessage,
+            strings.SettingsListsAlreadyExistTitle,
           );
         } else {
-          logger.info("SettingsTab", "All required lists already exist on this site.");
+          logger.info("SettingsTab", strings.SettingsListsAlreadyExistMessage);
         }
         return;
       }
@@ -546,7 +864,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         if (notificationService) {
           notificationService.showSuccess(
             successMessage,
-            "Lists Created Successfully",
+            strings.SettingsListsCreatedTitle,
           );
         } else {
           logger.info("SettingsTab", successMessage);
@@ -564,7 +882,10 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           "Alerts list created successfully. Note: AlertBannerTypes list is only created on the SharePoint home site to maintain consistency across the tenant.";
 
         if (notificationService) {
-          notificationService.showInfo(infoMessage, "Additional Information");
+          notificationService.showInfo(
+            infoMessage,
+            strings.SettingsAdditionalInformationTitle,
+          );
         } else {
           logger.info("SettingsTab", infoMessage);
         }
@@ -578,9 +899,9 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           "Permission denied: You need site owner or full control permissions to create SharePoint lists.";
 
         if (notificationService) {
-          notificationService.showError(permissionError, "Permission Error", [
+          notificationService.showError(permissionError, strings.Error, [
             {
-              text: "Contact Administrator",
+              text: strings.SettingsContactAdministrator,
               onClick: () => {
                 window.open(
                   "mailto:?subject=SharePoint Permissions Required&body=I need permissions to create SharePoint lists for the Alert Banner system.",
@@ -595,9 +916,9 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         const generalError = `Failed to create some lists: ${errorMsg}`;
 
         if (notificationService) {
-          notificationService.showError(generalError, "List Creation Failed", [
+          notificationService.showError(generalError, strings.Error, [
             {
-              text: "Retry",
+              text: strings.CreateAlertCreationRetryButton,
               onClick: () => handleCreateLists(),
             },
           ]);
@@ -626,16 +947,19 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           if (result.details.warnings.length > 0) {
             notificationService.showWarning(
               result.message,
-              "Repair Completed with Warnings",
+              strings.RepairDialogDialogTitleIssues,
             );
           } else {
             notificationService.showSuccess(
               result.message,
-              "Repair Completed Successfully",
+              strings.RepairDialogDialogTitleSuccess,
             );
           }
         } else {
-          notificationService.showError(result.message, "Repair Failed");
+          notificationService.showError(
+            result.message,
+            strings.RepairDialogResultFailureTitle,
+          );
         }
       }
 
@@ -658,295 +982,421 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     checkListsExistence();
   }, [checkListsExistence]);
 
+  const scrollToSection = React.useCallback((sectionId: string) => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const section = document.getElementById(sectionId);
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   return (
-    <div className={styles.tabContent}>
-      <SharePointSection title="Feature Settings">
-        <div className={styles.settingsGrid}>
-          <SharePointToggle
-            label="Enable User Targeting"
-            checked={settings.userTargetingEnabled}
-            onChange={(checked) =>
-              handleSettingsChange({ userTargetingEnabled: checked })
-            }
-            description="Allow alerts to target specific users or groups based on SharePoint profiles and security groups"
-          />
+    <div className={styles.tabPane}>
+      <div className={styles.settingsQuickNav} role="navigation">
+        <SharePointButton
+          variant="secondary"
+          onClick={() => scrollToSection("settings-section-audience")}
+        >
+          {strings.SettingsSectionAudienceTitle}
+        </SharePointButton>
+        <SharePointButton
+          variant="secondary"
+          onClick={() => scrollToSection("settings-section-integrations")}
+        >
+          {strings.SettingsSectionIntegrationsTitle}
+        </SharePointButton>
+        <SharePointButton
+          variant="secondary"
+          onClick={() => scrollToSection("settings-section-localization")}
+        >
+          {strings.SettingsSectionLocalizationTitle}
+        </SharePointButton>
+        <SharePointButton
+          variant="secondary"
+          onClick={() => scrollToSection("settings-section-setup")}
+        >
+          {strings.SettingsSectionSetupTitle}
+        </SharePointButton>
+        <SharePointButton
+          variant="secondary"
+          onClick={() => scrollToSection("settings-section-maintenance")}
+        >
+          {strings.SettingsSectionMaintenanceTitle}
+        </SharePointButton>
+      </div>
 
-          <SharePointToggle
-            label="Enable Browser Notifications (Disabled by Default)"
-            checked={settings.notificationsEnabled}
-            onChange={(checked) =>
-              handleSettingsChange({ notificationsEnabled: checked })
+      <div className={styles.settingsActionBar}>
+        <div className={styles.settingsActionPrimary}>
+          <SharePointButton
+            variant="primary"
+            onClick={handleSaveAll}
+            disabled={
+              !hasUnsavedChanges ||
+              isSavingAll ||
+              !canPersistSettings ||
+              preflightErrors.length > 0
             }
-            description="⚠️ Send browser notifications for critical and high-priority alerts. Users may need to grant browser permission. Disabled by default to reduce interruptions."
-          />
-
-          {settings.notificationsEnabled && (
-            <div style={{ marginTop: "8px" }}>
-              <SharePointInput
-                label="Email Service Account"
-                value={settings.emailServiceAccount || ""}
-                onChange={(value) =>
-                  handleSettingsChange({ emailServiceAccount: value })
-                }
-                placeholder="alerts-noreply@yourtenant.onmicrosoft.com"
-                description="Service account email used to send email notifications via Graph API. The account must have Mail.Send permission."
-              />
-              {settings.emailServiceAccount && (
-                <SharePointButton
-                  variant="secondary"
-                  style={{ marginTop: "8px" }}
-                  onClick={async () => {
-                    try {
-                      if (!context?.msGraphClientFactory) {
-                        notificationService?.showError(
-                          "Graph client not available. Cannot send test email.",
-                          "Test Failed",
-                        );
-                        return;
-                      }
-                      const graphClient =
-                        await context.msGraphClientFactory.getClient("3");
-                      const emailService = new EmailNotificationService({
-                        serviceAccountEmail: settings.emailServiceAccount || "",
-                        graphClient,
-                      });
-                      await emailService.sendTestEmail(
-                        context?.pageContext?.user?.email || "",
-                      );
-                      notificationService?.showSuccess(
-                        "Test email sent! Check your inbox.",
-                        "Test Successful",
-                      );
-                    } catch (error) {
-                      logger.error("SettingsTab", "Test email failed", error);
-                      notificationService?.showError(
-                        "Failed to send test email. Verify the service account has Mail.Send permission.",
-                        "Test Failed",
-                      );
-                    }
-                  }}
-                >
-                  Send Test Email
-                </SharePointButton>
-              )}
-            </div>
-          )}
-
-          <SharePointToggle
-            label="Enable Target Site Selection"
-            checked={settings.enableTargetSite}
-            onChange={(checked) =>
-              handleSettingsChange({ enableTargetSite: checked })
-            }
-            description="Allow administrators to choose which specific sites will display each alert. When disabled, alerts are automatically targeted to the current site only. Also defines the defaultPriority for new alerts."
-          />
-
-          <SharePointToggle
-            label={strings.EnableCopilotLabel}
-            checked={settings.copilotEnabled || false}
-            onChange={(checked) =>
-              handleSettingsChange({ copilotEnabled: checked })
-            }
-            description={strings.EnableCopilotDescription}
-          />
+          >
+            {isSavingAll ? strings.SettingsSaving : strings.SettingsSaveAll}
+          </SharePointButton>
+          <SharePointButton
+            variant="secondary"
+            onClick={handleDiscardChanges}
+            disabled={!hasUnsavedChanges || isSavingAll}
+          >
+            {strings.SettingsDiscardChanges}
+          </SharePointButton>
+          <SharePointButton
+            variant="secondary"
+            icon={<ArrowClockwise24Regular />}
+            onClick={checkListsExistence}
+            disabled={isCheckingLists}
+          >
+            {strings.Refresh}
+          </SharePointButton>
         </div>
-      </SharePointSection>
+        <div className={styles.settingsActionMeta}>
+          {hasUnsavedChanges && (
+            <span className={styles.settingsUnsavedBadge}>
+              {strings.SettingsUnsavedChangesLabel}
+            </span>
+          )}
+          {lastSavedAt && (
+            <span className={styles.settingsLastSaved}>
+              {strings.SettingsLastSavedLabel.replace(
+                "{0}",
+                lastSavedAt.toLocaleTimeString(),
+              )}
+            </span>
+          )}
+        </div>
+      </div>
 
-      <SharePointSection title="Carousel Settings">
+      {preflightErrors.length > 0 && (
+        <MessageBar intent="error" aria-live="polite">
+          <MessageBarBody>
+            <MessageBarTitle>{strings.SettingsPreflightErrorsTitle}</MessageBarTitle>
+            <ul className={styles.settingsMessageList}>
+              {preflightErrors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </MessageBarBody>
+        </MessageBar>
+      )}
+
+      {preflightWarnings.length > 0 && (
+        <MessageBar intent="warning" aria-live="polite">
+          <MessageBarBody>
+            <MessageBarTitle>{strings.SettingsPreflightWarningsTitle}</MessageBarTitle>
+            <ul className={styles.settingsMessageList}>
+              {preflightWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </MessageBarBody>
+        </MessageBar>
+      )}
+
+      {context && (
+        <div id="settings-section-permissions">
+          <SharePointSection title={strings.SettingsSectionPermissionsTitle}>
+            <PermissionStatus context={context} />
+          </SharePointSection>
+        </div>
+      )}
+
+      <div id="settings-section-audience">
+        <SharePointSection title={strings.SettingsSectionAudienceTitle}>
+          <div className={styles.settingsGrid}>
+            <SharePointToggle
+              label={strings.EnableUserTargeting}
+              checked={draftSettings.userTargetingEnabled}
+              onChange={(checked) =>
+                handleSettingsChange({ userTargetingEnabled: checked })
+              }
+              description={strings.EnableUserTargetingDescription}
+              disabled={!canPersistSettings}
+            />
+
+            <SharePointToggle
+              label={strings.SettingsEnableTargetSitesLabel}
+              checked={draftSettings.enableTargetSite}
+              onChange={(checked) =>
+                handleSettingsChange({ enableTargetSite: checked })
+              }
+              description={strings.SettingsEnableTargetSitesDescription}
+              disabled={!canPersistSettings}
+            />
+          </div>
+        </SharePointSection>
+      </div>
+
+      <div id="settings-section-integrations">
+        <SharePointSection title={strings.SettingsSectionIntegrationsTitle}>
+          <div className={styles.settingsGrid}>
+            <SharePointToggle
+              label={strings.EnableNotifications}
+              checked={draftSettings.notificationsEnabled}
+              onChange={(checked) =>
+                handleSettingsChange({ notificationsEnabled: checked })
+              }
+              description={strings.SettingsEnableNotificationsDescription}
+              disabled={!canPersistSettings}
+            />
+
+            {draftSettings.notificationsEnabled && (
+              <div className={styles.settingsInlineStack}>
+                <SharePointInput
+                  label={strings.SettingsEmailServiceAccountLabel}
+                  value={draftSettings.emailServiceAccount || ""}
+                  onChange={(value) =>
+                    handleSettingsChange({ emailServiceAccount: value })
+                  }
+                  placeholder={strings.SettingsEmailServiceAccountPlaceholder}
+                  description={strings.SettingsEmailServiceAccountDescription}
+                  disabled={!canPersistSettings}
+                />
+                {(draftSettings.emailServiceAccount || "").trim() && (
+                  <SharePointButton
+                    variant="secondary"
+                    disabled={!canPersistSettings}
+                    onClick={async () => {
+                      try {
+                        if (!context?.msGraphClientFactory) {
+                          notificationService?.showError(
+                            strings.SettingsGraphUnavailableError,
+                            strings.Error,
+                          );
+                          return;
+                        }
+                        const graphClient =
+                          await context.msGraphClientFactory.getClient("3");
+                        const emailService = new EmailNotificationService({
+                          serviceAccountEmail:
+                            draftSettings.emailServiceAccount || "",
+                          graphClient,
+                        });
+                        await emailService.sendTestEmail(
+                          context?.pageContext?.user?.email || "",
+                        );
+                        notificationService?.showSuccess(
+                          strings.SettingsTestEmailSuccess,
+                          strings.Success,
+                        );
+                      } catch (error) {
+                        logger.error("SettingsTab", "Test email failed", error);
+                        notificationService?.showError(
+                          strings.SettingsTestEmailFailed,
+                          strings.Error,
+                        );
+                      }
+                    }}
+                  >
+                    {strings.SettingsSendTestEmailButton}
+                  </SharePointButton>
+                )}
+              </div>
+            )}
+
+            <SharePointToggle
+              label={strings.EnableCopilotLabel}
+              checked={draftSettings.copilotEnabled || false}
+              onChange={(checked) =>
+                handleSettingsChange({ copilotEnabled: checked })
+              }
+              description={strings.EnableCopilotDescription}
+              disabled={!canPersistSettings}
+            />
+          </div>
+        </SharePointSection>
+      </div>
+
+      <SharePointSection title={strings.SettingsSectionExperienceTitle}>
         <div className={styles.settingsGrid}>
           <SharePointToggle
-            label="Enable Carousel Auto-Rotation"
+            label={strings.SettingsCarouselEnabledLabel}
             checked={carouselEnabled}
             onChange={handleCarouselEnabledChange}
-            description="Automatically rotate between multiple alerts when more than one is displayed"
+            description={strings.SettingsCarouselEnabledDescription}
+            disabled={!canPersistSettings}
           />
 
           <SharePointInput
-            label="Carousel Timer (seconds)"
-            value={carouselInterval.toString()}
+            label={strings.SettingsCarouselIntervalLabel}
+            value={carouselInterval}
             onChange={handleCarouselIntervalChange}
             placeholder="5"
             type="text"
-            description="Time in seconds between automatic alert transitions (2-30 seconds)"
-            disabled={!carouselEnabled}
+            description={strings.SettingsCarouselIntervalDescription}
+            disabled={!carouselEnabled || !canPersistSettings}
           />
         </div>
       </SharePointSection>
 
-      {/* SharePoint Setup - Shows when lists are missing */}
-      {(alertsListExists === false || alertTypesListExists === false) && (
-        <SharePointSection title="SharePoint Setup Required">
-          <div className={styles.settingsGrid}>
-            <div className={styles.fullWidthColumn}>
-              {isCheckingLists ? (
-                <div className={styles.spinnerContainer}>
-                  <div className={styles.spinner}></div>
-                  Checking SharePoint lists...
-                </div>
-              ) : (
-                <>
-                  <p className={styles.infoText}>
-                    The following lists are missing on this site and need to be
-                    created:
-                  </p>
-                  <div className={styles.infoText}>
-                    <strong>Current Site:</strong>{" "}
-                    {window.location.href.split("/")[2]}
+      <div id="settings-section-setup">
+        {(alertsListExists === false || alertTypesListExists === false) && (
+          <SharePointSection title={strings.SettingsSectionSetupTitle}>
+            <div className={styles.settingsGrid}>
+              <div className={styles.fullWidthColumn}>
+                {isCheckingLists ? (
+                  <div className={styles.spinnerContainer}>
+                    <div className={styles.spinner}></div>
+                    {strings.SettingsCheckingLists}
                   </div>
-                  <ul className={styles.infoText}>
-                    {alertsListExists === false && (
-                      <li>
-                        <strong>Alerts</strong> - For storing alert content on
-                        this site
-                      </li>
-                    )}
-                    {alertTypesListExists === false && (
-                      <li>
-                        <strong>AlertBannerTypes</strong> - For alert styling
-                        configurations (can be shared across sites)
-                      </li>
-                    )}
-                  </ul>
+                ) : (
+                  <>
+                    <p className={styles.infoText}>
+                      {strings.SettingsMissingListsDescription}
+                    </p>
+                    <div className={styles.infoText}>
+                      <strong>{strings.SettingsCurrentSiteLabel}</strong>{" "}
+                      {window.location.href.split("/")[2]}
+                    </div>
+                    <ul className={styles.infoText}>
+                      {alertsListExists === false && (
+                        <li>{strings.SettingsMissingAlertsListItem}</li>
+                      )}
+                      {alertTypesListExists === false && (
+                        <li>{strings.SettingsMissingTypesListItem}</li>
+                      )}
+                    </ul>
 
-                  {/* Language Selection */}
-                  <Card>
-                    <CardHeader
-                      header={
-                        <div className={cardStyles.cardHeader}>
-                          <Globe24Regular />
-                          <Text weight="semibold">
-                            Select Languages for Initial Setup
+                    <Card>
+                      <CardHeader
+                        header={
+                          <div className={cardStyles.cardHeader}>
+                            <Globe24Regular />
+                            <Text weight="semibold">
+                              {strings.SettingsInitialLanguagesTitle}
+                            </Text>
+                          </div>
+                        }
+                        description={
+                          <Text size={200}>
+                            {strings.SettingsInitialLanguagesDescription}
                           </Text>
-                        </div>
-                      }
-                      description={
-                        <Text size={200}>
-                          Choose which languages to support from the start.
-                          Additional languages can be added later through
-                          Language Management.
-                        </Text>
-                      }
-                    />
+                        }
+                      />
 
-                    <CardPreview>
-                      <div className={cardStyles.cardContent}>
-                        <div className={cardStyles.languageGrid}>
-                          {LanguageAwarenessService.getSupportedLanguages().map(
-                            (language) => (
-                              <div
-                                key={language.code}
-                                className={cardStyles.languageItem}
-                              >
-                                <Checkbox
-                                  checked={preCreationLanguages.includes(
-                                    language.code,
-                                  )}
-                                  disabled={language.code === "en-us"}
-                                  onChange={(_, data) => {
-                                    if (data.checked === true) {
-                                      setPreCreationLanguages((prev) => [
-                                        ...prev,
-                                        language.code,
-                                      ]);
-                                    } else {
-                                      // Don't allow unchecking English
-                                      if (language.code !== "en-us") {
+                      <CardPreview>
+                        <div className={cardStyles.cardContent}>
+                          <div className={cardStyles.languageGrid}>
+                            {LanguageAwarenessService.getSupportedLanguages().map(
+                              (language) => (
+                                <div
+                                  key={language.code}
+                                  className={cardStyles.languageItem}
+                                >
+                                  <Checkbox
+                                    checked={preCreationLanguages.includes(
+                                      language.code,
+                                    )}
+                                    disabled={language.code === "en-us"}
+                                    onChange={(_, data) => {
+                                      if (data.checked === true) {
+                                        setPreCreationLanguages((prev) => [
+                                          ...prev,
+                                          language.code,
+                                        ]);
+                                      } else if (language.code !== "en-us") {
                                         setPreCreationLanguages((prev) =>
                                           prev.filter(
                                             (code) => code !== language.code,
                                           ),
                                         );
                                       }
-                                    }
-                                  }}
-                                />
-                                <div className={cardStyles.languageInfo}>
-                                  <div className={cardStyles.languageName}>
-                                    {language.flag} {language.nativeName}
-                                  </div>
-                                  <div className={cardStyles.languageCode}>
-                                    {language.name} (
-                                    {language.code.toUpperCase()})
+                                    }}
+                                  />
+                                  <div className={cardStyles.languageInfo}>
+                                    <div className={cardStyles.languageName}>
+                                      {language.flag} {language.nativeName}
+                                    </div>
+                                    <div className={cardStyles.languageCode}>
+                                      {language.name} (
+                                      {language.code.toUpperCase()})
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ),
-                          )}
+                              ),
+                            )}
+                          </div>
+                          <Text size={100} className={cardStyles.hintText}>
+                            {strings.SettingsInitialLanguagesHint}
+                          </Text>
                         </div>
-                        <Text size={100} className={cardStyles.hintText}>
-                          💡 English is always included and cannot be removed as
-                          it serves as the fallback language.
-                        </Text>
+                      </CardPreview>
+                    </Card>
+
+                    <div className={styles.actionButtonsRow}>
+                      <SharePointButton
+                        variant="primary"
+                        icon={<Add24Regular />}
+                        onClick={handleCreateLists}
+                        disabled={isCreatingLists || !canPersistSettings}
+                      >
+                        {isCreatingLists
+                          ? strings.SettingsCreatingLists
+                          : strings.SettingsCreateMissingLists}
+                      </SharePointButton>
+
+                      <div className={styles.helpText}>
+                        {strings.SettingsCreateMissingListsHelp}
                       </div>
-                    </CardPreview>
-                  </Card>
-
-                  <div className={styles.actionButtonsRow}>
-                    <SharePointButton
-                      variant="primary"
-                      icon={<Add24Regular />}
-                      onClick={handleCreateLists}
-                      disabled={isCreatingLists}
-                    >
-                      {isCreatingLists
-                        ? "Creating Lists..."
-                        : "Create Missing Lists"}
-                    </SharePointButton>
-
-                    <div className={styles.helpText}>
-                      Creates only the missing lists on the current site.
                     </div>
+
+                    {isCreatingLists && creationSteps.length > 0 && (
+                      <div className={styles.creatingProgress}>
+                        <ProgressIndicator
+                          steps={creationSteps}
+                          title={strings.SettingsCreatingLists}
+                          showStepDescriptions={true}
+                          variant="vertical"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </SharePointSection>
+        )}
+
+        {alertsListExists === true && alertTypesListExists === true && (
+          <SharePointSection title={strings.SettingsSectionSetupTitle}>
+            <div className={styles.successContainer}>
+              <div className={styles.successHeader}>
+                <span className={styles.successIcon}>✅</span>
+                <strong>{strings.SettingsSetupCompleteTitle}</strong>
+              </div>
+              <p className={styles.successDescription}>
+                {strings.SettingsSetupCompleteDescription}
+              </p>
+
+              <div className={styles.additionalOptions}>
+                <h4>{strings.SettingsListMaintenanceTitle}</h4>
+                <div className={styles.actionButtonsRow}>
+                  <SharePointButton
+                    variant="secondary"
+                    icon={<Wrench24Regular />}
+                    onClick={handleOpenRepairDialog}
+                    disabled={!canPersistSettings}
+                  >
+                    {strings.RepairDialogTitle}
+                  </SharePointButton>
+                  <div className={styles.helpText}>
+                    {strings.SettingsListMaintenanceDescription}
                   </div>
-
-                  {isCreatingLists && creationSteps.length > 0 && (
-                    <div className={styles.creatingProgress}>
-                      <ProgressIndicator
-                        steps={creationSteps}
-                        title="Creating SharePoint Lists"
-                        showStepDescriptions={true}
-                        variant="vertical"
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </SharePointSection>
-      )}
-
-      {/* Success message when lists exist with language management option */}
-      {alertsListExists === true && alertTypesListExists === true && (
-        <SharePointSection title="SharePoint Setup">
-          <div className={styles.successContainer}>
-            <div className={styles.successHeader}>
-              <span className={styles.successIcon}>✅</span>
-              <strong>Setup Complete</strong>
-            </div>
-            <p className={styles.successDescription}>
-              All required SharePoint lists are properly configured and ready to
-              use.
-            </p>
-
-            {/* List Maintenance */}
-            <div className={styles.additionalOptions}>
-              <h4>List Maintenance</h4>
-              <div className={styles.actionButtonsRow}>
-                <SharePointButton
-                  variant="secondary"
-                  icon={<Wrench24Regular />}
-                  onClick={handleOpenRepairDialog}
-                >
-                  Repair Alerts List
-                </SharePointButton>
-                <div className={styles.helpText}>
-                  Remove outdated columns and add current ones to match the
-                  latest schema.
                 </div>
               </div>
             </div>
+          </SharePointSection>
+        )}
+      </div>
 
-            {/* Language Management */}
+      {alertsListExists === true && alertTypesListExists === true && (
+        <div id="settings-section-localization">
+          <SharePointSection title={strings.SettingsSectionLocalizationTitle}>
             <div className={styles.additionalOptions}>
               <h3 className={styles.languageManagementTitle}>
                 <LocalLanguage24Regular style={{ marginRight: "8px" }} />
@@ -965,9 +1415,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                   header={
                     <div className={cardStyles.cardHeader}>
                       <Globe24Regular />
-                      <Text weight="semibold">
-                        {strings.LanguagePolicyTitle}
-                      </Text>
+                      <Text weight="semibold">{strings.LanguagePolicyTitle}</Text>
                     </div>
                   }
                   description={
@@ -987,11 +1435,9 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                           }))
                         }
                         options={fallbackOptions}
-                        description={
-                          strings.LanguagePolicyFallbackLanguageDescription
-                        }
+                        description={strings.LanguagePolicyFallbackLanguageDescription}
+                        disabled={!canPersistSettings}
                       />
-
                       <SharePointSelect
                         label={strings.LanguagePolicyCompletenessRuleLabel}
                         value={languagePolicy.completenessRule}
@@ -1002,15 +1448,11 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                           }))
                         }
                         options={completenessOptions}
-                        description={
-                          strings.LanguagePolicyCompletenessRuleDescription
-                        }
+                        description={strings.LanguagePolicyCompletenessRuleDescription}
+                        disabled={!canPersistSettings}
                       />
-
                       <SharePointToggle
-                        label={
-                          strings.LanguagePolicyRequireLinkDescriptionLabel
-                        }
+                        label={strings.LanguagePolicyRequireLinkDescriptionLabel}
                         checked={languagePolicy.requireLinkDescriptionWhenUrl}
                         onChange={(checked) =>
                           setLanguagePolicy((prev) => ({
@@ -1021,150 +1463,161 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                         description={
                           strings.LanguagePolicyRequireLinkDescriptionDescription
                         }
+                        disabled={!canPersistSettings}
                       />
-                    </div>
-
-                    <div className={styles.settingsGrid}>
-                      <SharePointToggle
-                        label={strings.LanguagePolicyInheritanceEnable}
-                        checked={languagePolicy.inheritance.enabled}
-                        onChange={(checked) =>
-                          setLanguagePolicy((prev) => ({
-                            ...prev,
-                            inheritance: {
-                              ...prev.inheritance,
-                              enabled: checked,
-                            },
-                          }))
-                        }
-                        description={
-                          strings.LanguagePolicyInheritanceDescription
-                        }
-                      />
-
-                      {languagePolicy.inheritance.enabled && (
-                        <>
-                          <Checkbox
-                            checked={languagePolicy.inheritance.fields.title}
-                            label={strings.LanguagePolicyInheritanceTitleField}
-                            onChange={(_, data) =>
-                              setLanguagePolicy((prev) => ({
-                                ...prev,
-                                inheritance: {
-                                  ...prev.inheritance,
-                                  fields: {
-                                    ...prev.inheritance.fields,
-                                    title: !!data.checked,
-                                  },
-                                },
-                              }))
-                            }
-                          />
-                          <Checkbox
-                            checked={
-                              languagePolicy.inheritance.fields.description
-                            }
-                            label={
-                              strings.LanguagePolicyInheritanceDescriptionField
-                            }
-                            onChange={(_, data) =>
-                              setLanguagePolicy((prev) => ({
-                                ...prev,
-                                inheritance: {
-                                  ...prev.inheritance,
-                                  fields: {
-                                    ...prev.inheritance.fields,
-                                    description: !!data.checked,
-                                  },
-                                },
-                              }))
-                            }
-                          />
-                          <Checkbox
-                            checked={
-                              languagePolicy.inheritance.fields.linkDescription
-                            }
-                            label={
-                              strings.LanguagePolicyInheritanceLinkDescriptionField
-                            }
-                            onChange={(_, data) =>
-                              setLanguagePolicy((prev) => ({
-                                ...prev,
-                                inheritance: {
-                                  ...prev.inheritance,
-                                  fields: {
-                                    ...prev.inheritance.fields,
-                                    linkDescription: !!data.checked,
-                                  },
-                                },
-                              }))
-                            }
-                          />
-                        </>
-                      )}
-                    </div>
-
-                    <div className={styles.settingsGrid}>
-                      <SharePointToggle
-                        label={strings.LanguagePolicyWorkflowEnable}
-                        checked={languagePolicy.workflow.enabled}
-                        onChange={(checked) =>
-                          setLanguagePolicy((prev) => ({
-                            ...prev,
-                            workflow: { ...prev.workflow, enabled: checked },
-                          }))
-                        }
-                        description={strings.LanguagePolicyWorkflowDescription}
-                      />
-
-                      {languagePolicy.workflow.enabled && (
-                        <>
-                          <SharePointSelect
-                            label={
-                              strings.LanguagePolicyWorkflowDefaultStatusLabel
-                            }
-                            value={languagePolicy.workflow.defaultStatus}
-                            onChange={(value) =>
-                              setLanguagePolicy((prev) => ({
-                                ...prev,
-                                workflow: {
-                                  ...prev.workflow,
-                                  defaultStatus: value as TranslationStatus,
-                                },
-                              }))
-                            }
-                            options={workflowStatusOptions}
-                          />
-
-                          <SharePointToggle
-                            label={
-                              strings.LanguagePolicyWorkflowRequireApproved
-                            }
-                            checked={
-                              languagePolicy.workflow.requireApprovedForDisplay
-                            }
-                            onChange={(checked) =>
-                              setLanguagePolicy((prev) => ({
-                                ...prev,
-                                workflow: {
-                                  ...prev.workflow,
-                                  requireApprovedForDisplay: checked,
-                                },
-                              }))
-                            }
-                            description={
-                              strings.LanguagePolicyWorkflowRequireApprovedDescription
-                            }
-                          />
-                        </>
-                      )}
                     </div>
 
                     <div className={styles.actionButtonsRow}>
                       <SharePointButton
-                        variant="primary"
+                        variant="secondary"
+                        onClick={() =>
+                          setShowAdvancedLocalization((prev) => !prev)
+                        }
+                      >
+                        {showAdvancedLocalization
+                          ? strings.SettingsHideAdvanced
+                          : strings.SettingsShowAdvanced}
+                      </SharePointButton>
+                    </div>
+
+                    {showAdvancedLocalization && (
+                      <>
+                        <div className={styles.settingsGrid}>
+                          <SharePointToggle
+                            label={strings.LanguagePolicyInheritanceEnable}
+                            checked={languagePolicy.inheritance.enabled}
+                            onChange={(checked) =>
+                              setLanguagePolicy((prev) => ({
+                                ...prev,
+                                inheritance: {
+                                  ...prev.inheritance,
+                                  enabled: checked,
+                                },
+                              }))
+                            }
+                            description={strings.LanguagePolicyInheritanceDescription}
+                            disabled={!canPersistSettings}
+                          />
+
+                          {languagePolicy.inheritance.enabled && (
+                            <>
+                              <Checkbox
+                                checked={languagePolicy.inheritance.fields.title}
+                                label={strings.LanguagePolicyInheritanceTitleField}
+                                onChange={(_, data) =>
+                                  setLanguagePolicy((prev) => ({
+                                    ...prev,
+                                    inheritance: {
+                                      ...prev.inheritance,
+                                      fields: {
+                                        ...prev.inheritance.fields,
+                                        title: !!data.checked,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                              <Checkbox
+                                checked={
+                                  languagePolicy.inheritance.fields.description
+                                }
+                                label={strings.LanguagePolicyInheritanceDescriptionField}
+                                onChange={(_, data) =>
+                                  setLanguagePolicy((prev) => ({
+                                    ...prev,
+                                    inheritance: {
+                                      ...prev.inheritance,
+                                      fields: {
+                                        ...prev.inheritance.fields,
+                                        description: !!data.checked,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                              <Checkbox
+                                checked={
+                                  languagePolicy.inheritance.fields.linkDescription
+                                }
+                                label={strings.LanguagePolicyInheritanceLinkDescriptionField}
+                                onChange={(_, data) =>
+                                  setLanguagePolicy((prev) => ({
+                                    ...prev,
+                                    inheritance: {
+                                      ...prev.inheritance,
+                                      fields: {
+                                        ...prev.inheritance.fields,
+                                        linkDescription: !!data.checked,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                            </>
+                          )}
+                        </div>
+
+                        <div className={styles.settingsGrid}>
+                          <SharePointToggle
+                            label={strings.LanguagePolicyWorkflowEnable}
+                            checked={languagePolicy.workflow.enabled}
+                            onChange={(checked) =>
+                              setLanguagePolicy((prev) => ({
+                                ...prev,
+                                workflow: { ...prev.workflow, enabled: checked },
+                              }))
+                            }
+                            description={strings.LanguagePolicyWorkflowDescription}
+                            disabled={!canPersistSettings}
+                          />
+
+                          {languagePolicy.workflow.enabled && (
+                            <>
+                              <SharePointSelect
+                                label={strings.LanguagePolicyWorkflowDefaultStatusLabel}
+                                value={languagePolicy.workflow.defaultStatus}
+                                onChange={(value) =>
+                                  setLanguagePolicy((prev) => ({
+                                    ...prev,
+                                    workflow: {
+                                      ...prev.workflow,
+                                      defaultStatus: value as TranslationStatus,
+                                    },
+                                  }))
+                                }
+                                options={workflowStatusOptions}
+                                disabled={!canPersistSettings}
+                              />
+                              <SharePointToggle
+                                label={strings.LanguagePolicyWorkflowRequireApproved}
+                                checked={
+                                  languagePolicy.workflow.requireApprovedForDisplay
+                                }
+                                onChange={(checked) =>
+                                  setLanguagePolicy((prev) => ({
+                                    ...prev,
+                                    workflow: {
+                                      ...prev.workflow,
+                                      requireApprovedForDisplay: checked,
+                                    },
+                                  }))
+                                }
+                                description={
+                                  strings.LanguagePolicyWorkflowRequireApprovedDescription
+                                }
+                                disabled={!canPersistSettings}
+                              />
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    <div className={styles.actionButtonsRow}>
+                      <SharePointButton
+                        variant="secondary"
                         onClick={handleSaveLanguagePolicy}
-                        disabled={isSavingPolicy}
+                        disabled={isSavingPolicy || !canPersistSettings}
                       >
                         {isSavingPolicy
                           ? strings.LanguagePolicySaving
@@ -1175,64 +1628,92 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                 </CardPreview>
               </Card>
             </div>
-          </div>
-        </SharePointSection>
+          </SharePointSection>
+        </div>
       )}
 
-      <SharePointSection title="Storage Management">
-        <div className={styles.settingsGrid}>
-          <div className={styles.fullWidthColumn}>
-            <p className={styles.storageManagement}>
-              Manage local storage and cached data for the Alert Banner system.
-            </p>
-            <div className={styles.storageButtons}>
-              <SharePointButton
-                variant="secondary"
-                onClick={() => {
-                  storageService.current.clearAllAlertData();
-
-                  if (notificationService) {
-                    notificationService.showSuccess(
-                      "Alert data cleared from local storage.",
-                      "Cache Cleared",
+      <div id="settings-section-maintenance">
+        <SharePointSection title={strings.SettingsSectionMaintenanceTitle}>
+          <div className={styles.settingsGrid}>
+            <div className={styles.fullWidthColumn}>
+              <p className={styles.storageManagement}>
+                {strings.SettingsStorageDescription}
+              </p>
+              <div className={styles.storageButtons}>
+                <SharePointButton
+                  variant="secondary"
+                  onClick={() => {
+                    storageService.current.clearAllAlertData();
+                    notificationService?.showSuccess(
+                      strings.SettingsCacheCleared,
+                      strings.Success,
                     );
-                  } else {
-                    logger.info("SettingsTab", "Alert data cleared from local storage.");
-                  }
-                }}
-              >
-                Clear Alert Cache
-              </SharePointButton>
-              <SharePointButton
-                variant="secondary"
-                onClick={() => {
-                  storageService.current.removeFromLocalStorage(
-                    "carouselEnabled",
-                  );
-                  storageService.current.removeFromLocalStorage(
-                    "carouselInterval",
-                  );
-                  setCarouselEnabled(false);
-                  setCarouselInterval(5);
-
-                  if (notificationService) {
-                    notificationService.showSuccess(
-                      "Carousel settings reset to defaults.",
-                      "Settings Reset",
+                  }}
+                >
+                  {strings.SettingsClearCache}
+                </SharePointButton>
+                <SharePointButton
+                  variant="secondary"
+                  onClick={() => {
+                    syncCarouselToContext(false, 5);
+                    setCarouselEnabled(false);
+                    setCarouselInterval("5");
+                    notificationService?.showSuccess(
+                      strings.SettingsCarouselResetSuccess,
+                      strings.Success,
                     );
-                  } else {
-                    logger.info("SettingsTab", "Carousel settings reset to defaults.");
-                  }
-                }}
-              >
-                Reset Carousel Settings
-              </SharePointButton>
+                  }}
+                >
+                  {strings.SettingsResetCarousel}
+                </SharePointButton>
+              </div>
+
+              <div className={styles.actionButtonsRow}>
+                <SharePointButton
+                  variant="secondary"
+                  onClick={() => setShowAdvancedMaintenance((prev) => !prev)}
+                >
+                  {showAdvancedMaintenance
+                    ? strings.SettingsHideAdvanced
+                    : strings.SettingsShowAdvanced}
+                </SharePointButton>
+              </div>
+
+              {showAdvancedMaintenance && (
+                <div className={styles.storageButtons}>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={handleExportSettings}
+                  >
+                    {strings.SettingsExportButton}
+                  </SharePointButton>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={handleImportSettingsClick}
+                  >
+                    {strings.SettingsImportButton}
+                  </SharePointButton>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={handleResetToDefaults}
+                    disabled={!canPersistSettings}
+                  >
+                    {strings.SettingsResetToDefaults}
+                  </SharePointButton>
+                </div>
+              )}
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportSettingsFile}
+                className={styles.hiddenFileInput}
+              />
             </div>
           </div>
-        </div>
-      </SharePointSection>
+        </SharePointSection>
+      </div>
 
-      {/* Repair Dialog */}
       <RepairDialog
         isOpen={isRepairDialogOpen}
         onDismiss={handleCloseRepairDialog}

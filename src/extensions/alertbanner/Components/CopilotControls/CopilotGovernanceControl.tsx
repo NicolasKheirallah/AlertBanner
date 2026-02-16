@@ -72,7 +72,9 @@ export const CopilotGovernanceControl: React.FC<
       const response = await copilotService.analyzeSentiment(textToAnalyze);
 
       if (response.isError) {
-        onError(response.errorMessage || strings.CopilotAnalyzeFailed);
+        if (!response.isCancelled) {
+          onError(response.errorMessage || strings.CopilotAnalyzeFailed);
+        }
       } else {
         const parsed = copilotService.parseGovernanceResult(response.content);
         setResult(parsed);

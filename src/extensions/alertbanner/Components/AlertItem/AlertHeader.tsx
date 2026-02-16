@@ -7,13 +7,14 @@ import {
 import { IAlertItem } from "../Alerts/IAlerts";
 import { AlertPriority } from "../Alerts/IAlerts";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
-import { getPriorityIcon } from "./utils";
+import { getAlertTypeIcon } from "./utils";
 import styles from "./AlertItem.module.scss";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import { Text as CoreText } from "@microsoft/sp-core-library";
 
 interface IAlertHeaderProps {
   item: IAlertItem;
+  iconName?: string;
   expanded: boolean;
   toggleExpanded: () => void;
   ariaControlsId: string;
@@ -27,7 +28,7 @@ const PRIORITY_BADGE_CLASS_MAP: Record<string, string> = {
 };
 
 const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
-  ({ item, expanded, toggleExpanded, ariaControlsId }) => {
+  ({ item, iconName, expanded, toggleExpanded, ariaControlsId }) => {
     const priorityLabel = React.useMemo(() => {
       switch (item.priority) {
         case AlertPriority.Critical:
@@ -62,7 +63,7 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
       <>
         <div className={styles.iconSection}>
           <div className={styles.alertIcon} title={priorityTooltip}>
-            {getPriorityIcon(item.priority)}
+            {getAlertTypeIcon(iconName, item.priority)}
           </div>
         </div>
         <div className={styles.textSection}>

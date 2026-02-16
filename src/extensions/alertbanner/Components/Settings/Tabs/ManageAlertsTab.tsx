@@ -2,36 +2,18 @@ import * as React from "react";
 import {
   Delete24Regular,
   Edit24Regular,
-  Globe24Regular,
   Save24Regular,
-  Eye24Regular,
   Filter24Regular,
-  Search24Regular,
-  Calendar24Regular,
   ChevronDown24Regular,
   ChevronUp24Regular,
-  Drafts24Regular,
-  Send24Regular,
 } from "@fluentui/react-icons";
-import { PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import {
   SharePointButton,
   SharePointInput,
   SharePointSelect,
-  SharePointToggle,
-  SharePointSection,
   ISharePointSelectOption,
-  SharePointPeoplePicker,
 } from "../../UI/SharePointControls";
-import SharePointRichTextEditor from "../../UI/SharePointRichTextEditor";
-import SharePointDialog from "../../UI/SharePointDialog";
-import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
-import AlertPreview from "../../UI/AlertPreview";
-import SiteSelector from "../../UI/SiteSelector";
 import AttachmentManager from "../../UI/AttachmentManager";
-import ImageManager from "../../UI/ImageManager";
-import { CopilotDraftControl } from "../../CopilotControls/CopilotDraftControl";
-import { CopilotGovernanceControl } from "../../CopilotControls/CopilotGovernanceControl";
 import {
   AlertPriority,
   NotificationType,
@@ -57,24 +39,52 @@ import { SiteContextDetector } from "../../Utils/SiteContextDetector";
 import { SharePointAlertService } from "../../Services/SharePointAlertService";
 import { IAlertItem } from "../../Alerts/IAlerts";
 import { ImageStorageService } from "../../Services/ImageStorageService";
-import { htmlSanitizer } from "../../Utils/HtmlSanitizer";
-import { MSGraphClientV3, SPHttpClient } from "@microsoft/sp-http";
+import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
 import {
   validateAlertData,
-  IFormErrors as IValidationErrors,
 } from "../../Utils/AlertValidation";
+import { getLocalizedValidationMessage } from "../../Utils/AlertValidationLocalization";
 import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
 import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
 import { useFluentDialogs } from "../../Hooks/useFluentDialogs";
-import { StringUtils } from "../../Utils/StringUtils";
-import { DateUtils } from "../../Utils/DateUtils";
 import { CopilotService } from "../../Services/CopilotService";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import { Text } from "@microsoft/sp-core-library";
+import AlertEditorForm from "./AlertEditorForm";
+import { AlertMutationService } from "../../Services/AlertMutationService";
+import ManageAlertCard, { IDisplayAlertItem } from "./ManageAlertCard";
 
-const STRINGS_DICTIONARY = strings as unknown as Record<string, string>;
+interface IManageFiltersState {
+  contentTypeFilter: "all" | ContentType;
+  priorityFilter: "all" | AlertPriority;
+  alertTypeFilter: "all" | string;
+  statusFilter: "all" | string;
+  contentStatusFilter: "all" | ContentStatus;
+  languageFilter: "all" | TargetLanguage;
+  notificationFilter: "all" | NotificationType;
+  dateFilter: "all" | "today" | "week" | "month" | "custom";
+  customDateFrom: string;
+  customDateTo: string;
+  searchTerm: string;
+  showFilters: boolean;
+}
+
+const DEFAULT_MANAGE_FILTERS: IManageFiltersState = {
+  contentTypeFilter: ContentType.Alert,
+  priorityFilter: "all",
+  alertTypeFilter: "all",
+  statusFilter: "all",
+  contentStatusFilter: "all",
+  languageFilter: "all",
+  notificationFilter: "all",
+  dateFilter: "all",
+  customDateFrom: "",
+  customDateTo: "",
+  searchTerm: "",
+  showFilters: false,
+};
 
 export interface IEditingAlert extends Omit<
   IAlertItem,
@@ -106,7 +116,11 @@ export interface IManageAlertsTabProps {
   alertService: SharePointAlertService;
   graphClient: MSGraphClientV3;
   context: ApplicationCustomizerContext;
+  userTargetingEnabled: boolean;
+  notificationsEnabled: boolean;
+  enableTargetSite: boolean;
   copilotEnabled?: boolean;
+  onDirtyStateChange?: (hasUnsavedChanges: boolean) => void;
   setActiveTab: React.Dispatch<
     React.SetStateAction<"create" | "manage" | "types" | "settings">
   >;
@@ -128,7 +142,11 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   alertService,
   graphClient,
   context,
+  userTargetingEnabled,
+  notificationsEnabled,
+  enableTargetSite,
   copilotEnabled,
+  onDirtyStateChange,
   setActiveTab,
 }) => {
   const [editErrors, setEditErrors] = React.useState<IFormErrors>({});
@@ -173,11 +191,134 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [customDateTo, setCustomDateTo] = React.useState<string>("");
   const [searchTerm, setSearchTerm] = React.useState<string>("");
   const [showFilters, setShowFilters] = React.useState(false);
+  const [isBulkActionInFlight, setIsBulkActionInFlight] =
+    React.useState(false);
+  const [busyAlertIds, setBusyAlertIds] = React.useState<string[]>([]);
+  const advancedFiltersId = "manage-alerts-advanced-filters";
   const [alertsListId, setAlertsListId] = React.useState<string>("");
   const [editingAlertSiteId, setEditingAlertSiteId] =
     React.useState<string>("");
   const [editingAlertListId, setEditingAlertListId] =
     React.useState<string>("");
+  const searchInputContainerRef = React.useRef<HTMLDivElement>(null);
+  const initialEditSnapshotRef = React.useRef<string>("");
+  const didHydrateFiltersRef = React.useRef(false);
+
+  const filtersStorageKey = React.useMemo(() => {
+    const siteId = context.pageContext.site.id
+      .toString()
+      .toLowerCase()
+      .replace(/[{}]/g, "");
+    return `alert-banner:manage-filters:${siteId}`;
+  }, [context.pageContext.site.id]);
+
+  const withBusyAlert = React.useCallback(
+    async (alertId: string, operation: () => Promise<void>) => {
+      setBusyAlertIds((prev) =>
+        prev.includes(alertId) ? prev : [...prev, alertId],
+      );
+      try {
+        await operation();
+      } finally {
+        setBusyAlertIds((prev) => prev.filter((id) => id !== alertId));
+      }
+    },
+    [],
+  );
+
+  const captureEditSnapshot = React.useCallback(
+    (value: IEditingAlert | null): string => {
+      if (!value) {
+        return "";
+      }
+
+      const normalizePeople = (items?: IPersonField[]): string[] =>
+        (items || [])
+          .map((item) => (item.loginName || item.email || item.displayName || "").toLowerCase())
+          .filter((item) => item.length > 0)
+          .sort();
+
+      const normalizeLanguages = (items?: ILanguageContent[]) =>
+        (items || [])
+          .map((item) => ({
+            language: item.language,
+            title: (item.title || "").trim(),
+            description: (item.description || "").trim(),
+            linkDescription: (item.linkDescription || "").trim(),
+            translationStatus: item.translationStatus,
+          }))
+          .sort((a, b) => a.language.localeCompare(b.language));
+
+      return JSON.stringify({
+        title: (value.title || "").trim(),
+        description: (value.description || "").trim(),
+        AlertType: value.AlertType,
+        priority: value.priority,
+        isPinned: value.isPinned,
+        notificationType: value.notificationType,
+        linkUrl: (value.linkUrl || "").trim(),
+        linkDescription: (value.linkDescription || "").trim(),
+        targetSites: (value.targetSites || []).slice().sort(),
+        targetLanguage: value.targetLanguage,
+        contentType: value.contentType,
+        scheduledStart: value.scheduledStart
+          ? new Date(value.scheduledStart).toISOString()
+          : "",
+        scheduledEnd: value.scheduledEnd
+          ? new Date(value.scheduledEnd).toISOString()
+          : "",
+        targetUsers: normalizePeople(value.targetUsers),
+        targetGroups: normalizePeople(value.targetGroups),
+        languageGroup: value.languageGroup || "",
+        languageContent: normalizeLanguages(value.languageContent),
+      });
+    },
+    [],
+  );
+
+  const hasUnsavedEditChanges = React.useMemo(() => {
+    if (!editingAlert) {
+      return false;
+    }
+    return captureEditSnapshot(editingAlert) !== initialEditSnapshotRef.current;
+  }, [captureEditSnapshot, editingAlert]);
+
+  const resetFilters = React.useCallback(() => {
+    setContentTypeFilter(DEFAULT_MANAGE_FILTERS.contentTypeFilter);
+    setPriorityFilter(DEFAULT_MANAGE_FILTERS.priorityFilter);
+    setAlertTypeFilter(DEFAULT_MANAGE_FILTERS.alertTypeFilter);
+    setStatusFilter(DEFAULT_MANAGE_FILTERS.statusFilter);
+    setLanguageFilter(DEFAULT_MANAGE_FILTERS.languageFilter);
+    setNotificationFilter(DEFAULT_MANAGE_FILTERS.notificationFilter);
+    setDateFilter(DEFAULT_MANAGE_FILTERS.dateFilter);
+    setCustomDateFrom(DEFAULT_MANAGE_FILTERS.customDateFrom);
+    setCustomDateTo(DEFAULT_MANAGE_FILTERS.customDateTo);
+    setSearchTerm(DEFAULT_MANAGE_FILTERS.searchTerm);
+    setContentStatusFilter(DEFAULT_MANAGE_FILTERS.contentStatusFilter);
+  }, []);
+
+  const focusSearchInput = React.useCallback(() => {
+    const input = searchInputContainerRef.current?.querySelector("input");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+      input.select();
+    }
+  }, []);
+
+  const isEditableTarget = React.useCallback((target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    const tag = target.tagName.toLowerCase();
+    return (
+      target.isContentEditable ||
+      tag === "input" ||
+      tag === "textarea" ||
+      tag === "select" ||
+      target.closest('[contenteditable="true"]') !== null
+    );
+  }, []);
 
   React.useEffect(() => {
     const fetchListId = async () => {
@@ -218,6 +359,121 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
     fetchEditingListId();
   }, [editingAlert?.id, alertService]);
+
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(filtersStorageKey);
+      if (!raw) {
+        didHydrateFiltersRef.current = true;
+        return;
+      }
+
+      const saved = JSON.parse(raw) as Partial<IManageFiltersState>;
+      if (saved.contentTypeFilter !== undefined) {
+        setContentTypeFilter(saved.contentTypeFilter);
+      }
+      if (saved.priorityFilter !== undefined) {
+        setPriorityFilter(saved.priorityFilter);
+      }
+      if (saved.alertTypeFilter !== undefined) {
+        setAlertTypeFilter(saved.alertTypeFilter);
+      }
+      if (saved.statusFilter !== undefined) {
+        setStatusFilter(saved.statusFilter);
+      }
+      if (saved.contentStatusFilter !== undefined) {
+        setContentStatusFilter(saved.contentStatusFilter);
+      }
+      if (saved.languageFilter !== undefined) {
+        setLanguageFilter(saved.languageFilter);
+      }
+      if (saved.notificationFilter !== undefined) {
+        setNotificationFilter(saved.notificationFilter);
+      }
+      if (saved.dateFilter !== undefined) {
+        setDateFilter(saved.dateFilter);
+      }
+      if (saved.customDateFrom !== undefined) {
+        setCustomDateFrom(saved.customDateFrom);
+      }
+      if (saved.customDateTo !== undefined) {
+        setCustomDateTo(saved.customDateTo);
+      }
+      if (saved.searchTerm !== undefined) {
+        setSearchTerm(saved.searchTerm);
+      }
+      if (saved.showFilters !== undefined) {
+        setShowFilters(saved.showFilters);
+      }
+    } catch (error) {
+      logger.warn("ManageAlertsTab", "Failed to hydrate saved filters", error);
+    } finally {
+      didHydrateFiltersRef.current = true;
+    }
+  }, [filtersStorageKey]);
+
+  React.useEffect(() => {
+    if (!didHydrateFiltersRef.current) {
+      return;
+    }
+
+    const payload: IManageFiltersState = {
+      contentTypeFilter,
+      priorityFilter,
+      alertTypeFilter,
+      statusFilter,
+      contentStatusFilter,
+      languageFilter,
+      notificationFilter,
+      dateFilter,
+      customDateFrom,
+      customDateTo,
+      searchTerm,
+      showFilters,
+    };
+
+    try {
+      localStorage.setItem(filtersStorageKey, JSON.stringify(payload));
+    } catch (error) {
+      logger.warn("ManageAlertsTab", "Failed to persist filters", error);
+    }
+  }, [
+    alertTypeFilter,
+    contentStatusFilter,
+    contentTypeFilter,
+    customDateFrom,
+    customDateTo,
+    dateFilter,
+    filtersStorageKey,
+    languageFilter,
+    notificationFilter,
+    priorityFilter,
+    searchTerm,
+    showFilters,
+    statusFilter,
+  ]);
+
+  React.useEffect(() => {
+    if (!onDirtyStateChange) {
+      return;
+    }
+
+    onDirtyStateChange(!!editingAlert && hasUnsavedEditChanges);
+  }, [editingAlert, hasUnsavedEditChanges, onDirtyStateChange]);
+
+  React.useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!editingAlert || !hasUnsavedEditChanges) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [editingAlert, hasUnsavedEditChanges]);
 
   // Initialize services with useMemo to prevent recreation
   const languageService = React.useMemo(
@@ -279,7 +535,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     if (editingAlert?.AlertType && !optionMap.has(editingAlert.AlertType)) {
       optionMap.set(editingAlert.AlertType, {
         value: editingAlert.AlertType,
-        label: `${editingAlert.AlertType} (from source site)`,
+        label: Text.format(
+          strings.ManageAlertsAlertTypeFromSourceSiteLabel,
+          editingAlert.AlertType,
+        ),
       });
     }
 
@@ -443,37 +702,63 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   }, [alertService]);
 
   const handleBulkDelete = React.useCallback(async () => {
-    if (selectedAlerts.length === 0) return;
+    if (selectedAlerts.length === 0 || isBulkActionInFlight) return;
 
     const shouldDelete = await confirm({
-      title: "Delete Alerts",
-      message: `Are you sure you want to delete ${selectedAlerts.length} alert(s)? This action cannot be undone.`,
-      confirmText: "Delete",
+      title: strings.ManageAlertsBulkDeleteDialogTitle,
+      message: Text.format(
+        strings.ManageAlertsBulkDeleteDialogMessage,
+        selectedAlerts.length,
+      ),
+      confirmText: strings.Delete,
     });
     if (!shouldDelete) {
       return;
     }
+
+    const selectedSet = new Set(selectedAlerts);
+    const previousAlerts = existingAlerts;
+    setIsBulkActionInFlight(true);
+
+    // Optimistic remove for faster perceived response.
+    setExistingAlerts((prev) => prev.filter((item) => !selectedSet.has(item.id)));
+    setSelectedAlerts([]);
 
     try {
       await Promise.all(
         selectedAlerts.map((alertId) => alertService.deleteAlert(alertId)),
       );
 
-      // Refresh the alerts list
       await loadExistingAlerts();
-      setSelectedAlerts([]);
       notificationService.showSuccess(
-        `Successfully deleted ${selectedAlerts.length} alert(s)`,
-        "Alerts Deleted",
+        Text.format(
+          strings.ManageAlertsBulkDeleteSuccessMessage,
+          selectedAlerts.length,
+        ),
+        strings.ManageAlertsBulkDeleteSuccessTitle,
       );
     } catch (error) {
+      setExistingAlerts(previousAlerts);
+      setSelectedAlerts(selectedAlerts);
       logger.error("ManageAlertsTab", "Error deleting alerts", error);
       notificationService.showError(
-        "Failed to delete some alerts. Please try again.",
-        "Deletion Failed",
+        strings.ManageAlertsBulkDeleteErrorMessage,
+        strings.ManageAlertsBulkDeleteErrorTitle,
       );
+    } finally {
+      setIsBulkActionInFlight(false);
     }
-  }, [selectedAlerts, alertService, loadExistingAlerts, confirm]);
+  }, [
+    alertService,
+    confirm,
+    existingAlerts,
+    isBulkActionInFlight,
+    loadExistingAlerts,
+    notificationService,
+    selectedAlerts,
+    setExistingAlerts,
+    setSelectedAlerts,
+  ]);
 
   const handleEditAlert = React.useCallback(
     (alert: IAlertItem) => {
@@ -552,6 +837,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             editingAlertType: editingData.AlertType,
           });
           setEditingAlert(editingData);
+          initialEditSnapshotRef.current = captureEditSnapshot(editingData);
           setUseMultiLanguage(true);
 
           // Duplicate language check removed
@@ -578,6 +864,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             },
           );
           setEditingAlert(editingData);
+          initialEditSnapshotRef.current = captureEditSnapshot(editingData);
           setUseMultiLanguage(false);
         }
 
@@ -585,8 +872,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       } catch (error) {
         logger.error("ManageAlertsTab", "Error opening edit dialog", error);
         notificationService.showError(
-          "Failed to open edit dialog. Please try again.",
-          "Edit Failed",
+          strings.ManageAlertsEditOpenErrorMessage,
+          strings.ManageAlertsEditOpenErrorTitle,
         );
       }
     },
@@ -599,214 +886,304 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       setSupplementalAlertTypes,
       languagePolicy,
       setEditErrors,
+      captureEditSnapshot,
     ],
-  );
-
-  const handlePeoplePickerChange = React.useCallback(
-    (items: any[]) => {
-      const users: IPersonField[] = [];
-      const groups: IPersonField[] = [];
-
-      items.forEach((item) => {
-        const personField: IPersonField = {
-          id: item.id,
-          displayName: item.text,
-          email: item.secondaryText, // Usually email
-          loginName: item.loginName,
-          isGroup: item.id ? item.id.indexOf("c:0(.s|true") === -1 : false, // Simple check
-        };
-
-        if (
-          item.imageInitials ||
-          (item.secondaryText && item.secondaryText.indexOf("@") > -1)
-        ) {
-          personField.isGroup = false;
-          users.push(personField);
-        } else {
-          personField.isGroup = true;
-          groups.push(personField);
-        }
-      });
-
-      setEditingAlert((prev) =>
-        prev
-          ? {
-              ...prev,
-              targetUsers: users,
-              targetGroups: groups,
-            }
-          : null,
-      );
-    },
-    [setEditingAlert],
   );
 
   const handleDeleteAlert = React.useCallback(
     async (alertId: string, alertTitle: string) => {
+      if (isBulkActionInFlight || busyAlertIds.includes(alertId)) {
+        return;
+      }
+
       const shouldDelete = await confirm({
-        title: "Delete Alert",
-        message: `Are you sure you want to delete "${alertTitle}"? This action cannot be undone.`,
-        confirmText: "Delete",
+        title: strings.ManageAlertsDeleteDialogTitle,
+        message: Text.format(
+          strings.ManageAlertsDeleteDialogMessage,
+          alertTitle,
+        ),
+        confirmText: strings.Delete,
       });
       if (!shouldDelete) {
         return;
       }
 
-      try {
-        // Find the alert to get its folder name
-        const alert = existingAlerts.find((a) => a.id === alertId);
-        const folderName = alert?.languageGroup || alertTitle;
+      await withBusyAlert(alertId, async () => {
+        const previousAlerts = existingAlerts;
+        setExistingAlerts((prev) => prev.filter((item) => item.id !== alertId));
+        setSelectedAlerts((prev) => prev.filter((id) => id !== alertId));
 
-        // Delete the alert from SharePoint list
-        await alertService.deleteAlert(alertId);
+        try {
+          const alert = existingAlerts.find((a) => a.id === alertId);
+          const folderName = alert?.languageGroup || alertTitle;
+          const alertSiteId = alert
+            ? alertService.getAlertSiteId(alert.id)
+            : undefined;
 
-        // Delete the associated image folder
-        await imageStorageService.deleteImageFolder(folderName);
+          await alertService.deleteAlert(alertId);
+          await imageStorageService.deleteImageFolder(folderName, alertSiteId);
+          await loadExistingAlerts();
 
-        await loadExistingAlerts();
-        notificationService.showSuccess(
-          `Successfully deleted "${alertTitle}"`,
-          "Alert Deleted",
-        );
-      } catch (error) {
-        logger.error("ManageAlertsTab", "Error deleting alert", error);
-        notificationService.showError(
-          "Failed to delete alert. Please try again.",
-          "Deletion Failed",
-        );
-      }
+          notificationService.showSuccess(
+            Text.format(strings.ManageAlertsDeleteSuccessMessage, alertTitle),
+            strings.ManageAlertsDeleteSuccessTitle,
+          );
+        } catch (error) {
+          setExistingAlerts(previousAlerts);
+          logger.error("ManageAlertsTab", "Error deleting alert", error);
+          notificationService.showError(
+            strings.ManageAlertsDeleteErrorMessage,
+            strings.ManageAlertsDeleteErrorTitle,
+          );
+        }
+      });
     },
     [
       alertService,
+      busyAlertIds,
+      existingAlerts,
+      imageStorageService,
+      isBulkActionInFlight,
       loadExistingAlerts,
       notificationService,
-      existingAlerts,
-      context,
       confirm,
+      setExistingAlerts,
+      setSelectedAlerts,
+      withBusyAlert,
     ],
   );
 
   const handlePublishDraft = React.useCallback(
     async (draft: IAlertItem) => {
+      if (isBulkActionInFlight || busyAlertIds.includes(draft.id)) {
+        return;
+      }
+
       const shouldPublish = await confirm({
-        title: "Publish Draft",
-        message: `Publish "${draft.title}" as a live alert? It will be visible to users immediately.`,
-        confirmText: "Publish",
+        title: strings.ManageAlertsPublishDialogTitle,
+        message: Text.format(
+          strings.ManageAlertsPublishDialogMessage,
+          draft.title,
+        ),
+        confirmText: strings.ManageAlertsPublishDialogConfirm,
       });
       if (!shouldPublish) {
         return;
       }
 
-      try {
-        // Update the draft to convert it to an alert
-        const publishedAlert: Partial<IAlertItem> = {
-          ...draft,
-          contentType: ContentType.Alert,
-          status: "Active" as any,
-        };
+      await withBusyAlert(draft.id, async () => {
+        const previousAlerts = existingAlerts;
+        setExistingAlerts((prev) =>
+          prev.map((item) =>
+            item.id === draft.id
+              ? {
+                  ...item,
+                  contentType: ContentType.Alert,
+                  status: "Active",
+                }
+              : item,
+          ),
+        );
 
-        await alertService.updateAlert(draft.id, publishedAlert);
-        await loadExistingAlerts();
-        notificationService.showSuccess(
-          `Successfully published "${draft.title}"`,
-          "Draft Published",
-        );
-      } catch (error) {
-        logger.error("ManageAlertsTab", "Error publishing draft", error);
-        notificationService.showError(
-          "Failed to publish draft. Please try again.",
-          "Publish Failed",
-        );
-      }
+        try {
+          const publishedAlert: Partial<IAlertItem> = {
+            ...draft,
+            contentType: ContentType.Alert,
+            status: "Active",
+          };
+
+          await alertService.updateAlert(draft.id, publishedAlert);
+          await loadExistingAlerts();
+          notificationService.showSuccess(
+            Text.format(strings.ManageAlertsPublishSuccessMessage, draft.title),
+            strings.ManageAlertsPublishSuccessTitle,
+          );
+        } catch (error) {
+          setExistingAlerts(previousAlerts);
+          logger.error("ManageAlertsTab", "Error publishing draft", error);
+          notificationService.showError(
+            strings.ManageAlertsPublishErrorMessage,
+            strings.ManageAlertsPublishErrorTitle,
+          );
+        }
+      });
     },
-    [alertService, loadExistingAlerts, notificationService, confirm],
+    [
+      alertService,
+      busyAlertIds,
+      confirm,
+      existingAlerts,
+      isBulkActionInFlight,
+      loadExistingAlerts,
+      notificationService,
+      setExistingAlerts,
+      withBusyAlert,
+    ],
   );
 
   const handleSubmitForReview = React.useCallback(
     async (alert: IAlertItem) => {
+      if (isBulkActionInFlight || busyAlertIds.includes(alert.id)) {
+        return;
+      }
+
       const shouldSubmit = await confirm({
-        title: "Submit for Review",
-        message: `Submit "${alert.title}" for review?`,
-        confirmText: "Submit",
+        title: strings.ManageAlertsSubmitDialogTitle,
+        message: Text.format(strings.ManageAlertsSubmitDialogMessage, alert.title),
+        confirmText: strings.ManageAlertsSubmitDialogConfirm,
       });
       if (!shouldSubmit) {
         return;
       }
 
-      try {
-        await alertService.submitAlert(alert.id);
-        await loadExistingAlerts();
-        notificationService.showSuccess(
-          `Successfully submitted "${alert.title}" for review`,
-          "Alert Submitted",
+      await withBusyAlert(alert.id, async () => {
+        const previousAlerts = existingAlerts;
+        setExistingAlerts((prev) =>
+          prev.map((item) =>
+            item.id === alert.id
+              ? { ...item, contentStatus: ContentStatus.PendingReview }
+              : item,
+          ),
         );
-      } catch (error) {
-        logger.error("ManageAlertsTab", "Error submitting alert", error);
-        notificationService.showError(
-          "Failed to submit alert. Please try again.",
-          "Submission Failed",
-        );
-      }
+
+        try {
+          await alertService.submitAlert(alert.id);
+          await loadExistingAlerts();
+          notificationService.showSuccess(
+            Text.format(strings.ManageAlertsSubmitSuccessMessage, alert.title),
+            strings.ManageAlertsSubmitSuccessTitle,
+          );
+        } catch (error) {
+          setExistingAlerts(previousAlerts);
+          logger.error("ManageAlertsTab", "Error submitting alert", error);
+          notificationService.showError(
+            strings.ManageAlertsSubmitErrorMessage,
+            strings.ManageAlertsSubmitErrorTitle,
+          );
+        }
+      });
     },
-    [alertService, loadExistingAlerts, notificationService, confirm],
+    [
+      alertService,
+      busyAlertIds,
+      confirm,
+      existingAlerts,
+      isBulkActionInFlight,
+      loadExistingAlerts,
+      notificationService,
+      setExistingAlerts,
+      withBusyAlert,
+    ],
   );
 
   const handleApprove = React.useCallback(
     async (alert: IAlertItem) => {
+      if (isBulkActionInFlight || busyAlertIds.includes(alert.id)) {
+        return;
+      }
+
       const shouldApprove = await confirm({
-        title: "Approve Alert",
-        message: `Approve "${alert.title}"? It will become visible to users based on scheduling.`,
-        confirmText: "Approve",
+        title: strings.ManageAlertsApproveDialogTitle,
+        message: Text.format(strings.ManageAlertsApproveDialogMessage, alert.title),
+        confirmText: strings.ManageAlertsApproveDialogConfirm,
       });
       if (!shouldApprove) {
         return;
       }
 
-      try {
-        await alertService.approveAlert(alert.id);
-        await loadExistingAlerts();
-        notificationService.showSuccess(
-          `Successfully approved "${alert.title}"`,
-          "Alert Approved",
+      await withBusyAlert(alert.id, async () => {
+        const previousAlerts = existingAlerts;
+        setExistingAlerts((prev) =>
+          prev.map((item) =>
+            item.id === alert.id
+              ? { ...item, contentStatus: ContentStatus.Approved }
+              : item,
+          ),
         );
-      } catch (error) {
-        logger.error("ManageAlertsTab", "Error approving alert", error);
-        notificationService.showError(
-          "Failed to approve alert. Please try again.",
-          "Approval Failed",
-        );
-      }
+
+        try {
+          await alertService.approveAlert(alert.id);
+          await loadExistingAlerts();
+          notificationService.showSuccess(
+            Text.format(strings.ManageAlertsApproveSuccessMessage, alert.title),
+            strings.ManageAlertsApproveSuccessTitle,
+          );
+        } catch (error) {
+          setExistingAlerts(previousAlerts);
+          logger.error("ManageAlertsTab", "Error approving alert", error);
+          notificationService.showError(
+            strings.ManageAlertsApproveErrorMessage,
+            strings.ManageAlertsApproveErrorTitle,
+          );
+        }
+      });
     },
-    [alertService, loadExistingAlerts, notificationService, confirm],
+    [
+      alertService,
+      busyAlertIds,
+      confirm,
+      existingAlerts,
+      isBulkActionInFlight,
+      loadExistingAlerts,
+      notificationService,
+      setExistingAlerts,
+      withBusyAlert,
+    ],
   );
 
   const handleReject = React.useCallback(
     async (alert: IAlertItem) => {
+      if (isBulkActionInFlight || busyAlertIds.includes(alert.id)) {
+        return;
+      }
+
       const notes = await prompt({
-        title: "Reject Alert",
-        message: `Enter rejection notes for "${alert.title}" (optional):`,
-        confirmText: "Reject",
-        label: "Notes",
-        placeholder: "Enter rejection notes...",
+        title: strings.ManageAlertsRejectDialogTitle,
+        message: Text.format(strings.ManageAlertsRejectDialogMessage, alert.title),
+        confirmText: strings.ManageAlertsRejectDialogConfirm,
+        label: strings.ManageAlertsRejectDialogLabel,
+        placeholder: strings.ManageAlertsRejectDialogPlaceholder,
       });
       if (notes === null) return;
 
-      try {
-        await alertService.rejectAlert(alert.id, notes);
-        await loadExistingAlerts();
-        notificationService.showSuccess(
-          `Rejected "${alert.title}"`,
-          "Alert Rejected",
+      await withBusyAlert(alert.id, async () => {
+        const previousAlerts = existingAlerts;
+        setExistingAlerts((prev) =>
+          prev.map((item) =>
+            item.id === alert.id
+              ? { ...item, contentStatus: ContentStatus.Rejected }
+              : item,
+          ),
         );
-      } catch (error) {
-        logger.error("ManageAlertsTab", "Error rejecting alert", error);
-        notificationService.showError(
-          "Failed to reject alert. Please try again.",
-          "Rejection Failed",
-        );
-      }
+
+        try {
+          await alertService.rejectAlert(alert.id, notes);
+          await loadExistingAlerts();
+          notificationService.showSuccess(
+            Text.format(strings.ManageAlertsRejectSuccessMessage, alert.title),
+            strings.ManageAlertsRejectSuccessTitle,
+          );
+        } catch (error) {
+          setExistingAlerts(previousAlerts);
+          logger.error("ManageAlertsTab", "Error rejecting alert", error);
+          notificationService.showError(
+            strings.ManageAlertsRejectErrorMessage,
+            strings.ManageAlertsRejectErrorTitle,
+          );
+        }
+      });
     },
-    [alertService, loadExistingAlerts, notificationService, prompt],
+    [
+      alertService,
+      busyAlertIds,
+      existingAlerts,
+      isBulkActionInFlight,
+      loadExistingAlerts,
+      notificationService,
+      prompt,
+      setExistingAlerts,
+      withBusyAlert,
+    ],
   );
 
   // Validation using shared utility with localization
@@ -817,19 +1194,19 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       useMultiLanguage,
       languagePolicy,
       tenantDefaultLanguage,
-      getString: (key: string, ...args: Array<string | number>) => {
-        const template = STRINGS_DICTIONARY[key] ?? key;
-        if (args.length === 0) {
-          return template;
-        }
-        const formattedArgs = args.map((arg) => arg.toString());
-        return Text.format(template, ...formattedArgs);
-      },
+      getString: getLocalizedValidationMessage,
+      validateTargetSites: enableTargetSite,
     });
 
     setEditErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
-  }, [editingAlert, useMultiLanguage, languagePolicy, tenantDefaultLanguage]);
+  }, [
+    editingAlert,
+    useMultiLanguage,
+    languagePolicy,
+    tenantDefaultLanguage,
+    enableTargetSite,
+  ]);
 
   const handleSaveEdit = React.useCallback(async () => {
     if (!editingAlert || !validateEditForm()) return;
@@ -841,197 +1218,30 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         editingAlert.languageContent &&
         editingAlert.languageContent.length > 0
       ) {
-        // Update multi-language alert - need to update all language variants
-        if (editingAlert.languageGroup) {
-          // Get all alerts in this language group and deduplicate by language
-          const allGroupAlerts = existingAlerts.filter(
-            (a) => a.languageGroup === editingAlert.languageGroup,
-          );
-
-          const dedupLanguages = new Set<string>();
-          const groupAlerts = allGroupAlerts.filter((alert) => {
-            if (dedupLanguages.has(alert.targetLanguage)) {
-              return false;
-            }
-            dedupLanguages.add(alert.targetLanguage);
-            return true;
-          });
-
-          // Create updated alert items
-          const updatedAlerts = editingAlert.languageContent.map((content) => ({
-            ...editingAlert,
-            title: content.title,
-            description: content.description,
-            linkDescription: content.linkDescription || "",
-            targetLanguage: content.language,
-            availableForAll: content.availableForAll,
-            translationStatus:
-              content.translationStatus ||
-              (languagePolicy.workflow.enabled
-                ? languagePolicy.workflow.defaultStatus
-                : TranslationStatus.Approved),
-          }));
-
-          // Update each language variant
-          for (let i = 0; i < updatedAlerts.length; i++) {
-            const updatedAlert = updatedAlerts[i];
-            const existingAlert = groupAlerts.find(
-              (a) => a.targetLanguage === updatedAlert.targetLanguage,
-            );
-
-            if (existingAlert) {
-              // Update existing language variant
-              await alertService.updateAlert(existingAlert.id, {
-                title: updatedAlert.title,
-                description: updatedAlert.description,
-                AlertType: updatedAlert.AlertType,
-                priority: updatedAlert.priority,
-                isPinned: updatedAlert.isPinned,
-                notificationType: updatedAlert.notificationType,
-                linkUrl: updatedAlert.linkUrl,
-                linkDescription: updatedAlert.linkDescription,
-                scheduledStart: updatedAlert.scheduledStart?.toISOString(),
-                scheduledEnd: updatedAlert.scheduledEnd?.toISOString(),
-                availableForAll: updatedAlert.availableForAll,
-                translationStatus: updatedAlert.translationStatus,
-                targetSites: editingAlert.targetSites,
-                targetUsers: [
-                  ...(editingAlert.targetUsers || []),
-                  ...(editingAlert.targetGroups || []),
-                ],
-              });
-            } else {
-              // Create new language variant
-              await alertService.createAlert({
-                title: updatedAlert.title,
-                description: updatedAlert.description,
-                AlertType: updatedAlert.AlertType,
-                priority: updatedAlert.priority,
-                isPinned: updatedAlert.isPinned,
-                notificationType: updatedAlert.notificationType,
-                linkUrl: updatedAlert.linkUrl,
-                linkDescription: updatedAlert.linkDescription,
-                targetSites: editingAlert.targetSites || [],
-                scheduledStart: updatedAlert.scheduledStart?.toISOString(),
-                scheduledEnd: updatedAlert.scheduledEnd?.toISOString(),
-                contentType: updatedAlert.contentType,
-                targetLanguage: updatedAlert.targetLanguage,
-                languageGroup: updatedAlert.languageGroup,
-                availableForAll: updatedAlert.availableForAll,
-                translationStatus: updatedAlert.translationStatus,
-                targetUsers: [
-                  ...(editingAlert.targetUsers || []),
-                  ...(editingAlert.targetGroups || []),
-                ],
-              });
-            }
-          }
-
-          // Delete language variants that were removed from the editor
-          const updatedLanguages = editingAlert.languageContent.map(
-            (c) => c.language,
-          );
-          const seenLanguages = new Set<string>();
-          const toDelete = allGroupAlerts.filter((a) => {
-            if (!updatedLanguages.includes(a.targetLanguage)) {
-              return true;
-            }
-            if (seenLanguages.has(a.targetLanguage)) {
-              return true;
-            }
-            seenLanguages.add(a.targetLanguage);
-            return false;
-          });
-
-          logger.info(
-            "ManageAlertsTab",
-            "Processing language variant deletions",
-            {
-              currentLanguages: allGroupAlerts.map((a) => a.targetLanguage),
-              updatedLanguages,
-              toDelete: toDelete.map((a) => ({
-                id: a.id,
-                language: a.targetLanguage,
-              })),
-            },
-          );
-
-          for (const alertToDelete of toDelete) {
-            try {
-              await alertService.deleteAlert(alertToDelete.id);
-              logger.info(
-                "ManageAlertsTab",
-                `Successfully deleted language variant for ${alertToDelete.targetLanguage}`,
-              );
-            } catch (deleteError: any) {
-              const statusCode =
-                deleteError?.statusCode ||
-                deleteError?.status ||
-                deleteError?.response?.status ||
-                deleteError?.code;
-              const errorMessage = deleteError?.message || String(deleteError);
-
-              const isNotFound =
-                statusCode === 404 ||
-                statusCode === "404" ||
-                errorMessage.toLowerCase().includes("not found") ||
-                errorMessage.toLowerCase().includes("does not exist");
-
-              if (isNotFound) {
-                // Item already deleted or doesn't exist - log and continue
-                logger.warn(
-                  "ManageAlertsTab",
-                  `Language variant ${alertToDelete.id} already deleted or not found`,
-                  {
-                    language: alertToDelete.targetLanguage,
-                    errorMessage,
-                  },
-                );
-              } else {
-                logger.error(
-                  "ManageAlertsTab",
-                  `Failed to delete language variant ${alertToDelete.id}`,
-                  deleteError,
-                );
-                throw deleteError;
-              }
-            }
-          }
-        }
+        await AlertMutationService.syncMultiLanguageAlerts(
+          alertService,
+          editingAlert,
+          existingAlerts,
+          languagePolicy,
+        );
       } else {
-        // Update single language alert
-        await alertService.updateAlert(editingAlert.id, {
-          title: editingAlert.title,
-          description: editingAlert.description,
-          AlertType: editingAlert.AlertType,
-          priority: editingAlert.priority,
-          isPinned: editingAlert.isPinned,
-          notificationType: editingAlert.notificationType,
-          linkUrl: editingAlert.linkUrl,
-          linkDescription: editingAlert.linkDescription,
-          scheduledStart: editingAlert.scheduledStart?.toISOString(),
-          scheduledEnd: editingAlert.scheduledEnd?.toISOString(),
-          targetSites: editingAlert.targetSites,
-          targetUsers: [
-            ...(editingAlert.targetUsers || []),
-            ...(editingAlert.targetGroups || []),
-          ],
-        });
+        await AlertMutationService.updateSingleAlert(alertService, editingAlert);
       }
 
       setEditingAlert(null);
       setEditErrors({});
       setUseMultiLanguage(false);
+      initialEditSnapshotRef.current = "";
       await loadExistingAlerts();
       notificationService.showSuccess(
-        "Alert updated successfully!",
-        "Update Complete",
+        strings.ManageAlertsUpdateSuccessMessage,
+        strings.ManageAlertsUpdateSuccessTitle,
       );
     } catch (error) {
       logger.error("ManageAlertsTab", "Error updating alert", error);
       notificationService.showError(
-        "Failed to update alert. Please try again.",
-        "Update Failed",
+        strings.ManageAlertsUpdateErrorMessage,
+        strings.ManageAlertsUpdateErrorTitle,
       );
     } finally {
       setIsEditingAlert(false);
@@ -1050,18 +1260,45 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     languagePolicy,
   ]);
 
-  const handleCancelEdit = React.useCallback(() => {
+  const handleCancelEdit = React.useCallback(async () => {
+    if (hasUnsavedEditChanges) {
+      const canDiscard = await confirm({
+        title: strings.ManageAlertsUnsavedChangesTitle,
+        message: strings.ManageAlertsUnsavedChangesMessage,
+        confirmText: strings.ManageAlertsDiscardChangesButton,
+        cancelText: strings.ManageAlertsKeepEditingButton,
+      });
+
+      if (!canDiscard) {
+        return;
+      }
+    }
+
     setEditingAlert(null);
     setEditErrors({});
     setUseMultiLanguage(false);
     setSupplementalAlertTypes([]);
-  }, [setEditingAlert, setSupplementalAlertTypes]);
+    initialEditSnapshotRef.current = "";
+  }, [
+    confirm,
+    hasUnsavedEditChanges,
+    setEditingAlert,
+    setSupplementalAlertTypes,
+  ]);
 
-  // Helper function to get current alert type for preview (matching CreateAlerts)
-  const getCurrentAlertType = React.useCallback((): IAlertType | undefined => {
-    if (!editingAlert) return undefined;
-    return alertTypes.find((type) => type.name === editingAlert.AlertType);
-  }, [alertTypes, editingAlert]);
+  const setEditingAlertData = React.useCallback(
+    (value: React.SetStateAction<IEditingAlert>) => {
+      setEditingAlert((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        return typeof value === "function"
+          ? (value as (prevState: IEditingAlert) => IEditingAlert)(prev)
+          : value;
+      });
+    },
+    [setEditingAlert],
+  );
 
   const normalizeSiteId = React.useCallback((value?: string): string => {
     if (!value) return "";
@@ -1202,10 +1439,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     });
 
     // Create combined display items: one item per language group, plus all ungrouped items
-    const displayItems: (IAlertItem & {
-      isLanguageGroup?: boolean;
-      languageVariants?: IAlertItem[];
-    })[] = [];
+    const displayItems: IDisplayAlertItem[] = [];
 
     // Add language groups (show primary language variant as the main item)
     Object.entries(groups).forEach(([languageGroup, variants]) => {
@@ -1240,72 +1474,222 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     contentStatusFilter,
   ]);
 
+  const languageGroupCount = React.useMemo(
+    () => groupedAlerts.filter((a) => a.isLanguageGroup).length,
+    [groupedAlerts],
+  );
+
+  const contentTypeCounts = React.useMemo(() => {
+    return existingAlerts.reduce(
+      (acc, alert) => {
+        acc.all += 1;
+        if (alert.contentType === ContentType.Alert) {
+          acc.alert += 1;
+        } else if (alert.contentType === ContentType.Draft) {
+          acc.draft += 1;
+        } else if (alert.contentType === ContentType.Template) {
+          acc.template += 1;
+        }
+        return acc;
+      },
+      { all: 0, alert: 0, draft: 0, template: 0 },
+    );
+  }, [existingAlerts]);
+
+  const supportedLanguageMap = React.useMemo(() => {
+    const map = new Map<string, ISupportedLanguage>();
+    supportedLanguages.forEach((lang) => map.set(lang.code, lang));
+    return map;
+  }, [supportedLanguages]);
+
+  const priorityLabelMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    priorityOptions.forEach((option) =>
+      map.set(String(option.value), option.label),
+    );
+    return map;
+  }, [priorityOptions]);
+
+  const alertTypeStyleMap = React.useMemo(() => {
+    const map = new Map<string, { backgroundColor?: string; textColor?: string }>();
+    alertTypes.forEach((type) =>
+      map.set(type.name, {
+        backgroundColor: type.backgroundColor,
+        textColor: type.textColor,
+      }),
+    );
+    return map;
+  }, [alertTypes]);
+
+  const selectedAlertIds = React.useMemo(
+    () => new Set(selectedAlerts),
+    [selectedAlerts],
+  );
+  const hasActiveFilters = React.useMemo(
+    () =>
+      contentTypeFilter !== DEFAULT_MANAGE_FILTERS.contentTypeFilter ||
+      priorityFilter !== DEFAULT_MANAGE_FILTERS.priorityFilter ||
+      alertTypeFilter !== DEFAULT_MANAGE_FILTERS.alertTypeFilter ||
+      statusFilter !== DEFAULT_MANAGE_FILTERS.statusFilter ||
+      contentStatusFilter !== DEFAULT_MANAGE_FILTERS.contentStatusFilter ||
+      languageFilter !== DEFAULT_MANAGE_FILTERS.languageFilter ||
+      notificationFilter !== DEFAULT_MANAGE_FILTERS.notificationFilter ||
+      dateFilter !== DEFAULT_MANAGE_FILTERS.dateFilter ||
+      customDateFrom !== DEFAULT_MANAGE_FILTERS.customDateFrom ||
+      customDateTo !== DEFAULT_MANAGE_FILTERS.customDateTo ||
+      searchTerm.trim().length > 0,
+    [
+      alertTypeFilter,
+      contentStatusFilter,
+      contentTypeFilter,
+      customDateFrom,
+      customDateTo,
+      dateFilter,
+      languageFilter,
+      notificationFilter,
+      priorityFilter,
+      searchTerm,
+      statusFilter,
+    ],
+  );
+  const activeFilterCount = React.useMemo(() => {
+    let count = 0;
+    if (contentTypeFilter !== DEFAULT_MANAGE_FILTERS.contentTypeFilter) count += 1;
+    if (priorityFilter !== DEFAULT_MANAGE_FILTERS.priorityFilter) count += 1;
+    if (alertTypeFilter !== DEFAULT_MANAGE_FILTERS.alertTypeFilter) count += 1;
+    if (statusFilter !== DEFAULT_MANAGE_FILTERS.statusFilter) count += 1;
+    if (contentStatusFilter !== DEFAULT_MANAGE_FILTERS.contentStatusFilter) count += 1;
+    if (languageFilter !== DEFAULT_MANAGE_FILTERS.languageFilter) count += 1;
+    if (notificationFilter !== DEFAULT_MANAGE_FILTERS.notificationFilter) count += 1;
+    if (dateFilter !== DEFAULT_MANAGE_FILTERS.dateFilter) count += 1;
+    if (customDateFrom !== DEFAULT_MANAGE_FILTERS.customDateFrom) count += 1;
+    if (customDateTo !== DEFAULT_MANAGE_FILTERS.customDateTo) count += 1;
+    if (searchTerm.trim().length > 0) count += 1;
+    return count;
+  }, [
+    alertTypeFilter,
+    contentStatusFilter,
+    contentTypeFilter,
+    customDateFrom,
+    customDateTo,
+    dateFilter,
+    languageFilter,
+    notificationFilter,
+    priorityFilter,
+    searchTerm,
+    statusFilter,
+  ]);
+
   // Load alerts on mount
   React.useEffect(() => {
     loadExistingAlerts();
   }, [loadExistingAlerts]);
 
+  React.useEffect(() => {
+    const existingIds = new Set(existingAlerts.map((alert) => alert.id));
+    setSelectedAlerts((prev) => prev.filter((id) => existingIds.has(id)));
+  }, [existingAlerts, setSelectedAlerts]);
+
+  React.useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const isMeta = event.ctrlKey || event.metaKey;
+      const inEditable = isEditableTarget(event.target);
+
+      if (isMeta && key === "f" && !editingAlert) {
+        event.preventDefault();
+        focusSearchInput();
+        return;
+      }
+
+      if (isMeta && key === "e" && !editingAlert && selectedAlerts.length === 1) {
+        event.preventDefault();
+        const selectedAlert = groupedAlerts.find((alert) =>
+          selectedAlerts.includes(alert.id),
+        );
+        if (selectedAlert) {
+          handleEditAlert(selectedAlert);
+        }
+        return;
+      }
+
+      if (isMeta && key === "s" && editingAlert) {
+        event.preventDefault();
+        void handleSaveEdit();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (editingAlert) {
+          event.preventDefault();
+          void handleCancelEdit();
+          return;
+        }
+
+        if (selectedAlerts.length > 0 && !inEditable) {
+          event.preventDefault();
+          setSelectedAlerts([]);
+        }
+      }
+
+      if (
+        (event.key === "Delete" || event.key === "Backspace") &&
+        !editingAlert &&
+        !inEditable &&
+        selectedAlerts.length > 0
+      ) {
+        event.preventDefault();
+        void handleBulkDelete();
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    editingAlert,
+    focusSearchInput,
+    groupedAlerts,
+    handleBulkDelete,
+    handleCancelEdit,
+    handleEditAlert,
+    handleSaveEdit,
+    isEditableTarget,
+    selectedAlerts,
+    setSelectedAlerts,
+  ]);
+
   return (
     <>
       {!editingAlert && (
-        <div className={styles.tabContent}>
+        <div className={styles.tabPane}>
           <div className={styles.tabHeader}>
             <div>
               <h3>{strings.ManageAlerts}</h3>
               <p>
-                {strings.ManageAlertsSubtitle ||
-                  "View, edit, and manage existing alerts across your sites"}
+                {strings.ManageAlertsSubtitle}
               </p>
             </div>
             <div className={styles.flexRowGap12}>
-              {selectedAlerts.length === 1 && (
-                <SharePointButton
-                  variant="primary"
-                  icon={<Edit24Regular />}
-                  onClick={() => {
-                    const selectedAlert = groupedAlerts.find((alert) =>
-                      selectedAlerts.includes(alert.id),
-                    );
-                    if (selectedAlert) {
-                      handleEditAlert(selectedAlert);
-                    }
-                  }}
-                >
-                  {strings.ManageAlertsEditSelectedButtonLabel ||
-                    "Edit Selected"}
-                </SharePointButton>
-              )}
-              {selectedAlerts.length > 0 && (
-                <SharePointButton
-                  variant="danger"
-                  icon={<Delete24Regular />}
-                  onClick={handleBulkDelete}
-                >
-                  {Text.format(
-                    strings.ManageAlertsDeleteSelectedButtonLabel ||
-                      "Delete Selected ({0})",
-                    selectedAlerts.length,
-                  )}
-                </SharePointButton>
-              )}
               <SharePointButton
                 variant="secondary"
                 onClick={loadExistingAlerts}
-                disabled={isLoadingAlerts}
+                disabled={isLoadingAlerts || isBulkActionInFlight}
               >
-                {isLoadingAlerts
-                  ? strings.ManageAlertsRefreshingLabel || "Refreshing..."
-                  : strings.Refresh}
+                {isLoadingAlerts ? strings.ManageAlertsRefreshingLabel : strings.Refresh}
               </SharePointButton>
               <button
+                type="button"
                 className={styles.filterToggleButton}
                 onClick={() => setShowFilters(!showFilters)}
+                aria-expanded={showFilters}
+                aria-controls={advancedFiltersId}
               >
                 <Filter24Regular />
                 {showFilters
-                  ? strings.ManageAlertsHideFiltersLabel || "Hide"
-                  : strings.ManageAlertsShowFiltersLabel || "Show"}{" "}
-                {strings.ManageAlertsFiltersLabel || "Filters"}
+                  ? strings.ManageAlertsHideFiltersLabel
+                  : strings.ManageAlertsShowFiltersLabel}{" "}
+                {strings.ManageAlertsFiltersLabel}
+                {activeFilterCount > 0 && ` (${activeFilterCount})`}
                 {showFilters ? (
                   <ChevronUp24Regular />
                 ) : (
@@ -1375,23 +1759,19 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           ) : existingAlerts.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>📢</div>
-              <h4>{strings.ManageAlertsEmptyTitle || "No Alerts Found"}</h4>
+              <h4>{strings.ManageAlertsEmptyTitle}</h4>
               <p>
-                {strings.ManageAlertsEmptyDescription ||
-                  "No alerts are currently available. This might be because:"}
+                {strings.ManageAlertsEmptyDescription}
               </p>
               <ul className={styles.emptyStateList}>
                 <li>
-                  {strings.ManageAlertsEmptyReasonListsMissing ||
-                    "The Alert Banner lists haven't been created yet"}
+                  {strings.ManageAlertsEmptyReasonListsMissing}
                 </li>
                 <li>
-                  {strings.ManageAlertsEmptyReasonNoAccess ||
-                    "You don't have access to the lists"}
+                  {strings.ManageAlertsEmptyReasonNoAccess}
                 </li>
                 <li>
-                  {strings.ManageAlertsEmptyReasonNoAlerts ||
-                    "No alerts have been created yet"}
+                  {strings.ManageAlertsEmptyReasonNoAlerts}
                 </li>
               </ul>
               <div className={styles.flexRowCentered}>
@@ -1399,8 +1779,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   variant="primary"
                   onClick={() => setActiveTab("create")}
                 >
-                  {strings.ManageAlertsEmptyCreateFirstButton ||
-                    "Create First Alert"}
+                  {strings.ManageAlertsEmptyCreateFirstButton}
                 </SharePointButton>
                 <SharePointButton
                   variant="secondary"
@@ -1412,23 +1791,65 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             </div>
           ) : (
             <div className={styles.alertsList}>
+              {selectedAlerts.length > 0 && (
+                <div
+                  className={styles.selectionActionBar}
+                  role="region"
+                  aria-live="polite"
+                >
+                  {selectedAlerts.length === 1 && (
+                    <SharePointButton
+                      variant="primary"
+                      icon={<Edit24Regular />}
+                      onClick={() => {
+                        const selectedAlert = groupedAlerts.find((alert) =>
+                          selectedAlerts.includes(alert.id),
+                        );
+                        if (selectedAlert) {
+                          handleEditAlert(selectedAlert);
+                        }
+                      }}
+                      disabled={isLoadingAlerts || isBulkActionInFlight}
+                    >
+                      {strings.ManageAlertsEditSelectedButtonLabel}
+                    </SharePointButton>
+                  )}
+                  <SharePointButton
+                    variant="danger"
+                    icon={<Delete24Regular />}
+                    onClick={handleBulkDelete}
+                    disabled={isLoadingAlerts || isBulkActionInFlight}
+                  >
+                    {Text.format(
+                      strings.ManageAlertsDeleteSelectedButtonLabel,
+                      selectedAlerts.length,
+                    )}
+                  </SharePointButton>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={() => setSelectedAlerts([])}
+                    disabled={isLoadingAlerts || isBulkActionInFlight}
+                  >
+                    {strings.Cancel}
+                  </SharePointButton>
+                </div>
+              )}
+
               {/* Enhanced Filter Section */}
               <div className={styles.filterSection}>
                 <div className={styles.filterHeader}>
                   <div className={styles.filterSummary}>
                     <span>
                       {Text.format(
-                        strings.ManageAlertsFilterSummaryCount ||
-                          "Showing {0} of {1} items",
+                        strings.ManageAlertsFilterSummaryCount,
                         groupedAlerts.length,
                         existingAlerts.length,
                       )}
                     </span>
                     <span>
                       {Text.format(
-                        strings.ManageAlertsFilterSummaryLanguageGroups ||
-                          "{0} multi-language groups",
-                        groupedAlerts.filter((a) => a.isLanguageGroup).length,
+                        strings.ManageAlertsFilterSummaryLanguageGroups,
+                        languageGroupCount,
                       )}
                     </span>
                   </div>
@@ -1448,11 +1869,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     onClick={() => setContentTypeFilter(ContentType.Alert)}
                   >
                     {Text.format(
-                      strings.ManageAlertsFilterAlertsLabel ||
-                        "📢 Alerts ({0})",
-                      existingAlerts.filter(
-                        (a) => a.contentType === ContentType.Alert,
-                      ).length,
+                      strings.ManageAlertsFilterAlertsLabel,
+                      contentTypeCounts.alert,
                     )}
                   </SharePointButton>
                   <SharePointButton
@@ -1464,11 +1882,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     onClick={() => setContentTypeFilter(ContentType.Draft)}
                   >
                     {Text.format(
-                      strings.ManageAlertsFilterDraftsLabel ||
-                        "✏️ Drafts ({0})",
-                      existingAlerts.filter(
-                        (a) => a.contentType === ContentType.Draft,
-                      ).length,
+                      strings.ManageAlertsFilterDraftsLabel,
+                      contentTypeCounts.draft,
                     )}
                   </SharePointButton>
                   <SharePointButton
@@ -1480,11 +1895,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     onClick={() => setContentTypeFilter(ContentType.Template)}
                   >
                     {Text.format(
-                      strings.ManageAlertsFilterTemplatesLabel ||
-                        "📄 Templates ({0})",
-                      existingAlerts.filter(
-                        (a) => a.contentType === ContentType.Template,
-                      ).length,
+                      strings.ManageAlertsFilterTemplatesLabel,
+                      contentTypeCounts.template,
                     )}
                   </SharePointButton>
                   <SharePointButton
@@ -1494,21 +1906,20 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     onClick={() => setContentTypeFilter("all")}
                   >
                     {Text.format(
-                      strings.ManageAlertsFilterAllLabel || "📋 All ({0})",
-                      existingAlerts.length,
+                      strings.ManageAlertsFilterAllLabel,
+                      contentTypeCounts.all,
                     )}
                   </SharePointButton>
                 </div>
 
                 {/* Search Bar - Always Visible */}
-                <div className={styles.searchBar}>
+                <div className={styles.searchBar} ref={searchInputContainerRef}>
                   <SharePointInput
-                    label=""
+                    label={strings.ManageAlertsSearchLabel}
                     value={searchTerm}
                     onChange={setSearchTerm}
                     placeholder={
-                      strings.ManageAlertsSearchPlaceholder ||
-                      "🔍 Search alerts, drafts, and templates by title, description, type, priority, or author..."
+                      strings.ManageAlertsSearchPlaceholder
                     }
                     className={styles.searchInput}
                   />
@@ -1516,43 +1927,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
                 {/* Collapsible Advanced Filters */}
                 {showFilters && (
-                  <div className={styles.advancedFilters}>
+                  <div id={advancedFiltersId} className={styles.advancedFilters}>
                     <div className={styles.filterGrid}>
-                      {/* Content Type Filter */}
-                      <SharePointSelect
-                        label={strings.ContentTypeLabel}
-                        value={contentTypeFilter}
-                        onChange={(value) =>
-                          setContentTypeFilter(value as "all" | ContentType)
-                        }
-                        options={[
-                          {
-                            value: "all",
-                            label:
-                              strings.ManageAlertsContentTypeAllOption ||
-                              "📋 All Types",
-                          },
-                          {
-                            value: ContentType.Alert,
-                            label:
-                              strings.ManageAlertsContentTypeAlertOption ||
-                              "📢 Alerts",
-                          },
-                          {
-                            value: ContentType.Draft,
-                            label:
-                              strings.ManageAlertsContentTypeDraftOption ||
-                              "✏️ Drafts",
-                          },
-                          {
-                            value: ContentType.Template,
-                            label:
-                              strings.ManageAlertsContentTypeTemplateOption ||
-                              "📄 Templates",
-                          },
-                        ]}
-                      />
-
                       {/* Priority Filter */}
                       <SharePointSelect
                         label={strings.CreateAlertPriorityLabel}
@@ -1563,9 +1939,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label:
-                              strings.ManageAlertsPriorityAllOption ||
-                              "🔘 All Priorities",
+                            label: strings.ManageAlertsPriorityAllOption,
                           },
                           {
                             value: AlertPriority.Critical,
@@ -1594,9 +1968,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label:
-                              strings.ManageAlertsAlertTypeAllOption ||
-                              "🎨 All Types",
+                            label: strings.ManageAlertsAlertTypeAllOption,
                           },
                           ...alertTypes.map((type) => ({
                             value: type.name,
@@ -1614,8 +1986,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                           {
                             value: "all",
                             label:
-                              strings.ManageAlertsStatusAllOption ||
-                              "⚪ All Statuses",
+                              strings.ManageAlertsStatusAllOption,
                           },
                           {
                             value: "active",
@@ -1634,25 +2005,31 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
                       {/* Content Status Filter */}
                       <SharePointSelect
-                        label="Approval Status"
+                        label={strings.ManageAlertsApprovalStatusLabel}
                         value={contentStatusFilter}
                         onChange={(value) =>
                           setContentStatusFilter(value as ContentStatus | "all")
                         }
                         options={[
-                          { value: "all", label: "Any Status" },
-                          { value: ContentStatus.Draft, label: "✏️ Draft" },
+                          {
+                            value: "all",
+                            label: strings.ManageAlertsApprovalAnyStatusOption,
+                          },
+                          {
+                            value: ContentStatus.Draft,
+                            label: strings.ManageAlertsApprovalDraftOption,
+                          },
                           {
                             value: ContentStatus.PendingReview,
-                            label: "⏳ Pending Review",
+                            label: strings.ManageAlertsApprovalPendingOption,
                           },
                           {
                             value: ContentStatus.Approved,
-                            label: "✅ Approved",
+                            label: strings.ManageAlertsApprovalApprovedOption,
                           },
                           {
                             value: ContentStatus.Rejected,
-                            label: "❌ Rejected",
+                            label: strings.ManageAlertsApprovalRejectedOption,
                           },
                         ]}
                       />
@@ -1667,15 +2044,11 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label:
-                              strings.ManageAlertsLanguageAllOption ||
-                              "🌐 All Languages",
+                            label: strings.ManageAlertsLanguageAllOption,
                           },
                           {
                             value: TargetLanguage.All,
-                            label:
-                              strings.ManageAlertsLanguageMultiOption ||
-                              "🌍 Multi-Language",
+                            label: strings.ManageAlertsLanguageMultiOption,
                           },
                           ...supportedLanguages.map((lang) => ({
                             value: lang.code,
@@ -1696,74 +2069,56 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label:
-                              strings.ManageAlertsNotificationAllOption ||
-                              "📧 All Notification Types",
+                            label: strings.ManageAlertsNotificationAllOption,
                           },
                           {
                             value: NotificationType.None,
-                            label:
-                              strings.ManageAlertsNotificationNoneOption ||
-                              "🚫 None - Banner only",
+                            label: strings.ManageAlertsNotificationNoneOption,
                           },
                           {
                             value: NotificationType.Browser,
-                            label:
-                              strings.ManageAlertsNotificationBrowserOption ||
-                              "🌐 Browser - Banner display",
+                            label: strings.ManageAlertsNotificationBrowserOption,
                           },
                           {
                             value: NotificationType.Email,
-                            label:
-                              strings.ManageAlertsNotificationEmailOption ||
-                              "📧 Email only - No banner",
+                            label: strings.ManageAlertsNotificationEmailOption,
                           },
                           {
                             value: NotificationType.Both,
-                            label:
-                              strings.ManageAlertsNotificationBothOption ||
-                              "📧🌐 Browser + Email",
+                            label: strings.ManageAlertsNotificationBothOption,
                           },
                         ]}
                       />
 
                       {/* Date Filter */}
                       <SharePointSelect
-                        label={
-                          strings.ManageAlertsCreatedDateFilterLabel ||
-                          "Created Date"
-                        }
+                        label={strings.ManageAlertsCreatedDateFilterLabel}
                         value={dateFilter}
-                        onChange={(value) => setDateFilter(value as any)}
+                        onChange={(value) =>
+                          setDateFilter(
+                            value as "all" | "today" | "week" | "month" | "custom",
+                          )
+                        }
                         options={[
                           {
                             value: "all",
-                            label:
-                              strings.ManageAlertsDateAllOption ||
-                              "📅 All Dates",
+                            label: strings.ManageAlertsDateAllOption,
                           },
                           {
                             value: "today",
-                            label:
-                              strings.ManageAlertsDateTodayOption || "📅 Today",
+                            label: strings.ManageAlertsDateTodayOption,
                           },
                           {
                             value: "week",
-                            label:
-                              strings.ManageAlertsDateWeekOption ||
-                              "📅 This Week",
+                            label: strings.ManageAlertsDateWeekOption,
                           },
                           {
                             value: "month",
-                            label:
-                              strings.ManageAlertsDateMonthOption ||
-                              "📅 This Month",
+                            label: strings.ManageAlertsDateMonthOption,
                           },
                           {
                             value: "custom",
-                            label:
-                              strings.ManageAlertsDateCustomOption ||
-                              "📅 Custom Range",
+                            label: strings.ManageAlertsDateCustomOption,
                           },
                         ]}
                       />
@@ -1773,15 +2128,13 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     {dateFilter === "custom" && (
                       <div className={styles.dateRangeFilters}>
                         <SharePointInput
-                          label={
-                            strings.ManageAlertsFromDateLabel || "From Date"
-                          }
+                          label={strings.ManageAlertsFromDateLabel}
                           type="date"
                           value={customDateFrom}
                           onChange={setCustomDateFrom}
                         />
                         <SharePointInput
-                          label={strings.ManageAlertsToDateLabel || "To Date"}
+                          label={strings.ManageAlertsToDateLabel}
                           type="date"
                           value={customDateTo}
                           onChange={setCustomDateTo}
@@ -1793,316 +2146,50 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     <div className={styles.filterActions}>
                       <SharePointButton
                         variant="secondary"
-                        onClick={() => {
-                          setContentTypeFilter(ContentType.Alert);
-                          setPriorityFilter("all");
-                          setAlertTypeFilter("all");
-                          setStatusFilter("all");
-                          setLanguageFilter("all");
-                          setNotificationFilter("all");
-                          setDateFilter("all");
-                          setCustomDateFrom("");
-                          setCustomDateTo("");
-                          setSearchTerm("");
-                          setContentStatusFilter("all");
-                        }}
+                        onClick={resetFilters}
+                        disabled={!hasActiveFilters}
                       >
-                        {strings.ManageAlertsClearFiltersButton ||
-                          "Clear All Filters"}
+                        {strings.ManageAlertsClearFiltersButton}
                       </SharePointButton>
                     </div>
                   </div>
                 )}
               </div>
 
-              {groupedAlerts.map((alert) => {
-                const alertType = alertTypes.find(
-                  (type) => type.name === alert.AlertType,
-                );
-                const isSelected = selectedAlerts.includes(alert.id);
-                const isMultiLanguage =
-                  alert.isLanguageGroup &&
-                  alert.languageVariants &&
-                  alert.languageVariants.length > 1;
-
-                // Template rendering validation
-                if (
-                  alert.contentType === ContentType.Template &&
-                  (!alert.title || !alert.description)
-                ) {
-                  logger.warn(
-                    "ManageAlertsTab",
-                    `Template ${alert.id} has missing content`,
-                    {
-                      hasTitle: !!alert.title,
-                      hasDescription: !!alert.description,
-                    },
-                  );
-                }
-
-                return (
-                  <div
-                    key={alert.id}
-                    className={`${styles.alertCard} ${isSelected ? styles.selected : ""} ${alert.contentType === ContentType.Template ? styles.templateCard : ""}`}
-                  >
-                    <div className={styles.alertCardHeader}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedAlerts((prev) => [...prev, alert.id]);
-                          } else {
-                            setSelectedAlerts((prev) =>
-                              prev.filter((id) => id !== alert.id),
-                            );
-                          }
-                        }}
-                        className={styles.alertCheckbox}
-                      />
-                      <div className={styles.alertStatus}>
-                        <span
-                          className={`${styles.statusBadge} ${alert.status.toLowerCase() === "active" ? styles.active : alert.status.toLowerCase() === "expired" ? styles.expired : styles.scheduled}`}
-                        >
-                          {alert.status}
-                        </span>
-                        {alert.isPinned && (
-                          <span className={styles.pinnedBadge}>📌 PINNED</span>
-                        )}
-                        {alert.contentStatus &&
-                          alert.contentStatus !== ContentStatus.Approved && (
-                            <span
-                              className={`${styles.statusBadge} ${styles.template}`}
-                            >
-                              {alert.contentStatus ===
-                              ContentStatus.PendingReview
-                                ? "⏳ Pending"
-                                : alert.contentStatus === ContentStatus.Rejected
-                                  ? "❌ Rejected"
-                                  : "✏️ Draft"}
-                            </span>
-                          )}
-                      </div>
-                    </div>
-
-                    {/* Force render alertCardContent with error boundaries for templates */}
-                    <div
-                      className={styles.alertCardContent}
-                      style={
-                        alert.contentType === ContentType.Template
-                          ? {
-                              display: "block",
-                              visibility: "visible",
-                              opacity: 1,
-                            }
-                          : {}
-                      }
-                    >
-                      {/* Show AlertType if available, otherwise show content type */}
-                      {alert.AlertType ? (
-                        <div
-                          className={styles.alertTypeIndicator}
-                          style={
-                            {
-                              "--bg-color":
-                                alertType?.backgroundColor || "#0078d4",
-                              "--text-color": alertType?.textColor || "#ffffff",
-                            } as React.CSSProperties
-                          }
-                        >
-                          {alert.AlertType}
-                        </div>
-                      ) : (
-                        <div
-                          className={styles.alertTypeIndicator}
-                          style={
-                            {
-                              "--bg-color":
-                                alert.contentType === ContentType.Template
-                                  ? "#8764b8"
-                                  : "#0078d4",
-                              "--text-color": "#ffffff",
-                            } as React.CSSProperties
-                          }
-                        >
-                          {alert.contentType === ContentType.Template
-                            ? strings.ManageAlertsTemplateBadge || "📄 Template"
-                            : strings.ManageAlertsAlertBadge || "📢 Alert"}
-                        </div>
-                      )}
-
-                      <h4 className={styles.alertCardTitle}>
-                        {alert.title ||
-                          strings.ManageAlertsNoTitleFallback ||
-                          "[No Title Available]"}
-                        {isMultiLanguage && (
-                          <span className={styles.multiLanguageBadge}>
-                            <Globe24Regular
-                              style={{
-                                width: "12px",
-                                height: "12px",
-                                marginRight: "4px",
-                              }}
-                            />
-                            {Text.format(
-                              strings.ManageAlertsLanguageBadge ||
-                                "{0} languages",
-                              alert.languageVariants?.length || 0,
-                            )}
-                          </span>
-                        )}
-                      </h4>
-
-                      <div className={styles.alertCardDescription}>
-                        {alert.description ? (
-                          <div
-                            dangerouslySetInnerHTML={{
-                              __html: htmlSanitizer.sanitizeHtml(
-                                StringUtils.truncate(alert.description, 150),
-                              ),
-                            }}
-                          />
-                        ) : (
-                          <em style={{ color: "#999" }}>
-                            {strings.ManageAlertsNoDescriptionFallback ||
-                              "[No Description Available]"}
-                          </em>
-                        )}
-                      </div>
-
-                      <div className={styles.alertMetaData}>
-                        <div className={styles.metaInfo}>
-                          <strong>{strings.AlertType || "Type"}:</strong>
-                          <span
-                            className={`${styles.contentTypeBadge} ${alert.contentType === ContentType.Template ? styles.template : styles.alert}`}
-                          >
-                            {alert.contentType === ContentType.Template
-                              ? strings.ManageAlertsTemplateBadge ||
-                                "📄 Template"
-                              : strings.ManageAlertsAlertBadge || "📢 Alert"}
-                          </span>
-                        </div>
-                        <div className={styles.metaInfo}>
-                          <strong>{strings.Priority || "Priority"}:</strong>{" "}
-                          {priorityOptions.find(
-                            (option) => option.value === alert.priority,
-                          )?.label || alert.priority}
-                        </div>
-                        <div className={styles.metaInfo}>
-                          <strong>{strings.Language || "Language"}:</strong>
-                          {isMultiLanguage ? (
-                            <span className={styles.languageList}>
-                              {Text.format(
-                                strings.ManageAlertsMultiLanguageList ||
-                                  "🌐 Multi-language ({0})",
-                                alert.languageVariants
-                                  ?.map(
-                                    (v) =>
-                                      supportedLanguages.find(
-                                        (l) => l.code === v.targetLanguage,
-                                      )?.flag || v.targetLanguage,
-                                  )
-                                  .join(" ") || "",
-                              )}
-                            </span>
-                          ) : alert.targetLanguage === TargetLanguage.All ? (
-                            strings.ManageAlertsAllLanguagesLabel ||
-                            "🌐 All Languages"
-                          ) : (
-                            `${supportedLanguages.find((l) => l.code === alert.targetLanguage)?.flag || ""} ${supportedLanguages.find((l) => l.code === alert.targetLanguage)?.nativeName || alert.targetLanguage}`
-                          )}
-                        </div>
-                        {alert.linkUrl && (
-                          <div className={styles.metaInfo}>
-                            <strong>
-                              {strings.LinkDescription || "Action"}:
-                            </strong>{" "}
-                            {alert.linkDescription}
-                          </div>
-                        )}
-                        <div className={styles.metaInfo}>
-                          <strong>
-                            {strings.ManageAlertsCreatedLabel || "Created"}:
-                          </strong>{" "}
-                          {DateUtils.formatForDisplay(
-                            alert.createdDate || new Date(),
-                          )}
-                        </div>
-                        {alert.scheduledStart && (
-                          <div className={styles.metaInfo}>
-                            <strong>
-                              {strings.CreateAlertStartDateLabel || "Start"}:
-                            </strong>{" "}
-                            {DateUtils.formatDateTimeForDisplay(
-                              alert.scheduledStart,
-                            )}
-                          </div>
-                        )}
-                        {alert.scheduledEnd && (
-                          <div className={styles.metaInfo}>
-                            <strong>
-                              {strings.CreateAlertEndDateLabel || "End"}:
-                            </strong>{" "}
-                            {DateUtils.formatDateTimeForDisplay(
-                              alert.scheduledEnd,
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className={styles.alertCardActions}>
-                      {/* Approval Workflow Buttons */}
-                      {(alert.contentStatus === ContentStatus.Draft ||
-                        alert.contentStatus === ContentStatus.Rejected ||
-                        !alert.contentStatus) && (
-                        <SharePointButton
-                          variant="primary"
-                          title="Submit for Review"
-                          onClick={() => handleSubmitForReview(alert)}
-                        >
-                          Submit
-                        </SharePointButton>
-                      )}
-                      {alert.contentStatus === ContentStatus.PendingReview && (
-                        <>
-                          <SharePointButton
-                            variant="primary"
-                            onClick={() => handleApprove(alert)}
-                          >
-                            Approve
-                          </SharePointButton>
-                          <SharePointButton
-                            variant="danger"
-                            onClick={() => handleReject(alert)}
-                          >
-                            Reject
-                          </SharePointButton>
-                        </>
-                      )}
-
-                      <SharePointButton
-                        variant="secondary"
-                        icon={<Edit24Regular />}
-                        onClick={() => {
-                          handleEditAlert(alert);
-                        }}
-                      >
-                        {strings.Edit}
-                      </SharePointButton>
-                      <SharePointButton
-                        variant="danger"
-                        icon={<Delete24Regular />}
-                        onClick={() => {
-                          handleDeleteAlert(alert.id, alert.title);
-                        }}
-                      >
-                        {strings.Delete}
-                      </SharePointButton>
-                    </div>
-                  </div>
-                );
-              })}
+              {groupedAlerts.map((alert) => (
+                <ManageAlertCard
+                  key={alert.id}
+                  alert={alert}
+                  isSelected={selectedAlertIds.has(alert.id)}
+                  isBusy={
+                    isLoadingAlerts ||
+                    isBulkActionInFlight ||
+                    busyAlertIds.includes(alert.id)
+                  }
+                  onSelectionChange={(checked) => {
+                    if (checked) {
+                      setSelectedAlerts((prev) =>
+                        prev.includes(alert.id) ? prev : [...prev, alert.id],
+                      );
+                    } else {
+                      setSelectedAlerts((prev) =>
+                        prev.filter((id) => id !== alert.id),
+                      );
+                    }
+                  }}
+                  onEdit={() => handleEditAlert(alert)}
+                  onDelete={() => handleDeleteAlert(alert.id, alert.title)}
+                  onPublishDraft={() => handlePublishDraft(alert)}
+                  onSubmitForReview={() => handleSubmitForReview(alert)}
+                  onApprove={() => handleApprove(alert)}
+                  onReject={() => handleReject(alert)}
+                  priorityLabel={
+                    priorityLabelMap.get(String(alert.priority)) || alert.priority
+                  }
+                  alertTypeStyle={alertTypeStyleMap.get(alert.AlertType)}
+                  supportedLanguageMap={supportedLanguageMap}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -2110,236 +2197,39 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
       {/* Edit Alert Form — rendered inline, replaces the parent dialog content */}
       {editingAlert && (
-        <div className={styles.alertForm}>
-          <div className={styles.formWithPreview}>
-            <div className={styles.formColumn}>
-              <SharePointSection
-                title={strings.CreateAlertSectionContentClassificationTitle}
-              >
-                <SharePointSelect
-                  label={strings.ContentTypeLabel}
-                  value={editingAlert.contentType}
-                  onChange={(value) =>
-                    setEditingAlert((prev) =>
-                      prev
-                        ? { ...prev, contentType: value as ContentType }
-                        : null,
-                    )
-                  }
-                  options={contentTypeOptions}
-                  required
-                  description={
-                    strings.ManageAlertsContentClassificationDescription ||
-                    strings.CreateAlertSectionContentClassificationDescription
-                  }
-                />
-
-                <div className={styles.languageModeSelector}>
-                  <label className={styles.fieldLabel}>
-                    {strings.ManageAlertsLanguageConfigurationLabel ||
-                      strings.CreateAlertLanguageConfigurationLabel}
-                  </label>
-                  <div className={styles.languageOptions}>
-                    <SharePointButton
-                      variant={!useMultiLanguage ? "primary" : "secondary"}
-                      onClick={() => setUseMultiLanguage(false)}
-                    >
-                      {strings.ManageAlertsSingleLanguageButton ||
-                        "🌐 Single Language"}
-                    </SharePointButton>
-                    <SharePointButton
-                      variant={useMultiLanguage ? "primary" : "secondary"}
-                      onClick={() => setUseMultiLanguage(true)}
-                    >
-                      {strings.ManageAlertsMultiLanguageButton ||
-                        "🗣️ Multi-Language"}
-                    </SharePointButton>
-                  </div>
-                </div>
-              </SharePointSection>
-              <SharePointSection
-                title={strings.CreateAlertSectionUserTargetingTitle}
-              >
-                <SharePointPeoplePicker
-                  context={context}
-                  titleText={strings.CreateAlertPeoplePickerLabel}
-                  personSelectionLimit={50}
-                  groupName={strings.CreateAlertPeoplePickerLabel}
-                  showtooltip={true}
-                  defaultSelectedUsers={[
-                    ...(editingAlert.targetUsers || []),
-                    ...(editingAlert.targetGroups || []),
-                  ].map((u) => u.email || u.loginName || u.displayName)}
-                  onChange={handlePeoplePickerChange}
-                  principalTypes={[
-                    PrincipalType.User,
-                    PrincipalType.SharePointGroup,
-                    PrincipalType.SecurityGroup,
-                    PrincipalType.DistributionList,
-                  ]}
-                  resolveDelay={1000}
-                  description={strings.CreateAlertPeoplePickerDescription}
-                />
-              </SharePointSection>
-              {!useMultiLanguage ? (
-                <>
-                  <SharePointSection
-                    title={strings.CreateAlertSectionLanguageTargetingTitle}
-                  >
-                    <SharePointSelect
-                      label={strings.CreateAlertTargetLanguageLabel}
-                      value={editingAlert.targetLanguage}
-                      onChange={(value) =>
-                        setEditingAlert((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                targetLanguage: value as TargetLanguage,
-                              }
-                            : null,
-                        )
-                      }
-                      options={languageOptions}
-                      required
-                      description={
-                        strings.ManageAlertsTargetLanguageDescription ||
-                        strings.CreateAlertSectionLanguageTargetingDescription
-                      }
-                    />
-                  </SharePointSection>
-
-                  <SharePointSection
-                    title={strings.CreateAlertSectionBasicInformationTitle}
-                  >
-                    <SharePointInput
-                      label={strings.AlertTitle}
-                      value={editingAlert.title}
-                      onChange={(value) => {
-                        setEditingAlert((prev) =>
-                          prev ? { ...prev, title: value } : null,
-                        );
-                        if (editErrors.title)
-                          setEditErrors((prev) => ({
-                            ...prev,
-                            title: undefined,
-                          }));
-                      }}
-                      placeholder={strings.CreateAlertTitlePlaceholder}
-                      required
-                      error={editErrors.title}
-                      description={strings.CreateAlertTitleDescription}
-                    />
-                    {copilotEnabled && (
-                      <div className={styles.copilotActionsRow}>
-                        <CopilotDraftControl
-                          copilotService={copilotService}
-                          onDraftGenerated={(draft) =>
-                            setEditingAlert((prev) =>
-                              prev ? { ...prev, description: draft } : null,
-                            )
-                          }
-                          onError={(error) =>
-                            notificationService.showError(
-                              error,
-                              strings.CopilotErrorTitle || "Copilot Error",
-                            )
-                          }
-                          disabled={!editingAlert || isEditingAlert}
-                        />
-                      </div>
-                    )}
-
-                    <SharePointRichTextEditor
-                      label={strings.AlertDescription}
-                      value={editingAlert.description}
-                      onChange={(value) => {
-                        setEditingAlert((prev) =>
-                          prev ? { ...prev, description: value } : null,
-                        );
-                        if (editErrors.description)
-                          setEditErrors((prev) => ({
-                            ...prev,
-                            description: undefined,
-                          }));
-                      }}
-                      context={context}
-                      placeholder={
-                        strings.ManageAlertsDescriptionPlaceholder ||
-                        strings.CreateAlertDescriptionPlaceholder
-                      }
-                      required
-                      error={editErrors.description}
-                      description={
-                        strings.ManageAlertsDescriptionHelp ||
-                        strings.CreateAlertDescriptionHelp
-                      }
-                      imageFolderName={
-                        editingAlert.languageGroup ||
-                        editingAlert.title ||
-                        "Untitled_Alert"
-                      }
-                      disableImageUpload={isCrossSiteAlert}
-                    />
-                    {copilotEnabled && (
-                      <CopilotGovernanceControl
-                        copilotService={copilotService}
-                        textToAnalyze={editingAlert.description}
-                        onError={(error) =>
-                          notificationService.showError(
-                            error,
-                            strings.CopilotErrorTitle || "Copilot Error",
-                          )
-                        }
-                        disabled={!editingAlert || isEditingAlert}
-                      />
-                    )}
-                  </SharePointSection>
-                </>
-              ) : (
-                <SharePointSection title={strings.MultiLanguageContent}>
-                  <MultiLanguageContentEditor
-                    content={editingAlert.languageContent || []}
-                    onContentChange={(content) => {
-                      setEditingAlert((prev) =>
-                        prev ? { ...prev, languageContent: content } : null,
-                      );
-                    }}
-                    availableLanguages={supportedLanguages}
-                    errors={editErrors}
-                    linkUrl={editingAlert.linkUrl}
-                    tenantDefaultLanguage={tenantDefaultLanguage}
-                    languagePolicy={languagePolicy}
-                    context={context}
-                    imageFolderName={editingAlert.languageGroup}
-                    disableImageUpload={isCrossSiteAlert}
-                    copilotService={copilotEnabled ? copilotService : undefined}
-                  />
-                </SharePointSection>
-              )}
-              {/* Image Manager */}
-              {editingAlert.languageGroup && !isCrossSiteAlert && (
-                <SharePointSection
-                  title={strings.ImageManagerTitle || "Images"}
-                >
-                  <ImageManager
-                    context={context}
-                    imageStorageService={imageStorageService}
-                    folderName={editingAlert.languageGroup}
-                  />
-                </SharePointSection>
-              )}
-              {editingAlert.languageGroup && isCrossSiteAlert && (
-                <SharePointSection
-                  title={strings.ImageManagerTitle || "Images"}
-                >
-                  <div className={styles.infoMessage}>
-                    Image management is disabled for alerts created on other
-                    sites. Open the source site to manage images.
-                  </div>
-                </SharePointSection>
-              )}
-              // ... (rest of the component)
-              {/* Attachment Manager */}
+        <div className={styles.editAlertForm}>
+          <AlertEditorForm
+            mode="manage"
+            alert={editingAlert}
+            setAlert={setEditingAlertData}
+            errors={editErrors}
+            setErrors={setEditErrors}
+            alertTypes={alertTypes}
+            alertTypeOptions={alertTypeOptions}
+            priorityOptions={priorityOptions}
+            notificationOptions={notificationOptions}
+            contentTypeOptions={contentTypeOptions}
+            languageOptions={languageOptions}
+            supportedLanguages={supportedLanguages}
+            useMultiLanguage={useMultiLanguage}
+            setUseMultiLanguage={setUseMultiLanguage}
+            userTargetingEnabled={userTargetingEnabled}
+            notificationsEnabled={notificationsEnabled}
+            enableTargetSite={enableTargetSite}
+            siteDetector={siteDetector}
+            graphClient={graphClient}
+            context={context}
+            languagePolicy={languagePolicy}
+            tenantDefaultLanguage={tenantDefaultLanguage}
+            copilotEnabled={copilotEnabled}
+            copilotService={copilotService}
+            notificationService={notificationService}
+            isBusy={isEditingAlert}
+            showPreview={showPreview}
+            setShowPreview={setShowPreview}
+            imageFolderName={editingAlert.languageGroup || editingAlert.title}
+            disableImageUpload={isCrossSiteAlert}
+            renderMiddleSections={
               <AttachmentManager
                 context={context}
                 alertService={alertService}
@@ -2348,337 +2238,15 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 siteId={editingAlertSiteId || undefined}
                 attachments={editingAlert.attachments || []}
                 onAttachmentsChange={(newAttachments) => {
-                  setEditingAlert((prev) =>
-                    prev ? { ...prev, attachments: newAttachments } : null,
-                  );
+                  setEditingAlertData((prev) => ({
+                    ...prev,
+                    attachments: newAttachments,
+                  }));
                 }}
               />
-              {/* Image Manager */}
-              <SharePointSection
-                title={
-                  strings.ManageAlertsUploadedImagesSectionTitle ||
-                  "Uploaded Images"
-                }
-              >
-                {!isCrossSiteAlert ? (
-                  <ImageManager
-                    context={context}
-                    imageStorageService={imageStorageService}
-                    folderName={
-                      editingAlert.languageGroup || editingAlert.title
-                    }
-                    onImageDeleted={() => {
-                      // Optional: Refresh or notify on image deletion
-                      logger.info(
-                        "ManageAlertsTab",
-                        "Image deleted from alert folder",
-                      );
-                    }}
-                  />
-                ) : (
-                  <div className={styles.infoMessage}>
-                    Image management is disabled for alerts created on other
-                    sites. Open the source site to manage images.
-                  </div>
-                )}
-              </SharePointSection>
-              <SharePointSection
-                title={strings.CreateAlertConfigurationSectionTitle}
-              >
-                <SharePointSelect
-                  label={strings.AlertType}
-                  value={editingAlert.AlertType}
-                  onChange={(value) => {
-                    setEditingAlert((prev) =>
-                      prev ? { ...prev, AlertType: value } : null,
-                    );
-                    if (editErrors.AlertType)
-                      setEditErrors((prev) => ({
-                        ...prev,
-                        AlertType: undefined,
-                      }));
-                  }}
-                  options={alertTypeOptions}
-                  required
-                  error={editErrors.AlertType}
-                  description={
-                    strings.ManageAlertsAlertTypeDescription ||
-                    strings.CreateAlertConfigurationDescription
-                  }
-                />
-
-                <SharePointSelect
-                  label={strings.CreateAlertPriorityLabel}
-                  value={editingAlert.priority}
-                  onChange={(value) =>
-                    setEditingAlert((prev) =>
-                      prev
-                        ? { ...prev, priority: value as AlertPriority }
-                        : null,
-                    )
-                  }
-                  options={priorityOptions}
-                  required
-                  description={
-                    strings.ManageAlertsPriorityDescription ||
-                    strings.CreateAlertPriorityDescription
-                  }
-                />
-
-                <SharePointToggle
-                  label={strings.CreateAlertPinLabel}
-                  checked={editingAlert.isPinned}
-                  onChange={(checked) =>
-                    setEditingAlert((prev) =>
-                      prev ? { ...prev, isPinned: checked } : null,
-                    )
-                  }
-                  description={
-                    strings.ManageAlertsPinDescription ||
-                    strings.CreateAlertPinDescription
-                  }
-                />
-
-                <SharePointSelect
-                  label={
-                    strings.ManageAlertsNotificationMethodLabel ||
-                    strings.CreateAlertNotificationLabel
-                  }
-                  value={editingAlert.notificationType}
-                  onChange={(value) =>
-                    setEditingAlert((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            notificationType: value as NotificationType,
-                          }
-                        : null,
-                    )
-                  }
-                  options={notificationOptions}
-                  description={
-                    strings.ManageAlertsNotificationDescription ||
-                    strings.CreateAlertNotificationDescription
-                  }
-                />
-              </SharePointSection>
-              <SharePointSection
-                title={strings.CreateAlertActionLinkSectionTitle}
-              >
-                <SharePointInput
-                  label={strings.CreateAlertLinkUrlLabel}
-                  value={editingAlert.linkUrl || ""}
-                  onChange={(value) => {
-                    setEditingAlert((prev) =>
-                      prev ? { ...prev, linkUrl: value } : null,
-                    );
-                    if (editErrors.linkUrl)
-                      setEditErrors((prev) => ({
-                        ...prev,
-                        linkUrl: undefined,
-                      }));
-                  }}
-                  placeholder={strings.CreateAlertLinkUrlPlaceholder}
-                  error={editErrors.linkUrl}
-                  description={strings.CreateAlertLinkUrlDescription}
-                />
-
-                {editingAlert.linkUrl && !useMultiLanguage && (
-                  <SharePointInput
-                    label={strings.CreateAlertLinkDescriptionLabel}
-                    value={editingAlert.linkDescription || ""}
-                    onChange={(value) => {
-                      setEditingAlert((prev) =>
-                        prev ? { ...prev, linkDescription: value } : null,
-                      );
-                      if (editErrors.linkDescription)
-                        setEditErrors((prev) => ({
-                          ...prev,
-                          linkDescription: undefined,
-                        }));
-                    }}
-                    placeholder={strings.CreateAlertLinkDescriptionPlaceholder}
-                    required={!!editingAlert.linkUrl}
-                    error={editErrors.linkDescription}
-                    description={strings.CreateAlertLinkDescriptionDescription}
-                  />
-                )}
-
-                {editingAlert.linkUrl && useMultiLanguage && (
-                  <div className={styles.infoMessage}>
-                    <p>
-                      💡 <strong>Multi-Language Mode:</strong> Link descriptions
-                      are configured per language in the Multi-Language Content
-                      section above.
-                    </p>
-                  </div>
-                )}
-              </SharePointSection>
-              <SharePointSection
-                title={strings.CreateAlertTargetSitesSectionTitle}
-              >
-                <SiteSelector
-                  selectedSites={editingAlert.targetSites || []}
-                  onSitesChange={(sites: string[]) => {
-                    setEditingAlert((prev) =>
-                      prev ? { ...prev, targetSites: sites } : null,
-                    );
-                    if (editErrors.targetSites)
-                      setEditErrors((prev) => ({
-                        ...prev,
-                        targetSites: undefined,
-                      }));
-                  }}
-                  siteDetector={siteDetector}
-                  graphClient={graphClient}
-                />
-                {editErrors.targetSites && (
-                  <div className={styles.errorMessage}>
-                    {editErrors.targetSites}
-                  </div>
-                )}
-                <div className={styles.fieldDescription}>
-                  {strings.ManageAlertsTargetSitesDescription ||
-                    "Choose which SharePoint sites will display this alert."}
-                </div>
-              </SharePointSection>
-              <SharePointSection
-                title={strings.CreateAlertSchedulingSectionTitle}
-              >
-                <div className={styles.schedulingContainer}>
-                  <div className={styles.schedulingHeader}>
-                    <p className={styles.schedulingDescription}>
-                      {strings.ManageAlertsSchedulingDescription ||
-                        "Configure when this alert will be visible to users. Leave dates empty for immediate activation and manual control."}
-                    </p>
-                  </div>
-
-                  <div className={styles.schedulingGrid}>
-                    <div>
-                      <SharePointInput
-                        label={strings.CreateAlertStartDateLabel}
-                        type="datetime-local"
-                        value={DateUtils.toDateTimeLocalValue(
-                          editingAlert.scheduledStart,
-                        )}
-                        onChange={(value) => {
-                          setEditingAlert((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  scheduledStart: value
-                                    ? new Date(value)
-                                    : undefined,
-                                }
-                              : null,
-                          );
-                          if (editErrors.scheduledStart)
-                            setEditErrors((prev) => ({
-                              ...prev,
-                              scheduledStart: undefined,
-                            }));
-                        }}
-                        error={editErrors.scheduledStart}
-                        description={
-                          strings.ManageAlertsStartDateDescription ||
-                          strings.CreateAlertStartDateDescription
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <SharePointInput
-                        label={strings.CreateAlertEndDateLabel}
-                        type="datetime-local"
-                        value={DateUtils.toDateTimeLocalValue(
-                          editingAlert.scheduledEnd,
-                        )}
-                        onChange={(value) => {
-                          setEditingAlert((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  scheduledEnd: value
-                                    ? new Date(value)
-                                    : undefined,
-                                }
-                              : null,
-                          );
-                          if (editErrors.scheduledEnd)
-                            setEditErrors((prev) => ({
-                              ...prev,
-                              scheduledEnd: undefined,
-                            }));
-                        }}
-                        error={editErrors.scheduledEnd}
-                        description={
-                          strings.ManageAlertsEndDateDescription ||
-                          strings.CreateAlertEndDateDescription
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Schedule Summary */}
-                  <div className={styles.scheduleSummary}>
-                    <h4>
-                      {strings.ManageAlertsScheduleSummaryTitle ||
-                        "Schedule Summary"}
-                    </h4>
-                    {!editingAlert.scheduledStart &&
-                    !editingAlert.scheduledEnd ? (
-                      <p>
-                        {strings.ManageAlertsScheduleImmediate ||
-                          "⚡ Alert is active immediately and requires manual deactivation."}
-                      </p>
-                    ) : editingAlert.scheduledStart &&
-                      !editingAlert.scheduledEnd ? (
-                      <p>
-                        {Text.format(
-                          strings.ManageAlertsScheduleStartOnly ||
-                            "📅 Alert activates on {0} and remains active until manually deactivated.",
-                          new Date(
-                            editingAlert.scheduledStart,
-                          ).toLocaleString(),
-                        )}
-                      </p>
-                    ) : !editingAlert.scheduledStart &&
-                      editingAlert.scheduledEnd ? (
-                      <p>
-                        {Text.format(
-                          strings.ManageAlertsScheduleEndOnly ||
-                            "⏰ Alert is active immediately until {0}.",
-                          new Date(editingAlert.scheduledEnd).toLocaleString(),
-                        )}
-                      </p>
-                    ) : (
-                      <p>
-                        {Text.format(
-                          strings.ManageAlertsScheduleWindow ||
-                            "📅 Active from {0} to {1}.",
-                          new Date(
-                            editingAlert.scheduledStart!,
-                          ).toLocaleString(),
-                          new Date(editingAlert.scheduledEnd!).toLocaleString(),
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Time Zone Info */}
-                  <div className={styles.timezoneInfo}>
-                    <p>
-                      {Text.format(
-                        strings.ManageAlertsScheduleTimezone ||
-                          "🌍 All times are in your local time zone ({0}).",
-                        Intl.DateTimeFormat().resolvedOptions().timeZone,
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </SharePointSection>
-              {/* Action Buttons */}
-              <div className={styles.formActions}>
+            }
+            actionButtons={
+              <>
                 <SharePointButton
                   variant="primary"
                   onClick={handleSaveEdit}
@@ -2686,11 +2254,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   icon={<Save24Regular />}
                 >
                   {isEditingAlert
-                    ? strings.ManageAlertsSavingChangesLabel ||
-                      "Saving Changes..."
-                    : strings.ManageAlertsSaveChangesButton || "Save Changes"}
+                    ? strings.ManageAlertsSavingChangesLabel
+                    : strings.ManageAlertsSaveChangesButton}
                 </SharePointButton>
-
                 <SharePointButton
                   variant="secondary"
                   onClick={handleCancelEdit}
@@ -2698,162 +2264,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 >
                   {strings.Cancel}
                 </SharePointButton>
-
-                <SharePointButton
-                  variant="secondary"
-                  onClick={() => setShowPreview(!showPreview)}
-                  icon={<Eye24Regular />}
-                >
-                  {showPreview
-                    ? strings.CreateAlertHidePreview
-                    : strings.CreateAlertShowPreview}
-                </SharePointButton>
-              </div>
-            </div>
-
-            {/* Preview Column */}
-            {showPreview && (
-              <div className={styles.formColumn}>
-                <div className={styles.alertCard}>
-                  <h3>
-                    {strings.ManageAlertsLivePreviewTitle || "Live Preview"}
-                  </h3>
-
-                  {/* Multi-language preview mode selector */}
-                  {useMultiLanguage &&
-                    editingAlert.languageContent &&
-                    editingAlert.languageContent.length > 0 && (
-                      <div className={styles.previewLanguageSelector}>
-                        <label className={styles.previewLabel}>
-                          {strings.CreateAlertPreviewLanguageLabel}
-                        </label>
-                        <div className={styles.previewLanguageButtons}>
-                          {editingAlert.languageContent.map(
-                            (content, index) => {
-                              const lang = supportedLanguages.find(
-                                (l) => l.code === content.language,
-                              );
-                              return (
-                                <SharePointButton
-                                  key={content.language}
-                                  variant={
-                                    index === 0 ? "primary" : "secondary"
-                                  }
-                                  onClick={() => {
-                                    // Move selected language to front for preview
-                                    const reorderedContent = [
-                                      content,
-                                      ...editingAlert.languageContent!.filter(
-                                        (_, i) => i !== index,
-                                      ),
-                                    ];
-                                    setEditingAlert((prev) =>
-                                      prev
-                                        ? {
-                                            ...prev,
-                                            languageContent: reorderedContent,
-                                          }
-                                        : null,
-                                    );
-                                  }}
-                                  className={styles.previewLanguageButton}
-                                >
-                                  {lang?.flag || content.language}{" "}
-                                  {lang?.nativeName || content.language}
-                                </SharePointButton>
-                              );
-                            },
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                  <AlertPreview
-                    title={
-                      useMultiLanguage &&
-                      editingAlert.languageContent &&
-                      editingAlert.languageContent.length > 0
-                        ? editingAlert.languageContent[0]?.title ||
-                          strings.CreateAlertMultiLanguagePreviewTitle
-                        : editingAlert.title || strings.AlertPreviewDefaultTitle
-                    }
-                    description={
-                      useMultiLanguage &&
-                      editingAlert.languageContent &&
-                      editingAlert.languageContent.length > 0
-                        ? editingAlert.languageContent[0]?.description ||
-                          strings.CreateAlertMultiLanguagePreviewDescription
-                        : editingAlert.description ||
-                          strings.AlertPreviewDefaultDescription
-                    }
-                    alertType={
-                      getCurrentAlertType() || {
-                        name: strings.AlertTypeInfo,
-                        iconName: "Info",
-                        backgroundColor: "#0078d4",
-                        textColor: "#ffffff",
-                        additionalStyles: "",
-                        priorityStyles: {},
-                      }
-                    }
-                    priority={editingAlert.priority}
-                    linkUrl={editingAlert.linkUrl}
-                    linkDescription={
-                      useMultiLanguage &&
-                      editingAlert.languageContent &&
-                      editingAlert.languageContent.length > 0
-                        ? editingAlert.languageContent[0]?.linkDescription ||
-                          strings.CreateAlertLinkPreviewFallback
-                        : editingAlert.linkDescription ||
-                          strings.CreateAlertLinkPreviewFallback
-                    }
-                    isPinned={editingAlert.isPinned}
-                  />
-
-                  {/* Multi-language preview info */}
-                  {useMultiLanguage &&
-                    editingAlert.languageContent &&
-                    editingAlert.languageContent.length > 0 && (
-                      <div className={styles.multiLanguagePreviewInfo}>
-                        <p>
-                          <strong>
-                            {strings.ManageAlertsMultiLanguagePreviewHeading ||
-                              "Multi-language Preview"}
-                          </strong>
-                        </p>
-                        <p>
-                          {Text.format(
-                            strings.ManageAlertsMultiLanguagePreviewCurrentLanguage ||
-                              "Currently previewing: {0}",
-                            supportedLanguages.find(
-                              (l) =>
-                                l.code ===
-                                editingAlert.languageContent![0]?.language,
-                            )?.nativeName ||
-                              editingAlert.languageContent![0]?.language,
-                          )}
-                        </p>
-                        <p>
-                          {Text.format(
-                            strings.ManageAlertsMultiLanguagePreviewAvailableLanguages ||
-                              "Available in {0} language(s): {1}",
-                            editingAlert.languageContent.length,
-                            editingAlert.languageContent
-                              .map(
-                                (c) =>
-                                  supportedLanguages.find(
-                                    (l) => l.code === c.language,
-                                  )?.flag || c.language,
-                              )
-                              .join(" "),
-                          )}
-                        </p>
-                      </div>
-                    )}
-                </div>
-              </div>
-            )}
-          </div>
+              </>
+            }
+            showScheduleSummary={true}
+          />
         </div>
       )}
       {dialogs}

@@ -251,6 +251,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         >
           <AlertHeader
             item={item}
+            iconName={alertType.iconName}
             expanded={expanded}
             toggleExpanded={handlers.toggleExpanded}
             ariaControlsId={ariaControlsId}

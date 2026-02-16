@@ -159,7 +159,7 @@ export class SharePointAlertService {
   public async getAlerts(siteIds?: string[]): Promise<IAlertItem[]> {
     const sites = await this.resolveSiteIds(siteIds);
     const allAlerts: IAlertItem[] = [];
-    const batchSize = 3;
+    const batchSize = 2;
 
     for (let i = 0; i < sites.length; i += batchSize) {
       const batch = sites.slice(i, i + batchSize);
@@ -189,18 +189,12 @@ export class SharePointAlertService {
   ): Promise<IAlertItem[]> {
     const sites = await this.resolveSiteIds(siteIds);
     const allItems: IAlertItem[] = [];
-    const batchSize = 3;
+    const batchSize = 2;
 
     for (let i = 0; i < sites.length; i += batchSize) {
       const batch = sites.slice(i, i + batchSize);
       const results = await Promise.allSettled(
-        batch.map(async (siteId) => {
-          const [alerts, templates] = await Promise.all([
-            this.operations.getAlertsForSite(siteId),
-            this.operations.getTemplateAlerts(siteId),
-          ]);
-          return [...alerts, ...templates];
-        }),
+        batch.map((siteId) => this.operations.getManageItemsForSite(siteId)),
       );
 
       results.forEach((r) => {
@@ -225,10 +219,10 @@ export class SharePointAlertService {
     try {
       const alerts = await this.getAlerts(); // Get all from hierarchy
       const now = new Date();
-      const updates: { id: string; status: string }[] = [];
+      const updates: { id: string; status: NonNullable<IAlertItem["status"]> }[] = [];
 
       for (const alert of alerts) {
-        let newStatus = alert.status;
+        let newStatus: IAlertItem["status"] = alert.status;
         if (
           alert.scheduledEnd &&
           new Date(alert.scheduledEnd) < now &&
@@ -242,13 +236,13 @@ export class SharePointAlertService {
         ) {
           newStatus = "Active";
         }
-        if (newStatus !== alert.status)
+        if (newStatus && newStatus !== alert.status)
           updates.push({ id: alert.id, status: newStatus });
       }
 
       for (const update of updates) {
         await this.operations.updateAlert(update.id, {
-          status: update.status as any,
+          status: update.status,
         });
       }
     } catch (e) {

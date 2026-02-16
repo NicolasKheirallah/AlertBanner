@@ -5,6 +5,9 @@ import {
   Delete24Regular,
   Dismiss24Regular,
   Edit24Regular,
+  Code24Regular,
+  EyeOff24Regular,
+  Search24Regular,
 } from "@fluentui/react-icons";
 import {
   SharePointButton,
@@ -21,6 +24,39 @@ import { NotificationService } from "../../Services/NotificationService";
 import { useFluentDialogs } from "../../Hooks/useFluentDialogs";
 import styles from "../AlertSettings.module.scss";
 import { logger } from "../../Services/LoggerService";
+import * as strings from "AlertBannerApplicationCustomizerStrings";
+import {
+  ALL_FLUENT_ICON_NAMES,
+  getAlertTypeIcon,
+  getAlertTypeIconLabel,
+} from "../../AlertItem/utils";
+import { meetsWCAGAA } from "../../Utils/ColorUtils";
+
+const HEX_COLOR_PATTERN = /^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/;
+
+const createDefaultAlertType = (): IAlertType => ({
+  name: "",
+  iconName: "Info",
+  backgroundColor: "#0078d4",
+  textColor: "#ffffff",
+  additionalStyles: "",
+  priorityStyles: {
+    [AlertPriority.Critical]: "border: 2px solid #E81123;",
+    [AlertPriority.High]: "border: 1px solid #EA4300;",
+    [AlertPriority.Medium]: "",
+    [AlertPriority.Low]: "",
+  },
+});
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return strings.CreateAlertUnknownError;
+};
+
+const normalizeName = (value: string): string => value.trim();
 
 export interface IAlertTypesTabProps {
   alertTypes: IAlertType[];
@@ -46,76 +82,113 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
   const [draggedItem, setDraggedItem] = React.useState<number | null>(null);
   const [editingType, setEditingType] = React.useState<IAlertType | null>(null);
   const [isEditMode, setIsEditMode] = React.useState(false);
+  const [showAdvancedStyles, setShowAdvancedStyles] = React.useState(false);
+  const [isIconDialogOpen, setIsIconDialogOpen] = React.useState(false);
+  const [iconSearchTerm, setIconSearchTerm] = React.useState("");
   const { confirm, dialogs } = useFluentDialogs();
   const notificationService = React.useMemo(
     () => (context ? NotificationService.getInstance(context) : null),
     [context],
   );
 
-  const handleCreateAlertType = React.useCallback(async () => {
-    if (!newAlertType.name.trim()) {
-      if (notificationService) {
-        notificationService.showWarning(
-          "Please enter a name for the alert type",
-          "Validation Error",
-        );
-      } else {
-        logger.warn("AlertTypesTab", "Please enter a name for the alert type");
-      }
-      return;
+  const resetTypeForm = React.useCallback(() => {
+    setNewAlertType(createDefaultAlertType());
+    setEditingType(null);
+    setIsEditMode(false);
+    setShowAdvancedStyles(false);
+    setIsCreatingType(false);
+  }, [setIsCreatingType, setNewAlertType]);
+
+  const validationError = React.useMemo(() => {
+    const name = normalizeName(newAlertType.name);
+    const iconName = (newAlertType.iconName || "").trim();
+
+    if (!name) {
+      return "Type name is required.";
     }
 
-    if (
-      alertTypes.some(
-        (type) => type.name.toLowerCase() === newAlertType.name.toLowerCase(),
-      )
-    ) {
-      notificationService?.showWarning(
-        "An alert type with this name already exists",
-        "Validation Error",
-      );
+    if (name.length < 2) {
+      return "Type name must be at least 2 characters.";
+    }
+
+    const duplicate = alertTypes.some((type) => {
+      const sameName = normalizeName(type.name).toLowerCase() === name.toLowerCase();
+      if (!sameName) {
+        return false;
+      }
+
+      if (!isEditMode || !editingType) {
+        return true;
+      }
+
+      return normalizeName(type.name).toLowerCase() !== normalizeName(editingType.name).toLowerCase();
+    });
+
+    if (duplicate) {
+      return "An alert type with this name already exists.";
+    }
+
+    if (!iconName) {
+      return "Please select an icon.";
+    }
+
+    if (!HEX_COLOR_PATTERN.test(newAlertType.backgroundColor)) {
+      return "Background color must be a valid hex value.";
+    }
+
+    if (!HEX_COLOR_PATTERN.test(newAlertType.textColor)) {
+      return "Text color must be a valid hex value.";
+    }
+
+    if (!meetsWCAGAA(newAlertType.backgroundColor, newAlertType.textColor)) {
+      return "Background and text colors do not meet WCAG AA contrast.";
+    }
+
+    return "";
+  }, [alertTypes, editingType, isEditMode, newAlertType]);
+
+  const canSubmit = validationError.length === 0;
+
+  const buildNormalizedType = React.useCallback((): IAlertType => {
+    const normalizedName = normalizeName(newAlertType.name);
+    return {
+      ...newAlertType,
+      name: normalizedName,
+      iconName: (newAlertType.iconName || "Info").trim() || "Info",
+      additionalStyles: (newAlertType.additionalStyles || "").trim(),
+    };
+  }, [newAlertType]);
+
+  const handleCreateAlertType = React.useCallback(async () => {
+    if (!canSubmit) {
+      notificationService?.showWarning(validationError, strings.Warning);
       return;
     }
 
     try {
-      const updatedTypes = [...alertTypes, { ...newAlertType }];
+      const normalizedType = buildNormalizedType();
+      const updatedTypes = [...alertTypes, normalizedType];
 
-      // Save to SharePoint list
       await alertService.saveAlertTypes(updatedTypes);
-
-      // Update local state
       setAlertTypes(updatedTypes);
-
-      // Reset form
-      setNewAlertType({
-        name: "",
-        iconName: "Info",
-        backgroundColor: "#0078d4",
-        textColor: "#ffffff",
-        additionalStyles: "",
-        priorityStyles: {
-          [AlertPriority.Critical]: "border: 2px solid #E81123;",
-          [AlertPriority.High]: "border: 1px solid #EA4300;",
-          [AlertPriority.Medium]: "",
-          [AlertPriority.Low]: "",
-        },
-      });
-      setIsCreatingType(false);
+      notificationService?.showSuccess("Alert type created.", strings.Success);
+      resetTypeForm();
     } catch (error) {
       logger.error("AlertTypesTab", "Error creating alert type", error);
       notificationService?.showError(
-        "Failed to create alert type. Please try again.",
-        "Create Failed",
+        `Failed to create alert type: ${getErrorMessage(error)}`,
+        strings.Error,
       );
     }
   }, [
-    newAlertType,
-    alertTypes,
-    setAlertTypes,
     alertService,
-    setNewAlertType,
-    setIsCreatingType,
+    alertTypes,
+    buildNormalizedType,
+    canSubmit,
     notificationService,
+    resetTypeForm,
+    setAlertTypes,
+    validationError,
   ]);
 
   const handleDeleteAlertType = React.useCallback(
@@ -124,30 +197,28 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
 
       const shouldDelete = await confirm({
         title: "Delete Alert Type",
-        message: `Are you sure you want to delete the alert type "${typeToDelete.name}"? This action cannot be undone.`,
-        confirmText: "Delete",
+        message: `Are you sure you want to delete the alert type \"${typeToDelete.name}\"?`,
+        confirmText: strings.Delete,
       });
+
       if (!shouldDelete) {
         return;
       }
 
       try {
         const updatedTypes = alertTypes.filter((_, i) => i !== index);
-
-        // Save to SharePoint list
         await alertService.saveAlertTypes(updatedTypes);
-
-        // Update local state
         setAlertTypes(updatedTypes);
+        notificationService?.showSuccess("Alert type deleted.", strings.Success);
       } catch (error) {
         logger.error("AlertTypesTab", "Error deleting alert type", error);
         notificationService?.showError(
-          "Failed to delete alert type. Please try again.",
-          "Delete Failed",
+          `Failed to delete alert type: ${getErrorMessage(error)}`,
+          strings.Error,
         );
       }
     },
-    [alertTypes, setAlertTypes, alertService, notificationService, confirm],
+    [alertService, alertTypes, confirm, notificationService, setAlertTypes],
   );
 
   const handleDragStart = React.useCallback(
@@ -171,143 +242,107 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
     async (e: React.DragEvent, dropIndex: number) => {
       e.preventDefault();
 
-      if (draggedItem === null || draggedItem === dropIndex) return;
+      if (draggedItem === null || draggedItem === dropIndex) {
+        return;
+      }
 
       const updatedTypes = [...alertTypes];
       const draggedType = updatedTypes[draggedItem];
 
-      // Remove the dragged item
       updatedTypes.splice(draggedItem, 1);
-
-      // Insert at the new position
       const insertIndex = draggedItem < dropIndex ? dropIndex - 1 : dropIndex;
       updatedTypes.splice(insertIndex, 0, draggedType);
 
       try {
-        // Save to SharePoint list
         await alertService.saveAlertTypes(updatedTypes);
-
-        // Update local state
         setAlertTypes(updatedTypes);
       } catch (error) {
         logger.error("AlertTypesTab", "Error reordering alert types", error);
         notificationService?.showError(
-          "Failed to save reordered alert types. Please try again.",
-          "Save Failed",
+          `Failed to save reordered alert types: ${getErrorMessage(error)}`,
+          strings.Error,
         );
       }
 
       setDraggedItem(null);
     },
-    [draggedItem, alertTypes, setAlertTypes, alertService, notificationService],
+    [alertService, alertTypes, draggedItem, notificationService, setAlertTypes],
   );
-
-  const resetNewAlertType = React.useCallback(() => {
-    setNewAlertType({
-      name: "",
-      iconName: "Info",
-      backgroundColor: "#0078d4",
-      textColor: "#ffffff",
-      additionalStyles: "",
-      priorityStyles: {
-        [AlertPriority.Critical]: "border: 2px solid #E81123;",
-        [AlertPriority.High]: "border: 1px solid #EA4300;",
-        [AlertPriority.Medium]: "",
-        [AlertPriority.Low]: "",
-      },
-    });
-    setIsCreatingType(false);
-  }, [setNewAlertType, setIsCreatingType]);
 
   const handleEditAlertType = React.useCallback(
     (alertType: IAlertType) => {
       setEditingType({ ...alertType });
       setNewAlertType({ ...alertType });
       setIsEditMode(true);
-      setIsCreatingType(true); // Reuse the creation form for editing
+      setShowAdvancedStyles(!!alertType.additionalStyles);
+      setIsCreatingType(true);
     },
-    [setNewAlertType, setIsCreatingType],
+    [setIsCreatingType, setNewAlertType],
   );
 
   const handleUpdateAlertType = React.useCallback(async () => {
-    if (!editingType || !newAlertType.name.trim()) {
-      if (notificationService) {
-        notificationService.showWarning(
-          "Please enter a name for the alert type",
-          "Validation Error",
-        );
-      } else {
-        logger.warn("AlertTypesTab", "Please enter a name for the alert type");
-      }
+    if (!editingType) {
       return;
     }
 
-    // Check for duplicate names (excluding the current type being edited)
-    if (
-      alertTypes.some(
-        (type) =>
-          type.name.toLowerCase() === newAlertType.name.toLowerCase() &&
-          type.name !== editingType.name,
-      )
-    ) {
-      notificationService?.showWarning(
-        "An alert type with this name already exists",
-        "Validation Error",
-      );
+    if (!canSubmit) {
+      notificationService?.showWarning(validationError, strings.Warning);
       return;
     }
 
     try {
-      // Update the alert type in the list
+      const normalizedType = buildNormalizedType();
+      const editingNameNormalized = normalizeName(editingType.name).toLowerCase();
       const updatedTypes = alertTypes.map((type) =>
-        type.name === editingType.name ? { ...newAlertType } : type,
+        normalizeName(type.name).toLowerCase() === editingNameNormalized
+          ? normalizedType
+          : type,
       );
 
-      setAlertTypes(updatedTypes);
-
-      // Save to SharePoint
       await alertService.saveAlertTypes(updatedTypes);
-
-      // Reset editing state
-      setEditingType(null);
-      setIsEditMode(false);
-      resetNewAlertType();
-      notificationService?.showSuccess(
-        "Alert type updated successfully!",
-        "Update Successful",
-      );
+      setAlertTypes(updatedTypes);
+      notificationService?.showSuccess(strings.AlertUpdatedSuccess, strings.Success);
+      resetTypeForm();
     } catch (error) {
       logger.error("AlertTypesTab", "Failed to update alert type", error);
       notificationService?.showError(
-        `Failed to update alert type: ${error.message || error}`,
-        "Update Failed",
+        `Failed to update alert type: ${getErrorMessage(error)}`,
+        strings.Error,
       );
     }
   }, [
-    editingType,
-    newAlertType,
-    alertTypes,
-    setAlertTypes,
     alertService,
-    resetNewAlertType,
+    alertTypes,
+    buildNormalizedType,
+    canSubmit,
+    editingType,
     notificationService,
+    resetTypeForm,
+    setAlertTypes,
+    validationError,
   ]);
 
-  const handleDialogClose = React.useCallback(() => {
-    setEditingType(null);
-    setIsEditMode(false);
-    resetNewAlertType();
-  }, [resetNewAlertType]);
+  const dialogTitle = isEditMode
+    ? `Edit Alert Type - ${editingType?.name || ""}`
+    : "Create New Alert Type";
+
+  const filteredIconNames = React.useMemo(() => {
+    const query = iconSearchTerm.trim().toLowerCase();
+    if (!query) {
+      return ALL_FLUENT_ICON_NAMES;
+    }
+
+    return ALL_FLUENT_ICON_NAMES.filter((iconName) =>
+      iconName.toLowerCase().includes(query),
+    );
+  }, [iconSearchTerm]);
 
   return (
-    <div className={styles.tabContent}>
+    <div className={styles.tabPane}>
       <div className={styles.tabHeader}>
         <div>
-          <h3>Manage Alert Types</h3>
-          <p>
-            Create and customize the visual appearance of different alert
-            categories
-          </p>
+          <h3>{strings.AlertTypesTabTitle}</h3>
+          <p>Create and customize the visual appearance of alert categories.</p>
         </div>
         <SharePointButton
           variant="primary"
@@ -321,8 +356,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
       <SharePointSection title="Existing Alert Types">
         <div className={styles.dragDropInstructions}>
           <p>
-            💡 <strong>Tip:</strong> Drag and drop alert types to reorder them.
-            The order here determines the display order in dropdown menus.
+            <strong>Tip:</strong> Drag and drop alert types to reorder them.
           </p>
         </div>
 
@@ -335,7 +369,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
               onDragStart={(e) => handleDragStart(e, index)}
               onDragEnd={handleDragEnd}
               onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, index)}
+              onDrop={(e) => void handleDrop(e, index)}
             >
               <div className={styles.dragHandle}>
                 <span className={styles.dragIcon}>⋮⋮</span>
@@ -343,7 +377,12 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
               </div>
 
               <div className={styles.alertCardContent}>
-                <h4>{type.name}</h4>
+                <div className={styles.typeTitleRow}>
+                  <span className={styles.typeCardIcon}>
+                    {getAlertTypeIcon(type.iconName, AlertPriority.Medium)}
+                  </span>
+                  <h4>{type.name}</h4>
+                </div>
               </div>
 
               <div className={styles.typePreview}>
@@ -362,14 +401,14 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
                   icon={<Edit24Regular />}
                   onClick={() => handleEditAlertType(type)}
                 >
-                  Edit
+                  {strings.Edit}
                 </SharePointButton>
                 <SharePointButton
                   variant="danger"
                   icon={<Delete24Regular />}
-                  onClick={() => handleDeleteAlertType(index)}
+                  onClick={() => void handleDeleteAlertType(index)}
                 >
-                  Delete
+                  {strings.Delete}
                 </SharePointButton>
               </div>
             </div>
@@ -379,10 +418,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>🎨</div>
               <h4>No Alert Types</h4>
-              <p>
-                Create your first alert type to get started with customized
-                alert styling.
-              </p>
+              <p>Create your first alert type to start customizing alert styling.</p>
               <SharePointButton
                 variant="primary"
                 icon={<Add24Regular />}
@@ -395,32 +431,25 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
         </div>
       </SharePointSection>
 
-      {/* Dialog for Create / Edit Alert Type */}
       <SharePointDialog
         isOpen={isCreatingType}
-        onClose={handleDialogClose}
-        title={
-          isEditMode
-            ? `Edit Alert Type – ${editingType?.name || ""}`
-            : "Create New Alert Type"
-        }
-        width={720}
+        onClose={resetTypeForm}
+        title={dialogTitle}
+        width={760}
         footer={
           <div className={styles.formActions}>
             <SharePointButton
               variant="secondary"
               icon={<Dismiss24Regular />}
-              onClick={handleDialogClose}
+              onClick={resetTypeForm}
             >
-              Cancel
+              {strings.Cancel}
             </SharePointButton>
             <SharePointButton
               variant="primary"
               icon={<Save24Regular />}
-              onClick={
-                isEditMode ? handleUpdateAlertType : handleCreateAlertType
-              }
-              disabled={!newAlertType.name.trim()}
+              onClick={isEditMode ? () => void handleUpdateAlertType() : () => void handleCreateAlertType()}
+              disabled={!canSubmit}
             >
               {isEditMode ? "Update Type" : "Create Type"}
             </SharePointButton>
@@ -440,6 +469,45 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
               description="A unique name for this alert type"
             />
 
+            <div className={styles.iconSelectorSection}>
+              <label className={styles.fieldLabel}>
+                {strings.AlertTypeIconLabel}
+              </label>
+              <div className={styles.iconSelectorRow}>
+                <div className={styles.iconSelectionPreview}>
+                  <span className={styles.iconSelectorGlyph}>
+                    {getAlertTypeIcon(
+                      newAlertType.iconName,
+                      AlertPriority.Medium,
+                    )}
+                  </span>
+                  <span className={styles.iconSelectionText}>
+                    {getAlertTypeIconLabel(newAlertType.iconName || "Info")}
+                  </span>
+                </div>
+                <SharePointButton
+                  variant="secondary"
+                  icon={<Search24Regular />}
+                  onClick={() => {
+                    setIconSearchTerm("");
+                    setIsIconDialogOpen(true);
+                  }}
+                >
+                  {strings.AlertTypeChooseIconButton}
+                </SharePointButton>
+              </div>
+            </div>
+
+            <SharePointInput
+              label={strings.AlertTypeSelectedIconNameLabel}
+              value={newAlertType.iconName}
+              onChange={(value) =>
+                setNewAlertType((prev) => ({ ...prev, iconName: value }))
+              }
+              placeholder={strings.AlertTypeSelectedIconNamePlaceholder}
+              description={strings.AlertTypeSelectedIconNameDescription}
+            />
+
             <div className={styles.colorRow}>
               <ColorPicker
                 label="Background Color"
@@ -450,7 +518,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
                     backgroundColor: color,
                   }))
                 }
-                description="Main background color for alerts of this type"
+                description="Main background color for this type"
               />
               <ColorPicker
                 label="Text Color"
@@ -458,46 +526,120 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
                 onChange={(color) =>
                   setNewAlertType((prev) => ({ ...prev, textColor: color }))
                 }
-                description="Text color that contrasts well with background"
+                description="Text color (must pass contrast checks)"
               />
             </div>
 
-            <SharePointInput
-              label="Icon Name"
-              value={newAlertType.iconName}
-              onChange={(value) =>
-                setNewAlertType((prev) => ({ ...prev, iconName: value }))
-              }
-              placeholder="Info, Warning, Error, CheckmarkCircle, etc."
-              description="Fluent UI icon name (optional)"
-            />
+            <SharePointButton
+              variant="secondary"
+              icon={showAdvancedStyles ? <EyeOff24Regular /> : <Code24Regular />}
+              onClick={() => setShowAdvancedStyles((prev) => !prev)}
+            >
+              {showAdvancedStyles ? "Hide Advanced Styles" : "Show Advanced Styles"}
+            </SharePointButton>
 
-            <SharePointTextArea
-              label="Custom CSS Styles"
-              value={newAlertType.additionalStyles || ""}
-              onChange={(value) =>
-                setNewAlertType((prev) => ({
-                  ...prev,
-                  additionalStyles: value,
-                }))
-              }
-              placeholder="Additional CSS styles (advanced)"
-              rows={3}
-              description="Optional custom CSS for advanced styling"
-            />
+            {showAdvancedStyles && (
+              <SharePointTextArea
+                label="Custom CSS Styles"
+                value={newAlertType.additionalStyles || ""}
+                onChange={(value) =>
+                  setNewAlertType((prev) => ({
+                    ...prev,
+                    additionalStyles: value,
+                  }))
+                }
+                placeholder="Additional CSS styles (advanced)"
+                rows={3}
+                description="Optional custom CSS for advanced styling"
+              />
+            )}
+
+            {!!validationError && (
+              <div className={styles.errorMessage} role="alert">
+                {validationError}
+              </div>
+            )}
           </div>
 
           <div className={styles.typePreviewColumn}>
-            <h4>Preview</h4>
+            <h4>{strings.Preview}</h4>
             <AlertPreview
               title="Sample Alert Title"
-              description="This is how alerts with this type will appear to users. The preview updates as you change the colors and settings."
-              alertType={newAlertType}
+              description="This is how this alert type will appear to users."
+              alertType={buildNormalizedType()}
               priority={AlertPriority.Medium}
               isPinned={false}
             />
           </div>
         </div>
+      </SharePointDialog>
+
+      <SharePointDialog
+        isOpen={isIconDialogOpen}
+        onClose={() => setIsIconDialogOpen(false)}
+        title={strings.AlertTypeIconDialogTitle}
+        width={980}
+        footer={
+          <div className={styles.formActions}>
+            <SharePointButton
+              variant="secondary"
+              onClick={() => setIsIconDialogOpen(false)}
+            >
+              {strings.Close}
+            </SharePointButton>
+          </div>
+        }
+      >
+        <div className={styles.iconDialogSearchRow}>
+          <SharePointInput
+            label={strings.AlertTypeIconSearchLabel}
+            value={iconSearchTerm}
+            onChange={setIconSearchTerm}
+            placeholder={strings.AlertTypeIconSearchPlaceholder}
+          />
+          <div className={styles.iconDialogMeta}>
+            {strings.AlertTypeIconResultsCount.replace(
+              "{0}",
+              filteredIconNames.length.toString(),
+            )}
+          </div>
+        </div>
+
+        {filteredIconNames.length === 0 ? (
+          <div className={styles.emptyState}>
+            <h4>{strings.AlertTypeIconNoResultsTitle}</h4>
+            <p>{strings.AlertTypeIconNoResultsDescription}</p>
+          </div>
+        ) : (
+          <div className={styles.iconDialogGrid}>
+            {filteredIconNames.map((iconName) => {
+              const isSelected =
+                (newAlertType.iconName || "").toLowerCase() ===
+                iconName.toLowerCase();
+
+              return (
+                <button
+                  key={iconName}
+                  type="button"
+                  className={`${styles.iconSelectorButton} ${isSelected ? styles.iconSelectorButtonActive : ""}`}
+                  onClick={() => {
+                    setNewAlertType((prev) => ({ ...prev, iconName }));
+                    setIsIconDialogOpen(false);
+                  }}
+                  aria-pressed={isSelected}
+                  title={iconName}
+                >
+                  <span className={styles.iconSelectorGlyph}>
+                    {getAlertTypeIcon(iconName, AlertPriority.Medium)}
+                  </span>
+                  <span className={styles.iconSelectorLabel}>
+                    {getAlertTypeIconLabel(iconName)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </SharePointDialog>
       {dialogs}
     </div>

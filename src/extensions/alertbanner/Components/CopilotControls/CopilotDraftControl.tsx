@@ -44,7 +44,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
       const response = await copilotService.generateDraft(keywords, tone);
 
       if (response.isError) {
-        onError(response.errorMessage || strings.CopilotDraftGenerationFailed);
+        if (!response.isCancelled) {
+          onError(response.errorMessage || strings.CopilotDraftGenerationFailed);
+        }
       } else {
         onDraftGenerated(response.content);
         setIsOpen(false);

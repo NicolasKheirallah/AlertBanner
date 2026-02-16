@@ -229,7 +229,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
 
   if (loading) {
     return (
-      <div className={`${styles.siteSelector} ${className || ''}`}>
+      <div className={`${styles.siteSelector} sp-site-selector-container ${className || ''}`}>
         <div className={styles.loading}>
           <div className={styles.loadingSpinner}></div>
           <p>{strings.SiteSelectorLoading}</p>
@@ -239,7 +239,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
   }
 
   return (
-    <div className={`${styles.siteSelector} ${className || ''}`}>
+    <div className={`${styles.siteSelector} sp-site-selector-container ${className || ''}`}>
       {/* Suggested Scopes */}
       {suggestedSites && (
         <div className={styles.suggestedScopes}>
@@ -357,7 +357,7 @@ const SiteSelector: React.FC<ISiteSelectorProps> = ({
       </div>
 
       {/* Sites Grid */}
-      <div className={styles.sitesGrid}>
+      <div className={`${styles.sitesGrid} sp-site-grid`}>
         {filteredSites.map(site => {
           const isSelected = selectedSites.includes(site.id);
           const canSelect = !maxSelection || selectedSites.length < maxSelection || isSelected;

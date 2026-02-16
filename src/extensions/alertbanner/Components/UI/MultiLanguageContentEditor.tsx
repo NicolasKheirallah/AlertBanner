@@ -85,6 +85,10 @@ const MultiLanguageContentEditor: React.FC<
   const [translationError, setTranslationError] = React.useState<string | null>(
     null,
   );
+  const [translationInfo, setTranslationInfo] = React.useState<string | null>(
+    null,
+  );
+  const [isTranslatingAll, setIsTranslatingAll] = React.useState(false);
   const [noDefaultContentError, setNoDefaultContentError] =
     React.useState(false);
   const effectivePolicy = React.useMemo(
@@ -153,76 +157,121 @@ const MultiLanguageContentEditor: React.FC<
    * Translates the default language content into the specified target language
    * using the CopilotService. Translates title and description in parallel.
    */
-  const handleTranslate = async (
-    targetLanguage: string,
-    targetLangName: string,
-  ): Promise<void> => {
-    if (!copilotService) return;
+  const handleTranslate = React.useCallback(
+    async (
+      targetLanguage: string,
+      targetLangName: string,
+      overwriteExisting: boolean = true,
+    ): Promise<void> => {
+      if (!copilotService) return;
 
-    const defaultContent = content.find(
-      (c) => c.language === tenantDefaultLanguage,
-    );
-    if (
-      !defaultContent ||
-      (!defaultContent.title && !defaultContent.description)
-    ) {
-      setNoDefaultContentError(true);
+      const defaultContent = content.find(
+        (c) => c.language === tenantDefaultLanguage,
+      );
+      if (
+        !defaultContent ||
+        (!defaultContent.title && !defaultContent.description)
+      ) {
+        setNoDefaultContentError(true);
+        return;
+      }
+
+      setTranslatingLanguages((prev) => [...prev, targetLanguage]);
+
+      try {
+        const promises: Promise<{
+          field: "title" | "description";
+          value: string;
+        }>[] = [];
+
+        if (defaultContent.title) {
+          promises.push(
+            copilotService
+              .translateText(defaultContent.title, targetLangName)
+              .then((res) => ({
+                field: "title" as const,
+                value: res.isError ? "" : res.content,
+              })),
+          );
+        }
+
+        if (defaultContent.description) {
+          promises.push(
+            copilotService
+              .translateText(defaultContent.description, targetLangName)
+              .then((res) => ({
+                field: "description" as const,
+                value: res.isError ? "" : res.content,
+              })),
+          );
+        }
+
+        const results = await Promise.all(promises);
+
+        const updatedContentList = content.map((c) => {
+          if (c.language === targetLanguage) {
+            const updates: Partial<ILanguageContent> = {};
+            results.forEach((r) => {
+              const currentValue = (c as any)[r.field] as string | undefined;
+              const canWrite =
+                overwriteExisting ||
+                !currentValue ||
+                currentValue.trim().length === 0;
+              if (r.value && canWrite) {
+                updates[r.field] = r.value;
+              }
+            });
+            return { ...c, ...updates };
+          }
+          return c;
+        });
+
+        onContentChange(updatedContentList);
+      } catch (e) {
+        logger.error("MultiLanguageContentEditor", "Translation failed", e);
+        setTranslationError(strings.CopilotTranslationFailed);
+      } finally {
+        setTranslatingLanguages((prev) =>
+          prev.filter((l) => l !== targetLanguage),
+        );
+      }
+    },
+    [content, copilotService, onContentChange, tenantDefaultLanguage],
+  );
+
+  const handleTranslateAllMissing = React.useCallback(async (): Promise<void> => {
+    if (!copilotService) {
       return;
     }
 
-    setTranslatingLanguages((prev) => [...prev, targetLanguage]);
+    setTranslationInfo(null);
+    const missing = content.filter(
+      (item) =>
+        item.language !== tenantDefaultLanguage &&
+        (!item.title.trim() || !item.description.trim()),
+    );
 
-    try {
-      const promises: Promise<{
-        field: "title" | "description";
-        value: string;
-      }>[] = [];
-
-      if (defaultContent.title) {
-        promises.push(
-          copilotService
-            .translateText(defaultContent.title, targetLangName)
-            .then((res) => ({
-              field: "title" as const,
-              value: res.isError ? "" : res.content,
-            })),
-        );
-      }
-
-      if (defaultContent.description) {
-        promises.push(
-          copilotService
-            .translateText(defaultContent.description, targetLangName)
-            .then((res) => ({
-              field: "description" as const,
-              value: res.isError ? "" : res.content,
-            })),
-        );
-      }
-
-      const results = await Promise.all(promises);
-
-      const updatedContentList = content.map((c) => {
-        if (c.language === targetLanguage) {
-          const updates: Partial<ILanguageContent> = {};
-          results.forEach((r) => {
-            if (r.value) updates[r.field] = r.value;
-          });
-          return { ...c, ...updates };
-        }
-        return c;
-      });
-
-      onContentChange(updatedContentList);
-    } catch (e) {
-      logger.error("MultiLanguageContentEditor", "Translation failed", e);
-      setTranslationError(strings.CopilotTranslationFailed);
-    } finally {
-      setTranslatingLanguages((prev) =>
-        prev.filter((l) => l !== targetLanguage),
-      );
+    if (missing.length === 0) {
+      setTranslationInfo(strings.MultiLanguageEditorNoMissingTranslations);
+      return;
     }
-  };
+
+    setIsTranslatingAll(true);
+    try {
+      await Promise.all(
+        missing.map(async (item) => {
+          const language = getLanguageInfo(item.language);
+          await handleTranslate(
+            item.language,
+            language?.nativeName || item.language,
+            false,
+          );
+        }),
+      );
+    } finally {
+      setIsTranslatingAll(false);
+    }
+  }, [content, copilotService, tenantDefaultLanguage, handleTranslate]);
 
   const getAvailableLanguagesToAdd = () => {
     const usedLanguages = content.map((c) => c.language);
@@ -304,10 +353,30 @@ const MultiLanguageContentEditor: React.FC<
               </button>
             ))}
           </div>
+          {copilotService && content.length > 1 && (
+            <div className={styles.translationActions}>
+              <Button
+                appearance="secondary"
+                size="small"
+                icon={isTranslatingAll ? <Spinner size="tiny" /> : <SparkleRegular />}
+                onClick={() => void handleTranslateAllMissing()}
+                disabled={isTranslatingAll}
+              >
+                {isTranslatingAll
+                  ? strings.CopilotTranslatingLabel
+                  : strings.MultiLanguageEditorTranslateAllMissing}
+              </Button>
+            </div>
+          )}
           {getAvailableLanguagesToAdd().length === 0 && (
             <Text size={200} className={styles.allLanguagesText}>
               {strings.MultiLanguageEditorAllLanguagesAdded}
             </Text>
+          )}
+          {translationInfo && (
+            <MessageBar intent="info">
+              <MessageBarBody>{translationInfo}</MessageBarBody>
+            </MessageBar>
           )}
           {(errors.languageDuplicate || errors.languageContent) && (
             <MessageBar intent="error">

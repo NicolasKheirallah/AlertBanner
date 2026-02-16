@@ -17,31 +17,15 @@
 .settingsContainer {
   font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif;
   height: 100%;
-  max-height: 95vh; // Prevent overflow beyond viewport
-  min-height: 500px; // Ensure minimum usable height
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden; // Prevent container overflow
-
-  // Ensure the dialog stays within bounds
+  overflow: hidden;
   width: 100%;
-  max-width: 1400px; // Limit max width for very wide screens
-  min-width: 800px; // Ensure minimum width for usability
+  min-width: 0;
 
-  // On smaller screens, adjust constraints
   @media (max-width: 900px) {
-    min-width: auto;
-    width: 95vw;
-    max-width: 95vw;
-    height: 95vh;
-  }
-
-  @media (max-width: 600px) {
-    width: 100vw;
-    max-width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-    min-height: 100vh;
+    min-width: 0;
   }
 }
 
@@ -106,6 +90,10 @@
   min-height: 0; // Allow flex child to shrink
 }
 
+.tabPane {
+  min-height: 0;
+}
+
 .tabHeader {
   display: flex;
   justify-content: space-between;
@@ -145,11 +133,12 @@
 // Alert form
 .alertForm {
   max-width: none;
+  min-height: 0;
 }
 
 .formWithPreview {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
   gap: 32px;
   align-items: start;
 }
@@ -159,6 +148,7 @@
 }
 
 .previewColumn {
+  min-width: 0;
   position: sticky;
   top: 0;
 }
@@ -186,26 +176,26 @@
 
   // Ensure consistent alignment for form fields in grid
   :global {
-    .field {
+    .sp-field {
       margin-bottom: 0 !important;
 
-      .label {
+      .sp-label {
         min-height: 18px;
         line-height: 18px;
       }
 
-      .description {
+      .sp-description {
         min-height: 16px;
         line-height: 16px;
       }
 
-      .input,
-      .select {
+      .sp-input,
+      .sp-select {
         min-height: 32px;
         box-sizing: border-box;
       }
 
-      .error {
+      .sp-error {
         min-height: 16px;
         line-height: 16px;
       }
@@ -215,10 +205,82 @@
 
 .formActions {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-top: 24px;
-  padding-top: 20px;
+  padding-top: 18px;
   border-top: 1px solid #edebe9;
+}
+
+.createWizardSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 10px;
+  border: 1px solid #edebe9;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #faf9f8 0%, #ffffff 100%);
+}
+
+.createWizardStep {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #323130;
+  padding: 10px 12px;
+  min-height: 66px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    border-color: #0078d4;
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 1px;
+  }
+}
+
+.activeWizardStep {
+  border-color: #0078d4;
+  background: #eff6fc;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+
+.createWizardStepLabel {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.createWizardStepStatus {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.wizardStepComplete {
+  background: #e6f7e6;
+  color: #107c10;
+}
+
+.wizardStepIncomplete {
+  background: #fbeaea;
+  color: #a80000;
 }
 
 .copilotActionsRow {
@@ -233,6 +295,49 @@
   color: #666;
 }
 
+.formActionsPrimary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.formActionsUtility {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.createEditorForm {
+  .createActionBar {
+    background: #faf9f8;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .formActionsPrimary {
+    flex: 1 1 auto;
+  }
+
+  .autoSaveIndicator {
+    margin-left: auto;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    color: #605e5c;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+}
+
+.retryAction {
+  margin-top: 8px;
+}
+
 // Alert types section
 .typeFormWithPreview {
   display: grid;
@@ -245,9 +350,117 @@
   min-width: 0;
 }
 
+.typeTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typeCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .typePreviewColumn {
   position: sticky;
   top: 0;
+}
+
+.iconSelectorSection {
+  margin-bottom: 16px;
+}
+
+.iconSelectorRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.iconSelectionPreview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  background: #faf9f8;
+}
+
+.iconSelectionText {
+  font-size: 13px;
+  color: #323130;
+  font-weight: 600;
+}
+
+.iconSelectorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.iconDialogSearchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.iconDialogMeta {
+  font-size: 12px;
+  color: #605e5c;
+  padding-bottom: 8px;
+}
+
+.iconDialogGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.iconSelectorButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #323130;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: #0078d4;
+  }
+}
+
+.iconSelectorButtonActive {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px #0078d4;
+  background: #eff6fc;
+}
+
+.iconSelectorGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconSelectorLabel {
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .colorRow {
@@ -262,15 +475,15 @@
 
   // Ensure consistent alignment for form fields in grid
   :global {
-    .field {
+    .sp-field {
       margin-bottom: 0 !important;
 
-      .label {
+      .sp-label {
         min-height: 18px;
         line-height: 18px;
       }
 
-      .description {
+      .sp-description {
         min-height: 16px;
         line-height: 16px;
       }
@@ -408,6 +621,79 @@
   }
 }
 
+.settingsQuickNav {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0 12px;
+  margin-bottom: 10px;
+  background: #ffffff;
+}
+
+.settingsActionBar {
+  position: sticky;
+  top: 44px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #c7e0f4;
+  border-radius: 8px;
+  background: #f5f9ff;
+}
+
+.settingsActionPrimary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settingsActionMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.settingsUnsavedBadge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid #f3d6a0;
+  background: #fff4ce;
+  color: #8a6914;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settingsLastSaved {
+  font-size: 12px;
+  color: #605e5c;
+}
+
+.settingsMessageList {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.settingsInlineStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
 .systemInfo {
   padding: 16px;
   background: #faf9f8;
@@ -460,12 +746,12 @@
 
   // Ensure site selector stays within bounds
   :global {
-    .site-selector-container {
+    .sp-site-selector-container {
       max-width: 100%;
       overflow-x: hidden;
     }
 
-    .site-grid {
+    .sp-site-grid {
       max-width: 100%;
       overflow-x: auto;
     }
@@ -500,14 +786,14 @@
 
   // Ensure consistent alignment for date inputs
   :global {
-    .field {
+    .sp-field {
       margin-bottom: 0 !important;
       display: flex;
       flex-direction: column;
       width: 100%; // Ensure full width usage
       min-width: 0; // Prevent overflow
 
-      .label {
+      .sp-label {
         min-height: 18px;
         line-height: 18px;
         margin-bottom: 6px;
@@ -519,7 +805,7 @@
         text-overflow: ellipsis;
       }
 
-      .input {
+      .sp-input {
         min-height: 32px;
         height: 32px; // Fixed height for consistency
         box-sizing: border-box;
@@ -557,7 +843,7 @@
         }
       }
 
-      .description {
+      .sp-description {
         font-size: 12px;
         line-height: 16px;
         color: #605e5c;
@@ -566,7 +852,7 @@
         overflow-wrap: break-word;
       }
 
-      .error {
+      .sp-error {
         font-size: 12px;
         line-height: 16px;
         color: #d13438;
@@ -596,9 +882,6 @@
   overflow-y: auto;
   padding: 4px;
 
-  // Calculate height dynamically based on available space
-  max-height: calc(100vh - 300px); // Account for header, tabs, and filters
-
   scrollbar-width: thin;
   scrollbar-color: #c1c1c1 #f1f1f1;
 
@@ -621,9 +904,6 @@
     }
   }
 
-  .filterSection:has(.advancedFilters)~& {
-    max-height: calc(100vh - 450px);
-  }
 }
 
 .alertCard {
@@ -774,11 +1054,25 @@
   &>div {
     margin-bottom: 0;
 
-    .label {
+    :global(.sp-label) {
       font-size: 13px;
       margin-bottom: 4px;
     }
   }
+}
+
+.selectionActionBar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #c7e0f4;
+  background: #f5f9ff;
+  border-radius: 6px;
 }
 
 .filterHeader {
@@ -846,7 +1140,7 @@
   width: 100%;
 
   :global {
-    .input {
+    .sp-input {
       border-radius: 6px !important;
       border: 2px solid #e1dfdd !important;
       transition: all 0.15s ease-out !important;
@@ -922,24 +1216,24 @@
 
   // Make form fields more compact
   :global {
-    .field {
+    .sp-field {
       margin-bottom: 0 !important;
 
-      .label {
+      .sp-label {
         font-size: 12px !important;
         font-weight: 600 !important;
         margin-bottom: 4px !important;
       }
 
-      .select,
-      .input {
+      .sp-select,
+      .sp-input {
         min-height: 32px !important;
         height: 32px !important;
         padding: 6px 8px !important;
         font-size: 13px !important;
       }
 
-      .description {
+      .sp-description {
         font-size: 11px !important;
         margin-top: 2px !important;
       }
@@ -1117,8 +1411,7 @@
 .editAlertForm {
   padding: 0;
   height: 100%;
-  max-height: 90vh; // Prevent dialog from exceeding viewport
-  min-height: 600px; // Ensure minimum usable height
+  min-height: 0;
   display: flex;
   flex-direction: column;
 
@@ -1126,7 +1419,7 @@
     flex: 1;
     min-height: 0; // Allow flex child to shrink
     display: grid;
-    grid-template-columns: 1fr 400px;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
     gap: 24px;
     overflow: hidden;
 
@@ -1158,6 +1451,8 @@
     }
 
     .previewColumn {
+      position: static;
+      top: auto;
       min-height: 0; // Allow flex child to shrink
       overflow-y: auto;
       border-left: 1px solid #edebe9;
@@ -1817,6 +2112,13 @@
   margin-bottom: 16px;
 }
 
+.schedulePresets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .schedulingDescription {
   margin: 0;
   font-size: 14px;
@@ -1887,6 +2189,36 @@
 
 // Responsive scheduling
 @media (max-width: 768px) {
+  .createWizardSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .formActions {
+    flex-wrap: wrap;
+  }
+
+  .formActionsPrimary {
+    width: 100%;
+  }
+
+  .formActionsUtility {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .autoSaveIndicator {
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  .createEditorForm {
+    .createActionBar {
+      padding: 10px;
+    }
+  }
+
   .schedulingGrid {
     grid-template-columns: 1fr;
     gap: 12px;

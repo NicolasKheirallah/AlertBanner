@@ -28,6 +28,10 @@ export interface INotificationOptions {
  */
 export class NotificationService {
   private static instance: NotificationService;
+  private static readonly DIALOG_HOST_SELECTOR =
+    '[data-alert-banner-dialog-notification-host="true"]';
+  private static readonly NOTIFICATION_CONTAINER_SELECTOR =
+    '[data-alert-banner-notification-container="true"]';
   private context: ApplicationCustomizerContext;
 
   constructor(context: ApplicationCustomizerContext) {
@@ -154,20 +158,33 @@ export class NotificationService {
    * Get or create the notification container
    */
   private getOrCreateNotificationContainer(): HTMLElement {
-    let container = document.getElementById('alert-banner-notifications');
+    const hosts = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        NotificationService.DIALOG_HOST_SELECTOR,
+      ),
+    );
+    const host = hosts[hosts.length - 1];
+    if (!host) {
+      throw new Error('No dialog notification host is available.');
+    }
+
+    let container = host.querySelector<HTMLElement>(
+      NotificationService.NOTIFICATION_CONTAINER_SELECTOR,
+    );
     if (!container) {
       container = document.createElement('div');
-      container.id = 'alert-banner-notifications';
+      container.setAttribute('data-alert-banner-notification-container', 'true');
+      container.setAttribute('role', 'region');
+      container.setAttribute('aria-live', 'polite');
+      container.setAttribute('aria-label', 'Alert banner notifications');
       container.style.cssText = `
-        position: fixed;
-        top: 60px;
-        right: 20px;
-        z-index: 10000;
-        max-width: 400px;
-        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
       `;
-      document.body.appendChild(container);
+      host.appendChild(container);
     }
+
     return container;
   }
 
@@ -176,13 +193,18 @@ export class NotificationService {
    */
   private createNotificationElement(options: INotificationOptions): HTMLElement {
     const notification = document.createElement('div');
+    notification.setAttribute(
+      'role',
+      options.type === NotificationType.Error || options.type === NotificationType.Warning
+        ? 'alert'
+        : 'status'
+    );
     notification.style.cssText = `
       background: ${this.getBackgroundColor(options.type)};
       color: ${this.getTextColor(options.type)};
       border-left: 4px solid ${this.getBorderColor(options.type)};
       border-radius: 6px;
       padding: 16px;
-      margin-bottom: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       pointer-events: auto;
       font-family: 'Segoe UI', sans-serif;
@@ -388,9 +410,13 @@ export class NotificationService {
    * Clear all notifications
    */
   public clearAll(): void {
-    const container = document.getElementById('alert-banner-notifications');
-    if (container) {
+    const containers = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        NotificationService.NOTIFICATION_CONTAINER_SELECTOR,
+      ),
+    );
+    containers.forEach((container) => {
       container.innerHTML = '';
-    }
+    });
   }
 }

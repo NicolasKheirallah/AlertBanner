@@ -282,6 +282,23 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     return SiteIdUtils.createDedupKey(siteId);
   }, []);
 
+  const buildAlertsCacheKey = useCallback(
+    (siteIds: string[]): string => {
+      const userLogin =
+        servicesRef.current.options?.context?.pageContext?.user?.loginName ||
+        "anonymous";
+      const siteScope =
+        siteIds
+          .map((siteId) => createSiteDedupKey(siteId))
+          .filter((siteId) => siteId.length > 0)
+          .sort()
+          .join("|") || "none";
+
+      return `AllAlerts:${userLogin}:${siteScope}`;
+    },
+    [createSiteDedupKey],
+  );
+
   const createAlertSignature = useCallback((alert: IAlertItem): string => {
     const signaturePayload = {
       id: alert.id,
@@ -645,6 +662,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       const uniqueSiteIds = Array.from(dedupMap.values());
+      const alertsCacheKey = buildAlertsCacheKey(uniqueSiteIds);
 
       logger.info("AlertsContext", "Processing sites for alert refresh", {
         totalSiteIds: siteIds.length,
@@ -684,12 +702,12 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Compare with cached alerts
       const cachedAlerts =
-        storageService.getFromLocalStorage<IAlertItem[]>("AllAlerts");
+        storageService.getFromLocalStorage<IAlertItem[]>(alertsCacheKey);
       const alertsAreDifferent = areAlertsDifferent(uniqueAlerts, cachedAlerts);
 
       // Update cache if needed
       if (alertsAreDifferent) {
-        storageService.saveToLocalStorage("AllAlerts", uniqueAlerts);
+        storageService.saveToLocalStorage(alertsCacheKey, uniqueAlerts);
       }
 
       // Get alerts to display
@@ -764,6 +782,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     sendNotifications,
     fetchAlerts,
     createSiteDedupKey,
+    buildAlertsCacheKey,
     applyLanguageAwareFiltering,
   ]);
 

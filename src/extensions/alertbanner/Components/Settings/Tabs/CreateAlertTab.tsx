@@ -1,27 +1,18 @@
 import * as React from "react";
 import {
   Save24Regular,
-  Eye24Regular,
   Dismiss24Regular,
   Drafts24Regular,
   DocumentArrowLeft24Regular,
+  ArrowLeft24Regular,
+  ArrowRight24Regular,
+  History24Regular,
 } from "@fluentui/react-icons";
 import {
   SharePointButton,
-  SharePointInput,
-  SharePointSelect,
-  SharePointToggle,
-  SharePointSection,
   ISharePointSelectOption,
-  SharePointPeoplePicker,
 } from "../../UI/SharePointControls";
-import { CopilotDraftControl } from "../../CopilotControls/CopilotDraftControl";
-import { CopilotGovernanceControl } from "../../CopilotControls/CopilotGovernanceControl";
-import SharePointRichTextEditor from "../../UI/SharePointRichTextEditor";
-import AlertPreview from "../../UI/AlertPreview";
-import AlertTemplates, { IAlertTemplate } from "../../UI/AlertTemplates";
-import SiteSelector from "../../UI/SiteSelector";
-import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
+import type { IAlertTemplate } from "../../UI/AlertTemplates";
 import {
   AlertPriority,
   NotificationType,
@@ -31,7 +22,6 @@ import {
   IPersonField,
   IAlertItem,
   TranslationStatus,
-  ContentStatus,
 } from "../../Alerts/IAlerts";
 import {
   LanguageAwarenessService,
@@ -55,17 +45,25 @@ import { CopilotService } from "../../Services/CopilotService";
 import styles from "../AlertSettings.module.scss";
 import {
   validateAlertData,
-  IFormErrors as IValidationErrors,
 } from "../../Utils/AlertValidation";
+import { getLocalizedValidationMessage } from "../../Utils/AlertValidationLocalization";
 import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
 import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
 import { DateUtils } from "../../Utils/DateUtils";
 import { StringUtils } from "../../Utils/StringUtils";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import { Text } from "@microsoft/sp-core-library";
+import AlertEditorForm, { CreateWizardStep } from "./AlertEditorForm";
+import { AlertMutationService } from "../../Services/AlertMutationService";
+import { useFluentDialogs } from "../../Hooks/useFluentDialogs";
 
-const STRINGS_DICTIONARY = strings as unknown as Record<string, string>;
+const AlertTemplates = React.lazy(() => import("../../UI/AlertTemplates"));
+
 type AutoSaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+type CreateEntryMode = "scratch" | "templates" | "drafts" | "previous";
+
+const stripHtml = (value: string): string =>
+  value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 export interface INewAlert {
   title: string;
@@ -115,6 +113,7 @@ export interface ICreateAlertTabProps {
   setShowTemplates: React.Dispatch<React.SetStateAction<boolean>>;
   languageUpdateTrigger?: number;
   copilotEnabled?: boolean;
+  onDirtyStateChange?: (hasUnsavedChanges: boolean) => void;
 }
 
 const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
@@ -140,6 +139,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   setShowTemplates,
   languageUpdateTrigger,
   copilotEnabled,
+  onDirtyStateChange,
 }) => {
   // Priority options - using shared hook
   const priorityOptions = usePriorityOptions();
@@ -205,10 +205,13 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     () => NotificationService.getInstance(context),
     [context],
   );
+  const { confirm, dialogs } = useFluentDialogs();
 
   // Draft state
   const [drafts, setDrafts] = React.useState<IAlertItem[]>([]);
+  const [previousAlerts, setPreviousAlerts] = React.useState<IAlertItem[]>([]);
   const [showDrafts, setShowDrafts] = React.useState(false);
+  const [showPrevious, setShowPrevious] = React.useState(false);
   const [autoSaveDraftId, setAutoSaveDraftId] = React.useState<string | null>(
     null,
   );
@@ -216,13 +219,87 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
   const [isAutoSaving, setIsAutoSaving] = React.useState(false);
   const [autoSaveStatus, setAutoSaveStatus] =
     React.useState<AutoSaveStatus>("idle");
+  const [createStep, setCreateStep] = React.useState<CreateWizardStep>("content");
+  const [lastCreateAttemptFailed, setLastCreateAttemptFailed] =
+    React.useState(false);
+  const [copilotAvailability, setCopilotAvailability] = React.useState<
+    "unknown" | "available" | "unavailable"
+  >("unknown");
+  const [copilotAvailabilityMessage, setCopilotAvailabilityMessage] =
+    React.useState<string>("");
   const autoSaveStatusDebounceRef = React.useRef<number | null>(null);
+
+  const currentEntryMode = React.useMemo<CreateEntryMode>(() => {
+    if (showTemplates) {
+      return "templates";
+    }
+
+    if (showPrevious) {
+      return "previous";
+    }
+
+    if (showDrafts) {
+      return "drafts";
+    }
+
+    return "scratch";
+  }, [showDrafts, showPrevious, showTemplates]);
+
+  const setEntryMode = React.useCallback(
+    (mode: CreateEntryMode) => {
+      setShowDrafts(mode === "drafts");
+      setShowPrevious(mode === "previous");
+      setShowTemplates(mode === "templates");
+    },
+    [setShowDrafts, setShowTemplates],
+  );
 
   // Copilot state
   const copilotService = React.useMemo(
     () => new CopilotService(graphClient),
     [graphClient],
   );
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    if (!copilotEnabled) {
+      setCopilotAvailability("unknown");
+      setCopilotAvailabilityMessage("");
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setCopilotAvailability("unknown");
+    setCopilotAvailabilityMessage("");
+
+    copilotService
+      .checkAccess()
+      .then((isAvailable) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setCopilotAvailability(isAvailable ? "available" : "unavailable");
+        setCopilotAvailabilityMessage(
+          isAvailable ? "" : strings.CreateAlertCopilotUnavailableMessage,
+        );
+      })
+      .catch((error) => {
+        logger.warn("CreateAlertTab", "Copilot access preflight failed", error);
+        if (!isMounted) {
+          return;
+        }
+        setCopilotAvailability("unavailable");
+        setCopilotAvailabilityMessage(strings.CopilotUnexpectedError);
+      });
+
+    return () => {
+      isMounted = false;
+      copilotService.cancelActiveOperation();
+    };
+  }, [copilotEnabled, copilotService]);
 
   // Language targeting options - using shared hook
   const languageOptions = useLanguageOptions(supportedLanguages);
@@ -313,6 +390,30 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     loadDrafts();
   }, [loadDrafts]);
 
+  const loadPreviousAlerts = React.useCallback(async () => {
+    try {
+      const currentSiteId = alertService.getCurrentSiteId();
+      const existingItems = await alertService.getAlertsAndTemplates([
+        currentSiteId,
+      ]);
+      const recentAlerts = existingItems
+        .filter(
+          (item) =>
+            item.contentType === ContentType.Alert &&
+            item.contentStatus !== "Draft",
+        )
+        .slice(0, 12);
+      setPreviousAlerts(recentAlerts);
+    } catch (error) {
+      logger.warn("CreateAlertTab", "Could not load previous alerts", error);
+      setPreviousAlerts([]);
+    }
+  }, [alertService]);
+
+  React.useEffect(() => {
+    loadPreviousAlerts();
+  }, [loadPreviousAlerts]);
+
   // Load from draft
   const handleLoadDraft = React.useCallback(
     (draft: IAlertItem) => {
@@ -336,12 +437,50 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         targetLanguage: draft.targetLanguage,
         languageContent: [],
         languageGroup: draft.languageGroup,
+        targetUsers: draft.targetUsers || [],
+        targetGroups: [],
       });
-      setShowDrafts(false);
-      setShowTemplates(false);
+      setEntryMode("scratch");
+      setCreateStep("content");
+      setAutoSaveStatus("pending");
+      setErrors({});
+    },
+    [setEntryMode, setErrors, setNewAlert],
+  );
+
+  const handleLoadPreviousAlert = React.useCallback(
+    async (sourceAlert: IAlertItem) => {
+      setNewAlert((prev) => ({
+        ...prev,
+        title: sourceAlert.title,
+        description: sourceAlert.description,
+        AlertType: sourceAlert.AlertType,
+        priority: sourceAlert.priority,
+        isPinned: sourceAlert.isPinned,
+        notificationType: sourceAlert.notificationType,
+        linkUrl: sourceAlert.linkUrl || "",
+        linkDescription: sourceAlert.linkDescription || "",
+        targetSites: sourceAlert.targetSites || prev.targetSites,
+        scheduledStart: sourceAlert.scheduledStart
+          ? new Date(sourceAlert.scheduledStart)
+          : undefined,
+        scheduledEnd: sourceAlert.scheduledEnd
+          ? new Date(sourceAlert.scheduledEnd)
+          : undefined,
+        contentType: ContentType.Alert,
+        targetLanguage: sourceAlert.targetLanguage || prev.targetLanguage,
+        languageContent: [],
+        languageGroup: undefined,
+        targetUsers: [],
+        targetGroups: [],
+      }));
+
+      setErrors({});
+      setEntryMode("scratch");
+      setCreateStep("content");
       setAutoSaveStatus("pending");
     },
-    [setNewAlert, setShowTemplates],
+    [setEntryMode, setErrors, setNewAlert],
   );
 
   // Initialize language content when multi-language is enabled
@@ -473,9 +612,115 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         }));
       }
 
-      setShowTemplates(false);
+      setEntryMode("scratch");
+      setCreateStep("content");
+      setErrors({});
     },
-    [alertService, setNewAlert, setShowTemplates, useMultiLanguage],
+    [alertService, setEntryMode, setErrors, setNewAlert, useMultiLanguage],
+  );
+
+  const validationSnapshot = React.useMemo(
+    () =>
+      validateAlertData(newAlert, {
+        useMultiLanguage,
+        languagePolicy,
+        tenantDefaultLanguage: languageService.getTenantDefaultLanguage(),
+        getString: getLocalizedValidationMessage,
+        validateTargetSites: enableTargetSite,
+      }),
+    [
+      enableTargetSite,
+      languagePolicy,
+      languageService,
+      newAlert,
+      useMultiLanguage,
+    ],
+  );
+
+  const hasUnsavedChanges = React.useMemo(() => {
+    const hasLanguageContent = newAlert.languageContent.some(
+      (item) =>
+        item.title.trim().length > 0 ||
+        stripHtml(item.description).length > 0 ||
+        (item.linkDescription || "").trim().length > 0,
+    );
+
+    return (
+      newAlert.title.trim().length > 0 ||
+      stripHtml(newAlert.description).length > 0 ||
+      newAlert.linkUrl.trim().length > 0 ||
+      newAlert.linkDescription.trim().length > 0 ||
+      hasLanguageContent
+    );
+  }, [
+    newAlert.description,
+    newAlert.languageContent,
+    newAlert.linkDescription,
+    newAlert.linkUrl,
+    newAlert.title,
+  ]);
+
+  React.useEffect(() => {
+    if (!onDirtyStateChange) {
+      return;
+    }
+
+    onDirtyStateChange(currentEntryMode === "scratch" && hasUnsavedChanges);
+  }, [currentEntryMode, hasUnsavedChanges, onDirtyStateChange]);
+
+  const stepCompletion = React.useMemo<Record<CreateWizardStep, boolean>>(
+    () => ({
+      content:
+        !validationSnapshot.title &&
+        !validationSnapshot.description &&
+        !validationSnapshot.AlertType &&
+        !validationSnapshot.languageContent,
+      audience:
+        !validationSnapshot.linkUrl &&
+        !validationSnapshot.linkDescription &&
+        (!enableTargetSite || !validationSnapshot.targetSites),
+      publish:
+        !validationSnapshot.scheduledStart && !validationSnapshot.scheduledEnd,
+    }),
+    [enableTargetSite, validationSnapshot],
+  );
+
+  const getStepErrors = React.useCallback(
+    (step: CreateWizardStep): IFormErrors => {
+      const fieldByStep: Record<CreateWizardStep, string[]> = {
+        content: ["title", "description", "AlertType", "languageContent"],
+        audience: ["linkUrl", "linkDescription", "targetSites"],
+        publish: ["scheduledStart", "scheduledEnd"],
+      };
+
+      const stepErrors: IFormErrors = {};
+      fieldByStep[step].forEach((field) => {
+        const errorMessage = validationSnapshot[field];
+        if (errorMessage) {
+          stepErrors[field] = errorMessage;
+        }
+      });
+
+      return stepErrors;
+    },
+    [validationSnapshot],
+  );
+
+  const handleCreateStepChange = React.useCallback(
+    (nextStep: CreateWizardStep) => {
+      if (createStep === nextStep) {
+        return;
+      }
+
+      const currentStepErrors = getStepErrors(createStep);
+      if (Object.keys(currentStepErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...currentStepErrors }));
+        return;
+      }
+
+      setCreateStep(nextStep);
+    },
+    [createStep, getStepErrors, setErrors],
   );
 
   // Validation using shared utility
@@ -484,118 +729,72 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       useMultiLanguage,
       languagePolicy,
       tenantDefaultLanguage: languageService.getTenantDefaultLanguage(),
-      getString: (key: string, ...args: Array<string | number>) => {
-        const template = STRINGS_DICTIONARY[key] ?? key;
-        if (args.length === 0) {
-          return template;
-        }
-        const formattedArgs = args.map((arg) => arg.toString());
-        return Text.format(template, ...formattedArgs);
-      },
+      getString: getLocalizedValidationMessage,
+      validateTargetSites: enableTargetSite,
     });
 
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
-  }, [newAlert, useMultiLanguage, languagePolicy, languageService, setErrors]);
-
-  const handlePeoplePickerChange = React.useCallback(
-    (items: any[]) => {
-      const users: IPersonField[] = [];
-      const groups: IPersonField[] = [];
-
-      items.forEach((item) => {
-        const personField: IPersonField = {
-          id: item.id,
-          displayName: item.text,
-          email: item.secondaryText, // Usually email
-          loginName: item.loginName,
-          isGroup: item.id ? item.id.indexOf("c:0(.s|true") === -1 : false, // Simple check, might need refinement based on PrincipalType
-        };
-
-        // PnP PeoplePicker returns items. We need to distinguish users and groups.
-        // PrincipalType: User = 1, DistributionList = 2, SecurityGroup = 4, SharePointGroup = 8
-        // But the items array might not have the numeric type directly accessible in the same way.
-        // Let's rely on the image or type if available, but for now we'll assume:
-        // If it has an email, it's likely a user. If not, it might be a group.
-        // Better approach: Check item.imageInitials or item.imageUrl
-
-        if (
-          item.imageInitials ||
-          (item.secondaryText && item.secondaryText.indexOf("@") > -1)
-        ) {
-          personField.isGroup = false;
-          users.push(personField);
-        } else {
-          personField.isGroup = true;
-          groups.push(personField);
-        }
-      });
-
-      setNewAlert((prev) => ({
-        ...prev,
-        targetUsers: users,
-        targetGroups: groups,
-      }));
-    },
-    [setNewAlert],
-  );
+  }, [
+    newAlert,
+    useMultiLanguage,
+    languagePolicy,
+    languageService,
+    setErrors,
+    enableTargetSite,
+  ]);
 
   const handleCreateAlert = React.useCallback(async () => {
     if (!validateForm()) return;
+
+    const summaryLines = [
+      `${strings.AlertTitle}: ${newAlert.title || strings.ManageAlertsNoTitleFallback}`,
+      `${strings.MultiLanguageContent}: ${
+        useMultiLanguage
+          ? Text.format(
+              strings.MultiLanguageEditorLanguageCount,
+              newAlert.languageContent.length.toString(),
+            )
+          : strings.CreateAlertSingleLanguageButton
+      }`,
+      `${strings.TargetSites}: ${newAlert.targetSites.length.toString()}`,
+      `${strings.NotificationType}: ${newAlert.notificationType}`,
+      `${strings.CreateAlertSchedulingSectionTitle}: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`,
+    ];
+
+    const shouldCreate = await confirm({
+      title: strings.CreateAlertPublishSummaryTitle,
+      message: summaryLines.join("\n"),
+      confirmText: strings.Create,
+      cancelText: strings.Cancel,
+    });
+
+    if (!shouldCreate) {
+      return;
+    }
 
     setIsCreatingAlert(true);
     setCreationProgress([]);
 
     try {
+      const createdVariants = await AlertMutationService.createAlertsFromModel(
+        alertService,
+        newAlert,
+        {
+          useMultiLanguage,
+          createdBy: context.pageContext.user.displayName,
+          languagePolicy,
+          languageService,
+        },
+      );
+
       if (useMultiLanguage && newAlert.languageContent.length > 0) {
-        // Create multi-language alerts
-        const multiLanguageAlert = languageService.createMultiLanguageAlert(
-          {
-            AlertType: newAlert.AlertType,
-            priority: newAlert.priority,
-            isPinned: newAlert.isPinned,
-            linkUrl: newAlert.linkUrl,
-            notificationType: newAlert.notificationType,
-            createdDate: new Date().toISOString(),
-            createdBy: context.pageContext.user.displayName,
-            contentType: newAlert.contentType,
-            contentStatus:
-              newAlert.contentType === ContentType.Alert
-                ? ContentStatus.Approved
-                : ContentStatus.Draft,
-            targetLanguage: TargetLanguage.All,
-            status: "Active" as "Active" | "Expired" | "Scheduled",
-            targetSites: newAlert.targetSites,
-            id: "0",
-            targetUsers: [
-              ...(newAlert.targetUsers || []),
-              ...(newAlert.targetGroups || []),
-            ],
-            languageGroup: newAlert.languageGroup,
-          },
-          newAlert.languageContent,
-        );
-
-        const alertItems =
-          languageService.generateAlertItems(multiLanguageAlert);
-
-        // Create each language variant
-        for (const alertItem of alertItems) {
-          const alertData = {
-            ...alertItem,
-            targetSites: newAlert.targetSites,
-            scheduledStart: newAlert.scheduledStart?.toISOString(),
-            scheduledEnd: newAlert.scheduledEnd?.toISOString(),
-          };
-          await alertService.createAlert(alertData);
-        }
-
         setCreationProgress([
           {
             siteId: "success",
             siteName: Text.format(
               strings.CreateAlertMultiLanguageSuccessStatus,
-              alertItems.length,
+              createdVariants,
             ),
             hasAccess: true,
             canCreateAlerts: true,
@@ -606,41 +805,11 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         notificationService.showSuccess(
           Text.format(
             strings.CreateAlertMultiLanguageSuccessStatus,
-            alertItems.length,
+            createdVariants,
           ),
-          "Alerts Created",
+          strings.CreateAlertMultiLanguageSuccessTitle,
         );
       } else {
-        // Create single language alert
-        const alertData = {
-          title: newAlert.title,
-          description: newAlert.description,
-          AlertType: newAlert.AlertType,
-          priority: newAlert.priority,
-          isPinned: newAlert.isPinned,
-          notificationType: newAlert.notificationType,
-          linkUrl: newAlert.linkUrl,
-          linkDescription: newAlert.linkDescription,
-          targetSites: newAlert.targetSites,
-          scheduledStart: newAlert.scheduledStart?.toISOString(),
-          scheduledEnd: newAlert.scheduledEnd?.toISOString(),
-          contentType: newAlert.contentType,
-          contentStatus:
-            newAlert.contentType === ContentType.Alert
-              ? ContentStatus.Approved
-              : ContentStatus.Draft,
-          targetLanguage: newAlert.targetLanguage,
-          targetUsers: [
-            ...(newAlert.targetUsers || []),
-            ...(newAlert.targetGroups || []),
-          ],
-          translationStatus: languagePolicy.workflow.enabled
-            ? languagePolicy.workflow.defaultStatus
-            : TranslationStatus.Approved,
-        };
-
-        await alertService.createAlert(alertData);
-
         setCreationProgress([
           {
             siteId: "success",
@@ -653,7 +822,7 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         ]);
         notificationService.showSuccess(
           strings.CreateAlertCreationSuccessStatus,
-          "Alert Created",
+          strings.CreateAlertCreationSuccessTitle,
         );
       }
 
@@ -676,12 +845,16 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
         targetUsers: [],
         targetGroups: [],
       });
+      setLastCreateAttemptFailed(false);
       setUseMultiLanguage(false);
-      setShowTemplates(true);
+      setCreateStep("content");
+      setEntryMode("templates");
       setAutoSaveStatus("idle");
       setLastAutoSave(null);
+      await loadPreviousAlerts();
     } catch (error) {
       logger.error("CreateAlertTab", "Error creating alert", error);
+      setLastCreateAttemptFailed(true);
       setCreationProgress([
         {
           siteId: "error",
@@ -697,30 +870,33 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       ]);
       notificationService.showError(
         strings.CreateAlertCreationErrorStatus,
-        "Creation Failed",
+        strings.CreateAlertCreationErrorTitle,
       );
     } finally {
       setIsCreatingAlert(false);
     }
   }, [
-    validateForm,
-    setIsCreatingAlert,
-    setCreationProgress,
     alertService,
-    newAlert,
-    setNewAlert,
     alertTypes,
-    setShowTemplates,
-    useMultiLanguage,
-    languageService,
+    confirm,
     context.pageContext.user.displayName,
     languagePolicy,
+    languageService,
+    loadPreviousAlerts,
+    newAlert,
+    notificationService,
+    setCreationProgress,
+    setEntryMode,
+    setIsCreatingAlert,
+    setNewAlert,
+    useMultiLanguage,
+    validateForm,
   ]);
 
   const handleSaveAsDraft = React.useCallback(async () => {
     // Basic validation for drafts (less strict than full validation)
     if (!newAlert.title || newAlert.title.trim().length < 3) {
-      setErrors({ title: "Draft must have a title (at least 3 characters)" });
+      setErrors({ title: strings.CreateAlertDraftTitleError });
       return;
     }
 
@@ -730,45 +906,29 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       !alertTypes.find((t) => t.name === newAlert.AlertType)
     ) {
       setErrors({
-        AlertType: "Please select an alert type before saving draft",
+        AlertType: strings.CreateAlertAlertTypeError,
       });
       return;
     }
 
     setIsCreatingAlert(true);
     try {
-      const draftData: Partial<IAlertItem> = {
-        title: newAlert.title,
-        description: newAlert.description,
-        AlertType: newAlert.AlertType,
-        priority: newAlert.priority,
-        isPinned: newAlert.isPinned,
-        notificationType: newAlert.notificationType,
-        linkUrl: newAlert.linkUrl,
-        linkDescription: newAlert.linkDescription,
-        targetSites: newAlert.targetSites,
-        scheduledStart: newAlert.scheduledStart?.toISOString(),
-        scheduledEnd: newAlert.scheduledEnd?.toISOString(),
-        contentType: ContentType.Draft,
-        contentStatus: ContentStatus.Draft,
-        targetLanguage: newAlert.targetLanguage,
-        languageGroup: newAlert.languageGroup,
-        createdDate: new Date().toISOString(),
+      const draftData = AlertMutationService.buildDraftPayload(newAlert, {
         createdBy: context.pageContext.user.displayName,
-      };
-
+      });
       await alertService.saveDraft(draftData);
 
       setCreationProgress([
         {
           siteId: "success",
-          siteName: "Draft Saved Successfully",
+          siteName: strings.CreateAlertDraftSaveSuccessStatus,
           hasAccess: true,
           canCreateAlerts: true,
           permissionLevel: "success",
           error: "",
         },
       ]);
+      setLastCreateAttemptFailed(false);
 
       // Reload drafts and reset form after saving
       await loadDrafts();
@@ -781,14 +941,17 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       setCreationProgress([
         {
           siteId: "error",
-          siteName: "Draft Save Error",
+          siteName: strings.CreateAlertDraftSaveErrorStatus,
           hasAccess: false,
           canCreateAlerts: false,
           permissionLevel: "error",
           error:
-            error instanceof Error ? error.message : "Unknown error occurred",
+            error instanceof Error
+              ? error.message
+              : strings.CreateAlertUnknownError,
         },
       ]);
+      setLastCreateAttemptFailed(true);
     } finally {
       setIsCreatingAlert(false);
     }
@@ -822,26 +985,11 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     setAutoSaveStatus("saving");
     setIsAutoSaving(true);
     try {
-      const draftData: Partial<IAlertItem> = {
+      const draftData = AlertMutationService.buildDraftPayload(newAlert, {
         id: autoSaveDraftId || undefined,
-        title: `[Auto-saved] ${newAlert.title}`,
-        description: newAlert.description,
-        AlertType: newAlert.AlertType,
-        priority: newAlert.priority,
-        isPinned: newAlert.isPinned,
-        notificationType: newAlert.notificationType,
-        linkUrl: newAlert.linkUrl,
-        linkDescription: newAlert.linkDescription,
-        targetSites: newAlert.targetSites,
-        scheduledStart: newAlert.scheduledStart?.toISOString(),
-        scheduledEnd: newAlert.scheduledEnd?.toISOString(),
-        contentType: ContentType.Draft,
-        targetLanguage: newAlert.targetLanguage,
-        languageGroup: newAlert.languageGroup,
-        createdDate: new Date().toISOString(),
         createdBy: context.pageContext.user.displayName,
-      };
-
+        titlePrefix: "[Auto-saved] ",
+      });
       const savedDraft = await alertService.saveDraft(draftData);
       setAutoSaveDraftId(savedDraft.id);
       const savedAt = new Date();
@@ -925,42 +1073,119 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
     });
     setErrors({});
     setUseMultiLanguage(false);
-    setShowTemplates(true);
+    setCreateStep("content");
+    setLastCreateAttemptFailed(false);
+    setEntryMode("templates");
     setAutoSaveDraftId(null);
     setLastAutoSave(null);
     setAutoSaveStatus("idle");
-  }, [setNewAlert, alertTypes, setErrors, setShowTemplates]);
+  }, [setNewAlert, alertTypes, setEntryMode, setErrors]);
 
-  const getCurrentAlertType = React.useCallback((): IAlertType | undefined => {
-    return alertTypes.find((type) => type.name === newAlert.AlertType);
-  }, [alertTypes, newAlert.AlertType]);
+  React.useEffect(() => {
+    if (currentEntryMode !== "scratch") {
+      return;
+    }
+
+    const handler = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey)) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (!isCreatingAlert) {
+          void handleSaveAsDraft();
+        }
+      }
+
+      if (event.key === "Enter" && createStep === "publish") {
+        event.preventDefault();
+        if (!isCreatingAlert) {
+          void handleCreateAlert();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    createStep,
+    currentEntryMode,
+    handleCreateAlert,
+    handleSaveAsDraft,
+    isCreatingAlert,
+  ]);
+
+  const stepOrder: CreateWizardStep[] = ["content", "audience", "publish"];
+  const createStepIndex = stepOrder.indexOf(createStep);
+  const canGoBack = createStepIndex > 0;
+  const canGoForward = createStepIndex < stepOrder.length - 1;
+
+  const handleBackStep = React.useCallback(() => {
+    if (!canGoBack) {
+      return;
+    }
+
+    setCreateStep(stepOrder[createStepIndex - 1]);
+  }, [canGoBack, createStepIndex, stepOrder]);
+
+  const handleNextStep = React.useCallback(() => {
+    if (!canGoForward) {
+      return;
+    }
+
+    handleCreateStepChange(stepOrder[createStepIndex + 1]);
+  }, [canGoForward, createStepIndex, handleCreateStepChange, stepOrder]);
+
+  const imageFolderName =
+    newAlert.languageGroup ||
+    StringUtils.sanitizeForId(newAlert.title) ||
+    "Untitled_Alert";
 
   return (
-    <div className={styles.tabContent}>
-      {(showTemplates || showDrafts) && (
-        <div className={styles.templatesSection}>
-          <div className={styles.templateActions}>
-            <SharePointButton
-              variant={showTemplates && !showDrafts ? "primary" : "secondary"}
-              onClick={() => {
-                setShowTemplates(true);
-                setShowDrafts(false);
-              }}
-            >
-              {strings.CreateAlertTemplatesButtonLabel}
-            </SharePointButton>
-            <SharePointButton
-              variant={showDrafts ? "primary" : "secondary"}
-              onClick={() => {
-                setShowTemplates(false);
-                setShowDrafts(true);
-              }}
-            >
-              {Text.format(strings.CreateAlertDraftsButtonLabel, drafts.length)}
-            </SharePointButton>
-          </div>
+    <div className={styles.tabPane}>
+      {dialogs}
 
-          {showTemplates && !showDrafts && (
+      <div className={styles.templateActions}>
+        <SharePointButton
+          variant={currentEntryMode === "scratch" ? "primary" : "secondary"}
+          onClick={() => setEntryMode("scratch")}
+        >
+          {strings.CreateAlertStartFromScratchButton}
+        </SharePointButton>
+        <SharePointButton
+          variant={currentEntryMode === "templates" ? "primary" : "secondary"}
+          onClick={() => setEntryMode("templates")}
+        >
+          {strings.CreateAlertTemplatesButtonLabel}
+        </SharePointButton>
+        <SharePointButton
+          variant={currentEntryMode === "previous" ? "primary" : "secondary"}
+          onClick={() => setEntryMode("previous")}
+          icon={<History24Regular />}
+        >
+          {Text.format(
+            strings.CreateAlertPreviousAlertsButtonLabel,
+            previousAlerts.length,
+          )}
+        </SharePointButton>
+        <SharePointButton
+          variant={currentEntryMode === "drafts" ? "primary" : "secondary"}
+          onClick={() => setEntryMode("drafts")}
+        >
+          {Text.format(strings.CreateAlertDraftsButtonLabel, drafts.length)}
+        </SharePointButton>
+      </div>
+
+      {currentEntryMode === "templates" && (
+        <div className={styles.templatesSection}>
+          <React.Suspense
+            fallback={
+              <div className={styles.emptyState}>
+                <p>{strings.Loading}</p>
+              </div>
+            }
+          >
             <AlertTemplates
               onSelectTemplate={handleTemplateSelect}
               graphClient={graphClient}
@@ -968,447 +1193,144 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
               alertService={alertService}
               className={styles.templates}
             />
-          )}
+          </React.Suspense>
+        </div>
+      )}
 
-          {showDrafts && (
-            <div className={styles.alertsList}>
-              {drafts.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <p>{strings.CreateAlertDraftsEmptyMessage}</p>
-                </div>
-              ) : (
-                drafts.map((draft) => (
-                  <div key={draft.id} className={styles.alertCard}>
-                    <div className={styles.alertCardHeader}>
-                      <h4>{draft.title}</h4>
-                      <small>
-                        {DateUtils.formatForDisplay(draft.createdDate)}
-                      </small>
-                    </div>
-                    <div className={styles.alertCardContent}>
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: StringUtils.truncate(draft.description, 100),
-                        }}
-                      />
-                    </div>
-                    <div className={styles.alertCardActions}>
-                      <SharePointButton
-                        variant="primary"
-                        onClick={() => handleLoadDraft(draft)}
-                        icon={<DocumentArrowLeft24Regular />}
-                      >
-                        {strings.CreateAlertLoadDraftButton}
-                      </SharePointButton>
-                    </div>
+      {currentEntryMode === "previous" && (
+        <div className={styles.templatesSection}>
+          <div className={styles.alertsList}>
+            {previousAlerts.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p>{strings.CreateAlertPreviousAlertsEmptyMessage}</p>
+              </div>
+            ) : (
+              previousAlerts.map((alert) => (
+                <div key={alert.id} className={styles.alertCard}>
+                  <div className={styles.alertCardHeader}>
+                    <h4>{alert.title}</h4>
+                    <small>{DateUtils.formatForDisplay(alert.createdDate)}</small>
                   </div>
-                ))
-              )}
-            </div>
-          )}
-
-          <div className={styles.templateActions}>
-            <SharePointButton
-              variant="secondary"
-              onClick={() => {
-                setShowTemplates(false);
-                setShowDrafts(false);
-              }}
-            >
-              {strings.CreateAlertStartFromScratchButton}
-            </SharePointButton>
+                  <div className={styles.alertCardContent}>
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: StringUtils.truncate(alert.description, 140),
+                      }}
+                    />
+                  </div>
+                  <div className={styles.alertCardActions}>
+                    <SharePointButton
+                      variant="primary"
+                      onClick={() => void handleLoadPreviousAlert(alert)}
+                      icon={<DocumentArrowLeft24Regular />}
+                    >
+                      {strings.CreateAlertUsePreviousButton}
+                    </SharePointButton>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
 
-      {!showTemplates && !showDrafts && (
-        <div className={styles.alertForm}>
-          <div className={styles.formWithPreview}>
-            <div className={styles.formColumn}>
-              <SharePointSection
-                title={strings.CreateAlertSectionContentClassificationTitle}
-              >
-                <SharePointSelect
-                  label={strings.ContentTypeLabel}
-                  value={newAlert.contentType}
-                  onChange={(value) =>
-                    setNewAlert((prev) => ({
-                      ...prev,
-                      contentType: value as ContentType,
-                    }))
-                  }
-                  options={contentTypeOptions}
-                  required
-                  description={
-                    strings.CreateAlertSectionContentClassificationDescription
-                  }
-                />
-
-                <div className={styles.languageModeSelector}>
-                  <label className={styles.fieldLabel}>
-                    {strings.CreateAlertLanguageConfigurationLabel}
-                  </label>
-                  <div className={styles.languageOptions}>
+      {currentEntryMode === "drafts" && (
+        <div className={styles.templatesSection}>
+          <div className={styles.alertsList}>
+            {drafts.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p>{strings.CreateAlertDraftsEmptyMessage}</p>
+              </div>
+            ) : (
+              drafts.map((draft) => (
+                <div key={draft.id} className={styles.alertCard}>
+                  <div className={styles.alertCardHeader}>
+                    <h4>{draft.title}</h4>
+                    <small>{DateUtils.formatForDisplay(draft.createdDate)}</small>
+                  </div>
+                  <div className={styles.alertCardContent}>
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: StringUtils.truncate(draft.description, 100),
+                      }}
+                    />
+                  </div>
+                  <div className={styles.alertCardActions}>
                     <SharePointButton
-                      variant={!useMultiLanguage ? "primary" : "secondary"}
-                      onClick={() => setUseMultiLanguage(false)}
+                      variant="primary"
+                      onClick={() => handleLoadDraft(draft)}
+                      icon={<DocumentArrowLeft24Regular />}
                     >
-                      {strings.CreateAlertSingleLanguageButton}
-                    </SharePointButton>
-                    <SharePointButton
-                      variant={useMultiLanguage ? "primary" : "secondary"}
-                      onClick={() => setUseMultiLanguage(true)}
-                    >
-                      {strings.CreateAlertMultiLanguageButton}
+                      {strings.CreateAlertLoadDraftButton}
                     </SharePointButton>
                   </div>
                 </div>
-              </SharePointSection>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
-              {!useMultiLanguage ? (
-                <>
-                  <SharePointSection
-                    title={strings.CreateAlertSectionLanguageTargetingTitle}
-                  >
-                    <SharePointSelect
-                      label={strings.CreateAlertTargetLanguageLabel}
-                      value={newAlert.targetLanguage}
-                      onChange={(value) =>
-                        setNewAlert((prev) => ({
-                          ...prev,
-                          targetLanguage: value as TargetLanguage,
-                        }))
-                      }
-                      options={languageOptions}
-                      required
-                      description={
-                        strings.CreateAlertSectionLanguageTargetingDescription
-                      }
-                    />
-                  </SharePointSection>
-
-                  {userTargetingEnabled && (
-                    <SharePointSection
-                      title={
-                        strings.CreateAlertSectionUserTargetingTitle ||
-                        "User Targeting"
-                      }
-                    >
-                      <SharePointPeoplePicker
-                        context={context}
-                        titleText={
-                          strings.CreateAlertPeoplePickerLabel ||
-                          "Target specific users or groups"
-                        }
-                        personSelectionLimit={50}
-                        groupName={""} // Leave empty to search all
-                        showtooltip={true}
-                        required={false}
-                        disabled={isCreatingAlert}
-                        onChange={handlePeoplePickerChange}
-                        defaultSelectedUsers={[
-                          ...(newAlert.targetUsers?.map(
-                            (u) => u.email || u.loginName || u.displayName,
-                          ) || []),
-                          ...(newAlert.targetGroups?.map(
-                            (g) => g.loginName || g.displayName,
-                          ) || []),
-                        ]}
-                        description={
-                          strings.CreateAlertPeoplePickerDescription ||
-                          "Leave empty to show to everyone. Select users or groups to restrict visibility."
-                        }
-                      />
-                    </SharePointSection>
-                  )}
-
-                  <SharePointSection
-                    title={strings.CreateAlertSectionBasicInformationTitle}
-                  >
-                    <SharePointInput
-                      label={strings.AlertTitle}
-                      value={newAlert.title}
-                      onChange={(value) => {
-                        setNewAlert((prev) => ({ ...prev, title: value }));
-                        setErrors((prev) =>
-                          prev.title ? { ...prev, title: undefined } : prev,
-                        );
-                      }}
-                      placeholder={strings.CreateAlertTitlePlaceholder}
-                      required
-                      error={errors.title}
-                      description={strings.CreateAlertTitleDescription}
-                    />
-
-                    {copilotEnabled && (
-                      <div className={styles.copilotActionsRow}>
-                        <CopilotDraftControl
-                          copilotService={copilotService}
-                          onDraftGenerated={(draft) =>
-                            setNewAlert((prev) => ({
-                              ...prev,
-                              description: draft,
-                            }))
-                          }
-                          onError={(error) =>
-                            notificationService.showError(
-                              error,
-                              strings.CopilotErrorTitle || "Copilot Error",
-                            )
-                          }
-                          disabled={isCreatingAlert}
-                        />
-                      </div>
-                    )}
-
-                    <SharePointRichTextEditor
-                      label={strings.AlertDescription}
-                      value={newAlert.description}
-                      onChange={(value) => {
-                        setNewAlert((prev) => ({
-                          ...prev,
-                          description: value,
-                        }));
-                        if (errors.description)
-                          setErrors((prev) => ({
-                            ...prev,
-                            description: undefined,
-                          }));
-                      }}
-                      context={context}
-                      placeholder={strings.CreateAlertDescriptionPlaceholder}
-                      required
-                      error={errors.description}
-                      description={strings.CreateAlertDescriptionHelp}
-                      imageFolderName={
-                        newAlert.languageGroup ||
-                        newAlert.title ||
-                        "Untitled_Alert"
-                      }
-                    />
-                    {copilotEnabled && (
-                      <CopilotGovernanceControl
-                        copilotService={copilotService}
-                        textToAnalyze={newAlert.description}
-                        onError={(error) =>
-                          notificationService.showError(
-                            error,
-                            strings.CopilotErrorTitle || "Copilot Error",
-                          )
-                        }
-                        disabled={isCreatingAlert}
-                      />
-                    )}
-                  </SharePointSection>
-                </>
-              ) : (
-                <SharePointSection title={strings.MultiLanguageContent}>
-                  <MultiLanguageContentEditor
-                    content={newAlert.languageContent}
-                    onContentChange={(content) =>
-                      setNewAlert((prev) => ({
-                        ...prev,
-                        languageContent: content,
-                      }))
-                    }
-                    availableLanguages={supportedLanguages}
-                    errors={errors}
-                    linkUrl={newAlert.linkUrl}
-                    context={context}
-                    imageFolderName={newAlert.languageGroup}
-                    tenantDefaultLanguage={languageService.getTenantDefaultLanguage()}
-                    languagePolicy={languagePolicy}
-                    copilotService={copilotEnabled ? copilotService : undefined}
-                  />
-                </SharePointSection>
-              )}
-
-              <SharePointSection
-                title={strings.CreateAlertConfigurationSectionTitle}
+      {currentEntryMode === "scratch" && (
+        <AlertEditorForm
+          mode="create"
+          alert={newAlert}
+          setAlert={setNewAlert}
+          errors={errors}
+          setErrors={setErrors}
+          alertTypes={alertTypes}
+          alertTypeOptions={alertTypeOptions}
+          priorityOptions={priorityOptions}
+          notificationOptions={notificationOptions}
+          contentTypeOptions={contentTypeOptions}
+          languageOptions={languageOptions}
+          supportedLanguages={supportedLanguages}
+          useMultiLanguage={useMultiLanguage}
+          setUseMultiLanguage={setUseMultiLanguage}
+          userTargetingEnabled={userTargetingEnabled}
+          notificationsEnabled={notificationsEnabled}
+          enableTargetSite={enableTargetSite}
+          siteDetector={siteDetector}
+          graphClient={graphClient}
+          context={context}
+          languagePolicy={languagePolicy}
+          tenantDefaultLanguage={languageService.getTenantDefaultLanguage()}
+          copilotEnabled={copilotEnabled}
+          copilotService={copilotService}
+          notificationService={notificationService}
+          isBusy={isCreatingAlert}
+          showPreview={showPreview}
+          setShowPreview={setShowPreview}
+          imageFolderName={imageFolderName}
+          createStep={createStep}
+          onCreateStepChange={handleCreateStepChange}
+          stepCompletion={stepCompletion}
+          copilotAvailability={copilotAvailability}
+          copilotAvailabilityMessage={copilotAvailabilityMessage}
+          actionButtons={
+            <>
+              <SharePointButton
+                variant="secondary"
+                onClick={handleBackStep}
+                disabled={!canGoBack || isCreatingAlert}
+                icon={<ArrowLeft24Regular />}
               >
-                <SharePointSelect
-                  label={strings.AlertType}
-                  value={newAlert.AlertType}
-                  onChange={(value) => {
-                    // Find the selected alert type configuration
-                    const selectedType = alertTypes.find(
-                      (t) => t.name === value,
-                    );
+                {strings.CreateAlertWizardBackButton}
+              </SharePointButton>
 
-                    setNewAlert((prev) => ({
-                      ...prev,
-                      AlertType: value,
-                      // If the selected type has a default priority, use it; otherwise keep current priority
-                      priority: selectedType?.defaultPriority || prev.priority,
-                    }));
-                    if (errors.AlertType)
-                      setErrors((prev) => ({ ...prev, AlertType: undefined }));
-                  }}
-                  options={alertTypeOptions}
-                  required
-                  error={errors.AlertType}
-                  description={strings.CreateAlertConfigurationDescription}
-                />
-
-                <SharePointSelect
-                  label={strings.CreateAlertPriorityLabel}
-                  value={newAlert.priority}
-                  onChange={(value) =>
-                    setNewAlert((prev) => ({
-                      ...prev,
-                      priority: value as AlertPriority,
-                    }))
-                  }
-                  options={priorityOptions}
-                  required
-                  description={strings.CreateAlertPriorityDescription}
-                />
-
-                <SharePointToggle
-                  label={strings.CreateAlertPinLabel}
-                  checked={newAlert.isPinned}
-                  onChange={(checked) =>
-                    setNewAlert((prev) => ({ ...prev, isPinned: checked }))
-                  }
-                  description={strings.CreateAlertPinDescription}
-                />
-
-                {notificationsEnabled && (
-                  <SharePointSelect
-                    label={strings.CreateAlertNotificationLabel}
-                    value={newAlert.notificationType}
-                    onChange={(value) =>
-                      setNewAlert((prev) => ({
-                        ...prev,
-                        notificationType: value as NotificationType,
-                      }))
-                    }
-                    options={notificationOptions}
-                    description={strings.CreateAlertNotificationDescription}
-                  />
-                )}
-              </SharePointSection>
-
-              <SharePointSection
-                title={strings.CreateAlertActionLinkSectionTitle}
-              >
-                <SharePointInput
-                  label={strings.CreateAlertLinkUrlLabel}
-                  value={newAlert.linkUrl}
-                  onChange={(value) => {
-                    setNewAlert((prev) => ({ ...prev, linkUrl: value }));
-                    setErrors((prev) =>
-                      prev.linkUrl ? { ...prev, linkUrl: undefined } : prev,
-                    );
-                  }}
-                  placeholder={strings.CreateAlertLinkUrlPlaceholder}
-                  error={errors.linkUrl}
-                  description={strings.CreateAlertLinkUrlDescription}
-                />
-
-                {newAlert.linkUrl && !useMultiLanguage && (
-                  <SharePointInput
-                    label={strings.CreateAlertLinkDescriptionLabel}
-                    value={newAlert.linkDescription}
-                    onChange={(value) => {
-                      setNewAlert((prev) => ({
-                        ...prev,
-                        linkDescription: value,
-                      }));
-                      setErrors((prev) =>
-                        prev.linkDescription
-                          ? { ...prev, linkDescription: undefined }
-                          : prev,
-                      );
-                    }}
-                    placeholder={strings.CreateAlertLinkDescriptionPlaceholder}
-                    required={!!newAlert.linkUrl}
-                    error={errors.linkDescription}
-                    description={strings.CreateAlertLinkDescriptionDescription}
-                  />
-                )}
-
-                {newAlert.linkUrl && useMultiLanguage && (
-                  <div className={styles.infoMessage}>
-                    <p>{strings.CreateAlertLinkDescriptionInfo}</p>
-                  </div>
-                )}
-              </SharePointSection>
-
-              {enableTargetSite && (
-                <SharePointSection
-                  title={strings.CreateAlertTargetSitesSectionTitle}
-                >
-                  <SiteSelector
-                    selectedSites={newAlert.targetSites}
-                    onSitesChange={(sites) => {
-                      setNewAlert((prev) => ({ ...prev, targetSites: sites }));
-                      if (errors.targetSites)
-                        setErrors((prev) => ({
-                          ...prev,
-                          targetSites: undefined,
-                        }));
-                    }}
-                    siteDetector={siteDetector}
-                    graphClient={graphClient}
-                    showPermissionStatus={true}
-                  />
-                  {errors.targetSites && (
-                    <div className={styles.errorMessage}>
-                      {errors.targetSites}
-                    </div>
-                  )}
-                </SharePointSection>
-              )}
-
-              <SharePointSection
-                title={strings.CreateAlertSchedulingSectionTitle}
-              >
-                <SharePointInput
-                  label={strings.CreateAlertStartDateLabel}
-                  type="datetime-local"
-                  value={DateUtils.toDateTimeLocalValue(
-                    newAlert.scheduledStart,
-                  )}
-                  onChange={(value) => {
-                    setNewAlert((prev) => ({
-                      ...prev,
-                      scheduledStart: value ? new Date(value) : undefined,
-                    }));
-                    if (errors.scheduledStart)
-                      setErrors((prev) => ({
-                        ...prev,
-                        scheduledStart: undefined,
-                      }));
-                  }}
-                  error={errors.scheduledStart}
-                  description={strings.CreateAlertStartDateDescription}
-                />
-
-                <SharePointInput
-                  label={strings.CreateAlertEndDateLabel}
-                  type="datetime-local"
-                  value={DateUtils.toDateTimeLocalValue(newAlert.scheduledEnd)}
-                  onChange={(value) => {
-                    setNewAlert((prev) => ({
-                      ...prev,
-                      scheduledEnd: value ? new Date(value) : undefined,
-                    }));
-                    if (errors.scheduledEnd)
-                      setErrors((prev) => ({
-                        ...prev,
-                        scheduledEnd: undefined,
-                      }));
-                  }}
-                  error={errors.scheduledEnd}
-                  description={strings.CreateAlertEndDateDescription}
-                />
-              </SharePointSection>
-
-              <div className={styles.formActions}>
+              {canGoForward ? (
                 <SharePointButton
                   variant="primary"
-                  onClick={handleCreateAlert}
+                  onClick={handleNextStep}
+                  disabled={isCreatingAlert}
+                  icon={<ArrowRight24Regular />}
+                >
+                  {strings.CreateAlertWizardNextButton}
+                </SharePointButton>
+              ) : (
+                <SharePointButton
+                  variant="primary"
+                  onClick={() => void handleCreateAlert()}
                   disabled={isCreatingAlert || alertTypes.length === 0}
                   icon={<Save24Regular />}
                 >
@@ -1416,203 +1338,80 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                     ? strings.CreateAlertPrimaryButtonLoading
                     : strings.CreateAlert}
                 </SharePointButton>
-
-                <SharePointButton
-                  variant="secondary"
-                  onClick={handleSaveAsDraft}
-                  disabled={isCreatingAlert || alertTypes.length === 0}
-                  icon={<Drafts24Regular />}
-                >
-                  {strings.CreateAlertSaveDraftButtonLabel}
-                </SharePointButton>
-
-                <SharePointButton
-                  variant="secondary"
-                  onClick={resetForm}
-                  disabled={isCreatingAlert}
-                  icon={<Dismiss24Regular />}
-                >
-                  {strings.CreateAlertResetFormButtonLabel}
-                </SharePointButton>
-
-                <SharePointButton
-                  variant="secondary"
-                  onClick={() => setShowPreview(!showPreview)}
-                  icon={<Eye24Regular />}
-                >
-                  {showPreview
-                    ? strings.CreateAlertHidePreview
-                    : strings.CreateAlertShowPreview}
-                </SharePointButton>
-
-                {/* Auto-save indicator */}
-                <div className={styles.autoSaveIndicator}>
-                  {autoSaveStatus === "saving" && (
-                    <span>{strings.CreateAlertAutoSaving}</span>
-                  )}
-                  {autoSaveStatus === "pending" && (
-                    <span>
-                      {strings.CreateAlertAutoSavePending ||
-                        "Changes pending auto-save..."}
-                    </span>
-                  )}
-                  {autoSaveStatus === "error" && (
-                    <span>
-                      {strings.CreateAlertAutoSaveRetrying ||
-                        "Auto-save failed. Retrying automatically."}
-                    </span>
-                  )}
-                  {autoSaveStatus === "saved" && lastAutoSave && (
-                    <span>
-                      {Text.format(
-                        strings.CreateAlertAutoSavedAt,
-                        lastAutoSave.toLocaleTimeString(),
-                      )}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Creation Progress */}
-              {creationProgress.length > 0 && (
-                <div className={styles.alertsList}>
-                  <h3>{strings.CreateAlertCreationResultsHeading}</h3>
-                  {creationProgress.map((result, index) => (
-                    <div
-                      key={index}
-                      className={`${styles.alertCard} ${result.error ? styles.error : styles.success}`}
-                    >
-                      <strong>{result.siteName}</strong>:{" "}
-                      {result.error
-                        ? Text.format(
-                            strings.CreateAlertCreationResultError,
-                            result.error,
-                          )
-                        : strings.CreateAlertCreationResultSuccess}
-                    </div>
-                  ))}
-                </div>
               )}
-            </div>
 
-            {/* Preview Column */}
-            {showPreview && (
-              <div className={styles.formColumn}>
-                <div className={styles.alertCard}>
-                  {/* Multi-language preview mode selector */}
-                  {useMultiLanguage && newAlert.languageContent.length > 0 && (
-                    <div className={styles.previewLanguageSelector}>
-                      <label className={styles.previewLabel}>
-                        {strings.CreateAlertPreviewLanguageLabel}
-                      </label>
-                      <div className={styles.previewLanguageButtons}>
-                        {newAlert.languageContent.map((content, index) => {
-                          const lang = supportedLanguages.find(
-                            (l) => l.code === content.language,
-                          );
-                          return (
-                            <SharePointButton
-                              key={content.language}
-                              variant={index === 0 ? "primary" : "secondary"}
-                              onClick={() => {
-                                // Move selected language to front for preview
-                                const reorderedContent = [
-                                  content,
-                                  ...newAlert.languageContent.filter(
-                                    (_, i) => i !== index,
-                                  ),
-                                ];
-                                setNewAlert((prev) => ({
-                                  ...prev,
-                                  languageContent: reorderedContent,
-                                }));
-                              }}
-                              className={styles.previewLanguageButton}
-                            >
-                              {lang?.flag || content.language}{" "}
-                              {lang?.nativeName || content.language}
-                            </SharePointButton>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+              <SharePointButton
+                variant="secondary"
+                onClick={() => void handleSaveAsDraft()}
+                disabled={isCreatingAlert || alertTypes.length === 0}
+                icon={<Drafts24Regular />}
+              >
+                {strings.CreateAlertSaveDraftButtonLabel}
+              </SharePointButton>
 
-                  <AlertPreview
-                    title={
-                      useMultiLanguage && newAlert.languageContent.length > 0
-                        ? newAlert.languageContent[0]?.title ||
-                          strings.CreateAlertMultiLanguagePreviewTitle
-                        : newAlert.title || strings.AlertPreviewDefaultTitle
-                    }
-                    description={
-                      useMultiLanguage && newAlert.languageContent.length > 0
-                        ? newAlert.languageContent[0]?.description ||
-                          strings.CreateAlertMultiLanguagePreviewDescription
-                        : newAlert.description ||
-                          strings.AlertPreviewDefaultDescription
-                    }
-                    alertType={
-                      getCurrentAlertType() || {
-                        name: strings.AlertTypeInfo,
-                        iconName: "Info",
-                        backgroundColor: "#0078d4",
-                        textColor: "#ffffff",
-                        additionalStyles: "",
-                        priorityStyles: {},
-                      }
-                    }
-                    priority={newAlert.priority}
-                    linkUrl={newAlert.linkUrl}
-                    linkDescription={
-                      useMultiLanguage && newAlert.languageContent.length > 0
-                        ? newAlert.languageContent[0]?.linkDescription ||
-                          strings.CreateAlertLinkPreviewFallback
-                        : newAlert.linkDescription ||
-                          strings.CreateAlertLinkPreviewFallback
-                    }
-                    isPinned={newAlert.isPinned}
-                  />
+              <SharePointButton
+                variant="secondary"
+                onClick={resetForm}
+                disabled={isCreatingAlert}
+                icon={<Dismiss24Regular />}
+              >
+                {strings.CreateAlertResetFormButtonLabel}
+              </SharePointButton>
 
-                  {/* Multi-language preview info */}
-                  {useMultiLanguage && newAlert.languageContent.length > 0 && (
-                    <div className={styles.multiLanguagePreviewInfo}>
-                      <p>
-                        <strong>
-                          {strings.CreateAlertMultiLanguagePreviewHeading}
-                        </strong>
-                      </p>
-                      <p>
-                        {Text.format(
-                          strings.CreateAlertMultiLanguagePreviewCurrentLanguage,
-                          supportedLanguages.find(
-                            (l) =>
-                              l.code === newAlert.languageContent[0]?.language,
-                          )?.nativeName ||
-                            newAlert.languageContent[0]?.language,
-                        )}
-                      </p>
-                      <p>
-                        {Text.format(
-                          strings.CreateAlertMultiLanguagePreviewAvailableLanguages,
-                          newAlert.languageContent.length,
-                          newAlert.languageContent
-                            .map(
-                              (c) =>
-                                supportedLanguages.find(
-                                  (l) => l.code === c.language,
-                                )?.flag || c.language,
-                            )
-                            .join(" "),
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
+              <div className={styles.autoSaveIndicator}>
+                {autoSaveStatus === "saving" && (
+                  <span>{strings.CreateAlertAutoSaving}</span>
+                )}
+                {autoSaveStatus === "pending" && (
+                  <span>{strings.CreateAlertAutoSavePending}</span>
+                )}
+                {autoSaveStatus === "error" && (
+                  <span>{strings.CreateAlertAutoSaveRetrying}</span>
+                )}
+                {autoSaveStatus === "saved" && lastAutoSave && (
+                  <span>
+                    {Text.format(
+                      strings.CreateAlertAutoSavedAt,
+                      lastAutoSave.toLocaleTimeString(),
+                    )}
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </>
+          }
+          afterActions={
+            creationProgress.length > 0 ? (
+              <div className={styles.alertsList}>
+                <h3>{strings.CreateAlertCreationResultsHeading}</h3>
+                {creationProgress.map((result, index) => (
+                  <div
+                    key={index}
+                    className={`${styles.alertCard} ${result.error ? styles.error : styles.success}`}
+                  >
+                    <strong>{result.siteName}</strong>:{" "}
+                    {result.error
+                      ? Text.format(
+                          strings.CreateAlertCreationResultError,
+                          result.error,
+                        )
+                      : strings.CreateAlertCreationResultSuccess}
+                  </div>
+                ))}
+                {lastCreateAttemptFailed && (
+                  <div className={styles.retryAction}>
+                    <SharePointButton
+                      variant="secondary"
+                      onClick={() => void handleCreateAlert()}
+                    >
+                      {strings.CreateAlertCreationRetryButton}
+                    </SharePointButton>
+                  </div>
+                )}
+              </div>
+            ) : undefined
+          }
+          applySelectedAlertTypeDefaultPriority={true}
+        />
       )}
     </div>
   );

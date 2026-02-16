@@ -86,14 +86,14 @@ export const SharePointInput: React.FC<ISharePointInputProps> = ({
   const descId = `${inputId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ""}`}>
-      <label htmlFor={inputId} className={styles.label}>
+    <div className={`${styles.field} sp-field ${className || ""}`}>
+      <label htmlFor={inputId} className={`${styles.label} sp-label`}>
         {label}
         {required && <span className={styles.required}>*</span>}
       </label>
 
       {description && (
-        <div id={descId} className={styles.description}>
+        <div id={descId} className={`${styles.description} sp-description`}>
           {description}
         </div>
       )}
@@ -105,14 +105,14 @@ export const SharePointInput: React.FC<ISharePointInputProps> = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`${styles.input} ${error ? styles.inputError : ""}`}
+        className={`${styles.input} sp-input ${error ? styles.inputError : ""}`}
         aria-describedby={description ? descId : error ? errorId : undefined}
         aria-invalid={!!error}
         required={required}
       />
 
       {error && (
-        <div id={errorId} className={styles.error}>
+        <div id={errorId} className={`${styles.error} sp-error`}>
           {error}
         </div>
       )}
@@ -150,14 +150,14 @@ export const SharePointTextArea: React.FC<ISharePointTextAreaProps> = ({
   const descId = `${textareaId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ""}`}>
-      <label htmlFor={textareaId} className={styles.label}>
+    <div className={`${styles.field} sp-field ${className || ""}`}>
+      <label htmlFor={textareaId} className={`${styles.label} sp-label`}>
         {label}
         {required && <span className={styles.required}>*</span>}
       </label>
 
       {description && (
-        <div id={descId} className={styles.description}>
+        <div id={descId} className={`${styles.description} sp-description`}>
           {description}
         </div>
       )}
@@ -169,14 +169,14 @@ export const SharePointTextArea: React.FC<ISharePointTextAreaProps> = ({
         placeholder={placeholder}
         disabled={disabled}
         rows={rows}
-        className={`${styles.textarea} ${error ? styles.inputError : ""}`}
+        className={`${styles.textarea} sp-textarea ${error ? styles.inputError : ""}`}
         aria-describedby={description ? descId : error ? errorId : undefined}
         aria-invalid={!!error}
         required={required}
       />
 
       {error && (
-        <div id={errorId} className={styles.error}>
+        <div id={errorId} className={`${styles.error} sp-error`}>
           {error}
         </div>
       )}
@@ -220,14 +220,14 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
   const descId = `${selectId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ""}`}>
-      <label htmlFor={selectId} className={styles.label}>
+    <div className={`${styles.field} sp-field ${className || ""}`}>
+      <label htmlFor={selectId} className={`${styles.label} sp-label`}>
         {label}
         {required && <span className={styles.required}>*</span>}
       </label>
 
       {description && (
-        <div id={descId} className={styles.description}>
+        <div id={descId} className={`${styles.description} sp-description`}>
           {description}
         </div>
       )}
@@ -237,7 +237,7 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`${styles.select} ${error ? styles.inputError : ""}`}
+        className={`${styles.select} sp-select ${error ? styles.inputError : ""}`}
         aria-describedby={description ? descId : error ? errorId : undefined}
         aria-invalid={!!error}
         required={required}
@@ -259,7 +259,7 @@ export const SharePointSelect: React.FC<ISharePointSelectProps> = ({
       </select>
 
       {error && (
-        <div id={errorId} className={styles.error}>
+        <div id={errorId} className={`${styles.error} sp-error`}>
           {error}
         </div>
       )}
@@ -288,7 +288,7 @@ export const SharePointToggle: React.FC<ISharePointToggleProps> = ({
   const descId = `${toggleId}-desc`;
 
   return (
-    <div className={`${styles.field} ${className || ""}`}>
+    <div className={`${styles.field} sp-field ${className || ""}`}>
       <div className={styles.toggleContainer}>
         <button
           id={toggleId}
@@ -303,13 +303,13 @@ export const SharePointToggle: React.FC<ISharePointToggleProps> = ({
           <span className={styles.toggleThumb} />
         </button>
 
-        <label htmlFor={toggleId} className={styles.toggleLabel}>
+        <label htmlFor={toggleId} className={`${styles.toggleLabel} sp-label`}>
           {label}
         </label>
       </div>
 
       {description && (
-        <div id={descId} className={styles.description}>
+        <div id={descId} className={`${styles.description} sp-description`}>
           {description}
         </div>
       )}
@@ -332,16 +332,42 @@ export const SharePointSection: React.FC<ISharePointSectionProps> = ({
   onToggle,
   className,
 }) => {
+  const sectionContentId = React.useMemo(() => `${generateId()}-content`, []);
+  const isCollapsible = !!onToggle;
+
+  const handleToggle = React.useCallback(() => {
+    if (onToggle) {
+      onToggle(!collapsed);
+    }
+  }, [onToggle, collapsed]);
+
+  const handleHeaderKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!isCollapsible) {
+        return;
+      }
+
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleToggle();
+      }
+    },
+    [isCollapsible, handleToggle],
+  );
+
   return (
     <div className={`${styles.section} ${className || ""}`}>
       <div
         className={styles.sectionHeader}
-        onClick={onToggle ? () => onToggle(!collapsed) : undefined}
-        role={onToggle ? "button" : undefined}
-        tabIndex={onToggle ? 0 : undefined}
+        onClick={isCollapsible ? handleToggle : undefined}
+        onKeyDown={isCollapsible ? handleHeaderKeyDown : undefined}
+        role={isCollapsible ? "button" : undefined}
+        tabIndex={isCollapsible ? 0 : undefined}
+        aria-expanded={isCollapsible ? !collapsed : undefined}
+        aria-controls={isCollapsible ? sectionContentId : undefined}
       >
         <h3 className={styles.sectionTitle}>{title}</h3>
-        {onToggle && (
+        {isCollapsible && (
           <span
             className={`${styles.sectionToggle} ${collapsed ? styles.collapsed : ""}`}
           >
@@ -350,7 +376,11 @@ export const SharePointSection: React.FC<ISharePointSectionProps> = ({
         )}
       </div>
 
-      {!collapsed && <div className={styles.sectionContent}>{children}</div>}
+      {!collapsed && (
+        <div id={sectionContentId} className={styles.sectionContent}>
+          {children}
+        </div>
+      )}
     </div>
   );
 };
@@ -432,8 +462,8 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
         !context.pageContext.web.absoluteUrl)
     ) {
       return (
-        <div className={`${styles.field} ${className || ""}`}>
-          <div className={styles.error}>
+        <div className={`${styles.field} sp-field ${className || ""}`}>
+          <div className={`${styles.error} sp-error`}>
             People Picker Error: Context is not properly initialized (missing
             absoluteUrl). Please refresh the page.
           </div>
@@ -443,7 +473,7 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
   }
 
   return (
-    <div className={`${styles.field} ${className || ""}`}>
+    <div className={`${styles.field} sp-field ${className || ""}`}>
       <div className={styles.peoplePickerContainer}>
         <PeoplePicker
           context={context}
@@ -462,13 +492,13 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
       </div>
 
       {description && (
-        <div id={descId} className={styles.description}>
+        <div id={descId} className={`${styles.description} sp-description`}>
           {description}
         </div>
       )}
 
       {error && (
-        <div id={errorId} className={styles.error}>
+        <div id={errorId} className={`${styles.error} sp-error`}>
           {error}
         </div>
       )}

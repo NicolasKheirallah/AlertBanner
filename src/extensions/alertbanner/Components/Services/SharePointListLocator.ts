@@ -317,6 +317,35 @@ export class SharePointListLocator {
       }
     }
 
+    const normalizedGuid = SiteIdUtils.normalizeGuid(siteId);
+    if (normalizedGuid) {
+      try {
+        const siteDetails = await this.graphClient
+          .api(`/sites/${normalizedGuid}`)
+          .select("webUrl")
+          .get();
+
+        if (siteDetails?.webUrl) {
+          return siteDetails.webUrl;
+        }
+      } catch (error) {
+        const statusCode = (error as any)?.statusCode || (error as any)?.code;
+        if (statusCode === 403) {
+          logger.info(
+            "SharePointListLocator",
+            "Access denied when resolving site URL from GUID, using fallback",
+            { siteId },
+          );
+        } else {
+          logger.warn(
+            "SharePointListLocator",
+            "Unable to resolve site URL from GUID identifier",
+            { siteId, error },
+          );
+        }
+      }
+    }
+
     return this.context.pageContext.web.absoluteUrl;
   }
 }

@@ -23,8 +23,8 @@ import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertSettings.module.scss";
 import { logger } from "../Services/LoggerService";
-import { useAsyncOperation } from "../Hooks/useAsyncOperation";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
+import { useFluentDialogs } from "../Hooks/useFluentDialogs";
 
 export interface IAlertSettingsTabsProps {
   isInEditMode: boolean;
@@ -108,6 +108,12 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   const [isCreatingAlert, setIsCreatingAlert] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(true);
   const [showTemplates, setShowTemplates] = React.useState(true);
+  const [hasUnsavedCreateChanges, setHasUnsavedCreateChanges] =
+    React.useState(false);
+  const [hasUnsavedManageChanges, setHasUnsavedManageChanges] =
+    React.useState(false);
+  const [hasUnsavedSettingsChanges, setHasUnsavedSettingsChanges] =
+    React.useState(false);
 
   // Manage alerts state
   const [existingAlerts, setExistingAlerts] = React.useState<IAlertItem[]>([]);
@@ -143,58 +149,217 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   >(null);
   const [isCheckingLists, setIsCheckingLists] = React.useState(false);
   const [isCreatingLists, setIsCreatingLists] = React.useState(false);
+  const alertTypesLoadInFlightRef = React.useRef<Promise<void> | null>(null);
+  const { confirm, dialogs } = useFluentDialogs();
 
-  // Initialize alert types from SharePoint using useAsyncOperation
-  const { execute: loadAlertTypes } = useAsyncOperation(
-    async () => {
-      const types = await alertService.current.getAlertTypes();
-      return types;
-    },
-    {
-      onSuccess: (types) => {
-        if (types && types.length > 0) {
-          setAlertTypes(types);
+  const buildInitialNewAlert = React.useCallback((): INewAlert => {
+    return {
+      title: "",
+      description: "",
+      AlertType: alertTypes.length > 0 ? alertTypes[0].name : "",
+      priority: AlertPriority.Medium,
+      isPinned: false,
+      notificationType: NotificationType.Browser,
+      linkUrl: "",
+      linkDescription: "",
+      targetSites: [],
+      scheduledStart: undefined,
+      scheduledEnd: undefined,
+      contentType: ContentType.Alert,
+      targetLanguage: TargetLanguage.All,
+      languageContent: [],
+      targetUsers: [],
+      targetGroups: [],
+    };
+  }, [alertTypes]);
 
-          // Set first alert type as default if none is selected
-          setNewAlert((prev) => {
-            // Only set default if AlertType is empty or invalid
-            if (
-              !prev.AlertType ||
-              !types.find((t) => t.name === prev.AlertType)
-            ) {
-              return { ...prev, AlertType: types[0].name };
-            }
-            return prev;
-          });
-        }
-      },
-      onError: () => {
-        logger.error(
-          "AlertSettingsTabs",
-          "Error loading alert types from SharePoint",
-        );
-        setAlertTypes([]);
-      },
-      logErrors: true,
+  const resetCreateTabState = React.useCallback(() => {
+    setShowTemplates(true);
+    setShowPreview(true);
+    setHasUnsavedCreateChanges(false);
+    setErrors({});
+    setCreationProgress([]);
+    setIsCreatingAlert(false);
+    setNewAlert(buildInitialNewAlert());
+  }, [buildInitialNewAlert]);
+
+  const openNewCreateAlert = React.useCallback(() => {
+    setEditingAlert(null);
+    setIsEditingAlert(false);
+    setHasUnsavedManageChanges(false);
+    setActiveTab("create");
+    resetCreateTabState();
+  }, [resetCreateTabState]);
+
+  const confirmDiscardCreateChanges = React.useCallback(async (): Promise<boolean> => {
+    if (!hasUnsavedCreateChanges || activeTab !== "create") {
+      return true;
+    }
+
+    return confirm({
+      title: strings.CreateAlertUnsavedChangesTitle,
+      message: strings.CreateAlertUnsavedChangesMessage,
+      confirmText: strings.CreateAlertDiscardChangesButton,
+      cancelText: strings.CreateAlertKeepEditingButton,
+    });
+  }, [activeTab, confirm, hasUnsavedCreateChanges]);
+
+  const confirmDiscardManageChanges = React.useCallback(
+    async (): Promise<boolean> => {
+      if (!hasUnsavedManageChanges || activeTab !== "manage") {
+        return true;
+      }
+
+      return confirm({
+        title: strings.ManageAlertsUnsavedChangesTitle,
+        message: strings.ManageAlertsUnsavedChangesMessage,
+        confirmText: strings.ManageAlertsDiscardChangesButton,
+        cancelText: strings.ManageAlertsKeepEditingButton,
+      });
     },
+    [activeTab, confirm, hasUnsavedManageChanges],
   );
 
-  React.useEffect(
-    () => {
-      // Edit mode guard disabled — always load alert types
-      // if (isInEditMode) {
-      loadAlertTypes();
-      // }
+  const confirmDiscardSettingsChanges = React.useCallback(
+    async (): Promise<boolean> => {
+      if (!hasUnsavedSettingsChanges || activeTab !== "settings") {
+        return true;
+      }
+
+      return confirm({
+        title: strings.SettingsUnsavedChangesTitle,
+        message: strings.SettingsUnsavedChangesMessage,
+        confirmText: strings.SettingsDiscardChanges,
+        cancelText: strings.SettingsKeepEditing,
+      });
+    },
+    [activeTab, confirm, hasUnsavedSettingsChanges],
+  );
+
+  const switchTab = React.useCallback(
+    async (nextTab: "create" | "manage" | "types" | "settings") => {
+      if (nextTab === activeTab) {
+        return;
+      }
+
+      if (nextTab !== "create") {
+        const canLeave = await confirmDiscardCreateChanges();
+        if (!canLeave) {
+          return;
+        }
+      }
+      if (nextTab !== "manage") {
+        const canLeave = await confirmDiscardManageChanges();
+        if (!canLeave) {
+          return;
+        }
+      }
+      if (nextTab !== "settings") {
+        const canLeave = await confirmDiscardSettingsChanges();
+        if (!canLeave) {
+          return;
+        }
+      }
+
+      if (nextTab === "create") {
+        openNewCreateAlert();
+        return;
+      }
+
+      setActiveTab(nextTab);
     },
     [
-      /* isInEditMode */
+      activeTab,
+      confirmDiscardCreateChanges,
+      confirmDiscardManageChanges,
+      confirmDiscardSettingsChanges,
+      openNewCreateAlert,
     ],
   );
 
+  const handleCloseDialog = React.useCallback(async () => {
+    const canCloseCreate = await confirmDiscardCreateChanges();
+    if (!canCloseCreate) {
+      return;
+    }
+    const canCloseManage = await confirmDiscardManageChanges();
+    if (!canCloseManage) {
+      return;
+    }
+    const canCloseSettings = await confirmDiscardSettingsChanges();
+    if (!canCloseSettings) {
+      return;
+    }
+
+    if (editingAlert) {
+      setEditingAlert(null);
+      setIsEditingAlert(false);
+    }
+    openNewCreateAlert();
+    setIsOpen(false);
+  }, [
+    confirmDiscardCreateChanges,
+    confirmDiscardManageChanges,
+    confirmDiscardSettingsChanges,
+    editingAlert,
+    openNewCreateAlert,
+  ]);
+
+  const loadAlertTypes = React.useCallback(async () => {
+    if (alertTypesLoadInFlightRef.current) {
+      await alertTypesLoadInFlightRef.current;
+      return;
+    }
+
+    const task = (async () => {
+      try {
+        const types = await alertService.current.getAlertTypes();
+        if (!types || types.length === 0) {
+          setAlertTypes([]);
+          return;
+        }
+
+        setAlertTypes(types);
+
+        // Set first alert type as default if none is selected
+        setNewAlert((prev) => {
+          if (
+            !prev.AlertType ||
+            !types.find((t) => t.name === prev.AlertType)
+          ) {
+            return { ...prev, AlertType: types[0].name };
+          }
+          return prev;
+        });
+      } catch (error) {
+        logger.error(
+          "AlertSettingsTabs",
+          "Error loading alert types from SharePoint",
+          error,
+        );
+        setAlertTypes([]);
+      }
+    })();
+
+    alertTypesLoadInFlightRef.current = task;
+    await task;
+    alertTypesLoadInFlightRef.current = null;
+  }, []);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    loadAlertTypes();
+  }, [isOpen, loadAlertTypes]);
+
   // Initialize site context
   React.useEffect(() => {
-    // Edit mode guard disabled — always initialize site context
-    // if (isInEditMode) {
+    if (!isOpen) {
+      return;
+    }
+
     siteDetector.current
       .getCurrentSiteContext()
       .then((siteContext) => {
@@ -209,8 +374,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       .catch((error) => {
         logger.error("AlertSettingsTabs", "Failed to get site context", error);
       });
-    // }
-  }, [/* isInEditMode, */ newAlert.targetSites.length]);
+  }, [isOpen, newAlert.targetSites.length]);
 
   // Update settings when props change
   React.useEffect(() => {
@@ -246,10 +410,13 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     setLanguageUpdateTrigger((prev) => prev + 1);
   }, []);
 
-  // Edit mode guard disabled — always render settings button
-  // if (!isInEditMode) {
-  //   return null;
-  // }
+  const canManageSettings =
+    isInEditMode ||
+    !!context?.pageContext?.legacyPageContext?.isSiteAdmin;
+
+  if (!canManageSettings) {
+    return null;
+  }
 
   return (
     <>
@@ -257,32 +424,26 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         <SharePointButton
           variant="secondary"
           icon={<Settings24Regular />}
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            openNewCreateAlert();
+            setIsOpen(true);
+          }}
+          aria-label={strings.AlertSettingsTitle}
+          title={strings.AlertSettingsTitle}
         />
       </div>
 
       <SharePointDialog
         isOpen={isOpen}
         onClose={() => {
-          if (editingAlert) {
-            setEditingAlert(null);
-            setIsEditingAlert(false);
-          }
-          setIsOpen(false);
+          void handleCloseDialog();
         }}
         title={
           editingAlert
-            ? `Edit ${
-                editingAlert.contentType === ContentType.Template
-                  ? "Template"
-                  : editingAlert.contentType === ContentType.Draft
-                    ? "Draft"
-                    : "Alert"
-              }: ${editingAlert.title}`
+            ? `${strings.EditAlert}: ${editingAlert.title}`
             : strings.AlertSettingsTitle
         }
         width={1200}
-        height={800}
       >
         <div className={styles.settingsContainer}>
           {/* Tab Navigation — hidden when editing an alert */}
@@ -294,7 +455,9 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
             >
               <SharePointButton
                 variant="secondary"
-                onClick={() => setActiveTab("create")}
+                onClick={() => {
+                  void switchTab("create");
+                }}
                 className={`${styles.tab} ${activeTab === "create" ? styles.activeTab : ""}`}
                 icon={<Add24Regular />}
                 role="tab"
@@ -306,7 +469,9 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
               </SharePointButton>
               <SharePointButton
                 variant="secondary"
-                onClick={() => setActiveTab("manage")}
+                onClick={() => {
+                  void switchTab("manage");
+                }}
                 className={`${styles.tab} ${activeTab === "manage" ? styles.activeTab : ""}`}
                 role="tab"
                 aria-selected={activeTab === "manage"}
@@ -317,7 +482,9 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
               </SharePointButton>
               <SharePointButton
                 variant="secondary"
-                onClick={() => setActiveTab("types")}
+                onClick={() => {
+                  void switchTab("types");
+                }}
                 className={`${styles.tab} ${activeTab === "types" ? styles.activeTab : ""}`}
                 role="tab"
                 aria-selected={activeTab === "types"}
@@ -328,7 +495,9 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
               </SharePointButton>
               <SharePointButton
                 variant="secondary"
-                onClick={() => setActiveTab("settings")}
+                onClick={() => {
+                  void switchTab("settings");
+                }}
                 className={`${styles.tab} ${activeTab === "settings" ? styles.activeTab : ""}`}
                 icon={<Settings24Regular />}
                 role="tab"
@@ -372,6 +541,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                   setShowTemplates={setShowTemplates}
                   languageUpdateTrigger={languageUpdateTrigger}
                   copilotEnabled={settings.copilotEnabled}
+                  onDirtyStateChange={setHasUnsavedCreateChanges}
                 />
               </div>
             )}
@@ -398,8 +568,20 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                   alertService={alertService.current}
                   graphClient={graphClient}
                   context={context}
+                  userTargetingEnabled={settings.userTargetingEnabled}
+                  notificationsEnabled={settings.notificationsEnabled}
+                  enableTargetSite={settings.enableTargetSite}
                   copilotEnabled={settings.copilotEnabled}
-                  setActiveTab={setActiveTab}
+                  onDirtyStateChange={setHasUnsavedManageChanges}
+                  setActiveTab={(nextTab) => {
+                    if (typeof nextTab === "function") {
+                      const resolved = nextTab(activeTab);
+                      void switchTab(resolved);
+                      return;
+                    }
+
+                    void switchTab(nextTab);
+                  }}
                 />
               </div>
             )}
@@ -443,6 +625,8 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                   alertService={alertService.current}
                   onSettingsChange={handleSettingsChange}
                   onLanguageChange={handleLanguageChange}
+                  onDirtyStateChange={setHasUnsavedSettingsChanges}
+                  canEdit={canManageSettings}
                   context={context}
                 />
               </div>
@@ -450,6 +634,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
           </div>
         </div>
       </SharePointDialog>
+      {dialogs}
     </>
   );
 };

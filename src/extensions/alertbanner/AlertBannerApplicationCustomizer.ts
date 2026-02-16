@@ -20,6 +20,7 @@ import { setIconOptions } from "@fluentui/style-utilities";
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
   private static readonly COMPONENT_ID = "4b274e80-896b-4c87-9a78-d751d9dff522";
   private static readonly SETTINGS_PERSIST_DEBOUNCE_MS = 800;
+  private static readonly SETTINGS_SNAPSHOT_SCHEMA_VERSION = 2;
   private _topPlaceholderContent: PlaceholderContent | undefined;
   private _customProperties: IAlertsBannerApplicationCustomizerProperties;
   private _siteIds: string[] | null = null; // Cache site IDs to prevent recalculation
@@ -234,25 +235,38 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         return;
       }
 
-      const parsed = JSON.parse(raw) as Partial<IAlertsBannerApplicationCustomizerProperties>;
+      const parsed = JSON.parse(raw) as
+        | (Partial<IAlertsBannerApplicationCustomizerProperties> & {
+            _schemaVersion?: number;
+            settings?: Partial<IAlertsBannerApplicationCustomizerProperties>;
+          })
+        | null;
+      const schemaVersion = parsed?._schemaVersion || 1;
+      const snapshot =
+        schemaVersion >= 2 && parsed?.settings
+          ? parsed.settings
+          : (parsed as Partial<IAlertsBannerApplicationCustomizerProperties>);
 
-      if (typeof parsed.alertTypesJson === "string") {
-        this._customProperties.alertTypesJson = parsed.alertTypesJson;
+      if (typeof snapshot?.alertTypesJson === "string") {
+        this._customProperties.alertTypesJson = snapshot.alertTypesJson;
       }
-      if (typeof parsed.userTargetingEnabled === "boolean") {
-        this._customProperties.userTargetingEnabled = parsed.userTargetingEnabled;
+      if (typeof snapshot?.userTargetingEnabled === "boolean") {
+        this._customProperties.userTargetingEnabled =
+          snapshot.userTargetingEnabled;
       }
-      if (typeof parsed.notificationsEnabled === "boolean") {
-        this._customProperties.notificationsEnabled = parsed.notificationsEnabled;
+      if (typeof snapshot?.notificationsEnabled === "boolean") {
+        this._customProperties.notificationsEnabled =
+          snapshot.notificationsEnabled;
       }
-      if (typeof parsed.enableTargetSite === "boolean") {
-        this._customProperties.enableTargetSite = parsed.enableTargetSite;
+      if (typeof snapshot?.enableTargetSite === "boolean") {
+        this._customProperties.enableTargetSite = snapshot.enableTargetSite;
       }
-      if (typeof parsed.emailServiceAccount === "string") {
-        this._customProperties.emailServiceAccount = parsed.emailServiceAccount;
+      if (typeof snapshot?.emailServiceAccount === "string") {
+        this._customProperties.emailServiceAccount =
+          snapshot.emailServiceAccount;
       }
-      if (typeof parsed.copilotEnabled === "boolean") {
-        this._customProperties.copilotEnabled = parsed.copilotEnabled;
+      if (typeof snapshot?.copilotEnabled === "boolean") {
+        this._customProperties.copilotEnabled = snapshot.copilotEnabled;
       }
     } catch (error) {
       logger.warn(
@@ -272,12 +286,16 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       window.localStorage.setItem(
         this._getSettingsSnapshotKey(),
         JSON.stringify({
-          alertTypesJson: this._customProperties.alertTypesJson,
-          userTargetingEnabled: this._customProperties.userTargetingEnabled,
-          notificationsEnabled: this._customProperties.notificationsEnabled,
-          enableTargetSite: this._customProperties.enableTargetSite,
-          emailServiceAccount: this._customProperties.emailServiceAccount,
-          copilotEnabled: this._customProperties.copilotEnabled,
+          _schemaVersion:
+            AlertsBannerApplicationCustomizer.SETTINGS_SNAPSHOT_SCHEMA_VERSION,
+          settings: {
+            alertTypesJson: this._customProperties.alertTypesJson,
+            userTargetingEnabled: this._customProperties.userTargetingEnabled,
+            notificationsEnabled: this._customProperties.notificationsEnabled,
+            enableTargetSite: this._customProperties.enableTargetSite,
+            emailServiceAccount: this._customProperties.emailServiceAccount,
+            copilotEnabled: this._customProperties.copilotEnabled,
+          },
         }),
       );
     } catch (error) {

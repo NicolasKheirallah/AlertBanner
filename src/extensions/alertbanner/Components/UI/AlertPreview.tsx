@@ -1,7 +1,7 @@
 import * as React from "react";
 import { AlertPriority, IAlertType } from "../Alerts/IAlerts";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
-import { getPriorityIcon } from "../AlertItem/utils";
+import { getAlertTypeIcon } from "../AlertItem/utils";
 import { getContrastText } from "../Utils/ColorUtils";
 import styles from "./AlertPreview.module.scss";
 
@@ -81,7 +81,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
         <div className={styles.headerRow}>
           <div className={styles.iconSection}>
             <div className={styles.alertIcon}>
-              {getPriorityIcon(priority)}
+              {getAlertTypeIcon(alertType.iconName, priority)}
             </div>
           </div>
 

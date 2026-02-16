@@ -66,12 +66,15 @@ const ImageManager: React.FC<IImageManagerProps> = ({
         if (onImageDeleted) {
           onImageDeleted();
         }
-        notificationService.showSuccess("Image deleted successfully.", strings.Delete);
+        notificationService.showSuccess(
+          strings.ImageManagerDeleteSuccess,
+          strings.ImageManagerTitle,
+        );
       },
       onError: (err) => {
         notificationService.showError(
           Text.format(strings.ImageManagerDeleteError, err.message || ''),
-          strings.Delete,
+          strings.ImageManagerTitle,
         );
       },
       logErrors: true
@@ -80,7 +83,7 @@ const ImageManager: React.FC<IImageManagerProps> = ({
 
   const handleDeleteImage = React.useCallback(async (image: IExistingImage) => {
     const shouldDelete = await confirm({
-      title: strings.Delete,
+      title: strings.ImageManagerTitle,
       message: Text.format(strings.ImageManagerDeleteConfirm, image.name),
       confirmText: strings.Delete,
     });

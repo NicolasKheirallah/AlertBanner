@@ -22,16 +22,6 @@ import styles from './RepairDialog.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text as CoreText } from '@microsoft/sp-core-library';
 
-const localize = (key: keyof typeof strings | string, ...args: Array<string | number>): string => {
-  const dictionary = strings as unknown as Record<string, string>;
-  const value = dictionary[key as string] ?? key.toString();
-  if (args.length === 0) {
-    return value;
-  }
-  const formattedArgs = args.map(arg => arg.toString());
-  return CoreText.format(value, ...formattedArgs);
-};
-
 export interface IRepairDialogProps {
   isOpen: boolean;
   onDismiss: () => void;

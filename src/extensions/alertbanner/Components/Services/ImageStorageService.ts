@@ -1,6 +1,7 @@
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { SPHttpClient, SPHttpClientResponse, MSGraphClientV3 } from '@microsoft/sp-http';
 import { logger } from './LoggerService';
+import { SharePointListLocator } from './SharePointListLocator';
 
 export interface IExistingImage {
   name: string;
@@ -16,6 +17,7 @@ export class ImageStorageService {
   private graphDriveId?: string;
   private graphClient?: MSGraphClientV3;
   private ensureDrivePromise?: Promise<void>;
+  private locator?: SharePointListLocator;
 
   constructor(private readonly context: ApplicationCustomizerContext) {}
 
@@ -31,13 +33,13 @@ export class ImageStorageService {
     }
   }
 
-  public async listImages(folderName?: string): Promise<IExistingImage[]> {
+  public async listImages(folderName?: string, siteId?: string): Promise<IExistingImage[]> {
     if (!folderName) {
       return [];
     }
 
     const sanitizedFolder = this.sanitizeFolderName(folderName);
-    const { siteUrl, siteAssetsRoot } = this.getSitePaths();
+    const { siteUrl, siteAssetsRoot } = await this.getSitePaths(siteId);
     const folderPath = `${siteAssetsRoot}/${ALERT_IMAGES_FOLDER}/${sanitizedFolder}`;
     const normalizedFolder = folderPath.startsWith('/') ? folderPath : `/${folderPath}`;
     const escapedFolder = normalizedFolder.replace(/'/g, "''");
@@ -75,16 +77,17 @@ export class ImageStorageService {
     }
   }
 
-  public async deleteImage(fileName: string, folderName: string): Promise<void> {
+  public async deleteImage(fileName: string, folderName: string, siteId?: string): Promise<void> {
     const sanitizedFolder = this.sanitizeFolderName(folderName);
-    const { siteUrl, siteAssetsRoot } = this.getSitePaths();
+    const { siteUrl, siteAssetsRoot } = await this.getSitePaths(siteId);
     const folderPath = `${siteAssetsRoot}/${ALERT_IMAGES_FOLDER}/${sanitizedFolder}`;
     const normalizedFolder = folderPath.startsWith('/') ? folderPath : `/${folderPath}`;
     
     // Construct the server relative URL for the file
     const serverRelativeUrl = `${normalizedFolder}/${fileName}`;
+    const escapedFileUrl = serverRelativeUrl.replace(/'/g, "''");
     
-    const deleteUrl = `${siteUrl}/_api/web/GetFileByServerRelativeUrl('${encodeURIComponent(serverRelativeUrl)}')`;
+    const deleteUrl = `${siteUrl}/_api/web/GetFileByServerRelativeUrl('${escapedFileUrl}')`;
 
     try {
       const response = await this.context.spHttpClient.post(
@@ -102,20 +105,21 @@ export class ImageStorageService {
         throw new Error(`Failed to delete image: ${response.statusText}`);
       }
 
-      logger.info('ImageStorageService', 'Deleted image', { fileName, folderName });
+      logger.info('ImageStorageService', 'Deleted image', { fileName, folderName, siteId });
     } catch (error) {
       logger.error('ImageStorageService', 'Error deleting image', error);
       throw error;
     }
   }
 
-  public async deleteImageFolder(folderName: string): Promise<void> {
+  public async deleteImageFolder(folderName: string, siteId?: string): Promise<void> {
     const sanitizedFolder = this.sanitizeFolderName(folderName);
-    const { siteUrl, siteAssetsRoot } = this.getSitePaths();
+    const { siteUrl, siteAssetsRoot } = await this.getSitePaths(siteId);
     const folderPath = `${siteAssetsRoot}/${ALERT_IMAGES_FOLDER}/${sanitizedFolder}`;
     const normalizedFolder = folderPath.startsWith('/') ? folderPath : `/${folderPath}`;
+    const escapedFolder = normalizedFolder.replace(/'/g, "''");
 
-    const deleteFolderUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(normalizedFolder)}')`;
+    const deleteFolderUrl = `${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${escapedFolder}')`;
 
     try {
       await this.context.spHttpClient.post(
@@ -128,10 +132,10 @@ export class ImageStorageService {
           }
         }
       );
-      logger.info('ImageStorageService', 'Image folder deleted successfully', { folderName });
+      logger.info('ImageStorageService', 'Image folder deleted successfully', { folderName, siteId });
     } catch (error) {
       // Folder deletion is optional - log warning if it fails
-      logger.warn('ImageStorageService', 'Could not delete image folder (may not exist)', { folderName, error });
+      logger.warn('ImageStorageService', 'Could not delete image folder (may not exist)', { folderName, siteId, error });
     }
   }
 
@@ -206,7 +210,7 @@ export class ImageStorageService {
   }
 
   private async uploadViaRest(file: File, uniqueFileName: string, sanitizedFolder?: string): Promise<string> {
-    const { siteUrl, siteAssetsRoot } = this.getSitePaths();
+    const { siteUrl, siteAssetsRoot } = await this.getSitePaths();
     const baseFolderPath = `${siteAssetsRoot}/${ALERT_IMAGES_FOLDER}`;
 
     await this.ensureFolderExistsRest(siteUrl, siteAssetsRoot);
@@ -471,15 +475,45 @@ export class ImageStorageService {
     }
   }
 
-  private getSitePaths(): { siteUrl: string; siteAssetsRoot: string } {
-    const siteUrl = this.context.pageContext.web.absoluteUrl.replace(/\/$/, '');
-    const rawServerRelativeWebUrl = this.context.pageContext.web.serverRelativeUrl || '';
-    const trimmedServerRelativeWebUrl = rawServerRelativeWebUrl === '/'
-      ? ''
-      : rawServerRelativeWebUrl.replace(/\/$/, '');
+  private async getSitePaths(siteId?: string): Promise<{ siteUrl: string; siteAssetsRoot: string }> {
+    let siteUrl = this.context.pageContext.web.absoluteUrl;
+
+    if (siteId) {
+      const currentSiteGuid = this.context.pageContext.site.id.toString().replace(/[{}]/g, '').toLowerCase();
+      const requestedSiteGuid = siteId.replace(/[{}]/g, '').toLowerCase();
+      if (requestedSiteGuid && requestedSiteGuid !== currentSiteGuid) {
+        try {
+          const locator = await this.ensureLocator();
+          siteUrl = await locator.getSiteUrlFromIdentifier(siteId);
+        } catch (error) {
+          logger.warn('ImageStorageService', 'Failed to resolve site URL for image operation; using current site', {
+            siteId,
+            error
+          });
+        }
+      }
+    }
+
+    const normalizedSiteUrl = siteUrl.replace(/\/$/, '');
+    const parsed = new URL(normalizedSiteUrl);
+    const rawPath = parsed.pathname || '';
+    const trimmedServerRelativeWebUrl = rawPath === '/' ? '' : rawPath.replace(/\/$/, '');
     const siteAssetsRoot = `${trimmedServerRelativeWebUrl ? trimmedServerRelativeWebUrl : ''}/SiteAssets`;
 
-    return { siteUrl, siteAssetsRoot };
+    return { siteUrl: normalizedSiteUrl, siteAssetsRoot };
+  }
+
+  private async ensureLocator(): Promise<SharePointListLocator> {
+    if (this.locator) {
+      return this.locator;
+    }
+
+    if (!this.graphClient) {
+      this.graphClient = await this.context.msGraphClientFactory.getClient('3');
+    }
+
+    this.locator = new SharePointListLocator(this.graphClient, this.context);
+    return this.locator;
   }
 
   private isMissing(error: any): boolean {

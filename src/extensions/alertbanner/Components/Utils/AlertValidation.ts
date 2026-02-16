@@ -16,6 +16,7 @@ export interface IValidationOptions {
   getString?: (key: string, ...args: any[]) => string;
   languagePolicy?: ILanguagePolicy;
   tenantDefaultLanguage?: TargetLanguage;
+  validateTargetSites?: boolean;
 }
 
 /**
@@ -252,7 +253,10 @@ export const validateAlertData = (
   }
 
   // Target sites validation
-  if (!alert.targetSites || alert.targetSites.length === 0) {
+  if (
+    options.validateTargetSites !== false &&
+    (!alert.targetSites || alert.targetSites.length === 0)
+  ) {
     errors.targetSites = getLocalizedString("AtLeastOneSiteRequired");
   }
 

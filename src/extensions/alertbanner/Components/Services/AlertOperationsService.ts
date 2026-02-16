@@ -38,6 +38,16 @@ export class AlertOperationsService {
   private validatedListSchemas: Set<string> = new Set();
   private readonly maxItemsToFetch: number = API_CONFIG.MAX_PAGE_SIZE * 5;
   private readonly languagePolicyTitle = "LanguagePolicy";
+  private readonly alertTypesCacheDurationMs = 5 * 60 * 1000;
+  private readonly alertTypesCache = new Map<
+    string,
+    { types: IAlertType[]; timestamp: number }
+  >();
+  private readonly pendingAlertTypesRequests = new Map<
+    string,
+    Promise<IAlertType[]>
+  >();
+  private readonly attachmentFetchConcurrency = 4;
 
   constructor(
     graphClient: MSGraphClientV3,
@@ -117,27 +127,33 @@ export class AlertOperationsService {
     ];
     if (!selectedFields.includes("Title")) selectedFields.unshift("Title");
 
-    const executeQuery = async (listApi: string): Promise<IAlertItem[]> => {
+    const executeQuery = async (
+      listApi: string,
+      useServerFilters: boolean,
+    ): Promise<IAlertItem[]> => {
       let request = this.graphClient
         .api(`${listApi}/items`)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .expand(`fields($select=${selectedFields.join(",")})`)
-        .orderby(
-          availableColumns.has("ScheduledStart")
-            ? "fields/ScheduledStart desc"
-            : "fields/Created desc",
-        )
         .top(API_CONFIG.MAX_PAGE_SIZE);
 
-      if (availableColumns.has("ContentStatus")) {
-        // Only show Approved alerts in the main feed
-        request = request.filter(
-          filterQuery
-            ? `${filterQuery} and fields/ContentStatus eq 'Approved'`
-            : "fields/ContentStatus eq 'Approved'",
+      if (useServerFilters) {
+        request = request.orderby(
+          availableColumns.has("ScheduledStart")
+            ? "fields/ScheduledStart desc"
+            : "lastModifiedDateTime desc",
         );
-      } else if (filterQuery) {
-        request = request.filter(filterQuery);
+
+        if (availableColumns.has("ContentStatus")) {
+          // Only show Approved alerts in the main feed
+          request = request.filter(
+            filterQuery
+              ? `${filterQuery} and fields/ContentStatus eq 'Approved'`
+              : "fields/ContentStatus eq 'Approved'",
+          );
+        } else if (filterQuery) {
+          request = request.filter(filterQuery);
+        }
       }
 
       const items = await this.fetchPagedItems(request);
@@ -152,11 +168,16 @@ export class AlertOperationsService {
         AlertTransformers.mapSharePointItemToAlert(item, resolvedSiteId),
       );
       alerts = await this.attachAttachments(siteId, listId, items, alerts);
-      return AlertFilters.excludeNonPublicAlerts(alerts);
+      const now = new Date();
+      return this.filterActiveAlerts(
+        AlertFilters.excludeNonPublicAlerts(alerts),
+        now,
+        availableColumns.has("ContentStatus"),
+      );
     };
 
     try {
-      return await executeQuery(alertsListApi);
+      return await executeQuery(alertsListApi, true);
     } catch (error) {
       const statusCode =
         (error as any)?.statusCode ||
@@ -181,7 +202,7 @@ export class AlertOperationsService {
           if (!refreshedListApi) {
             return [];
           }
-          return await executeQuery(refreshedListApi);
+          return await executeQuery(refreshedListApi, true);
         } catch (retryError) {
           logger.warn(
             "AlertOperationsService",
@@ -192,6 +213,24 @@ export class AlertOperationsService {
         }
       }
 
+      if (statusCode === 400) {
+        logger.warn(
+          "AlertOperationsService",
+          `Active alerts query returned 400 for site ${siteId}. Retrying with simplified query.`,
+          { siteId, error },
+        );
+
+        try {
+          return await executeQuery(alertsListApi, false);
+        } catch (fallbackError) {
+          logger.warn(
+            "AlertOperationsService",
+            `Simplified active alerts query also failed for site ${siteId}.`,
+            fallbackError,
+          );
+        }
+      }
+
       logger.error(
         "AlertOperationsService",
         `Failed to get active alerts from ${siteId}`,
@@ -199,6 +238,37 @@ export class AlertOperationsService {
       );
       return [];
     }
+  }
+
+  private filterActiveAlerts(
+    alerts: IAlertItem[],
+    now: Date,
+    enforceApprovedStatus: boolean,
+  ): IAlertItem[] {
+    return alerts.filter((alert) => {
+      if (
+        enforceApprovedStatus &&
+        alert.contentStatus !== ContentStatus.Approved
+      ) {
+        return false;
+      }
+
+      if (alert.scheduledStart) {
+        const start = new Date(alert.scheduledStart);
+        if (!Number.isNaN(start.getTime()) && start > now) {
+          return false;
+        }
+      }
+
+      if (alert.scheduledEnd) {
+        const end = new Date(alert.scheduledEnd);
+        if (!Number.isNaN(end.getTime()) && end < now) {
+          return false;
+        }
+      }
+
+      return true;
+    });
   }
 
   public async createAlert(
@@ -319,57 +389,75 @@ export class AlertOperationsService {
           );
         }
 
+        const availableColumns =
+          await this.locator.getAvailableColumns(alertsListApi);
+
         const fields: any = {};
-        if (updates.title) fields.Title = updates.title;
-        if (updates.description) fields.Description = updates.description;
-        if (updates.AlertType) fields.AlertType = updates.AlertType;
-        if (updates.priority) fields.Priority = updates.priority;
-        if (updates.isPinned !== undefined) fields.IsPinned = updates.isPinned;
-        if (updates.notificationType)
-          fields.NotificationType = updates.notificationType;
-        if (updates.linkUrl !== undefined) fields.LinkUrl = updates.linkUrl;
-        if (updates.linkDescription !== undefined)
-          fields.LinkDescription = updates.linkDescription;
-        if (updates.targetSites)
-          fields.TargetSites = JsonUtils.safeStringify(updates.targetSites);
-        if (updates.scheduledStart !== undefined)
-          fields.ScheduledStart = updates.scheduledStart;
-        if (updates.scheduledEnd !== undefined)
-          fields.ScheduledEnd = updates.scheduledEnd;
-        if (updates.targetUsers !== undefined)
-          fields.TargetUsers = updates.targetUsers;
-        if (updates.metadata)
-          fields.Metadata = JsonUtils.safeStringify(updates.metadata);
-        if (updates.status) fields.Status = updates.status;
-        if (updates.translationStatus) {
-          try {
-            const availableColumns =
-              await this.locator.getAvailableColumns(alertsListApi);
-            if (availableColumns.has("TranslationStatus")) {
-              fields.TranslationStatus = updates.translationStatus;
-            }
-          } catch (error) {
-            logger.warn(
-              "AlertOperationsService",
-              "Unable to verify TranslationStatus column; skipping update",
-              error,
-            );
+        const setIfAvailable = (
+          columnName: string,
+          value: unknown,
+          allowEmptyString = false,
+        ): void => {
+          if (!availableColumns.has(columnName)) {
+            return;
           }
+          if (value === undefined) {
+            return;
+          }
+          if (!allowEmptyString && value === "") {
+            return;
+          }
+          fields[columnName] = value;
+        };
+
+        setIfAvailable("Title", updates.title);
+        setIfAvailable("Description", updates.description);
+        setIfAvailable("AlertType", updates.AlertType);
+        setIfAvailable("Priority", updates.priority);
+        setIfAvailable("IsPinned", updates.isPinned);
+        setIfAvailable("NotificationType", updates.notificationType);
+        setIfAvailable("LinkUrl", updates.linkUrl, true);
+        setIfAvailable("LinkDescription", updates.linkDescription, true);
+        if (updates.targetSites !== undefined) {
+          setIfAvailable(
+            "TargetSites",
+            JsonUtils.safeStringify(updates.targetSites),
+            true,
+          );
         }
+        setIfAvailable("ScheduledStart", updates.scheduledStart, true);
+        setIfAvailable("ScheduledEnd", updates.scheduledEnd, true);
+        setIfAvailable("TargetUsers", updates.targetUsers);
+        if (updates.metadata !== undefined) {
+          setIfAvailable(
+            "Metadata",
+            JsonUtils.safeStringify(updates.metadata),
+            true,
+          );
+        }
+        setIfAvailable("Status", updates.status);
+        setIfAvailable("TranslationStatus", updates.translationStatus);
+        setIfAvailable("ContentStatus", updates.contentStatus);
+        setIfAvailable("Reviewer", updates.reviewer, true);
+        setIfAvailable("ReviewNotes", updates.reviewNotes, true);
+        setIfAvailable("SubmittedDate", updates.submittedDate, true);
+        setIfAvailable("ReviewedDate", updates.reviewedDate, true);
 
-        // Approval Workflow
-        if (updates.contentStatus) fields.ContentStatus = updates.contentStatus;
-        if (updates.reviewer !== undefined) fields.Reviewer = updates.reviewer;
-        if (updates.reviewNotes !== undefined)
-          fields.ReviewNotes = updates.reviewNotes;
-        if (updates.submittedDate !== undefined)
-          fields.SubmittedDate = updates.submittedDate;
-        if (updates.reviewedDate !== undefined)
-          fields.ReviewedDate = updates.reviewedDate;
-
-        await this.graphClient
-          .api(`${alertsListApi}/items/${itemId}/fields`)
-          .patch(fields);
+        if (Object.keys(fields).length > 0) {
+          await this.graphClient
+            .api(`${alertsListApi}/items/${itemId}/fields`)
+            .patch(fields);
+        } else {
+          logger.warn(
+            "AlertOperationsService",
+            "Skipping update because no compatible fields are available in the target list schema.",
+            {
+              siteId,
+              itemId,
+              requestedFields: Object.keys(updates || {}),
+            },
+          );
+        }
 
         const updated = await this.graphClient
           .api(`${alertsListApi}/items/${itemId}`)
@@ -430,34 +518,275 @@ export class AlertOperationsService {
   public async getAlertTypes(siteIdOverride?: string): Promise<IAlertType[]> {
     const siteId =
       siteIdOverride || this.context.pageContext.site.id.toString();
-    try {
-      const listApi = await this.locator.getAlertTypesListApi(siteId);
-      const response = await this.graphClient
-        .api(`${listApi}/items`)
-        .expand("fields")
-        .orderby("fields/SortOrder")
-        .get();
+    const cacheKey = `types:${siteId}`;
+    const now = Date.now();
+    const cached = this.alertTypesCache.get(cacheKey);
+    if (cached && now - cached.timestamp < this.alertTypesCacheDurationMs) {
+      return [...cached.types];
+    }
 
-      if (!response.value || response.value.length === 0)
+    const pending = this.pendingAlertTypesRequests.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
+
+    const requestPromise = (async (): Promise<IAlertType[]> => {
+      try {
+        const listApi = await this.locator.getAlertTypesListApi(siteId);
+        if (!listApi) {
+          return DEFAULT_ALERT_TYPES.map((t) => ({ ...t }));
+        }
+
+        // Keep payload minimal and sort client-side to avoid costly server-side orderby.
+        const request = this.graphClient
+          .api(`${listApi}/items`)
+          .expand(
+            "fields($select=Title,IconName,BackgroundColor,TextColor,AdditionalStyles,PriorityStyles,SortOrder)",
+          )
+          .top(API_CONFIG.MAX_PAGE_SIZE);
+
+        const items = await this.fetchPagedItems(request);
+        if (!items || items.length === 0) {
+          return DEFAULT_ALERT_TYPES.map((t) => ({ ...t }));
+        }
+
+        const sortedItems = [...items].sort((a: any, b: any) => {
+          const sortA = Number(a?.fields?.SortOrder);
+          const sortB = Number(b?.fields?.SortOrder);
+          const hasSortA = Number.isFinite(sortA);
+          const hasSortB = Number.isFinite(sortB);
+          if (hasSortA && hasSortB && sortA !== sortB) {
+            return sortA - sortB;
+          }
+          if (hasSortA !== hasSortB) {
+            return hasSortA ? -1 : 1;
+          }
+          return String(a?.fields?.Title || "").localeCompare(
+            String(b?.fields?.Title || ""),
+          );
+        });
+
+        const types = sortedItems.map((item: any) => {
+          const parsedStyles =
+            JsonUtils.safeParse(item?.fields?.PriorityStyles) || {};
+          const defaultPriority = parsedStyles.__defaultPriority;
+
+          return {
+            name: item?.fields?.Title || "",
+            iconName: item?.fields?.IconName || "Info",
+            backgroundColor: item?.fields?.BackgroundColor || "#0078d4",
+            textColor: item?.fields?.TextColor || "#ffffff",
+            additionalStyles: item?.fields?.AdditionalStyles || "",
+            priorityStyles: parsedStyles,
+            defaultPriority: defaultPriority as AlertPriority,
+          };
+        });
+
+        this.alertTypesCache.set(cacheKey, { types, timestamp: Date.now() });
+        return types;
+      } catch (e) {
+        logger.warn("AlertOperationsService", "Failed to load alert types", {
+          siteId,
+          error: e,
+        });
+        // Return stale cached value if available, otherwise defaults.
+        const stale = this.alertTypesCache.get(cacheKey);
+        if (stale) {
+          return [...stale.types];
+        }
         return DEFAULT_ALERT_TYPES.map((t) => ({ ...t }));
+      } finally {
+        this.pendingAlertTypesRequests.delete(cacheKey);
+      }
+    })();
 
-      return response.value.map((item: any) => {
-        const parsedStyles =
-          JsonUtils.safeParse(item.fields.PriorityStyles) || {};
-        const defaultPriority = parsedStyles.__defaultPriority;
+    this.pendingAlertTypesRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
 
-        return {
-          name: item.fields.Title || "",
-          iconName: item.fields.IconName || "Info",
-          backgroundColor: item.fields.BackgroundColor || "#0078d4",
-          textColor: item.fields.TextColor || "#ffffff",
-          additionalStyles: item.fields.AdditionalStyles || "",
-          priorityStyles: parsedStyles,
-          defaultPriority: defaultPriority as AlertPriority,
-        };
-      });
-    } catch (e) {
-      return DEFAULT_ALERT_TYPES.map((t) => ({ ...t }));
+  private buildAlertFieldSelection(availableColumns: Set<string>): string[] {
+    const baseFields = [
+      "Title",
+      "AlertType",
+      "Description",
+      "ScheduledStart",
+      "ScheduledEnd",
+      "Priority",
+      "IsPinned",
+      "NotificationType",
+      "LinkUrl",
+      "LinkDescription",
+      "TargetSites",
+      "Status",
+      "ItemType",
+      "TargetLanguage",
+      "LanguageGroup",
+      "Attachments",
+      "TargetUsers",
+    ];
+
+    const optionalFields = [
+      "AvailableForAll",
+      "Metadata",
+      "TranslationStatus",
+      "ContentStatus",
+      "Reviewer",
+      "ReviewNotes",
+      "SubmittedDate",
+      "ReviewedDate",
+    ];
+
+    const selectedFields = [
+      ...baseFields.filter(
+        (field) => availableColumns.has(field) || field === "Title",
+      ),
+      ...optionalFields.filter((field) => availableColumns.has(field)),
+    ];
+
+    if (!selectedFields.includes("Title")) {
+      selectedFields.unshift("Title");
+    }
+
+    return selectedFields;
+  }
+
+  private buildGraphSafeAlertFieldSelection(
+    availableColumns: Set<string>,
+  ): string[] {
+    const graphSafeFields = [
+      "Title",
+      "AlertType",
+      "Description",
+      "ScheduledStart",
+      "ScheduledEnd",
+      "Priority",
+      "IsPinned",
+      "NotificationType",
+      "LinkUrl",
+      "LinkDescription",
+      "TargetSites",
+      "Status",
+      "ItemType",
+      "TargetLanguage",
+      "LanguageGroup",
+      "Attachments",
+      "AvailableForAll",
+      "Metadata",
+      "TranslationStatus",
+      "ContentStatus",
+      "ReviewNotes",
+      "SubmittedDate",
+      "ReviewedDate",
+    ];
+
+    const selectedFields = graphSafeFields.filter(
+      (field) => availableColumns.has(field) || field === "Title",
+    );
+
+    if (!selectedFields.includes("Title")) {
+      selectedFields.unshift("Title");
+    }
+
+    return selectedFields;
+  }
+
+  private isBadRequestError(error: unknown): boolean {
+    return ErrorUtils.getErrorStatus(error) === 400;
+  }
+
+  private createAlertItemsRequest(
+    alertsListApi: string,
+    selectedFields: string[],
+    filters: string[],
+    includeFilters: boolean,
+    includeOrderBy: boolean,
+  ): any {
+    let request = this.graphClient
+      .api(`${alertsListApi}/items`)
+      .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+      .expand(`fields($select=${selectedFields.join(",")})`)
+      .top(API_CONFIG.MAX_PAGE_SIZE);
+
+    if (includeFilters && filters.length > 0) {
+      request = request.filter(filters.join(" and "));
+    }
+
+    if (includeOrderBy) {
+      request = request.orderby("lastModifiedDateTime desc");
+    }
+
+    return request;
+  }
+
+  private async fetchAlertItemsWithFallback(
+    alertsListApi: string,
+    availableColumns: Set<string>,
+    filters: string[],
+    operationLabel: string,
+    siteId: string,
+  ): Promise<any[]> {
+    const primaryFields = this.buildAlertFieldSelection(availableColumns);
+
+    try {
+      const primaryRequest = this.createAlertItemsRequest(
+        alertsListApi,
+        primaryFields,
+        filters,
+        true,
+        true,
+      );
+      return await this.fetchPagedItems(primaryRequest);
+    } catch (primaryError) {
+      if (!this.isBadRequestError(primaryError)) {
+        throw primaryError;
+      }
+
+      logger.warn(
+        "AlertOperationsService",
+        `${operationLabel}: primary query failed with 400, retrying without filter/orderby.`,
+        {
+          siteId,
+          error: primaryError,
+          filters,
+          selectedFields: primaryFields,
+        },
+      );
+    }
+
+    try {
+      const simplifiedRequest = this.createAlertItemsRequest(
+        alertsListApi,
+        primaryFields,
+        filters,
+        false,
+        false,
+      );
+      return await this.fetchPagedItems(simplifiedRequest);
+    } catch (simplifiedError) {
+      if (!this.isBadRequestError(simplifiedError)) {
+        throw simplifiedError;
+      }
+
+      const graphSafeFields =
+        this.buildGraphSafeAlertFieldSelection(availableColumns);
+      logger.warn(
+        "AlertOperationsService",
+        `${operationLabel}: simplified query failed with 400, retrying with graph-safe field set.`,
+        {
+          siteId,
+          error: simplifiedError,
+          selectedFields: graphSafeFields,
+        },
+      );
+
+      const finalRequest = this.createAlertItemsRequest(
+        alertsListApi,
+        graphSafeFields,
+        [],
+        false,
+        false,
+      );
+      return this.fetchPagedItems(finalRequest);
     }
   }
 
@@ -518,11 +847,7 @@ export class AlertOperationsService {
         .top(API_CONFIG.MAX_PAGE_SIZE);
 
       if (filters.length > 0) request = request.filter(filters.join(" and "));
-      request = request.orderby(
-        availableColumns.has("Modified")
-          ? "fields/Modified desc"
-          : "fields/Title asc",
-      );
+      request = request.orderby("lastModifiedDateTime desc");
 
       const items = await this.fetchPagedItems(request);
       const listId = await this.locator.resolveListId(
@@ -622,14 +947,29 @@ export class AlertOperationsService {
   public async getAlertsForSite(siteId: string): Promise<IAlertItem[]> {
     try {
       const alertsListApi = await this.locator.getAlertsListApi(siteId);
-      let request = this.graphClient
-        .api(`${alertsListApi}/items`)
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .expand("fields")
-        .top(API_CONFIG.MAX_PAGE_SIZE)
-        .orderby("fields/Created desc");
+      if (!alertsListApi) {
+        return [];
+      }
 
-      const items = await this.fetchPagedItems(request);
+      const availableColumns =
+        await this.locator.getAvailableColumns(alertsListApi);
+      const filters: string[] = [];
+
+      if (availableColumns.has("ItemType")) {
+        filters.push(
+          `fields/ItemType ne 'draft' and fields/ItemType ne 'template' and fields/ItemType ne '${ALERT_ITEM_TYPES.SETTINGS}'`,
+        );
+      } else if (availableColumns.has("Status")) {
+        filters.push("tolower(fields/Status) ne 'draft'");
+      }
+
+      const items = await this.fetchAlertItemsWithFallback(
+        alertsListApi,
+        availableColumns,
+        filters,
+        "getAlertsForSite",
+        siteId,
+      );
       const listId = await this.locator.resolveListId(
         siteId,
         LIST_NAMES.ALERTS,
@@ -647,6 +987,7 @@ export class AlertOperationsService {
           !title.startsWith("[auto-saved]")
         );
       });
+
       let alerts = filteredItems.map((item: any) =>
         AlertTransformers.mapSharePointItemToAlert(item, siteId),
       );
@@ -667,25 +1008,97 @@ export class AlertOperationsService {
     }
   }
 
-  public async getTemplateAlerts(siteId: string): Promise<IAlertItem[]> {
+  public async getManageItemsForSite(siteId: string): Promise<IAlertItem[]> {
     try {
       const alertsListApi = await this.locator.getAlertsListApi(siteId);
-      let request = this.graphClient
-        .api(`${alertsListApi}/items`)
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .filter("fields/ItemType eq 'template'")
-        .expand("fields")
-        .top(API_CONFIG.MAX_PAGE_SIZE);
+      if (!alertsListApi) {
+        return [];
+      }
 
-      const items = await this.fetchPagedItems(request);
+      const availableColumns =
+        await this.locator.getAvailableColumns(alertsListApi);
+      const filters: string[] = [];
+
+      if (availableColumns.has("ItemType")) {
+        filters.push(`fields/ItemType ne '${ALERT_ITEM_TYPES.SETTINGS}'`);
+      }
+
+      const items = await this.fetchAlertItemsWithFallback(
+        alertsListApi,
+        availableColumns,
+        filters,
+        "getManageItemsForSite",
+        siteId,
+      );
       const listId = await this.locator.resolveListId(
         siteId,
         LIST_NAMES.ALERTS,
       );
-      let alerts = items.map((item: any) =>
+      const filteredItems = items.filter((item: any) => {
+        const type = (item.fields?.ItemType || "").toLowerCase();
+        const title = item.fields?.Title || "";
+        return (
+          type !== ALERT_ITEM_TYPES.SETTINGS &&
+          !title.startsWith("[Auto-saved]") &&
+          !title.startsWith("[auto-saved]")
+        );
+      });
+
+      let alerts = filteredItems.map((item: any) =>
         AlertTransformers.mapSharePointItemToAlert(item, siteId),
       );
-      alerts = await this.attachAttachments(siteId, listId, items, alerts);
+      alerts = await this.attachAttachments(
+        siteId,
+        listId,
+        filteredItems,
+        alerts,
+      );
+      return alerts;
+    } catch (e) {
+      logger.warn(
+        "AlertOperationsService",
+        `Failed to get manage items for site ${siteId}`,
+        e,
+      );
+      return [];
+    }
+  }
+
+  public async getTemplateAlerts(siteId: string): Promise<IAlertItem[]> {
+    try {
+      const alertsListApi = await this.locator.getAlertsListApi(siteId);
+      if (!alertsListApi) {
+        return [];
+      }
+
+      const availableColumns =
+        await this.locator.getAvailableColumns(alertsListApi);
+      const filters = availableColumns.has("ItemType")
+        ? ["fields/ItemType eq 'template'"]
+        : [];
+      const items = await this.fetchAlertItemsWithFallback(
+        alertsListApi,
+        availableColumns,
+        filters,
+        "getTemplateAlerts",
+        siteId,
+      );
+      const filteredItems = items.filter(
+        (item: any) => (item.fields?.ItemType || "").toLowerCase() === "template",
+      );
+      const listId = await this.locator.resolveListId(
+        siteId,
+        LIST_NAMES.ALERTS,
+      );
+      let alerts = filteredItems.map((item: any) =>
+        AlertTransformers.mapSharePointItemToAlert(item, siteId),
+      );
+      alerts = await this.attachAttachments(
+        siteId,
+        listId,
+        filteredItems,
+        alerts,
+      );
       return alerts;
     } catch (e) {
       logger.warn(
@@ -844,6 +1257,9 @@ export class AlertOperationsService {
           },
         });
       }
+
+      // Invalidate in-memory cache after write.
+      this.alertTypesCache.delete(`types:${siteId}`);
     } catch (error) {
       logger.error(
         "AlertOperationsService",
@@ -891,29 +1307,33 @@ export class AlertOperationsService {
     items: any[],
     alerts: IAlertItem[],
   ): Promise<IAlertItem[]> {
-    const attachmentsTasks = items.map(async (item: any, index: number) => {
-      const hasAttachments = Boolean(item?.fields?.Attachments);
-      if (!hasAttachments) {
-        return;
-      }
+    for (let i = 0; i < items.length; i += this.attachmentFetchConcurrency) {
+      const batch = items.slice(i, i + this.attachmentFetchConcurrency);
+      const batchTasks = batch.map(async (item: any, batchIndex: number) => {
+        const hasAttachments = Boolean(item?.fields?.Attachments);
+        if (!hasAttachments) {
+          return;
+        }
 
-      try {
-        const attachments = await this.getAttachmentsForItem(
-          siteId,
-          listId,
-          item.id,
-        );
-        alerts[index].attachments = attachments;
-      } catch (error) {
-        logger.warn("AlertOperationsService", "Failed to fetch attachments", {
-          itemId: item.id,
-          siteId,
-          error,
-        });
-      }
-    });
+        const originalIndex = i + batchIndex;
+        try {
+          const attachments = await this.getAttachmentsForItem(
+            siteId,
+            listId,
+            item.id,
+          );
+          alerts[originalIndex].attachments = attachments;
+        } catch (error) {
+          logger.warn("AlertOperationsService", "Failed to fetch attachments", {
+            itemId: item.id,
+            siteId,
+            error,
+          });
+        }
+      });
+      await Promise.allSettled(batchTasks);
+    }
 
-    await Promise.allSettled(attachmentsTasks);
     return alerts;
   }
 

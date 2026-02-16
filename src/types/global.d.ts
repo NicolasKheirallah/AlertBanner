@@ -32,6 +32,9 @@ declare module "@microsoft/sp-http" {
     post(data: any): Promise<any>;
     patch(data: any): Promise<any>;
     delete(): Promise<any>;
+    version(version: string): MSGraphRequest;
+    option(key: string, value: any): MSGraphRequest;
+    options(options: { [key: string]: any }): MSGraphRequest;
     select(properties: string): MSGraphRequest;
     expand(properties: string): MSGraphRequest;
     filter(filter: string): MSGraphRequest;

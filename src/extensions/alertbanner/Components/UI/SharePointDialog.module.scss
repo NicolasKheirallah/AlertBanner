@@ -104,6 +104,11 @@
   }
 }
 
+.notificationHost {
+  flex-shrink: 0;
+  padding: 12px 24px 0 24px;
+}
+
 .footer {
   display: flex;
   align-items: center;
@@ -173,8 +178,8 @@
   .dialog {
     width: 100vw !important;
     max-width: 100vw;
-    max-height: 100vh;
-    height: 100vh;
+    max-height: 100vh !important;
+    height: 100vh !important;
     border-radius: 0;
     margin: 0;
   }
@@ -190,4 +195,3 @@
     font-size: 18px;
   }
 }
-
