@@ -1,22 +1,12 @@
-/**
- * @file EmailNotificationService.ts
- * @description Service for sending email notifications about alerts
- *   using the Microsoft Graph API `sendMail` endpoint.
- */
-
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { IAlertItem, AlertPriority } from "../Alerts/IAlerts";
 import { logger } from "./LoggerService";
 
-/** Configuration for the email notification service */
 export interface IEmailConfig {
-  /** Service account email address used as the sender */
   serviceAccountEmail: string;
-  /** Graph client for making API calls */
   graphClient: MSGraphClientV3;
 }
 
-/** Email recipient */
 interface IEmailRecipient {
   emailAddress: {
     address: string;
@@ -24,7 +14,6 @@ interface IEmailRecipient {
   };
 }
 
-/** Graph API sendMail payload */
 interface ISendMailPayload {
   message: {
     subject: string;
@@ -38,11 +27,6 @@ interface ISendMailPayload {
   saveToSentItems: boolean;
 }
 
-/**
- * Maps alert priority to email importance level.
- * @param priority - Alert priority enum value
- * @returns Graph API importance string
- */
 function mapPriorityToImportance(
   priority: AlertPriority,
 ): "low" | "normal" | "high" {
@@ -59,11 +43,6 @@ function mapPriorityToImportance(
   }
 }
 
-/**
- * Renders an alert as an HTML email body.
- * @param alert - Alert item to render
- * @returns HTML string
- */
 function renderAlertEmail(alert: IAlertItem): string {
   const priorityColors: Record<string, string> = {
     critical: "#d13438",
@@ -96,12 +75,6 @@ function renderAlertEmail(alert: IAlertItem): string {
   `;
 }
 
-/**
- * Service that sends email notifications for alerts via Microsoft Graph API.
- *
- * Uses `POST /users/{serviceAccountEmail}/sendMail` to send notifications
- * to targeted users when high-priority alerts are created or updated.
- */
 export class EmailNotificationService {
   private config: IEmailConfig;
 
@@ -109,14 +82,6 @@ export class EmailNotificationService {
     this.config = config;
   }
 
-  /**
-   * Sends an email notification for an alert to the specified recipients.
-   *
-   * @param alert - The alert to notify about
-   * @param recipientEmails - Array of email addresses to notify
-   * @returns Promise that resolves when the email is sent
-   * @throws Error if Graph API call fails
-   */
   public async sendAlertNotification(
     alert: IAlertItem,
     recipientEmails: string[],
@@ -173,12 +138,6 @@ export class EmailNotificationService {
     }
   }
 
-  /**
-   * Sends a test email to verify the service account configuration.
-   *
-   * @param recipientEmail - Email address to send the test to
-   * @returns Promise that resolves when the test email is sent
-   */
   public async sendTestEmail(recipientEmail: string): Promise<void> {
     const payload: ISendMailPayload = {
       message: {

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Text } from "@fluentui/react-components";
+import { DefaultButton, Text } from "@fluentui/react";
 import { htmlSanitizer } from "../Utils/HtmlSanitizer";
 import styles from "./AlertItem.module.scss";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
@@ -55,7 +55,6 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
       };
 
       images.forEach(img => {
-        img.style.cursor = 'pointer';
         img.addEventListener('click', handleClick);
       });
 
@@ -64,7 +63,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
           img.removeEventListener('click', handleClick);
         });
       };
-    }, [html]);
+    }, [html, isAlertExpanded, handleImageClick]);
 
     return (
       <div
@@ -153,14 +152,12 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
         return <Text key={`para-${index}`}>{paragraph}</Text>;
       })}
       {(showReadMoreButton || (description.length > TRUNCATE_LENGTH && isExpanded)) && (
-        <Button
-          appearance="transparent"
-          size="small"
+        <DefaultButton
           onClick={toggleExpanded}
           className={styles.descriptionToggleButton}
         >
           {isExpanded ? strings.ShowLess : strings.ShowMore}
-        </Button>
+        </DefaultButton>
       )}
     </div>
   );

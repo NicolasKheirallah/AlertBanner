@@ -55,9 +55,7 @@ export class SiteContextDetector {
     this.context = context;
   }
 
-  /**
-   * Get comprehensive context for the current site
-   */
+  // Get comprehensive context for the current site
   public async getCurrentSiteContext(): Promise<ISiteContext> {
     if (this.currentSiteContext) {
       return this.currentSiteContext;

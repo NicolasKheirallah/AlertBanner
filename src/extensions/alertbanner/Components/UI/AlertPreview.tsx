@@ -36,47 +36,35 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     }
   };
 
-  // Always use white background for preview with dark text
-  const containerStyle: React.CSSProperties = {
-    backgroundColor: '#ffffff',
-    color: '#323130', // Dark grey text
-    border: '1px solid #edebe9',
-  };
-
-  const textStyle: React.CSSProperties = {
-    color: '#323130', // Dark grey text
-    textShadow: 'none',
-    WebkitFontSmoothing: 'antialiased',
-    MozOsxFontSmoothing: 'grayscale',
-  };
-
   // Use the alert type's background color for priority indicators
   const priorityColor = alertType.backgroundColor;
   const priorityTextColor = getContrastText(priorityColor);
+  const normalizeColorToken = (color?: string): string =>
+    (color || "").toLowerCase().replace("#", "").replace(/[^a-f0-9]/g, "");
 
-  // Header style - uses alert type background color
-  const headerStyle: React.CSSProperties = {
-    backgroundColor: priorityColor,
-    color: priorityTextColor,
-    border: '1px solid #edebe9',
+  const colorClassMap = styles as unknown as Record<string, string>;
+  const getTokenClass = (prefix: string, color: string, fallback: string): string => {
+    const token = normalizeColorToken(color);
+    const className =
+      colorClassMap[`${prefix}${token}`] ||
+      colorClassMap[`${prefix}${fallback}`];
+    return className || "";
   };
 
-  // Container style with left border showing priority color
-  const alertContainerStyle: React.CSSProperties = {
-    ...containerStyle,
-    borderLeft: `4px solid ${priorityColor}`,
-  };
+  const headerBgClass = getTokenClass("previewHeaderBg", priorityColor, "0078d4");
+  const headerFgClass = getTokenClass("previewHeaderFg", priorityTextColor, "ffffff");
+  const backgroundSwatchClass = getTokenClass("colorSwatchBg", alertType.backgroundColor, "0078d4");
+  const textSwatchClass = getTokenClass("colorSwatchText", alertType.textColor, "323130");
 
   return (
     <div className={`${styles.previewContainer} ${className || ''}`}>
-      <div className={styles.previewHeader} style={headerStyle}>
-        <h4 style={{ color: priorityTextColor }}>Live Preview</h4>
-        <span className={styles.previewNote} style={{ color: priorityTextColor, opacity: 0.9 }}>This is how your alert will appear</span>
+      <div className={`${styles.previewHeader} ${styles.previewHeaderDynamic} ${headerBgClass} ${headerFgClass}`}>
+        <h4 className={styles.headerTitle}>Live Preview</h4>
+        <span className={styles.previewNote}>This is how your alert will appear</span>
       </div>
 
       <div
         className={`${styles.alertPreview} ${getPriorityClass(priority)} ${isPinned ? styles.pinned : ''}`}
-        style={alertContainerStyle}
       >
         <div className={styles.headerRow}>
           <div className={styles.iconSection}>
@@ -87,14 +75,14 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
 
           <div className={styles.textSection}>
             {title && (
-              <div className={styles.alertTitle} style={textStyle}>
+              <div className={styles.alertTitle}>
                 {title || 'Alert Title'}
-                {isPinned && <span className={styles.pinnedBadge} style={textStyle}>📌 PINNED</span>}
+                {isPinned && <span className={styles.pinnedBadge}>📌 PINNED</span>}
               </div>
             )}
 
             {description && (
-              <div className={styles.alertDescription} style={textStyle}>
+              <div className={styles.alertDescription}>
                 <div dangerouslySetInnerHTML={{ 
                   __html: React.useMemo(() => 
                     htmlSanitizer.sanitizePreviewContent(description || 'Alert description will appear here...'), 
@@ -106,7 +94,7 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
 
             {linkUrl && linkDescription && (
               <div className={styles.alertLink}>
-                <a href={linkUrl} target="_blank" rel="noopener noreferrer" style={textStyle}>
+                <a href={linkUrl} target="_blank" rel="noopener noreferrer">
                   🔗 {linkDescription}
                 </a>
               </div>
@@ -139,14 +127,14 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Background:</span>
             <span className={styles.infoValue}>
-              <span className={styles.colorSwatch} style={{ backgroundColor: alertType.backgroundColor }} />
+              <span className={`${styles.colorSwatch} ${styles.colorSwatchBackground} ${backgroundSwatchClass}`} />
               {alertType.backgroundColor}
             </span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Text Color:</span>
             <span className={styles.infoValue}>
-              <span className={styles.colorSwatch} style={{ backgroundColor: alertType.textColor }} />
+              <span className={`${styles.colorSwatch} ${styles.colorSwatchText} ${textSwatchClass}`} />
               {alertType.textColor}
             </span>
           </div>

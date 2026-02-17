@@ -263,17 +263,46 @@
   }
 }
 
+.priorityIcon {
+  width: 20px;
+  height: 20px;
+  color: inherit;
+  fill: currentColor;
+}
+
+.priorityIconCritical {
+  color: #a4262c;
+}
+
+.priorityIconHigh {
+  color: #ca5010;
+}
+
+.priorityIconMedium {
+  color: #005a9e;
+}
+
+.priorityIconLow {
+  color: #107c10;
+}
+
 .textSection {
   flex: 1;
   min-width: 0;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .alertTitle {
   margin: 0 0 6px 0;
   font-weight: 600;
-  font-size: 16px;
-  line-height: 22px;
-  letter-spacing: -0.01em;
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: 0;
 }
 
 .truncatedHtml {
@@ -324,12 +353,29 @@
   }
 }
 
+.iconButton {
+  min-width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    background: #f3f2f1;
+  }
+}
+
 .carouselCounter {
   display: flex;
   align-items: center;
   padding: 0 8px;
   min-width: 60px;
   justify-content: center;
+}
+
+.carouselCounterText {
+  font-size: 13px;
+  font-weight: 500;
+  color: #605e5c;
 }
 
 .divider {
@@ -391,6 +437,11 @@
 .descriptionToggleButton {
   align-self: flex-start;
   margin-top: var(--spacingVerticalS, 8px);
+  min-height: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
 }
 
 // Attachments Section Styles

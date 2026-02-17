@@ -7,6 +7,7 @@ import {
   ArrowLeft24Regular,
   ArrowRight24Regular,
   History24Regular,
+  Delete24Regular,
 } from "@fluentui/react-icons";
 import {
   SharePointButton,
@@ -396,19 +397,59 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       const existingItems = await alertService.getAlertsAndTemplates([
         currentSiteId,
       ]);
+      const userDisplayName = (context.pageContext.user.displayName || "")
+        .trim()
+        .toLowerCase();
+      const userEmail = (context.pageContext.user.email || "")
+        .trim()
+        .toLowerCase();
+      const userLoginName = (
+        (context.pageContext.user as any)?.loginName || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const authorCandidates = new Set(
+        [userDisplayName, userEmail, userLoginName].filter(Boolean),
+      );
+
+      const now = Date.now();
       const recentAlerts = existingItems
-        .filter(
-          (item) =>
-            item.contentType === ContentType.Alert &&
-            item.contentStatus !== "Draft",
-        )
+        .filter((item) => item.contentType === ContentType.Alert)
+        .filter((item) => {
+          const endValue = item.scheduledEnd ? new Date(item.scheduledEnd) : null;
+          return !!endValue && !Number.isNaN(endValue.getTime()) && endValue.getTime() < now;
+        })
+        .filter((item) => {
+          const author = (item.createdBy || "").trim().toLowerCase();
+          if (!author) {
+            return false;
+          }
+
+          if (authorCandidates.has(author)) {
+            return true;
+          }
+
+          for (const candidate of authorCandidates) {
+            if (author.includes(candidate)) {
+              return true;
+            }
+          }
+
+          return false;
+        })
+        .sort((a, b) => {
+          const aTime = a.scheduledEnd ? new Date(a.scheduledEnd).getTime() : 0;
+          const bTime = b.scheduledEnd ? new Date(b.scheduledEnd).getTime() : 0;
+          return bTime - aTime;
+        })
         .slice(0, 12);
       setPreviousAlerts(recentAlerts);
     } catch (error) {
       logger.warn("CreateAlertTab", "Could not load previous alerts", error);
       setPreviousAlerts([]);
     }
-  }, [alertService]);
+  }, [alertService, context.pageContext.user]);
 
   React.useEffect(() => {
     loadPreviousAlerts();
@@ -446,6 +487,57 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
       setErrors({});
     },
     [setEntryMode, setErrors, setNewAlert],
+  );
+
+  const handleDeleteDraft = React.useCallback(
+    async (draft: IAlertItem) => {
+      const shouldDelete = await confirm({
+        title: strings.ManageAlertsDeleteDialogTitle,
+        message: Text.format(
+          strings.ManageAlertsDeleteDialogMessage,
+          draft.title || strings.ManageAlertsNoTitleFallback,
+        ),
+        confirmText: strings.Delete,
+        cancelText: strings.Cancel,
+      });
+
+      if (!shouldDelete) {
+        return;
+      }
+
+      setIsCreatingAlert(true);
+      try {
+        await alertService.deleteDraft(draft.id);
+        setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
+
+        if (autoSaveDraftId === draft.id) {
+          setAutoSaveDraftId(null);
+        }
+
+        notificationService.showSuccess(
+          Text.format(
+            strings.ManageAlertsDeleteSuccessMessage,
+            draft.title || strings.ManageAlertsNoTitleFallback,
+          ),
+          strings.ManageAlertsDeleteSuccessTitle,
+        );
+      } catch (error) {
+        logger.error("CreateAlertTab", "Error deleting draft", error);
+        notificationService.showError(
+          strings.ManageAlertsDeleteErrorMessage,
+          strings.ManageAlertsDeleteErrorTitle,
+        );
+      } finally {
+        setIsCreatingAlert(false);
+      }
+    },
+    [
+      alertService,
+      autoSaveDraftId,
+      confirm,
+      notificationService,
+      setIsCreatingAlert,
+    ],
   );
 
   const handleLoadPreviousAlert = React.useCallback(
@@ -1262,6 +1354,13 @@ const CreateAlertTab: React.FC<ICreateAlertTabProps> = ({
                       icon={<DocumentArrowLeft24Regular />}
                     >
                       {strings.CreateAlertLoadDraftButton}
+                    </SharePointButton>
+                    <SharePointButton
+                      variant="danger"
+                      onClick={() => void handleDeleteDraft(draft)}
+                      icon={<Delete24Regular />}
+                    >
+                      {strings.Delete}
                     </SharePointButton>
                   </div>
                 </div>

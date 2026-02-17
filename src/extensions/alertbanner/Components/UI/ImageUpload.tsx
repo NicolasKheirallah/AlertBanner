@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Tooltip } from '@fluentui/react-components';
+import { IconButton, TooltipHost } from "@fluentui/react";
 import { ImageAdd24Regular } from '@fluentui/react-icons';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { ImageStorageService } from '../Services/ImageStorageService';
@@ -103,17 +103,16 @@ const ImageUpload: React.FC<IImageUploadProps> = ({
         aria-hidden={true}
       />
 
-      <Tooltip content={label} relationship="label">
-        <Button
-          icon={<ImageAdd24Regular />}
-          appearance="subtle"
+      <TooltipHost content={label}>
+        <IconButton
+          onRenderIcon={() => <ImageAdd24Regular />}
           onClick={handleButtonClick}
           disabled={disabled || isUploading}
           className={styles.uploadButton}
           title={label}
-          aria-label={label}
+          ariaLabel={label}
         />
-      </Tooltip>
+      </TooltipHost>
     </div>
   );
 };

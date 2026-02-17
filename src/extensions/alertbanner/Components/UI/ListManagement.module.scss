@@ -1,190 +1,131 @@
+$f2-border: #edebe9;
+$f2-border-strong: #d2d0ce;
+$f2-bg-subtle: #f8f8f8;
+$f2-brand: #0f6cbd;
+$f2-brand-bg: #eff6fc;
+$f2-text-secondary: #605e5c;
+$f2-success: #107c10;
+$f2-warning: #986f0b;
+$f2-error: #a4262c;
+
 .listManagement {
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 16px;
+}
 
-  .sitesGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
+.sitesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
 
-    .siteCard {
-      border: 1px solid var(--colorNeutralStroke2);
-      transition: all 0.2s ease;
+.siteCard {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
-      &:hover {
-        border-color: var(--colorNeutralStroke1);
-        box-shadow: var(--shadow4);
-      }
-
-      .siteHeader {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
-        gap: 8px;
-      }
-
-      .siteStatus {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        padding: 16px;
-
-        .statusInfo {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-
-          .statusIndicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          }
-        }
-
-        .listInfo {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .createActions {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-      }
-    }
-  }
-
-  .languageGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    max-height: 300px;
-    overflow-y: auto;
-    padding: 4px;
-
-    .languageLabel {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-  }
-
-  .hierarchyInfo {
-    margin-top: 16px;
-    border: 1px solid var(--colorNeutralStroke2);
-    background: var(--colorNeutralBackground2);
-
-    .hierarchyDescription {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-
-      .hierarchyList {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 8px;
-
-        .hierarchyItem {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px;
-          border-left: 3px solid var(--colorBrandStroke1);
-          background: var(--colorNeutralBackground1);
-          border-radius: 4px;
-        }
-      }
-    }
-  }
-  
-  .existingListActions {
-    margin-top: 8px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  
-  .languageDialogIcon {
-    margin-right: 8px;
+  &:hover {
+    border-color: $f2-border-strong;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   }
 }
 
-// Responsive design
-@media (max-width: 768px) {
-  .listManagement {
-    padding: 8px;
-
-    .sitesGrid {
-      grid-template-columns: 1fr;
-      gap: 12px;
-
-      .siteCard {
-        .siteHeader {
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 4px;
-        }
-
-        .siteStatus {
-          padding: 12px;
-        }
-      }
-    }
-
-    .hierarchyInfo {
-      .hierarchyDescription {
-        padding: 12px;
-
-        .hierarchyList {
-          .hierarchyItem {
-            padding: 6px;
-          }
-        }
-      }
-    }
-  }
+.siteHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
 }
 
-
-// High contrast mode
-@media (prefers-contrast: high) {
-  .listManagement {
-    .sitesGrid {
-      .siteCard {
-        border: 2px solid var(--colorNeutralStroke1);
-
-        &:hover,
-        &:focus-within {
-          border-color: var(--colorBrandStroke1);
-          outline: 2px solid var(--colorStrokeFocus2);
-        }
-      }
-    }
-
-    .hierarchyInfo {
-      border: 2px solid var(--colorNeutralStroke1);
-
-      .hierarchyDescription {
-        .hierarchyList {
-          .hierarchyItem {
-            border: 1px solid var(--colorNeutralStroke1);
-            border-left: 4px solid var(--colorBrandStroke1);
-          }
-        }
-      }
-    }
-  }
+.siteStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
 }
 
-// Additional utility classes
+.statusInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.listInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.createActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.languageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.languageLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hierarchyInfo {
+  margin-top: 16px;
+  border: 1px solid $f2-border;
+  background: $f2-bg-subtle;
+}
+
+.hierarchyDescription {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hierarchyList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.hierarchyItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-left: 3px solid $f2-brand;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.existingListActions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.languageDialogIcon {
+  margin-right: 8px;
+}
+
 .loadingContainer {
   padding: 16px;
   text-align: center;
@@ -195,33 +136,32 @@
 }
 
 .statusIcon {
-  &.success {
-    color: var(--colorPaletteGreenForeground1);
-  }
-  
-  &.warning {
-    color: var(--colorPaletteYellowForeground1);
-  }
-  
-  &.neutral {
-    color: var(--colorNeutralForeground3);
-  }
-  
-  &.error {
-    color: var(--colorPaletteRedForeground1);
-  }
+  width: 20px;
+  height: 20px;
+}
+
+.statusIconSuccess {
+  color: $f2-success;
+}
+
+.statusIconWarning {
+  color: $f2-warning;
+}
+
+.statusIconNeutral {
+  color: $f2-text-secondary;
+}
+
+.statusIconError {
+  color: $f2-error;
 }
 
 .errorText {
-  color: var(--colorPaletteRedForeground1);
+  color: $f2-error;
 }
 
 .successText {
-  color: var(--colorPaletteGreenForeground1);
-}
-
-.languageDialogIcon {
-  margin-right: 8px;
+  color: $f2-success;
 }
 
 .languageGridWithMargin {
@@ -231,6 +171,169 @@
 .languageSelectionSummary {
   margin-top: 16px;
   padding: 12px;
-  background-color: var(--colorNeutralBackground2);
+  background-color: $f2-bg-subtle;
   border-radius: 4px;
+}
+
+.f2Card {
+  border: 1px solid $f2-border;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.f2CardHeader {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 20px 20px 14px;
+}
+
+.f2CardHeaderText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.f2Text {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.f2Text100 {
+  font-size: 12px;
+}
+
+.f2Text200 {
+  font-size: 13px;
+}
+
+.f2Text300 {
+  font-size: 14px;
+}
+
+.f2Text400 {
+  font-size: 16px;
+}
+
+.f2Text500 {
+  font-size: 20px;
+}
+
+.f2TextRegular {
+  font-weight: 400;
+}
+
+.f2TextMedium {
+  font-weight: 500;
+}
+
+.f2TextSemibold {
+  font-weight: 600;
+}
+
+.f2TextBold {
+  font-weight: 700;
+}
+
+.f2Button {
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+.f2ButtonPrimary {
+  border-radius: 8px;
+}
+
+.f2ButtonSubtle {
+  min-height: 30px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    background: #f3f2f1;
+  }
+}
+
+.f2ButtonSmall {
+  min-height: 30px;
+}
+
+.f2Badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid $f2-border;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $f2-brand;
+  background: $f2-brand-bg;
+}
+
+.f2DialogTitle {
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.f2DialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .listManagement {
+    padding: 8px;
+  }
+
+  .sitesGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .siteHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .siteStatus {
+    padding: 12px;
+  }
+
+  .hierarchyDescription {
+    padding: 12px;
+  }
+
+  .hierarchyItem {
+    padding: 6px;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .siteCard {
+    border: 2px solid $f2-border-strong;
+
+    &:hover,
+    &:focus-within {
+      border-color: $f2-brand;
+      outline: 2px solid #000;
+      outline-offset: 1px;
+    }
+  }
+
+  .hierarchyInfo {
+    border: 2px solid $f2-border-strong;
+  }
+
+  .hierarchyItem {
+    border: 1px solid $f2-border-strong;
+    border-left: 4px solid $f2-brand;
+  }
 }

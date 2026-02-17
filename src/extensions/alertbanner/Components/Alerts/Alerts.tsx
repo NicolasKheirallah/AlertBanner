@@ -2,10 +2,8 @@ import * as React from "react";
 import { logger } from "../Services/LoggerService";
 import {
   MessageBar,
-  MessageBarBody,
-  MessageBarTitle,
-  tokens,
-} from "@fluentui/react-components";
+  MessageBarType,
+} from "@fluentui/react";
 import styles from "./Alerts.module.scss";
 import { IAlertsProps, IAlertType, AlertPriority } from "./IAlerts";
 import AlertItem from "../AlertItem/AlertItem";
@@ -44,12 +42,12 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     () => ({
       name: strings.DefaultAlertTypeName,
       iconName: "Info",
-      backgroundColor: tokens.colorNeutralBackground1,
-      textColor: tokens.colorNeutralForeground1,
+      backgroundColor: "#ffffff",
+      textColor: "#323130",
       additionalStyles: "",
       priorityStyles: {
-        [AlertPriority.Critical]: `border: 2px solid ${tokens.colorPaletteRedForeground1};`,
-        [AlertPriority.High]: `border: 1px solid ${tokens.colorPaletteDarkOrangeForeground1};`,
+        [AlertPriority.Critical]: "border: 2px solid #a4262c;",
+        [AlertPriority.High]: "border: 1px solid #ca5010;",
         [AlertPriority.Medium]: "",
         [AlertPriority.Low]: "",
       },
@@ -294,15 +292,15 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     <div className={styles.alerts}>
       {hasError && (
         <div className={`${styles.errorContainer} ${styles.errorWrapper}`}>
-          <MessageBar intent="error" className={styles.errorMessageBar}>
-            <MessageBarBody>
-              <MessageBarTitle className={styles.errorTitle}>
-                {strings.AlertsLoadErrorTitle}
-              </MessageBarTitle>
-              <div className={styles.errorDetail}>
-                {errorMessage || strings.AlertsLoadErrorFallback}
-              </div>
-            </MessageBarBody>
+          <MessageBar
+            messageBarType={MessageBarType.error}
+            isMultiline={true}
+            className={styles.errorMessageBar}
+          >
+            <div className={styles.errorTitle}>{strings.AlertsLoadErrorTitle}</div>
+            <div className={styles.errorDetail}>
+              {errorMessage || strings.AlertsLoadErrorFallback}
+            </div>
           </MessageBar>
         </div>
       )}

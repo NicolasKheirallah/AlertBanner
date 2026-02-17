@@ -24,6 +24,8 @@
 }
 
 .uploadButton {
+  min-height: 30px;
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -99,6 +101,13 @@
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.iconButton {
+  min-width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
 }
 
 .deleteButton {
@@ -201,6 +210,30 @@
 .progressBar {
   width: 100%;
   height: 4px;
+}
+
+.progressFill {
+  height: 4px;
+  border-radius: 999px;
+  transition: width 120ms ease;
+}
+
+@for $i from 0 through 100 {
+  .progressFill#{$i} {
+    width: #{$i * 1%};
+  }
+}
+
+.progressFillUploading {
+  background: #0078d4;
+}
+
+.progressFillComplete {
+  background: #107c10;
+}
+
+.progressFillError {
+  background: #a80000;
 }
 
 .helpText {

@@ -1,11 +1,4 @@
-/**
- * String utility functions for AlertBanner
- * Consolidates common string operations and validations
- */
 export class StringUtils {
-  /**
-   * Trim string or return default value if empty/null/undefined
-   */
   public static trimOrDefault(value: string | null | undefined, defaultValue: string = ''): string {
     if (!value || typeof value !== 'string') {
       return defaultValue;
@@ -14,9 +7,6 @@ export class StringUtils {
     return trimmed.length > 0 ? trimmed : defaultValue;
   }
 
-  /**
-   * Normalize string for comparison (trim + lowercase)
-   */
   public static normalizeForComparison(value: string | null | undefined): string {
     if (!value || typeof value !== 'string') {
       return '';
@@ -24,30 +14,18 @@ export class StringUtils {
     return value.trim().toLowerCase();
   }
 
-  /**
-   * Case-insensitive string equality check
-   */
   public static equalsIgnoreCase(str1: string | null | undefined, str2: string | null | undefined): boolean {
     return this.normalizeForComparison(str1) === this.normalizeForComparison(str2);
   }
 
-  /**
-   * Check if string is null, undefined, or empty (after trim)
-   */
   public static isEmpty(value: string | null | undefined): boolean {
     return !value || typeof value !== 'string' || value.trim().length === 0;
   }
 
-  /**
-   * Check if string is not empty
-   */
   public static isNotEmpty(value: string | null | undefined): boolean {
     return !this.isEmpty(value);
   }
 
-  /**
-   * Truncate string to max length with ellipsis
-   */
   public static truncate(value: string | null | undefined, maxLength: number, ellipsis: string = '...'): string {
     if (this.isEmpty(value)) {
       return '';
@@ -61,9 +39,6 @@ export class StringUtils {
     return str.substring(0, maxLength - ellipsis.length) + ellipsis;
   }
 
-  /**
-   * Capitalize first letter of string
-   */
   public static capitalize(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -73,9 +48,6 @@ export class StringUtils {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   }
 
-  /**
-   * Capitalize first letter of each word
-   */
   public static capitalizeWords(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -84,9 +56,6 @@ export class StringUtils {
     return value!.trim().split(/\s+/).map(word => this.capitalize(word)).join(' ');
   }
 
-  /**
-   * Convert string to kebab-case
-   */
   public static toKebabCase(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -99,9 +68,6 @@ export class StringUtils {
       .toLowerCase();
   }
 
-  /**
-   * Convert string to camelCase
-   */
   public static toCamelCase(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -113,9 +79,6 @@ export class StringUtils {
       .replace(/^(.)/, (_, char) => char.toLowerCase());
   }
 
-  /**
-   * Pluralize word based on count
-   */
   public static pluralize(word: string, count: number, plural?: string): string {
     if (count === 1) {
       return word;
@@ -123,17 +86,10 @@ export class StringUtils {
     return plural || `${word}s`;
   }
 
-  /**
-   * Format count with pluralized word
-   * Example: formatCount(1, 'item') => "1 item", formatCount(5, 'item') => "5 items"
-   */
   public static formatCount(count: number, word: string, plural?: string): string {
     return `${count} ${this.pluralize(word, count, plural)}`;
   }
 
-  /**
-   * Remove special characters (keep only alphanumeric, spaces, hyphens)
-   */
   public static sanitizeForId(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -146,9 +102,6 @@ export class StringUtils {
       .toLowerCase();
   }
 
-  /**
-   * Check if string starts with prefix (case-insensitive option)
-   */
   public static startsWith(
     value: string | null | undefined,
     prefix: string,
@@ -165,9 +118,6 @@ export class StringUtils {
     return value!.startsWith(prefix);
   }
 
-  /**
-   * Check if string ends with suffix (case-insensitive option)
-   */
   public static endsWith(
     value: string | null | undefined,
     suffix: string,
@@ -184,9 +134,6 @@ export class StringUtils {
     return value!.endsWith(suffix);
   }
 
-  /**
-   * Check if string contains substring (case-insensitive option)
-   */
   public static contains(
     value: string | null | undefined,
     substring: string,
@@ -203,9 +150,6 @@ export class StringUtils {
     return value!.includes(substring);
   }
 
-  /**
-   * Split string by delimiter and trim each part
-   */
   public static splitAndTrim(
     value: string | null | undefined,
     delimiter: string = ','
@@ -220,9 +164,6 @@ export class StringUtils {
       .filter(part => part.length > 0);
   }
 
-  /**
-   * Join array of strings with delimiter, filtering out empty values
-   */
   public static joinNonEmpty(values: Array<string | null | undefined>, delimiter: string = ', '): string {
     return values
       .filter(v => this.isNotEmpty(v))
@@ -230,9 +171,6 @@ export class StringUtils {
       .join(delimiter);
   }
 
-  /**
-   * Escape HTML special characters
-   */
   public static escapeHtml(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -250,9 +188,6 @@ export class StringUtils {
     return value!.replace(/[&<>"'/]/g, char => map[char]);
   }
 
-  /**
-   * Strip HTML tags from string
-   */
   public static stripHtml(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -261,9 +196,6 @@ export class StringUtils {
     return value!.replace(/<[^>]*>/g, '');
   }
 
-  /**
-   * Convert line breaks to <br> tags
-   */
   public static nl2br(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -272,9 +204,6 @@ export class StringUtils {
     return value!.replace(/\n/g, '<br>');
   }
 
-  /**
-   * Remove extra whitespace (multiple spaces/tabs/newlines to single space)
-   */
   public static normalizeWhitespace(value: string | null | undefined): string {
     if (this.isEmpty(value)) {
       return '';
@@ -283,9 +212,6 @@ export class StringUtils {
     return value!.replace(/\s+/g, ' ').trim();
   }
 
-  /**
-   * Mask sensitive information (show first/last N chars, mask middle)
-   */
   public static mask(
     value: string | null | undefined,
     visibleStart: number = 3,
@@ -308,9 +234,6 @@ export class StringUtils {
     return start + middle + end;
   }
 
-  /**
-   * Generate random alphanumeric string
-   */
   public static randomAlphanumeric(length: number): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
@@ -320,9 +243,6 @@ export class StringUtils {
     return result;
   }
 
-  /**
-   * Check if string is valid email format (basic check)
-   */
   public static isEmail(value: string | null | undefined): boolean {
     if (this.isEmpty(value)) {
       return false;
@@ -332,9 +252,6 @@ export class StringUtils {
     return emailRegex.test(value!.trim());
   }
 
-  /**
-   * Check if string is valid URL format
-   */
   public static isUrl(value: string | null | undefined): boolean {
     if (this.isEmpty(value)) {
       return false;
@@ -348,9 +265,6 @@ export class StringUtils {
     }
   }
 
-  /**
-   * Extract domain from URL
-   */
   public static extractDomain(url: string | null | undefined): string | null {
     if (this.isEmpty(url)) {
       return null;
@@ -364,9 +278,6 @@ export class StringUtils {
     }
   }
 
-  /**
-   * Format file size in bytes to human-readable format
-   */
   public static formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
 
@@ -377,9 +288,6 @@ export class StringUtils {
     return `${Math.round(bytes / Math.pow(k, i) * 100) / 100} ${sizes[i]}`;
   }
 
-  /**
-   * Highlight search term in text (wrap with <mark> tags)
-   */
   public static highlightSearchTerm(
     text: string | null | undefined,
     searchTerm: string | null | undefined,
@@ -395,10 +303,6 @@ export class StringUtils {
     return text!.replace(regex, '<mark>$1</mark>');
   }
 
-  /**
-   * Resolve URL to absolute path
-   * Handles absolute URLs, relative URLs, and adds origin if needed
-   */
   public static resolveUrl(url?: string | null): string {
     if (this.isEmpty(url)) {
       return '#';

@@ -1,5 +1,10 @@
 import * as React from 'react';
-import { Button, Spinner, ProgressBar } from '@fluentui/react-components';
+import {
+  IconButton,
+  PrimaryButton,
+  Spinner,
+  SpinnerSize,
+} from "@fluentui/react";
 import {
   Attach24Regular,
   Delete24Regular,
@@ -45,6 +50,28 @@ interface IUploadProgress {
   progress: number;
   status: 'uploading' | 'completed' | 'error';
 }
+
+const UploadProgressFill: React.FC<IUploadProgress> = ({ progress, status }) => {
+  const clampedProgress = Math.round(Math.max(0, Math.min(100, progress)));
+  const progressClassMap = styles as unknown as Record<string, string>;
+  const widthClassName =
+    progressClassMap[`progressFill${clampedProgress}`] ||
+    progressClassMap["progressFill0"] ||
+    "";
+
+  const statusClassName =
+    status === "error"
+      ? styles.progressFillError
+      : status === "completed"
+        ? styles.progressFillComplete
+        : styles.progressFillUploading;
+
+  return (
+    <div
+      className={`${styles.progressFill} ${widthClassName} ${statusClassName}`}
+    />
+  );
+};
 
 const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   context,
@@ -319,16 +346,16 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
           disabled={disabled || isUploading || !itemId}
           multiple
         />
-        <Button
-          icon={isUploading ? <Spinner size="tiny" /> : <Attach24Regular />}
+        <PrimaryButton
+          onRenderIcon={() =>
+            isUploading ? <Spinner size={SpinnerSize.xSmall} /> : <Attach24Regular />
+          }
           onClick={handleButtonClick}
           disabled={disabled || isUploading || !itemId}
-          appearance="primary"
-          size="small"
           className={styles.uploadButton}
         >
           {isUploading ? strings.AttachmentManagerUploadingLabel : strings.AttachmentManagerAddFilesButton}
-        </Button>
+        </PrimaryButton>
       </div>
 
       {!itemId && (
@@ -369,12 +396,13 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
                   {progress.status === 'uploading' && `${progress.progress}%`}
                 </span>
               </div>
-              <ProgressBar
-                value={progress.progress}
-                max={100}
-                className={styles.progressBar}
-                color={progress.status === 'error' ? 'error' : progress.status === 'completed' ? 'success' : 'brand'}
-              />
+              <div className={styles.progressBar}>
+                <UploadProgressFill
+                  fileName={progress.fileName}
+                  progress={progress.progress}
+                  status={progress.status}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -394,23 +422,19 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
                 )}
               </div>
               <div className={styles.actions}>
-                <Button
-                  icon={<ArrowDownload24Regular />}
-                  appearance="subtle"
-                  size="small"
-                  as="a"
+                <IconButton
+                  onRenderIcon={() => <ArrowDownload24Regular />}
                   href={`${window.location.origin}${attachment.serverRelativeUrl}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   title={strings.AttachmentManagerDownloadTitle}
+                  className={styles.iconButton}
                 />
-                <Button
-                  icon={<Delete24Regular />}
-                  appearance="subtle"
-                  size="small"
+                <IconButton
+                  onRenderIcon={() => <Delete24Regular />}
                   onClick={() => handleRemoveAttachment(attachment)}
                   disabled={!itemId}
-                  className={styles.deleteButton}
+                  className={`${styles.iconButton} ${styles.deleteButton}`}
                   title={strings.AttachmentManagerDeleteTitle}
                 />
               </div>

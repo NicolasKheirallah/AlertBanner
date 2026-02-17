@@ -1,8 +1,3 @@
-/**
- * Retry utilities for handling transient failures
- * Consolidates duplicate retry logic from across the codebase
- */
-
 import { logger } from '../Services/LoggerService';
 import { ErrorUtils } from './ErrorUtils';
 
@@ -24,25 +19,7 @@ export interface IRetryResult<T> {
   attempts: number;
 }
 
-/**
- * Utility class for retry operations
- */
 export class RetryUtils {
-  /**
-   * Execute operation with automatic retry on failure
-   *
-   * @example
-   * const result = await RetryUtils.executeWithRetry(
-   *   async () => {
-   *     return await fetch('/api/data');
-   *   },
-   *   {
-   *     maxRetries: 3,
-   *     baseDelay: 1000,
-   *     useExponentialBackoff: true
-   *   }
-   * );
-   */
   public static async executeWithRetry<T>(
     operation: () => Promise<T>,
     options: IRetryOptions = {}
@@ -104,9 +81,6 @@ export class RetryUtils {
     throw ErrorUtils.toError(lastError || new Error('Maximum retry attempts exceeded'));
   }
 
-  /**
-   * Execute operation with retry and return result object instead of throwing
-   */
   public static async tryExecuteWithRetry<T>(
     operation: () => Promise<T>,
     options: IRetryOptions = {}
@@ -130,9 +104,6 @@ export class RetryUtils {
     }
   }
 
-  /**
-   * Calculate delay for next retry attempt
-   */
   public static calculateDelay(
     attempt: number,
     baseDelay: number,
@@ -160,9 +131,6 @@ export class RetryUtils {
     return Math.min(delay, maxDelay);
   }
 
-  /**
-   * Calculate exponential backoff delay
-   */
   public static calculateExponentialBackoff(
     attempt: number,
     baseDelay: number = 1000,
@@ -171,9 +139,6 @@ export class RetryUtils {
     return this.calculateDelay(attempt, baseDelay, maxDelay, true, true);
   }
 
-  /**
-   * Calculate linear backoff delay
-   */
   public static calculateLinearBackoff(
     attempt: number,
     baseDelay: number = 1000,
@@ -182,16 +147,10 @@ export class RetryUtils {
     return this.calculateDelay(attempt, baseDelay, maxDelay, false, true);
   }
 
-  /**
-   * Simple delay/sleep function
-   */
   public static delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Retry operation with timeout
-   */
   public static async executeWithRetryAndTimeout<T>(
     operation: () => Promise<T>,
     timeoutMs: number,
@@ -203,9 +162,6 @@ export class RetryUtils {
     ]);
   }
 
-  /**
-   * Create a promise that rejects after timeout
-   */
   private static createTimeoutPromise<T>(ms: number): Promise<T> {
     return new Promise((_, reject) => {
       setTimeout(() => {
@@ -214,10 +170,6 @@ export class RetryUtils {
     });
   }
 
-  /**
-   * Retry operation until success or max attempts
-   * Returns null on failure instead of throwing
-   */
   public static async retryUntilSuccess<T>(
     operation: () => Promise<T>,
     options: IRetryOptions = {}
@@ -230,9 +182,6 @@ export class RetryUtils {
     }
   }
 
-  /**
-   * Retry operation with custom backoff strategy
-   */
   public static async executeWithCustomBackoff<T>(
     operation: () => Promise<T>,
     backoffStrategy: (attempt: number) => number,
@@ -249,9 +198,6 @@ export class RetryUtils {
     });
   }
 
-  /**
-   * Create a retry-enabled version of an async function
-   */
   public static withRetry<TArgs extends any[], TReturn>(
     fn: (...args: TArgs) => Promise<TReturn>,
     options: IRetryOptions = {}
@@ -261,10 +207,6 @@ export class RetryUtils {
     };
   }
 
-  /**
-   * Retry with circuit breaker pattern
-   * If failures exceed threshold, circuit opens and operations fail fast
-   */
   public static createCircuitBreaker<T>(
     operation: () => Promise<T>,
     options: {
@@ -324,9 +266,6 @@ export class RetryUtils {
     };
   }
 
-  /**
-   * Batch retry operations with rate limiting
-   */
   public static async executeBatchWithRetry<T>(
     operations: Array<() => Promise<T>>,
     options: {

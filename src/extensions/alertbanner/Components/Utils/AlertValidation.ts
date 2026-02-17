@@ -19,14 +19,8 @@ export interface IValidationOptions {
   validateTargetSites?: boolean;
 }
 
-/**
- * Validates alert data for both create and edit operations
- * @param alert - The alert data to validate (partial for creation, full for editing)
- * @param options - Validation options including multi-language flag and localization function
- * @returns Object containing validation errors, empty object if no errors
- */
 export const validateAlertData = (
-  alert: any, // Use any to support both IAlertItem and INewAlert/IEditingAlert with Date types
+  alert: any,
   options: IValidationOptions,
 ): IFormErrors => {
   const { useMultiLanguage, getString } = options;
@@ -279,21 +273,10 @@ export const validateAlertData = (
   return errors;
 };
 
-/**
- * Checks if there are any validation errors
- * @param errors - The errors object returned from validateAlertData
- * @returns true if there are no errors, false otherwise
- */
 export const hasNoErrors = (errors: IFormErrors): boolean => {
   return Object.keys(errors).length === 0;
 };
 
-/**
- * Gets a user-friendly error message for a specific field
- * @param errors - The errors object
- * @param fieldName - The field name to get error for
- * @returns The error message or empty string if no error
- */
 export const getFieldError = (
   errors: IFormErrors,
   fieldName: string,

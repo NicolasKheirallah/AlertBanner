@@ -1,6 +1,11 @@
 import * as React from 'react';
 import { logger } from '../Services/LoggerService';
-import { Text, Button, MessageBar } from '@fluentui/react-components';
+import {
+  DefaultButton,
+  MessageBar,
+  MessageBarType,
+  PrimaryButton,
+} from "@fluentui/react";
 import { ErrorCircle24Regular, ArrowClockwise24Regular } from '@fluentui/react-icons';
 import styles from './ErrorBoundary.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
@@ -131,51 +136,48 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
 
       return (
         <div className={styles.errorContainer}>
-          <MessageBar intent="error">
+          <MessageBar messageBarType={MessageBarType.error}>
             <div className={styles.errorHeader}>
               <ErrorCircle24Regular />
-              <Text weight="semibold">
+              <span className={styles.errorHeaderText}>
                 {CoreText.format(strings.ErrorBoundaryHeader, componentName)}
-              </Text>
+              </span>
             </div>
           </MessageBar>
 
           <div className={styles.errorMessage}>
-            <Text size={300} className={styles.errorMessageText}>
+            <span className={`${styles.errorMessageText} ${styles.errorMessageBodyText}`}>
               {this.state.error?.message || strings.ErrorBoundaryFallbackMessage}
-            </Text>
+            </span>
           </div>
 
           <div className={styles.errorId}>
-            <Text size={200} className={styles.errorIdText}>
+            <span className={`${styles.errorIdText} ${styles.errorIdBodyText}`}>
               {CoreText.format(strings.ErrorBoundaryIdLabel, this.state.errorId ?? '')}
-            </Text>
+            </span>
           </div>
 
           <div className={styles.errorActions}>
             {canRetry && (
-              <Button 
-                appearance="primary"
-                icon={<ArrowClockwise24Regular />}
+              <PrimaryButton 
+                onRenderIcon={() => <ArrowClockwise24Regular />}
                 onClick={this.handleRetry}
               >
                 {`${strings.ErrorBoundaryRetryButton} (${this.maxRetries - this.retryCount} ${strings.ErrorBoundaryAttemptsLeft})`}
-              </Button>
+              </PrimaryButton>
             )}
 
-            <Button 
-              appearance="secondary"
+            <DefaultButton 
               onClick={this.handleCopyErrorDetails}
             >
               {strings.ErrorBoundaryCopyButton}
-            </Button>
+            </DefaultButton>
 
-            <Button 
-              appearance="secondary"
+            <DefaultButton 
               onClick={() => window.location.reload()}
             >
               {strings.ErrorBoundaryReloadButton}
-            </Button>
+            </DefaultButton>
           </div>
 
           {process.env.NODE_ENV === 'development' && (

@@ -12,9 +12,6 @@ export interface ILocalizationContext {
   isRTL: boolean;
 }
 
-/**
- * React hook for localization functionality
- */
 export const useLocalization = (): ILocalizationContext => {
   const locService = React.useMemo(() => LocalizationService.getInstance(), []);
   
@@ -64,14 +61,8 @@ export const useLocalization = (): ILocalizationContext => {
   };
 };
 
-/**
- * Localization context for providing localization throughout the component tree
- */
 export const LocalizationContext = React.createContext<ILocalizationContext | null>(null);
 
-/**
- * Provider component for localization context
- */
 export interface ILocalizationProviderProps {
   children: React.ReactNode;
   localizationService?: LocalizationService;
@@ -90,9 +81,6 @@ export const LocalizationProvider: React.FC<ILocalizationProviderProps> = ({
   );
 };
 
-/**
- * Hook to use localization context
- */
 export const useLocalizationContext = (): ILocalizationContext => {
   const context = React.useContext(LocalizationContext);
   

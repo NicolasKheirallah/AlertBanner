@@ -1,15 +1,11 @@
 import * as React from "react";
 import {
-  Button,
-  Spinner,
+  DefaultButton,
+  PrimaryButton,
   Dialog,
-  DialogSurface,
-  DialogTitle,
-  DialogBody,
-  DialogActions,
-  DialogContent,
-  Badge,
-} from "@fluentui/react-components";
+  DialogType,
+  DialogFooter,
+} from "@fluentui/react";
 import { AppsListDetail24Regular } from "@fluentui/react-icons";
 import { CopilotService, IGovernanceResult } from "../Services/CopilotService";
 import { logger } from "../Services/LoggerService";
@@ -23,27 +19,19 @@ export interface ICopilotGovernanceControlProps {
   disabled?: boolean;
 }
 
-/**
- * Maps a governance status to a Fluent UI Badge color.
- */
-const statusToBadgeColor = (
-  status: IGovernanceResult["status"],
-): "success" | "warning" | "danger" => {
+const statusToBadgeClass = (status: IGovernanceResult["status"]): string => {
   switch (status) {
     case "green":
-      return "success";
+      return styles.statusGreen;
     case "yellow":
-      return "warning";
+      return styles.statusYellow;
     case "red":
-      return "danger";
+      return styles.statusRed;
     default:
-      return "warning";
+      return styles.statusYellow;
   }
 };
 
-/**
- * Maps a governance status to a display label.
- */
 const statusToLabel = (status: IGovernanceResult["status"]): string => {
   switch (status) {
     case "green":
@@ -95,58 +83,56 @@ export const CopilotGovernanceControl: React.FC<
   return (
     <>
       <div className={styles.governanceButton}>
-        <Button
-          appearance="subtle"
-          icon={<AppsListDetail24Regular />}
+        <DefaultButton
+          onRenderIcon={() => <AppsListDetail24Regular />}
           onClick={handleCheck}
           disabled={disabled || isChecking || !textToAnalyze}
-          size="small"
+          className={styles.inlineGhostButton}
         >
           {isChecking
             ? strings.CopilotCheckingLabel
             : strings.CopilotGovernanceButton}
-        </Button>
+        </DefaultButton>
       </div>
 
-      <Dialog open={isOpen} onOpenChange={(_, data) => setIsOpen(data.open)}>
-        <DialogSurface>
-          <DialogBody>
-            <DialogTitle>{strings.CopilotGovernanceAnalysisTitle}</DialogTitle>
-            <DialogContent>
-              {result ? (
-                <div>
-                  <Badge
-                    color={statusToBadgeColor(result.status)}
-                    appearance="filled"
-                    size="large"
-                  >
-                    {statusToLabel(result.status)}
-                  </Badge>
+      <Dialog
+        hidden={!isOpen}
+        onDismiss={() => setIsOpen(false)}
+        dialogContentProps={{
+          type: DialogType.normal,
+          title: strings.CopilotGovernanceAnalysisTitle,
+        }}
+        modalProps={{
+          isBlocking: false,
+        }}
+      >
+        {result ? (
+          <div>
+            <span className={`${styles.statusBadge} ${statusToBadgeClass(result.status)}`}>
+              {statusToLabel(result.status)}
+            </span>
 
-                  {result.issues.length > 0 && (
-                    <ul className={styles.issueList}>
-                      {result.issues.map((issue, index) => (
-                        <li key={index}>{issue}</li>
-                      ))}
-                    </ul>
-                  )}
+            {result.issues.length > 0 && (
+              <ul className={styles.issueList}>
+                {result.issues.map((issue, index) => (
+                  <li key={index}>{issue}</li>
+                ))}
+              </ul>
+            )}
 
-                  <div className={styles.summarySection}>
-                    <h4>{strings.CopilotGovernanceSummaryLabel}</h4>
-                    <p>{result.rawContent}</p>
-                  </div>
-                </div>
-              ) : (
-                <div>{strings.CopilotNoIssuesFound}</div>
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button appearance="primary" onClick={() => setIsOpen(false)}>
-                {strings.Close}
-              </Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
+            <div className={styles.summarySection}>
+              <h4>{strings.CopilotGovernanceSummaryLabel}</h4>
+              <p>{result.rawContent}</p>
+            </div>
+          </div>
+        ) : (
+          <div>{strings.CopilotNoIssuesFound}</div>
+        )}
+        <DialogFooter>
+          <PrimaryButton onClick={() => setIsOpen(false)}>
+            {strings.Close}
+          </PrimaryButton>
+        </DialogFooter>
       </Dialog>
     </>
   );

@@ -1,13 +1,5 @@
-/**
- * Application-wide constants for AlertBanner
- * Consolidates magic strings and configuration values
- */
-
 import { AlertPriority } from "../Alerts/IAlerts";
 
-/**
- * SharePoint list names
- */
 export const LIST_NAMES = {
   ALERTS: 'Alerts',
   ALERT_TYPES: 'AlertBannerTypes'
@@ -20,9 +12,6 @@ export const ALERT_ITEM_TYPES = {
   SETTINGS: "settings"
 } as const;
 
-/**
- * SharePoint field names
- */
 export const FIELD_NAMES = {
   // Core fields
   TITLE: 'Title',
@@ -51,10 +40,7 @@ export const FIELD_NAMES = {
   LANGUAGE_GROUP: 'LanguageGroup',
   AVAILABLE_FOR_ALL: 'AvailableForAll',
 
-  // Multi-language content fields
-  // Multi-language content fields
   // Note: We use Row-Based Localization, so we do NOT use Title_EN, Title_FR columns.
-  // These are removed to avoid confusion.
 
   // Metadata fields
   METADATA: 'Metadata',
@@ -67,9 +53,6 @@ export const FIELD_NAMES = {
   ATTACHMENTS: 'Attachments'
 } as const;
 
-/**
- * Validation limits
- */
 export const VALIDATION_LIMITS = {
   // Text length limits
   TITLE_MIN_LENGTH: 1,
@@ -99,11 +82,7 @@ export const VALIDATION_LIMITS = {
   MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024
 } as const;
 
-/**
- * Cache configuration
- */
 export const CACHE_CONFIG = {
-  // Cache durations in milliseconds
   ALERTS_CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
   USER_CACHE_DURATION: 15 * 60 * 1000, // 15 minutes
   SITE_CACHE_DURATION: 30 * 60 * 1000, // 30 minutes
@@ -117,30 +96,20 @@ export const CACHE_CONFIG = {
   LANGUAGE_PREFERENCE_KEY: 'alertbanner_language_preference'
 } as const;
 
-/**
- * API configuration
- */
 export const API_CONFIG = {
-  // Graph API endpoints
   GRAPH_BASE_URL: 'https://graph.microsoft.com/v1.0',
 
-  // Retry configuration
   MAX_RETRY_ATTEMPTS: 3,
   RETRY_DELAY_MS: 1000,
   RETRY_DELAY_MULTIPLIER: 2,
 
-  // Request timeouts
   DEFAULT_TIMEOUT_MS: 30000, // 30 seconds
   LONG_TIMEOUT_MS: 60000, // 1 minute
 
-  // Pagination
   DEFAULT_PAGE_SIZE: 25,
   MAX_PAGE_SIZE: 100
 } as const;
 
-/**
- * HTML sanitization configuration
- */
 export const SANITIZATION_CONFIG = {
   ALLOWED_TAGS: [
     'div', 'span', 'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
@@ -186,36 +155,25 @@ export const VALIDATION_MESSAGES = {
   EndDateMustBeAfterStartDate: 'End date must be after start date',
 } as const;
 
-/**
- * UI configuration
- */
 export const UI_CONFIG = {
-  // Animation durations
   FADE_IN_DURATION_MS: 300,
   FADE_OUT_DURATION_MS: 200,
   SLIDE_DURATION_MS: 250,
 
-  // Auto-save intervals
   AUTO_SAVE_INTERVAL_MS: 30000, // 30 seconds
   AUTO_SAVE_DEBOUNCE_MS: 2000, // 2 seconds
 
-  // Toast/notification durations
   TOAST_DURATION_SHORT_MS: 3000,
   TOAST_DURATION_MEDIUM_MS: 5000,
   TOAST_DURATION_LONG_MS: 8000,
 
-  // Loading delays
   MIN_LOADING_DELAY_MS: 300,
 
-  // Truncation lengths
   PREVIEW_DESCRIPTION_LENGTH: 150,
   CARD_TITLE_LENGTH: 60,
   LIST_ITEM_DESCRIPTION_LENGTH: 100
 } as const;
 
-/**
- * Alert type defaults
- */
 export const ALERT_TYPE_DEFAULTS = {
   DEFAULT_TYPE: 'Info',
   DEFAULT_ICON: 'Info',
@@ -224,9 +182,6 @@ export const ALERT_TYPE_DEFAULTS = {
   DEFAULT_LINK_TEXT: 'Learn More'
 } as const;
 
-/**
- * Default Alert Types Configuration
- */
 // Default Alert Type Name when none is specified
 export const DEFAULT_ALERT_TYPE_NAME = "Info";
 
@@ -285,9 +240,6 @@ export const DEFAULT_ALERT_TYPES = [
   }
 ] as const;
 
-/**
- * Notification Styles
- */
 export const NOTIFICATION_STYLES = {
   SUCCESS: { 
     backgroundColor: '#dff6dd', 
@@ -315,9 +267,6 @@ export const NOTIFICATION_STYLES = {
   }
 } as const;
 
-/**
- * Status values
- */
 export const ALERT_STATUS = {
   ACTIVE: 'Active',
   EXPIRED: 'Expired',
@@ -325,18 +274,11 @@ export const ALERT_STATUS = {
   DRAFT: 'Draft'
 } as const;
 
-/**
- * Auto-save prefixes
- */
 export const AUTO_SAVE_PREFIXES = {
   LOWERCASE: '[auto-saved]',
   CAPITALIZED: '[Auto-saved]'
 } as const;
 
-/**
- * Supported languages configuration
- * Single source of truth for language definitions
- */
 export const SUPPORTED_LANGUAGES = [
   { code: 'en-us', suffix: 'EN', name: 'English', nativeName: 'English', flag: '🇺🇸' },
   { code: 'fr-fr', suffix: 'FR', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
@@ -348,9 +290,6 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'nb-no', suffix: 'NO', name: 'Norwegian', nativeName: 'Norsk', flag: '🇳🇴' }
 ] as const;
 
-/**
- * Language codes mapping (Derived/Legacy support)
- */
 export const LANGUAGE_CODES = {
   'en-us': 'EN',
   'fr-fr': 'FR',
@@ -362,9 +301,6 @@ export const LANGUAGE_CODES = {
   'nb-no': 'NO'
 } as const;
 
-/**
- * Error messages (generic/fallback)
- */
 export const ERROR_MESSAGES = {
   GENERIC_ERROR: 'An unexpected error occurred',
   NETWORK_ERROR: 'Network error occurred. Please check your connection',
@@ -375,9 +311,6 @@ export const ERROR_MESSAGES = {
   UNAUTHORIZED: 'You are not authorized to access this resource'
 } as const;
 
-/**
- * Success messages (generic/fallback)
- */
 export const SUCCESS_MESSAGES = {
   SAVED: 'Changes saved successfully',
   CREATED: 'Item created successfully',
@@ -386,9 +319,6 @@ export const SUCCESS_MESSAGES = {
   COPIED: 'Copied to clipboard'
 } as const;
 
-/**
- * Regular expressions for validation
- */
 export const REGEX_PATTERNS = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   URL: /^https?:\/\/.+/i,
@@ -399,9 +329,6 @@ export const REGEX_PATTERNS = {
   ALPHANUMERIC_WITH_SPACES: /^[a-zA-Z0-9\s]+$/
 } as const;
 
-/**
- * HTTP status codes
- */
 export const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
@@ -416,9 +343,6 @@ export const HTTP_STATUS = {
   SERVICE_UNAVAILABLE: 503
 } as const;
 
-/**
- * GraphQL/OData operators
- */
 export const ODATA_OPERATORS = {
   EQUAL: 'eq',
   NOT_EQUAL: 'ne',
@@ -432,9 +356,6 @@ export const ODATA_OPERATORS = {
   NULL: 'null'
 } as const;
 
-/**
- * Feature flags (for gradual rollout)
- */
 export const FEATURE_FLAGS = {
   ENABLE_MULTI_LANGUAGE: true,
   ENABLE_USER_TARGETING: true,
@@ -448,9 +369,6 @@ export const FEATURE_FLAGS = {
   ENABLE_SITE_TARGETING: true
 } as const;
 
-/**
- * UI Shadow configurations
- */
 export const SHADOW_CONFIG = {
   CRITICAL_PRIORITY: '0 4px 12px rgba(232, 17, 35, 0.15)',
   HIGH_PRIORITY: '0 2px 8px rgba(234, 67, 0, 0.1)',
@@ -459,17 +377,11 @@ export const SHADOW_CONFIG = {
   DIALOG: '0 8px 32px rgba(0, 0, 0, 0.15)'
 } as const;
 
-/**
- * Window.open configuration for security
- */
 export const WINDOW_OPEN_CONFIG = {
   TARGET: '_blank',
   FEATURES: 'noopener,noreferrer'
 } as const;
 
-/**
- * UI Image configuration
- */
 export const UI_IMAGE_CONFIG = {
   MAX_WIDTH_PX: 300,
   MIN_WIDTH_PX: 50,
@@ -477,9 +389,6 @@ export const UI_IMAGE_CONFIG = {
   DEFAULT_QUALITY: 0.8
 } as const;
 
-/**
- * Carousel configuration
- */
 export const CAROUSEL_CONFIG = {
   MIN_INTERVAL: 2000,
   MAX_INTERVAL: 30000,
@@ -488,9 +397,6 @@ export const CAROUSEL_CONFIG = {
   MAX_SLIDES: 10
 } as const;
 
-/**
- * Animation durations (in milliseconds)
- */
 export const ANIMATION_DURATION = {
   FAST: 150,
   NORMAL: 300,
@@ -498,9 +404,6 @@ export const ANIMATION_DURATION = {
   CAROUSEL_TRANSITION: 400
 } as const;
 
-/**
- * Type guards for const assertions
- */
 export type ListName = typeof LIST_NAMES[keyof typeof LIST_NAMES];
 export type FieldName = typeof FIELD_NAMES[keyof typeof FIELD_NAMES];
 export type AlertStatus = typeof ALERT_STATUS[keyof typeof ALERT_STATUS];

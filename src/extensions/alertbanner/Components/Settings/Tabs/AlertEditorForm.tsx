@@ -155,6 +155,7 @@ const AlertEditorForm = <T extends IAlertEditorState>({
   const languageContent = alert.languageContent || [];
   const editorRootRef = React.useRef<HTMLDivElement>(null);
   const wasBusyRef = React.useRef(isBusy);
+  const previousAlertTypeRef = React.useRef<string>("");
   const previewRegionId = React.useMemo(
     () => `alert-preview-${Math.random().toString(36).slice(2, 10)}`,
     [],
@@ -170,6 +171,38 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     }
     wasBusyRef.current = isBusy;
   }, [isBusy]);
+
+  React.useEffect(() => {
+    if (mode !== "create" || !applySelectedAlertTypeDefaultPriority) {
+      previousAlertTypeRef.current = alert.AlertType || "";
+      return;
+    }
+
+    const currentAlertType = alert.AlertType || "";
+    const hasAlertTypeChanged = previousAlertTypeRef.current !== currentAlertType;
+    previousAlertTypeRef.current = currentAlertType;
+
+    if (!hasAlertTypeChanged || !currentAlertType) {
+      return;
+    }
+
+    const selectedType = alertTypes.find((type) => type.name === currentAlertType);
+    if (
+      selectedType?.defaultPriority &&
+      alert.priority !== selectedType.defaultPriority
+    ) {
+      setAlert((prev) =>
+        ({ ...prev, priority: selectedType.defaultPriority } as T),
+      );
+    }
+  }, [
+    alert.AlertType,
+    alert.priority,
+    alertTypes,
+    applySelectedAlertTypeDefaultPriority,
+    mode,
+    setAlert,
+  ]);
 
   const handlePeoplePickerChange = React.useCallback(
     (items: any[]) => {

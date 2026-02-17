@@ -1,15 +1,7 @@
 import { logger } from '../Services/LoggerService';
 import { SANITIZATION_CONFIG, VALIDATION_LIMITS } from './AppConstants';
 
-/**
- * JSON utility functions for AlertBanner
- * Consolidates safe JSON operations
- */
 export class JsonUtils {
-  /**
-   * Safely parse JSON string with error handling
-   * @returns Parsed object or null if parsing fails
-   */
   public static safeParse<T = any>(jsonString: string | null | undefined): T | null {
     if (!jsonString || typeof jsonString !== 'string') {
       return null;
@@ -23,18 +15,11 @@ export class JsonUtils {
     }
   }
 
-  /**
-   * Safely parse JSON with default value on failure
-   */
   public static safeParseWithDefault<T>(jsonString: string | null | undefined, defaultValue: T): T {
     const result = this.safeParse<T>(jsonString);
     return result !== null ? result : defaultValue;
   }
 
-  /**
-   * Safely stringify object with error handling
-   * @returns JSON string or null if stringification fails
-   */
   public static safeStringify(obj: any, pretty: boolean = false): string | null {
     if (obj === undefined || obj === null) {
       return null;
@@ -48,10 +33,6 @@ export class JsonUtils {
     }
   }
 
-  /**
-   * Parse JSON with validation for security
-   * Checks for prototype pollution and maximum depth
-   */
   public static parseWithValidation<T = any>(
     jsonString: string | null | undefined,
     options: {
@@ -76,13 +57,11 @@ export class JsonUtils {
       return { success: false, data: null, errors };
     }
 
-    // Check depth
     const depth = this.getObjectDepth(parsed);
     if (depth > maxDepth) {
       errors.push(`JSON structure is too deeply nested (max depth: ${maxDepth}, actual: ${depth})`);
     }
 
-    // Check for dangerous keys
     if (checkDangerousKeys && this.containsDangerousKeys(parsed)) {
       errors.push('JSON contains potentially dangerous property names');
     }
@@ -95,9 +74,6 @@ export class JsonUtils {
     };
   }
 
-  /**
-   * Get maximum depth of nested object
-   */
   public static getObjectDepth(obj: any, currentDepth: number = 0): number {
     if (obj === null || typeof obj !== 'object') {
       return currentDepth;
@@ -118,9 +94,6 @@ export class JsonUtils {
     return Math.max(...keys.map(key => this.getObjectDepth(obj[key], currentDepth + 1)));
   }
 
-  /**
-   * Check if object contains dangerous property names (prototype pollution)
-   */
   public static containsDangerousKeys(obj: any): boolean {
     if (obj === null || typeof obj !== 'object') {
       return false;
@@ -128,14 +101,12 @@ export class JsonUtils {
 
     const dangerousKeys = SANITIZATION_CONFIG.DANGEROUS_JSON_KEYS;
 
-    // Check current level
     for (const key of Object.keys(obj)) {
       if (dangerousKeys.includes(key as any)) {
         return true;
       }
     }
 
-    // Check nested objects
     for (const value of Object.values(obj)) {
       if (typeof value === 'object' && value !== null) {
         if (this.containsDangerousKeys(value)) {
@@ -147,10 +118,7 @@ export class JsonUtils {
     return false;
   }
 
-  /**
-   * Deep clone object using JSON parse/stringify
-   * Note: This will not clone functions, undefined values, or circular references
-   */
+  // Deep clone using JSON parse/stringify - note: won't clone functions, undefined, or circular refs
   public static deepClone<T>(obj: T): T | null {
     const stringified = this.safeStringify(obj);
     if (!stringified) {
@@ -159,9 +127,6 @@ export class JsonUtils {
     return this.safeParse<T>(stringified);
   }
 
-  /**
-   * Compare two objects for deep equality using JSON comparison
-   */
   public static deepEquals(obj1: any, obj2: any): boolean {
     const str1 = this.safeStringify(obj1);
     const str2 = this.safeStringify(obj2);
@@ -173,9 +138,6 @@ export class JsonUtils {
     return str1 === str2;
   }
 
-  /**
-   * Merge multiple objects (shallow merge)
-   */
   public static merge<T extends object>(...objects: Array<Partial<T> | null | undefined>): Partial<T> {
     return objects.reduce<Partial<T>>((acc, obj) => {
       if (obj) {
@@ -185,9 +147,6 @@ export class JsonUtils {
     }, {} as Partial<T>);
   }
 
-  /**
-   * Pick specific properties from object
-   */
   public static pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
     const result = {} as Pick<T, K>;
     keys.forEach(key => {
@@ -198,9 +157,6 @@ export class JsonUtils {
     return result;
   }
 
-  /**
-   * Omit specific properties from object
-   */
   public static omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
     const result = { ...obj };
     keys.forEach(key => {
@@ -209,10 +165,6 @@ export class JsonUtils {
     return result;
   }
 
-  /**
-   * Get value from nested object using dot notation path
-   * Example: get({ a: { b: { c: 1 } } }, 'a.b.c') => 1
-   */
   public static getNestedValue<T = any>(obj: any, path: string, defaultValue?: T): T | undefined {
     const keys = path.split('.');
     let current = obj;
@@ -227,10 +179,6 @@ export class JsonUtils {
     return current !== undefined ? current : defaultValue;
   }
 
-  /**
-   * Set value in nested object using dot notation path
-   * Example: set({}, 'a.b.c', 1) => { a: { b: { c: 1 } } }
-   */
   public static setNestedValue(obj: any, path: string, value: any): void {
     const keys = path.split('.');
     const lastKey = keys.pop();
@@ -250,9 +198,6 @@ export class JsonUtils {
     current[lastKey] = value;
   }
 
-  /**
-   * Check if value is a plain object (not array, date, null, etc.)
-   */
   public static isPlainObject(value: any): boolean {
     return value !== null &&
            typeof value === 'object' &&
@@ -261,10 +206,6 @@ export class JsonUtils {
            !(value instanceof RegExp);
   }
 
-  /**
-   * Flatten nested object to single level with dot notation keys
-   * Example: { a: { b: 1 } } => { 'a.b': 1 }
-   */
   public static flatten(obj: any, prefix: string = ''): Record<string, any> {
     const result: Record<string, any> = {};
 
@@ -283,10 +224,6 @@ export class JsonUtils {
     return result;
   }
 
-  /**
-   * Unflatten object with dot notation keys back to nested object
-   * Example: { 'a.b': 1 } => { a: { b: 1 } }
-   */
   public static unflatten(obj: Record<string, any>): any {
     const result: any = {};
 
@@ -299,9 +236,6 @@ export class JsonUtils {
     return result;
   }
 
-  /**
-   * Filter object properties by predicate function
-   */
   public static filterObject<T extends object>(
     obj: T,
     predicate: (key: string, value: any) => boolean
@@ -317,9 +251,6 @@ export class JsonUtils {
     return result;
   }
 
-  /**
-   * Map object values using mapper function
-   */
   public static mapObject<T extends object, R>(
     obj: T,
     mapper: (key: string, value: any) => R
@@ -335,16 +266,10 @@ export class JsonUtils {
     return result;
   }
 
-  /**
-   * Remove null and undefined values from object
-   */
   public static compact<T extends object>(obj: T): Partial<T> {
     return this.filterObject(obj, (_, value) => value !== null && value !== undefined);
   }
 
-  /**
-   * Pretty print JSON with indentation
-   */
   public static prettyPrint(obj: any, indent: number = 2): string {
     return this.safeStringify(obj, true) || '';
   }

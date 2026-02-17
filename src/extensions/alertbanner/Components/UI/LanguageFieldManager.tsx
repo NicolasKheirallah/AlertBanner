@@ -1,18 +1,12 @@
 import * as React from "react";
 import {
-  Card,
-  CardHeader,
-  CardPreview,
-  Text,
-  Button,
-  Checkbox,
+  Checkbox as FluentCheckbox,
+  DefaultButton,
   Spinner,
-  MessageBar,
-  MessageBarBody,
-  Badge,
-  makeStyles,
-  tokens
-} from "@fluentui/react-components";
+  SpinnerSize,
+  MessageBar as FluentMessageBar,
+  MessageBarType,
+} from "@fluentui/react";
 import { logger } from '../Services/LoggerService';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import {
@@ -24,95 +18,126 @@ import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text as CoreText } from '@microsoft/sp-core-library';
+import styles from "./LanguageFieldManager.module.scss";
 
-const useStyles = makeStyles({
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px"
-  },
-  languageGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-    gap: "12px",
-    marginTop: "16px",
-    marginRight: "20px" 
-  },
-  languageItem: {
-    padding: "12px 16px",
-    border: `1px solid ${tokens.colorNeutralStroke1}`,
-    borderRadius: "6px",
-    backgroundColor: tokens.colorNeutralBackground1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "12px"
-  },
-  languageInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    flex: 1
-  },
-  languageDetails: {
-    flex: 1
-  },
-  languageName: {
-    fontWeight: "500",
-    fontSize: "14px",
-    marginBottom: "2px"
-  },
-  languageCode: {
-    fontSize: "12px",
-    color: tokens.colorNeutralForeground2
-  },
-  statusBadge: {
-    fontSize: "10px",
-    padding: "2px 6px"
-  },
-  addedBadge: {
-    backgroundColor: tokens.colorPaletteGreenBackground1,
-    color: tokens.colorPaletteGreenForeground1
-  },
-  pendingBadge: {
-    backgroundColor: tokens.colorPaletteYellowBackground1,
-    color: tokens.colorPaletteYellowForeground1
-  },
-  actions: {
-    display: "flex",
-    gap: "8px",
-    paddingTop: "16px",
-    borderTop: `1px solid ${tokens.colorNeutralStroke1}`,
-    marginTop: "20px"
-  },
-  languageHeader: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: "16px",
-    flexWrap: "wrap",
-    gap: "8px"
-  },
-  languageSummary: {
-    minWidth: "0",
-    flex: "1",
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "4px"
-  },
-  languageCount: {
-    color: tokens.colorNeutralForeground2
-  },
-  refreshButton: {
-    flexShrink: "0",
-    marginRight: "32px"
-  },
-  loadingContainer: {
-    textAlign: "center",
-    padding: "40px"
-  }
-});
+const cx = (...classes: Array<string | undefined | false>): string =>
+  classes.filter(Boolean).join(" ");
+
+const Card: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div className={styles.f2Card}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{
+  header?: React.ReactNode;
+  description?: React.ReactNode;
+}> = ({ header, description }) => (
+  <div className={styles.f2CardHeader}>
+    {header}
+    {description}
+  </div>
+);
+
+const CardPreview: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div>{children}</div>
+);
+
+const Text: React.FC<{
+  children?: React.ReactNode;
+  size?: number;
+  weight?: "regular" | "medium" | "semibold" | "bold";
+  className?: string;
+}> = ({ children, size, weight, className }) => (
+  <span
+    className={cx(
+      styles.f2Text,
+      size === 100 && styles.f2Text100,
+      size === 200 && styles.f2Text200,
+      size === 300 && styles.f2Text300,
+      size === 400 && styles.f2Text400,
+      size === 500 && styles.f2Text500,
+      weight === "regular" && styles.f2TextRegular,
+      weight === "medium" && styles.f2TextMedium,
+      weight === "semibold" && styles.f2TextSemibold,
+      weight === "bold" && styles.f2TextBold,
+      className,
+    )}
+  >
+    {children}
+  </span>
+);
+
+const Button: React.FC<{
+  children?: React.ReactNode;
+  icon?: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+  appearance?: string;
+}> = ({ children, icon, onClick, disabled, className }) => (
+  <DefaultButton
+    onRenderIcon={icon ? () => <>{icon}</> : undefined}
+    onClick={onClick}
+    disabled={disabled}
+    className={cx(styles.f2Button, className)}
+  >
+    {children}
+  </DefaultButton>
+);
+
+const Checkbox: React.FC<{
+  checked?: boolean;
+  disabled?: boolean;
+  onChange?: (
+    event: React.FormEvent<HTMLElement> | undefined,
+    data: { checked?: boolean },
+  ) => void;
+}> = ({ checked, disabled, onChange }) => (
+  <FluentCheckbox
+    checked={checked}
+    disabled={disabled}
+    onChange={(event, isChecked) =>
+      onChange?.(event as React.FormEvent<HTMLElement>, { checked: isChecked })
+    }
+  />
+);
+
+const Badge: React.FC<{
+  children?: React.ReactNode;
+  className?: string;
+  icon?: React.ReactNode;
+  appearance?: string;
+  color?: string;
+  size?: string;
+}> = ({ children, className, icon }) => (
+  <span className={cx(styles.f2Badge, className)}>
+    {icon}
+    {children}
+  </span>
+);
+
+const MessageBar: React.FC<{
+  intent?: "error" | "warning" | "success" | "info";
+  children?: React.ReactNode;
+}> = ({ intent = "info", children }) => (
+  <FluentMessageBar
+    messageBarType={
+      intent === "error"
+        ? MessageBarType.error
+        : intent === "warning"
+          ? MessageBarType.warning
+          : intent === "success"
+            ? MessageBarType.success
+            : MessageBarType.info
+    }
+    isMultiline
+  >
+    {children}
+  </FluentMessageBar>
+);
+
+const MessageBarBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => <>{children}</>;
 
 interface ILanguage {
   code: string;
@@ -143,7 +168,6 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
   alertService,
   onLanguageChange
 }) => {
-  const styles = useStyles();
   const [languages, setLanguages] = React.useState<ILanguage[]>(DEFAULT_LANGUAGES);
   const [message, setMessage] = React.useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
   const [isTogglingLanguage, setIsTogglingLanguage] = React.useState(false);
@@ -330,7 +354,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         <Badge 
           appearance="outline" 
           className={`${styles.statusBadge} ${styles.pendingBadge}`}
-          icon={<Spinner size="tiny" />}
+          icon={<Spinner size={SpinnerSize.xSmall} />}
         >
           {strings.LanguageManagerUpdating}
         </Badge>
@@ -369,7 +393,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       <Card>
         <CardHeader
           header={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className={styles.f2HeaderRow}>
               <Globe24Regular />
               <Text weight="semibold">{strings.LanguageManagerTitle}</Text>
             </div>
@@ -382,7 +406,7 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         />
         
         <CardPreview>
-          <div style={{ padding: "16px" }}>
+          <div className={styles.f2CardBody}>
             <div className={styles.languageHeader}>
               <div className={styles.languageSummary}>
                 <Text weight="semibold">{strings.LanguageManagerAvailableLanguages}</Text>

@@ -1,3 +1,14 @@
+$f2-border: #edebe9;
+$f2-border-strong: #d2d0ce;
+$f2-bg-subtle: #f8f8f8;
+$f2-brand: #0f6cbd;
+$f2-brand-bg: #eff6fc;
+$f2-text-secondary: #605e5c;
+$f2-text-muted: #616161;
+$f2-success: #107c10;
+$f2-warning: #986f0b;
+$f2-error: #a4262c;
+
 .container {
   display: flex;
   flex-direction: column;
@@ -18,7 +29,7 @@
 }
 
 .policyHint {
-  color: var(--colorNeutralForeground2);
+  color: $f2-text-secondary;
 }
 
 .availableLanguages {
@@ -33,22 +44,21 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 16px;
-  border: 1px solid var(--colorNeutralStroke2);
-  background-color: var(--colorNeutralBackground1);
+  border: 1px solid $f2-border;
+  background-color: #fff;
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.2s ease;
-  
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+
   &:hover {
-    background-color: var(--colorNeutralBackground2);
-    border-color: var(--colorBrandStroke1);
+    background-color: $f2-bg-subtle;
+    border-color: $f2-border-strong;
   }
-  
-  &.selected {
-    background-color: var(--colorBrandBackground2);
-    border-color: var(--colorBrandStroke1);
-    color: var(--colorBrandForeground1);
-  }
+}
+
+.languageAddIcon {
+  width: 14px;
+  height: 14px;
 }
 
 .tabsContainer {
@@ -59,9 +69,9 @@
 
 .tabContent {
   padding: 20px 24px;
-  border: 1px solid var(--colorNeutralStroke2);
+  border: 1px solid $f2-border;
   border-radius: 6px;
-  background-color: var(--colorNeutralBackground1);
+  background-color: #fff;
 }
 
 .contentFields {
@@ -95,21 +105,25 @@
   min-width: auto;
 }
 
+.translationRow {
+  margin-bottom: 16px;
+}
+
 .emptyState {
   text-align: center;
   padding: 40px 20px;
-  color: var(--colorNeutralForeground2);
+  color: $f2-text-secondary;
 }
 
 .emptyIcon {
   font-size: 48px;
-  color: var(--colorNeutralForeground3);
+  color: $f2-text-muted;
   margin-bottom: 16px;
 }
 
 .summary {
   padding: 12px;
-  background-color: var(--colorNeutralBackground2);
+  background-color: $f2-bg-subtle;
   border-radius: 4px;
   margin-top: 16px;
 }
@@ -123,7 +137,7 @@
 }
 
 .langCode {
-  color: var(--colorNeutralForeground2);
+  color: $f2-text-secondary;
 }
 
 .summaryList {
@@ -136,15 +150,15 @@
 }
 
 .statusComplete {
-  color: var(--colorPaletteGreenForeground1);
+  color: $f2-success;
 }
 
 .statusIncomplete {
-  color: var(--colorPaletteRedForeground1);
+  color: $f2-error;
 }
 
 .allLanguagesText {
-  color: var(--colorNeutralForeground2);
+  color: $f2-text-secondary;
 }
 
 .translationActions {
@@ -153,10 +167,175 @@
   gap: 8px;
 }
 
-// Ensure input fields stay within container boundaries
-.contentFields :global(.input_febaa492),
+.f2Card {
+  border: 1px solid $f2-border;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.f2CardHeader {
+  padding: 20px 20px 14px;
+}
+
+.f2Text {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.f2Text100 {
+  font-size: 12px;
+}
+
+.f2Text200 {
+  font-size: 13px;
+}
+
+.f2Text300 {
+  font-size: 14px;
+}
+
+.f2Text400 {
+  font-size: 16px;
+}
+
+.f2Text500 {
+  font-size: 20px;
+}
+
+.f2TextRegular {
+  font-weight: 400;
+}
+
+.f2TextMedium {
+  font-weight: 500;
+}
+
+.f2TextSemibold {
+  font-weight: 600;
+}
+
+.f2TextBold {
+  font-weight: 700;
+}
+
+.f2Button {
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+.f2ButtonPrimary {
+  border-radius: 8px;
+}
+
+.f2ButtonSubtle {
+  min-height: 30px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    background: #f3f2f1;
+  }
+}
+
+.f2ButtonSmall {
+  min-height: 30px;
+}
+
+.f2Field {
+  margin-bottom: 12px;
+}
+
+.f2FieldLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.f2FieldRequired {
+  color: $f2-error;
+}
+
+.f2ValidationMessage {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.f2ValidationError {
+  color: $f2-error;
+}
+
+.f2ValidationWarning {
+  color: $f2-warning;
+}
+
+.f2ValidationSuccess {
+  color: $f2-success;
+}
+
+.f2Badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid $f2-border;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $f2-brand;
+  background: $f2-brand-bg;
+}
+
+.f2BadgeLarge {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.f2TabList {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+  border-bottom: 1px solid $f2-border;
+}
+
+.f2Tab {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: #323130;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.f2TabSelected {
+  color: $f2-brand;
+  border-bottom-color: $f2-brand;
+}
+
+.f2DialogTitle {
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.f2DialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+// Keep SharePoint input controls constrained to card width.
+.contentFields :global(.ms-TextField),
+.contentFields :global(.ms-TextField-fieldGroup),
+.contentFields :global(.ms-TextField-field),
 .contentFields input[id^="sp-control-"] {
   box-sizing: border-box;
-  max-width: calc(100% - 8px);
-  margin: 0 4px;
+  max-width: 100%;
 }

@@ -1,16 +1,10 @@
-/**
- * Permission Status Component
- * Displays admin consent requirements and permission status
- */
-
 import * as React from "react";
 import { 
   MessageBar, 
-  MessageBarBody, 
-  MessageBarTitle,
-  Button,
+  MessageBarType,
+  DefaultButton,
   Link
-} from "@fluentui/react-components";
+} from "@fluentui/react";
 import { 
   ShieldError24Regular,
   CheckmarkCircle24Regular 
@@ -18,6 +12,7 @@ import {
 import { PermissionService, GraphPermission } from "../Services/PermissionService";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import styles from './PermissionStatus.module.scss';
 
 interface IPermissionStatusProps {
   context: ApplicationCustomizerContext;
@@ -69,10 +64,8 @@ export const PermissionStatus: React.FC<IPermissionStatusProps> = ({ context }) 
 
   if (state.isLoading) {
     return (
-      <MessageBar intent="info">
-        <MessageBarBody>
-          {strings.PermissionStatusChecking}
-        </MessageBarBody>
+      <MessageBar messageBarType={MessageBarType.info}>
+        {strings.PermissionStatusChecking}
       </MessageBar>
     );
   }
@@ -80,13 +73,11 @@ export const PermissionStatus: React.FC<IPermissionStatusProps> = ({ context }) 
   // All permissions granted
   if (missingPermissions.length === 0) {
     return (
-      <MessageBar intent="success">
-        <MessageBarBody>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckmarkCircle24Regular />
-            <span>{strings.PermissionStatusAllGranted}</span>
-          </div>
-        </MessageBarBody>
+      <MessageBar messageBarType={MessageBarType.success}>
+        <div className={styles.inlineRow}>
+          <CheckmarkCircle24Regular />
+          <span>{strings.PermissionStatusAllGranted}</span>
+        </div>
       </MessageBar>
     );
   }
@@ -96,79 +87,68 @@ export const PermissionStatus: React.FC<IPermissionStatusProps> = ({ context }) 
   const isAdmin = context.pageContext.legacyPageContext.isSiteAdmin;
 
   return (
-    <MessageBar intent="warning">
-      <MessageBarBody>
-        <MessageBarTitle>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldError24Regular />
-            {strings.PermissionStatusMissingTitle}
+    <MessageBar messageBarType={MessageBarType.warning}>
+      <div className={`${styles.inlineRow} ${styles.warningTitle}`}>
+        <ShieldError24Regular />
+        {strings.PermissionStatusMissingTitle}
+      </div>
+      
+      <div className={styles.spacingTop8}>
+        {!hasWritePermission && (
+          <div className={styles.spacingBottom8}>
+            <strong>{strings.PermissionStatusSitesWriteRequired}</strong>
+            <p className={styles.smallParagraph}>
+              {strings.PermissionStatusSitesWriteDescription}
+            </p>
           </div>
-        </MessageBarTitle>
+        )}
         
-        <div style={{ marginTop: '8px' }}>
-          {!hasWritePermission && (
-            <div style={{ marginBottom: '8px' }}>
-              <strong>{strings.PermissionStatusSitesWriteRequired}</strong>
-              <p style={{ margin: '4px 0', fontSize: '12px' }}>
-                {strings.PermissionStatusSitesWriteDescription}
-              </p>
-            </div>
-          )}
-          
-          {!hasMailPermission && (
-            <div style={{ marginBottom: '8px' }}>
-              <strong>{strings.PermissionStatusMailRequired}</strong>
-              <p style={{ margin: '4px 0', fontSize: '12px' }}>
-                {strings.PermissionStatusMailDescription}
-              </p>
-            </div>
-          )}
+        {!hasMailPermission && (
+          <div className={styles.spacingBottom8}>
+            <strong>{strings.PermissionStatusMailRequired}</strong>
+            <p className={styles.smallParagraph}>
+              {strings.PermissionStatusMailDescription}
+            </p>
+          </div>
+        )}
 
-          <Button 
-            appearance="secondary"
-            size="small"
-            onClick={() => setState(prev => ({ ...prev, showDetails: !prev.showDetails }))}
-          >
-            {state.showDetails ? strings.PermissionStatusHideDetails : strings.PermissionStatusShowDetails}
-          </Button>
+        <DefaultButton 
+          onClick={() => setState(prev => ({ ...prev, showDetails: !prev.showDetails }))}
+          className={styles.toggleButton}
+        >
+          {state.showDetails ? strings.PermissionStatusHideDetails : strings.PermissionStatusShowDetails}
+        </DefaultButton>
 
-          {state.showDetails && (
-            <div style={{ 
-              marginTop: '8px', 
-              padding: '8px', 
-              background: 'rgba(255,255,255,0.5)',
-              borderRadius: '4px',
-              fontSize: '12px'
-            }}>
-              <p><strong>{strings.PermissionStatusMissingList}:</strong></p>
-              <ul style={{ margin: '4px 0' }}>
-                {missingPermissions.map(perm => (
-                  <li key={perm}>{perm}</li>
-                ))}
-              </ul>
-              
-              {isAdmin && (
-                <div style={{ marginTop: '8px' }}>
-                  <p>{strings.PermissionStatusAdminAction}</p>
-                  <Link 
-                    href={adminConsentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {strings.PermissionStatusGrantPermissions}
-                  </Link>
-                </div>
-              )}
-              
-              {!isAdmin && (
-                <div style={{ marginTop: '8px' }}>
-                  <p>{strings.PermissionStatusContactAdmin}</p>
-                </div>
-              )}
-            </div>
-          )}
+        {state.showDetails && (
+          <div className={styles.detailsPanel}>
+            <p><strong>{strings.PermissionStatusMissingList}:</strong></p>
+            <ul className={styles.listCompact}>
+              {missingPermissions.map(perm => (
+                <li key={perm}>{perm}</li>
+              ))}
+            </ul>
+            
+            {isAdmin && (
+              <div className={styles.spacingTop8}>
+                <p>{strings.PermissionStatusAdminAction}</p>
+                <Link 
+                  href={adminConsentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {strings.PermissionStatusGrantPermissions}
+                </Link>
+              </div>
+            )}
+            
+            {!isAdmin && (
+              <div className={styles.spacingTop8}>
+                <p>{strings.PermissionStatusContactAdmin}</p>
+              </div>
+            )}
+          </div>
+        )}
         </div>
-      </MessageBarBody>
     </MessageBar>
   );
 };

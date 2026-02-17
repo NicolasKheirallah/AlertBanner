@@ -2,25 +2,14 @@ import * as React from 'react';
 import { logger } from '../Services/LoggerService';
 import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import {
-  Card,
-  CardHeader,
-  CardPreview,
-  Text,
-  Button,
-  MessageBar,
+  Checkbox as FluentCheckbox,
+  DefaultButton,
+  PrimaryButton,
+  MessageBar as FluentMessageBar,
+  MessageBarType,
   Spinner,
-  Badge,
-  tokens,
-  Checkbox,
-  Dialog,
-  DialogTrigger,
-  DialogSurface,
-  DialogTitle,
-  DialogBody,
-  DialogActions,
-  DialogContent,
-  Field
-} from '@fluentui/react-components';
+  Dialog as FluentDialog,
+} from "@fluentui/react";
 import { 
   List24Regular, 
   Add24Regular, 
@@ -55,6 +44,154 @@ export interface IListManagementProps {
 
 // Available languages for selection
 const AVAILABLE_LANGUAGES = SUPPORTED_LANGUAGES;
+
+const cx = (...classes: Array<string | undefined | false>): string =>
+  classes.filter(Boolean).join(" ");
+
+const Card: React.FC<{ children?: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <div className={cx(styles.f2Card, className)}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{
+  image?: React.ReactNode;
+  header?: React.ReactNode;
+  description?: React.ReactNode;
+}> = ({ image, header, description }) => (
+  <div className={styles.f2CardHeader}>
+    {image && <div>{image}</div>}
+    <div className={styles.f2CardHeaderText}>
+      {header}
+      {description}
+    </div>
+  </div>
+);
+
+const CardPreview: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+
+const Text: React.FC<{
+  children?: React.ReactNode;
+  size?: number;
+  weight?: "regular" | "medium" | "semibold" | "bold";
+  className?: string;
+}> = ({ children, size, weight, className }) => (
+  <span
+    className={cx(
+      styles.f2Text,
+      size === 100 && styles.f2Text100,
+      size === 200 && styles.f2Text200,
+      size === 300 && styles.f2Text300,
+      size === 400 && styles.f2Text400,
+      size === 500 && styles.f2Text500,
+      weight === "regular" && styles.f2TextRegular,
+      weight === "medium" && styles.f2TextMedium,
+      weight === "semibold" && styles.f2TextSemibold,
+      weight === "bold" && styles.f2TextBold,
+      className,
+    )}
+  >
+    {children}
+  </span>
+);
+
+const Button: React.FC<{
+  children?: React.ReactNode;
+  appearance?: "primary" | "secondary" | "subtle";
+  icon?: React.ReactNode;
+  onClick?: () => void | Promise<void>;
+  disabled?: boolean;
+  className?: string;
+  size?: "small" | "medium" | "large";
+}> = ({ children, appearance = "secondary", icon, onClick, disabled, className, size }) => {
+  const buttonClassName = cx(
+    styles.f2Button,
+    appearance === "primary" && styles.f2ButtonPrimary,
+    appearance === "subtle" && styles.f2ButtonSubtle,
+    size === "small" && styles.f2ButtonSmall,
+    className,
+  );
+
+  const commonProps = {
+    onRenderIcon: icon ? () => <>{icon}</> : undefined,
+    onClick: onClick as any,
+    disabled,
+    className: buttonClassName,
+  };
+
+  if (appearance === "primary") {
+    return <PrimaryButton {...commonProps}>{children}</PrimaryButton>;
+  }
+
+  return <DefaultButton {...commonProps}>{children}</DefaultButton>;
+};
+
+const MessageBar: React.FC<{
+  intent?: "error" | "warning" | "success" | "info";
+  children?: React.ReactNode;
+  className?: string;
+}> = ({ intent = "info", children, className }) => (
+  <FluentMessageBar
+    className={className}
+    messageBarType={
+      intent === "error"
+        ? MessageBarType.error
+        : intent === "warning"
+          ? MessageBarType.warning
+          : intent === "success"
+            ? MessageBarType.success
+            : MessageBarType.info
+    }
+    isMultiline
+  >
+    {children}
+  </FluentMessageBar>
+);
+
+const Badge: React.FC<{
+  children?: React.ReactNode;
+  appearance?: string;
+  color?: string;
+}> = ({ children }) => (
+  <span className={styles.f2Badge}>
+    {children}
+  </span>
+);
+
+const Checkbox: React.FC<{
+  checked?: boolean;
+  onChange?: (event: React.FormEvent<HTMLElement> | undefined, data: { checked?: boolean }) => void;
+  disabled?: boolean;
+  label?: React.ReactNode;
+}> = ({ checked, onChange, disabled, label }) => (
+  <FluentCheckbox
+    checked={checked}
+    disabled={disabled}
+    label={typeof label === "string" ? label : undefined}
+    onRenderLabel={typeof label === "string" || typeof label === "undefined" ? undefined : () => <>{label}</>}
+    onChange={(event, isChecked) =>
+      onChange?.(event as React.FormEvent<HTMLElement>, { checked: isChecked })
+    }
+  />
+);
+
+const Dialog: React.FC<{ open: boolean; children?: React.ReactNode }> = ({ open, children }) => (
+  <FluentDialog hidden={!open} modalProps={{ isBlocking: false }}>
+    {children}
+  </FluentDialog>
+);
+
+const DialogTrigger: React.FC<{ children?: React.ReactNode; disableButtonEnhancement?: boolean }> = ({ children }) => <>{children}</>;
+const DialogSurface: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+const DialogBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+const DialogTitle: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div className={styles.f2DialogTitle}>{children}</div>
+);
+const DialogContent: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+const DialogActions: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div className={styles.f2DialogActions}>{children}</div>
+);
+const Field: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
 
 const ListManagement: React.FC<IListManagementProps> = ({
   siteContextService,
@@ -251,13 +388,13 @@ const ListManagement: React.FC<IListManagementProps> = ({
 
   const getStatusIcon = (status: IAlertListStatus) => {
     if (status.exists && status.canAccess) {
-      return <CheckmarkCircle24Filled className={`${styles.statusIcon} ${styles.statusIcon}.success`} />;
+      return <CheckmarkCircle24Filled className={`${styles.statusIcon} ${styles.statusIconSuccess}`} />;
     } else if (status.exists && !status.canAccess) {
-      return <Warning24Filled className={`${styles.statusIcon} ${styles.statusIcon}.warning`} />;
+      return <Warning24Filled className={`${styles.statusIcon} ${styles.statusIconWarning}`} />;
     } else if (!status.exists && status.canCreate) {
-      return <Add24Regular className={`${styles.statusIcon} ${styles.statusIcon}.neutral`} />;
+      return <Add24Regular className={`${styles.statusIcon} ${styles.statusIconNeutral}`} />;
     } else {
-      return <ErrorCircle24Filled className={`${styles.statusIcon} ${styles.statusIcon}.error`} />;
+      return <ErrorCircle24Filled className={`${styles.statusIcon} ${styles.statusIconError}`} />;
     }
   };
 
@@ -411,7 +548,11 @@ const ListManagement: React.FC<IListManagementProps> = ({
                               </DialogTrigger>
                               <Button 
                                 appearance="primary" 
-                                onClick={() => languageDialogOpen && handleCreateList(languageDialogOpen.siteId, languageDialogOpen.siteName)}
+                                onClick={() => {
+                                  if (languageDialogOpen) {
+                                    return handleCreateList(languageDialogOpen.siteId, languageDialogOpen.siteName);
+                                  }
+                                }}
                                 disabled={creatingList === site.id}
                               >
                                 {creatingList === site.id 
@@ -492,7 +633,11 @@ const ListManagement: React.FC<IListManagementProps> = ({
                                 </DialogTrigger>
                                 <Button 
                                   appearance="primary" 
-                                  onClick={() => languageDialogOpen && handleUpdateLanguages(languageDialogOpen.siteId, languageDialogOpen.siteName)}
+                                  onClick={() => {
+                                    if (languageDialogOpen) {
+                                      return handleUpdateLanguages(languageDialogOpen.siteId, languageDialogOpen.siteName);
+                                    }
+                                  }}
                                   disabled={creatingList === site.id}
                                 >
                                   {strings.UpdateLanguages || 'Update Languages'}

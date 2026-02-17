@@ -2,6 +2,7 @@ import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { logger } from './LoggerService';
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { LIST_NAMES } from '../Utils/AppConstants';
+import { SiteIdUtils } from "../Utils/SiteIdUtils";
 
 export interface ISiteInfo {
   id: string;
@@ -54,9 +55,6 @@ export class SiteContextService {
     if (graphClient) this._graphClient = graphClient;
   }
 
-  /**
-   * Initialize the service and detect site context
-   */
   public async initialize(): Promise<void> {
     if (!this._context || !this._graphClient) {
       throw new Error('SiteContextService requires context and graphClient');
@@ -65,9 +63,6 @@ export class SiteContextService {
     await this.detectSiteContext();
   }
 
-  /**
-   * Detect current site, hub site, and home site
-   */
   private async detectSiteContext(): Promise<void> {
     try {
       // Get current site info
@@ -99,9 +94,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Detect the tenant's home site using user-accessible APIs
-   */
   private async detectHomeSite(): Promise<void> {
     try {
       // Use the more accessible approach: try to get organization settings
@@ -146,9 +138,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Alternative method to find home site using user-accessible APIs
-   */
   private async searchForHomeSite(): Promise<void> {
     try {
       // Try to use Microsoft Search API which is more accessible
@@ -233,9 +222,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Detect hub site if current site is connected to one
-   */
   private async detectHubSite(): Promise<void> {
     try {
       if (this._context.pageContext.legacyPageContext.hubSiteId) {
@@ -258,9 +244,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Check if alert lists exist on all relevant sites
-   */
   private async checkAlertLists(): Promise<void> {
     const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo].filter(Boolean) as ISiteInfo[];
 
@@ -276,9 +259,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Check if alerts list exists on a specific site
-   */
   public async checkAlertListExists(site: ISiteInfo): Promise<boolean> {
     try {
       const graphSiteId = site.graphId ?? this.buildGraphSiteIdentifier(site.url);
@@ -295,9 +275,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Get detailed status of alerts list on a site
-   */
   public async getAlertListStatus(site: ISiteInfo): Promise<IAlertListStatus> {
     try {
       const graphSiteId = site.graphId ?? this.buildGraphSiteIdentifier(site.url);
@@ -355,9 +332,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Create alerts list on a specific site using SharePointAlertService
-   */
   public async createAlertsList(siteId: string, selectedLanguages?: string[]): Promise<boolean> {
     try {
       // Import SharePointAlertService dynamically to avoid circular dependency
@@ -393,9 +367,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Get supported languages for a specific site's alerts list
-   */
   public async getSupportedLanguagesForSite(siteId: string): Promise<string[]> {
     try {
       // Import SharePointAlertService dynamically to avoid circular dependency
@@ -410,9 +381,6 @@ export class SiteContextService {
     }
   }
 
-  /**
-   * Get all relevant sites in hierarchical order
-   */
   public getSitesHierarchy(): ISiteInfo[] {
     const sites: ISiteInfo[] = [];
     
@@ -430,23 +398,42 @@ export class SiteContextService {
     return sites;
   }
 
-  /**
-   * Get sites that should show alerts for current user context
-   */
-  /**
-   * Get sites that should show alerts for current user context
-   */
   public getAlertSourceSites(): string[] {
-    const siteMap = new Map<string, string>(); // Map: GUID -> siteId (for deduplication)
+    const siteMap = new Map<string, string>(); // Map: dedup key -> canonical site identifier
 
     // Helper to add site to map
     const addSite = (siteInfo: ISiteInfo | null) => {
       if (siteInfo && siteInfo.hasAlertsList) {
-        const guid = siteInfo.id;
-        const graphId = siteInfo.graphId ?? guid ?? this.buildGraphSiteIdentifier(siteInfo.url);
-        if (guid && !siteMap.has(guid)) {
-          siteMap.set(guid, graphId);
+        const idGuid =
+          SiteIdUtils.extractGuidFromGraphId(siteInfo.id) ||
+          (SiteIdUtils.isGuid(siteInfo.id)
+            ? SiteIdUtils.normalizeGuid(siteInfo.id)
+            : "");
+        const graphGuid =
+          SiteIdUtils.extractGuidFromGraphId(siteInfo.graphId || "") ||
+          (SiteIdUtils.isGuid(siteInfo.graphId || "")
+            ? SiteIdUtils.normalizeGuid(siteInfo.graphId || "")
+            : "");
+
+        const dedupKey =
+          idGuid ||
+          graphGuid ||
+          (siteInfo.url || "").toLowerCase().replace(/\/$/, "") ||
+          (siteInfo.id || "").toLowerCase();
+
+        if (!dedupKey || siteMap.has(dedupKey)) {
+          return;
         }
+
+        // Prefer GUID to keep downstream alert IDs stable across site identifier formats.
+        const canonicalIdentifier =
+          idGuid ||
+          graphGuid ||
+          siteInfo.graphId ||
+          siteInfo.id ||
+          this.buildGraphSiteIdentifier(siteInfo.url);
+
+        siteMap.set(dedupKey, canonicalIdentifier);
       }
     };
 
@@ -468,37 +455,22 @@ export class SiteContextService {
     return Array.from(siteMap.values());
   }
 
-  /**
-   * Get current site info
-   */
   public getCurrentSite(): ISiteInfo | null {
     return this._currentSiteInfo;
   }
 
-  /**
-   * Get hub site info
-   */
   public getHubSite(): ISiteInfo | null {
     return this._hubSiteInfo;
   }
 
-  /**
-   * Get home site info
-   */
   public getHomeSite(): ISiteInfo | null {
     return this._homeSiteInfo;
   }
 
-  /**
-   * Get application context
-   */
   public getContext(): ApplicationCustomizerContext {
     return this._context;
   }
 
-  /**
-   * Get Microsoft Graph client
-   */
   public async getGraphClient(): Promise<MSGraphClientV3> {
     return this._graphClient;
   }
@@ -520,9 +492,6 @@ export class SiteContextService {
     return `${normalizedUrl.hostname}:${path}`;
   }
 
-  /**
-   * Refresh site context (useful after list creation)
-   */
   public async refresh(): Promise<void> {
     await this.detectSiteContext();
   }

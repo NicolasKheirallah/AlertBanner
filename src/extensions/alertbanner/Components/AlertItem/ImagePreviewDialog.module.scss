@@ -1,25 +1,80 @@
-.dialogSurface {
-  max-width: 90vw;
-  max-height: 90vh;
-  width: auto;
-  padding: 0;
+.imagePreviewModal {
+  :global(.ms-Overlay) {
+    background-color: rgba(24, 36, 49, 0.56);
+  }
+}
+
+.imagePreviewContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+
+  :global(.ms-Dialog-main) {
+    width: min(96vw, 1080px);
+    max-height: 92vh;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+  }
+
+  :global(.ms-Dialog-content) {
+    padding: 0;
+  }
+
+  :global(.ms-Dialog-title) {
+    padding: 16px 20px 12px;
+    margin: 0;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 600;
+  }
 }
 
 .dialogContent {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0;
+  padding: 0 20px 20px;
   overflow: auto;
-  max-height: calc(90vh - 80px);
+  max-height: calc(92vh - 74px);
+  background: #0f1720;
 }
 
 .fullSizeImage {
   max-width: 100%;
-  max-height: calc(90vh - 80px);
+  max-height: calc(92vh - 120px);
   width: auto;
   height: auto;
   object-fit: contain;
   cursor: default;
   display: block;
+  border-radius: 6px;
+}
+
+@media (max-width: 640px) {
+  .imagePreviewContainer {
+    padding: 10px;
+
+    :global(.ms-Dialog-main) {
+      width: 100%;
+      max-height: 96vh;
+      border-radius: 6px;
+    }
+
+    :global(.ms-Dialog-title) {
+      padding: 12px 14px 10px;
+      font-size: 14px;
+      line-height: 20px;
+    }
+  }
+
+  .dialogContent {
+    padding: 0 12px 12px;
+    max-height: calc(96vh - 62px);
+  }
+
+  .fullSizeImage {
+    max-height: calc(96vh - 102px);
+  }
 }

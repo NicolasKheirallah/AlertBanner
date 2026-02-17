@@ -1,13 +1,8 @@
 import * as React from "react";
 import {
   Dialog,
-  DialogSurface,
-  DialogBody,
-  DialogTitle,
-  DialogContent,
-  Button,
-} from "@fluentui/react-components";
-import { Dismiss24Regular } from "@fluentui/react-icons";
+  DialogType,
+} from "@fluentui/react";
 import styles from "./ImagePreviewDialog.module.scss";
 
 interface IImagePreviewDialogProps {
@@ -24,31 +19,28 @@ export const ImagePreviewDialog: React.FC<IImagePreviewDialogProps> = ({
   onClose,
 }) => {
   return (
-    <Dialog open={isOpen} onOpenChange={(event, data) => !data.open && onClose()}>
-      <DialogSurface className={styles.dialogSurface}>
-        <DialogBody>
-          <DialogTitle
-            action={
-              <Button
-                appearance="subtle"
-                aria-label="Close"
-                icon={<Dismiss24Regular />}
-                onClick={onClose}
-              />
-            }
-          >
-            {imageAlt || "Image Preview"}
-          </DialogTitle>
-          <DialogContent className={styles.dialogContent}>
-            <img
-              src={imageUrl}
-              alt={imageAlt || "Full size preview"}
-              className={styles.fullSizeImage}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </DialogContent>
-        </DialogBody>
-      </DialogSurface>
+    <Dialog
+      hidden={!isOpen}
+      onDismiss={onClose}
+      dialogContentProps={{
+        type: DialogType.largeHeader,
+        title: imageAlt || "Image Preview",
+        closeButtonAriaLabel: "Close",
+      }}
+      modalProps={{
+        isBlocking: true,
+        className: styles.imagePreviewModal,
+        containerClassName: styles.imagePreviewContainer,
+      }}
+    >
+      <div className={styles.dialogContent}>
+        <img
+          src={imageUrl}
+          alt={imageAlt || "Full size preview"}
+          className={styles.fullSizeImage}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
     </Dialog>
   );
 };

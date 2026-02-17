@@ -206,12 +206,7 @@ export class StorageService {
     this.removeFromLocalStorage("HiddenAlerts", { userSpecific: true });
   }
 
-  /**
-   * Listen for storage changes from other tabs/windows.
-   * When alert-related keys change, invokes the callback so the
-   * context can re-read dismissed/hidden state.
-   * @returns Cleanup function to remove the listener
-   */
+  // Listen for storage changes from other tabs/windows
   public initCrossTabSync(onAlertStorageChange: () => void): () => void {
     const handler = (event: StorageEvent): void => {
       if (!event.key) return;

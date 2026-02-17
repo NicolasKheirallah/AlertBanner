@@ -6,54 +6,41 @@
   white-space: pre-wrap;
 }
 
+.inlineGhostButton {
+  border: none;
+  background: transparent;
+  min-height: 28px;
+  padding: 0 8px;
+}
+
 .statusBadge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
   font-weight: 600;
   font-size: 12px;
   margin-bottom: 12px;
+  border: 1px solid transparent;
 }
 
 .statusGreen {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 12px;
-  margin-bottom: 12px;
   background-color: #dff6dd;
   color: #107c10;
+  border-color: #107c10;
 }
 
 .statusYellow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 12px;
-  margin-bottom: 12px;
   background-color: #fff4ce;
   color: #7a6400;
+  border-color: #7a6400;
 }
 
 .statusRed {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 12px;
-  margin-bottom: 12px;
   background-color: #fde7e9;
   color: #c50f1f;
+  border-color: #c50f1f;
 }
 
 .issueList {

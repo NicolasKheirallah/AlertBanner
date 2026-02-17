@@ -1,0 +1,39 @@
+.inlineRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warningTitle {
+  font-weight: 600;
+}
+
+.spacingTop8 {
+  margin-top: 8px;
+}
+
+.spacingBottom8 {
+  margin-bottom: 8px;
+}
+
+.smallParagraph {
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.toggleButton {
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.detailsPanel {
+  margin-top: 8px;
+  padding: 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.listCompact {
+  margin: 4px 0;
+}

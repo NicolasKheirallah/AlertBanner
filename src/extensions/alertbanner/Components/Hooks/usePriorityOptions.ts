@@ -7,9 +7,6 @@ export interface ISharePointSelectOption {
   label: string;
 }
 
-/**
- * Custom hook to generate priority options for dropdown/select components
- */
 export const usePriorityOptions = (): ISharePointSelectOption[] => {
   return useMemo(() => ([
     {

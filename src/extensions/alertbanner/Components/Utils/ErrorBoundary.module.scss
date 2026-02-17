@@ -13,12 +13,20 @@
   gap: 8px;
 }
 
+.errorHeaderText {
+  font-weight: 600;
+}
+
 .errorMessage {
   margin-top: 16px;
 }
 
 .errorMessageText {
   color: #605e5c;
+}
+
+.errorMessageBodyText {
+  font-size: 14px;
 }
 
 .errorId {
@@ -28,6 +36,10 @@
 .errorIdText {
   color: #8a8886;
   font-family: monospace;
+}
+
+.errorIdBodyText {
+  font-size: 12px;
 }
 
 .errorActions {

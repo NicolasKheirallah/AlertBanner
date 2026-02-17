@@ -2,14 +2,8 @@ import { SiteIdUtils } from './SiteIdUtils';
 import { IAlertItem, ContentType, AlertPriority, NotificationType, TargetLanguage } from '../Alerts/IAlerts';
 import { logger } from '../Services/LoggerService';
 
-/**
- * Utility class for filtering alerts
- * Consolidates duplicate filtering logic from multiple components
- */
+// Utility class for filtering alerts
 export class AlertFilters {
-  /**
-   * Remove duplicate alerts based on ID
-   */
   public static removeDuplicates(alerts: IAlertItem[]): IAlertItem[] {
     const seenIds = new Set<string>();
     const duplicates: string[] = [];
@@ -31,9 +25,6 @@ export class AlertFilters {
     return unique;
   }
 
-  /**
-   * Filter out dismissed alerts
-   */
   public static filterDismissed(alerts: IAlertItem[], dismissedIds: string[]): IAlertItem[] {
     if (dismissedIds.length === 0) {
       return alerts;
@@ -43,9 +34,6 @@ export class AlertFilters {
     return alerts.filter(alert => !dismissedSet.has(alert.id));
   }
 
-  /**
-   * Filter out hidden alerts
-   */
   public static filterHidden(alerts: IAlertItem[], hiddenIds: string[]): IAlertItem[] {
     if (hiddenIds.length === 0) {
       return alerts;
@@ -55,9 +43,6 @@ export class AlertFilters {
     return alerts.filter(alert => !hiddenSet.has(alert.id));
   }
 
-  /**
-   * Filter alerts by dismissed and hidden IDs
-   */
   public static filterDismissedAndHidden(
     alerts: IAlertItem[],
     dismissedIds: string[],
@@ -75,10 +60,7 @@ export class AlertFilters {
     );
   }
 
-  /**
-   * Filter alerts by target sites
-   * If alert has no targetSites, it's available to all sites
-   */
+  // Filter alerts by target sites - if alert has no targetSites, it's available to all sites
   public static filterByTargetSites(alerts: IAlertItem[], scopedSiteIds: string[]): IAlertItem[] {
     if (scopedSiteIds.length === 0) {
       return alerts;
@@ -104,56 +86,36 @@ export class AlertFilters {
     });
   }
 
-  /**
-   * Check if alert is a template
-   */
   public static isTemplate(alert: IAlertItem): boolean {
     return alert.contentType === ContentType.Template ||
            alert.AlertType?.toLowerCase().includes('template') ||
            alert.title?.toLowerCase().includes('template');
   }
 
-  /**
-   * Check if alert is a draft
-   */
   public static isDraft(alert: IAlertItem): boolean {
     return alert.contentType === ContentType.Draft ||
            alert.status?.toLowerCase() === 'draft';
   }
 
-  /**
-   * Check if alert is auto-saved
-   */
   public static isAutoSaved(alert: IAlertItem): boolean {
     return alert.title?.startsWith('[Auto-saved]') ||
            alert.title?.startsWith('[auto-saved]');
   }
 
-  /**
-   * Filter out templates
-   */
   public static excludeTemplates(alerts: IAlertItem[]): IAlertItem[] {
     return alerts.filter(alert => !this.isTemplate(alert));
   }
 
-  /**
-   * Filter out drafts
-   */
   public static excludeDrafts(alerts: IAlertItem[]): IAlertItem[] {
     return alerts.filter(alert => !this.isDraft(alert));
   }
 
-  /**
-   * Filter out auto-saved items
-   */
   public static excludeAutoSaved(alerts: IAlertItem[]): IAlertItem[] {
     return alerts.filter(alert => !this.isAutoSaved(alert));
   }
 
-  /**
-   * Filter out templates, drafts, and auto-saved items (common exclusion pattern)
-   * Alerts with empty/null ItemType are treated as valid alerts (backward compatibility)
-   */
+  // Filter out templates, drafts, and auto-saved items (common exclusion pattern)
+  // Alerts with empty/null ItemType are treated as valid alerts (backward compatibility)
   public static excludeNonPublicAlerts(alerts: IAlertItem[]): IAlertItem[] {
     return alerts.filter(alert => {
       // If contentType is not set, treat as a regular alert (backward compatibility)
@@ -167,9 +129,6 @@ export class AlertFilters {
     });
   }
 
-  /**
-   * Filter alerts by content type
-   */
   public static filterByContentType(alerts: IAlertItem[], contentType: ContentType | 'all'): IAlertItem[] {
     if (contentType === 'all') {
       return alerts;
@@ -177,9 +136,6 @@ export class AlertFilters {
     return alerts.filter(alert => alert.contentType === contentType);
   }
 
-  /**
-   * Filter alerts by status
-   */
   public static filterByStatus(
     alerts: IAlertItem[],
     status: 'Active' | 'Expired' | 'Scheduled' | 'Draft' | 'all'
@@ -190,9 +146,6 @@ export class AlertFilters {
     return alerts.filter(alert => alert.status?.toLowerCase() === status.toLowerCase());
   }
 
-  /**
-   * Filter alerts by priority
-   */
   public static filterByPriority(alerts: IAlertItem[], priority: AlertPriority | 'all'): IAlertItem[] {
     if (priority === 'all') {
       return alerts;
@@ -200,9 +153,6 @@ export class AlertFilters {
     return alerts.filter(alert => alert.priority === priority);
   }
 
-  /**
-   * Filter alerts by alert type
-   */
   public static filterByAlertType(alerts: IAlertItem[], alertType: string): IAlertItem[] {
     if (alertType === 'all') {
       return alerts;
@@ -210,23 +160,17 @@ export class AlertFilters {
     return alerts.filter(alert => alert.AlertType === alertType);
   }
 
-  /**
-   * Filter alerts by target language
-   */
+  // Filter alerts by target language - includes alerts that match the language OR have targetLanguage set to 'all'
   public static filterByLanguage(alerts: IAlertItem[], language: TargetLanguage | 'all'): IAlertItem[] {
     if (language === 'all') {
       return alerts;
     }
-    // Include alerts that match the language OR have targetLanguage set to 'all'
     return alerts.filter(alert => 
       alert.targetLanguage?.toLowerCase() === language.toLowerCase() ||
       alert.targetLanguage?.toLowerCase() === 'all'
     );
   }
 
-  /**
-   * Filter alerts by notification type
-   */
   public static filterByNotificationType(
     alerts: IAlertItem[],
     notificationType: NotificationType | 'all'
@@ -237,9 +181,7 @@ export class AlertFilters {
     return alerts.filter(alert => alert.notificationType === notificationType);
   }
 
-  /**
-   * Check if alert is currently active based on schedule
-   */
+  // Check if alert is currently active based on schedule
   public static isActive(alert: IAlertItem, currentTime: Date = new Date()): boolean {
     // If scheduledStart exists and is in the future, not yet active
     if (alert.scheduledStart && new Date(alert.scheduledStart) > currentTime) {
@@ -257,34 +199,24 @@ export class AlertFilters {
         (!alert.scheduledStart || new Date(alert.scheduledStart) <= currentTime));
   }
 
-  /**
-   * Filter alerts that are currently active
-   */
   public static filterActiveAlerts(alerts: IAlertItem[], currentTime: Date = new Date()): IAlertItem[] {
     return alerts.filter(alert => this.isActive(alert, currentTime));
   }
 
-  /**
-   * Check if alert should be expired based on schedule
-   */
+  // Check if alert should be expired based on schedule
   public static shouldBeExpired(alert: IAlertItem, currentTime: Date = new Date()): boolean {
     return alert.scheduledEnd !== undefined &&
            new Date(alert.scheduledEnd) < currentTime &&
            alert.status !== 'Expired';
   }
 
-  /**
-   * Check if alert should transition from Scheduled to Active
-   */
+  // Check if alert should transition from Scheduled to Active
   public static shouldBeActivated(alert: IAlertItem, currentTime: Date = new Date()): boolean {
     return alert.scheduledStart !== undefined &&
            new Date(alert.scheduledStart) <= currentTime &&
            alert.status === 'Scheduled';
   }
 
-  /**
-   * Filter alerts by date range
-   */
   public static filterByDateRange(
     alerts: IAlertItem[],
     fromDate?: Date,
@@ -311,9 +243,6 @@ export class AlertFilters {
     });
   }
 
-  /**
-   * Filter alerts created today
-   */
   public static filterCreatedToday(alerts: IAlertItem[]): IAlertItem[] {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -322,9 +251,6 @@ export class AlertFilters {
     return this.filterByDateRange(alerts, todayStart, todayEnd, 'createdDate');
   }
 
-  /**
-   * Filter alerts created in the last N days
-   */
   public static filterCreatedInLastDays(alerts: IAlertItem[], days: number): IAlertItem[] {
     const now = new Date();
     const fromDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
@@ -332,9 +258,7 @@ export class AlertFilters {
     return this.filterByDateRange(alerts, fromDate, now, 'createdDate');
   }
 
-  /**
-   * Full-text search across alert fields
-   */
+  // Full-text search across alert fields
   public static searchAlerts(alerts: IAlertItem[], searchTerm: string): IAlertItem[] {
     if (!searchTerm || searchTerm.trim() === '') {
       return alerts;
@@ -354,10 +278,7 @@ export class AlertFilters {
     );
   }
 
-  /**
-   * Build GraphQL/OData filter string for server-side filtering
-   * Useful for SharePoint list queries
-   */
+  // Build GraphQL/OData filter string for server-side filtering (useful for SharePoint list queries)
   public static buildODataFilter(options: {
     excludeTemplates?: boolean;
     excludeDrafts?: boolean;
@@ -388,10 +309,7 @@ export class AlertFilters {
     return filters.length > 0 ? filters.join(' and ') : '';
   }
 
-  /**
-   * Combine multiple filter functions
-   * Useful for chaining filters efficiently
-   */
+  // Combine multiple filter functions - useful for chaining filters efficiently
   public static applyMultipleFilters(
     alerts: IAlertItem[],
     filters: Array<(alerts: IAlertItem[]) => IAlertItem[]>

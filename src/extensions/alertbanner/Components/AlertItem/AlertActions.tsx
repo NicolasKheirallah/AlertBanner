@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Text, tokens } from "@fluentui/react-components";
+import { IconButton } from "@fluentui/react";
 import {
   Dismiss24Regular,
   ChevronLeft24Regular,
@@ -48,74 +48,69 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
   return (
     <div className={styles.actionSection}>
       {item.linkUrl && (
-        <Button
-          appearance="subtle"
-          icon={<Link24Regular />}
-          onClick={(e: React.MouseEvent) => {
-            stopPropagation(e);
+        <IconButton
+          onRenderIcon={() => <Link24Regular />}
+          onClick={(e) => {
+            stopPropagation(e as unknown as React.MouseEvent);
             if (item.linkUrl) {
               window.open(item.linkUrl, WINDOW_OPEN_CONFIG.TARGET, WINDOW_OPEN_CONFIG.FEATURES);
             }
           }}
           aria-label={item.linkDescription || strings.AlertActionsOpenLink}
-          size="small"
           title={item.linkDescription || strings.AlertActionsOpenLink}
+          className={styles.iconButton}
         />
       )}
       {isCarousel && totalAlerts > 1 && (
         <>
-          <Button
-            appearance="subtle"
-            icon={<ChevronLeft24Regular />}
-            onClick={(e: React.MouseEvent) => {
-              stopPropagation(e);
+          <IconButton
+            onRenderIcon={() => <ChevronLeft24Regular />}
+            onClick={(e) => {
+              stopPropagation(e as unknown as React.MouseEvent);
               onPrevious?.();
             }}
             aria-label={strings.AlertActionsPrevious}
-            size="small"
             title={strings.AlertActionsPrevious}
+            className={styles.iconButton}
           />
           <div className={styles.carouselCounter}>
-            <Text size={200} weight="medium" style={{ color: tokens.colorNeutralForeground2 }}>
+            <span className={styles.carouselCounterText}>
               {carouselCounterLabel}
-            </Text>
+            </span>
           </div>
-          <Button
-            appearance="subtle"
-            icon={<ChevronRight24Regular />}
-            onClick={(e: React.MouseEvent) => {
-              stopPropagation(e);
+          <IconButton
+            onRenderIcon={() => <ChevronRight24Regular />}
+            onClick={(e) => {
+              stopPropagation(e as unknown as React.MouseEvent);
               onNext?.();
             }}
             aria-label={strings.AlertActionsNext}
-            size="small"
             title={strings.AlertActionsNext}
+            className={styles.iconButton}
           />
           <div className={styles.divider} />
         </>
       )}
-      <Button
-        appearance="subtle"
-        icon={<Dismiss24Regular />}
-        onClick={(e: React.MouseEvent) => {
-          stopPropagation(e);
+      <IconButton
+        onRenderIcon={() => <Dismiss24Regular />}
+        onClick={(e) => {
+          stopPropagation(e as unknown as React.MouseEvent);
           remove(item.id);
         }}
         aria-label={strings.AlertActionsDismiss}
-        size="small"
         title={strings.AlertActionsDismiss}
+        className={styles.iconButton}
       />
       {userTargetingEnabled && (
-        <Button
-          appearance="subtle"
-          icon={<EyeOff24Regular />}
-          onClick={(e: React.MouseEvent) => {
-            stopPropagation(e);
+        <IconButton
+          onRenderIcon={() => <EyeOff24Regular />}
+          onClick={(e) => {
+            stopPropagation(e as unknown as React.MouseEvent);
             hideForever(item.id);
           }}
           aria-label={strings.AlertActionsHideForever}
-          size="small"
           title={strings.AlertActionsHideForever}
+          className={styles.iconButton}
         />
       )}
     </div>

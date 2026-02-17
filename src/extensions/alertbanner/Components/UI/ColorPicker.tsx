@@ -12,6 +12,24 @@ interface IColorPickerProps {
   className?: string;
 }
 
+const PresetColorButton: React.FC<{
+  color: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}> = ({ color, isSelected, onSelect }) => {
+  const colorClassName = getColorTokenClass(color);
+
+  return (
+    <button
+      type="button"
+      className={`${styles.presetColor} ${colorClassName} ${isSelected ? styles.selected : ''}`}
+      onClick={onSelect}
+      aria-label={Text.format(strings.ColorPickerSelectColorAria, color)}
+      title={color}
+    />
+  );
+};
+
 const DEFAULT_PRESET_COLORS = [
   "#0078d4", // SharePoint Blue
   "#107c10", // SharePoint Green  
@@ -30,6 +48,14 @@ const DEFAULT_PRESET_COLORS = [
   "#000000", // Black
   "#ffffff"  // White
 ];
+
+const normalizeColorToken = (color: string): string =>
+  (color || "").toLowerCase().replace("#", "").replace(/[^a-f0-9]/g, "");
+const colorClassMap = styles as unknown as Record<string, string>;
+const getColorTokenClass = (color: string): string =>
+  colorClassMap[`colorToken${normalizeColorToken(color)}`] ||
+  colorClassMap["colorTokenUnknown"] ||
+  "";
 
 const ColorPicker: React.FC<IColorPickerProps> = ({
   label,
@@ -91,6 +117,9 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
     }
   }, [onChange, isValidColor]);
 
+  const selectedColorClassName =
+    getColorTokenClass(value);
+
   return (
     <div className={`${styles.field} ${className || ''}`} ref={containerRef}>
       <label className={styles.label}>
@@ -108,11 +137,10 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
           type="button"
           className={styles.colorButton}
           onClick={() => setIsOpen(!isOpen)}
-          style={{ backgroundColor: value }}
           aria-label={Text.format(strings.ColorPickerSelectedColorAria, value)}
         >
           <div className={styles.colorPreview}>
-            <div className={styles.colorSwatch} style={{ backgroundColor: value }} />
+            <div className={`${styles.colorSwatch} ${selectedColorClassName}`} />
             <span className={styles.colorValue}>{value}</span>
           </div>
         </button>
@@ -123,14 +151,11 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
               <h4>{strings.ColorPickerPresetColorsTitle}</h4>
               <div className={styles.colorGrid}>
                 {presetColors.map((color) => (
-                  <button
+                  <PresetColorButton
                     key={color}
-                    type="button"
-                    className={`${styles.presetColor} ${color === value ? styles.selected : ''}`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => handleColorSelect(color)}
-                    aria-label={Text.format(strings.ColorPickerSelectColorAria, color)}
-                    title={color}
+                    color={color}
+                    isSelected={color === value}
+                    onSelect={() => handleColorSelect(color)}
                   />
                 ))}
               </div>

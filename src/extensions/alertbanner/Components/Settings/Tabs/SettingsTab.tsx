@@ -7,17 +7,10 @@ import {
   ArrowClockwise24Regular,
 } from "@fluentui/react-icons";
 import {
-  Card,
-  CardHeader,
-  CardPreview,
-  Text,
-  Checkbox,
-  makeStyles,
-  tokens,
-  MessageBar,
-  MessageBarBody,
-  MessageBarTitle,
-} from "@fluentui/react-components";
+  Checkbox as FluentCheckbox,
+  MessageBar as FluentMessageBar,
+  MessageBarType,
+} from "@fluentui/react";
 import {
   SharePointButton,
   SharePointInput,
@@ -54,49 +47,115 @@ import { TranslationStatus } from "../../Alerts/IAlerts";
 import { useAlerts } from "../../Context/AlertsContext";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 
-const useCardStyles = makeStyles({
-  languageGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-    gap: "12px",
-    marginTop: "16px",
-    marginRight: "20px",
-  },
-  languageItem: {
-    padding: "12px 16px",
-    border: `1px solid ${tokens.colorNeutralStroke1}`,
-    borderRadius: "6px",
-    backgroundColor: tokens.colorNeutralBackground1,
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  languageInfo: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  languageName: {
-    fontWeight: tokens.fontWeightSemibold,
-    fontSize: tokens.fontSizeBase200,
-  },
-  languageCode: {
-    fontSize: tokens.fontSizeBase100,
-    color: tokens.colorNeutralForeground2,
-  },
-  cardHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-  cardContent: {
-    padding: "16px",
-  },
-  hintText: {
-    marginTop: "12px",
-    color: tokens.colorNeutralForeground2,
-  },
-});
+const cardStyles = {
+  languageGrid: styles.f2LanguageGrid,
+  languageItem: styles.f2LanguageItem,
+  languageInfo: styles.f2LanguageInfo,
+  languageName: styles.f2LanguageName,
+  languageCode: styles.f2LanguageCode,
+  cardHeader: styles.f2CardHeaderInline,
+  cardContent: styles.f2CardContent,
+  hintText: styles.f2HintText,
+};
+
+const cx = (...classes: Array<string | undefined | false>): string =>
+  classes.filter(Boolean).join(" ");
+
+const Card: React.FC<{ children?: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => (
+  <div className={cx(styles.f2Card, className)}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{
+  image?: React.ReactNode;
+  header?: React.ReactNode;
+  description?: React.ReactNode;
+}> = ({ image, header, description }) => (
+  <div className={styles.f2CardHeader}>
+    {image && <div>{image}</div>}
+    <div className={styles.f2CardHeaderText}>
+      {header}
+      {description}
+    </div>
+  </div>
+);
+
+const CardPreview: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div>{children}</div>
+);
+
+const Text: React.FC<{
+  children?: React.ReactNode;
+  size?: number;
+  weight?: "regular" | "medium" | "semibold" | "bold";
+  className?: string;
+}> = ({ children, size, weight, className }) => (
+  <span
+    className={cx(
+      styles.f2Text,
+      size === 100 && styles.f2Text100,
+      size === 200 && styles.f2Text200,
+      size === 300 && styles.f2Text300,
+      size === 400 && styles.f2Text400,
+      size === 500 && styles.f2Text500,
+      weight === "regular" && styles.f2TextRegular,
+      weight === "medium" && styles.f2TextMedium,
+      weight === "semibold" && styles.f2TextSemibold,
+      weight === "bold" && styles.f2TextBold,
+      className,
+    )}
+  >
+    {children}
+  </span>
+);
+
+const Checkbox: React.FC<{
+  checked?: boolean;
+  label?: React.ReactNode;
+  disabled?: boolean;
+  onChange?: (event: React.FormEvent<HTMLElement> | undefined, data: { checked?: boolean }) => void;
+}> = ({ checked, label, disabled, onChange }) => (
+  <FluentCheckbox
+    checked={checked}
+    disabled={disabled}
+    label={typeof label === "string" ? label : undefined}
+    onRenderLabel={typeof label === "string" || typeof label === "undefined" ? undefined : () => <>{label}</>}
+    onChange={(event, isChecked) =>
+      onChange?.(event as React.FormEvent<HTMLElement>, { checked: isChecked })
+    }
+  />
+);
+
+const MessageBar: React.FC<{
+  intent?: "error" | "warning" | "success" | "info";
+  children?: React.ReactNode;
+  ["aria-live"]?: "off" | "polite" | "assertive";
+}> = ({ intent = "info", children, ...rest }) => (
+  <FluentMessageBar
+    messageBarType={
+      intent === "error"
+        ? MessageBarType.error
+        : intent === "warning"
+          ? MessageBarType.warning
+          : intent === "success"
+            ? MessageBarType.success
+            : MessageBarType.info
+    }
+    isMultiline
+    {...rest}
+  >
+    {children}
+  </FluentMessageBar>
+);
+
+const MessageBarBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => <>{children}</>;
+const MessageBarTitle: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div className={styles.f2MessageTitle}>{children}</div>
+);
 
 export interface ISettingsData {
   alertTypesJson: string;
@@ -144,7 +203,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   canEdit = true,
   context,
 }) => {
-  const cardStyles = useCardStyles();
   const { updateCarouselSettings } = useAlerts();
   const storageService = React.useRef<StorageService>(
     StorageService.getInstance(),
@@ -1399,7 +1457,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           <SharePointSection title={strings.SettingsSectionLocalizationTitle}>
             <div className={styles.additionalOptions}>
               <h3 className={styles.languageManagementTitle}>
-                <LocalLanguage24Regular style={{ marginRight: "8px" }} />
+                <LocalLanguage24Regular className={styles.languageDialogIcon} />
                 {strings.ManageLanguagesForList}
               </h3>
               <p className={styles.languageManagementDescription}>
@@ -1465,19 +1523,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                         }
                         disabled={!canPersistSettings}
                       />
-                    </div>
-
-                    <div className={styles.actionButtonsRow}>
-                      <SharePointButton
-                        variant="secondary"
-                        onClick={() =>
-                          setShowAdvancedLocalization((prev) => !prev)
-                        }
-                      >
-                        {showAdvancedLocalization
-                          ? strings.SettingsHideAdvanced
-                          : strings.SettingsShowAdvanced}
-                      </SharePointButton>
                     </div>
 
                     {showAdvancedLocalization && (
@@ -1613,16 +1658,32 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                       </>
                     )}
 
-                    <div className={styles.actionButtonsRow}>
-                      <SharePointButton
-                        variant="secondary"
-                        onClick={handleSaveLanguagePolicy}
-                        disabled={isSavingPolicy || !canPersistSettings}
-                      >
-                        {isSavingPolicy
-                          ? strings.LanguagePolicySaving
-                          : strings.LanguagePolicySaveButton}
-                      </SharePointButton>
+                    <div className={styles.sectionActionToolbar}>
+                      <div className={styles.sectionActionPrimary}>
+                        <SharePointButton
+                          variant="secondary"
+                          onClick={() =>
+                            setShowAdvancedLocalization((prev) => !prev)
+                          }
+                          className={styles.actionToggleButton}
+                        >
+                          {showAdvancedLocalization
+                            ? strings.SettingsHideAdvanced
+                            : strings.SettingsShowAdvanced}
+                        </SharePointButton>
+                      </div>
+                      <div className={styles.sectionActionSecondary}>
+                        <SharePointButton
+                          variant="primary"
+                          onClick={handleSaveLanguagePolicy}
+                          disabled={isSavingPolicy || !canPersistSettings}
+                          className={styles.actionPrimaryButton}
+                        >
+                          {isSavingPolicy
+                            ? strings.LanguagePolicySaving
+                            : strings.LanguagePolicySaveButton}
+                        </SharePointButton>
+                      </div>
                     </div>
                   </div>
                 </CardPreview>
@@ -1668,40 +1729,44 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                 </SharePointButton>
               </div>
 
-              <div className={styles.actionButtonsRow}>
-                <SharePointButton
-                  variant="secondary"
-                  onClick={() => setShowAdvancedMaintenance((prev) => !prev)}
-                >
-                  {showAdvancedMaintenance
-                    ? strings.SettingsHideAdvanced
-                    : strings.SettingsShowAdvanced}
-                </SharePointButton>
-              </div>
-
-              {showAdvancedMaintenance && (
-                <div className={styles.storageButtons}>
+              <div className={styles.sectionActionToolbar}>
+                <div className={styles.sectionActionPrimary}>
                   <SharePointButton
                     variant="secondary"
-                    onClick={handleExportSettings}
+                    onClick={() => setShowAdvancedMaintenance((prev) => !prev)}
+                    className={styles.actionToggleButton}
                   >
-                    {strings.SettingsExportButton}
-                  </SharePointButton>
-                  <SharePointButton
-                    variant="secondary"
-                    onClick={handleImportSettingsClick}
-                  >
-                    {strings.SettingsImportButton}
-                  </SharePointButton>
-                  <SharePointButton
-                    variant="secondary"
-                    onClick={handleResetToDefaults}
-                    disabled={!canPersistSettings}
-                  >
-                    {strings.SettingsResetToDefaults}
+                    {showAdvancedMaintenance
+                      ? strings.SettingsHideAdvanced
+                      : strings.SettingsShowAdvanced}
                   </SharePointButton>
                 </div>
-              )}
+                {showAdvancedMaintenance && (
+                  <div
+                    className={`${styles.sectionActionSecondary} ${styles.storageButtons}`}
+                  >
+                    <SharePointButton
+                      variant="secondary"
+                      onClick={handleExportSettings}
+                    >
+                      {strings.SettingsExportButton}
+                    </SharePointButton>
+                    <SharePointButton
+                      variant="secondary"
+                      onClick={handleImportSettingsClick}
+                    >
+                      {strings.SettingsImportButton}
+                    </SharePointButton>
+                    <SharePointButton
+                      variant="secondary"
+                      onClick={handleResetToDefaults}
+                      disabled={!canPersistSettings}
+                    >
+                      {strings.SettingsResetToDefaults}
+                    </SharePointButton>
+                  </div>
+                )}
+              </div>
               <input
                 ref={importInputRef}
                 type="file"

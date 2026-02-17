@@ -798,10 +798,23 @@ export class AlertOperationsService {
         return [];
       }
 
-      const currentUserEmail =
+      const currentUserEmail = (
         this.context.pageContext.user.email ||
         (this.context.pageContext.user as any)?.userPrincipalName ||
-        "";
+        ""
+      )
+        .trim()
+        .toLowerCase();
+      const currentUserDisplayName = (
+        this.context.pageContext.user.displayName || ""
+      )
+        .trim()
+        .toLowerCase();
+      const currentUserLoginName = (
+        (this.context.pageContext.user as any)?.loginName || ""
+      )
+        .trim()
+        .toLowerCase();
       const availableColumns =
         await this.locator.getAvailableColumns(alertsListApi);
 
@@ -835,10 +848,6 @@ export class AlertOperationsService {
       } else if (availableColumns.has("Status")) {
         filters.push("tolower(fields/Status) eq 'draft'");
       }
-      if (availableColumns.has("Author") && currentUserEmail) {
-        const safeEmail = currentUserEmail.replace(/'/g, "''");
-        filters.push(`fields/Author/Email eq '${safeEmail}'`);
-      }
 
       let request = this.graphClient
         .api(`${alertsListApi}/items`)
@@ -850,14 +859,71 @@ export class AlertOperationsService {
       request = request.orderby("lastModifiedDateTime desc");
 
       const items = await this.fetchPagedItems(request);
+
+      const hasCurrentUserIdentity =
+        currentUserEmail.length > 0 ||
+        currentUserDisplayName.length > 0 ||
+        currentUserLoginName.length > 0;
+
+      const matchesCurrentUser = (item: any): boolean => {
+        const createdBy = item?.createdBy?.user || {};
+        const author = item?.fields?.Author || {};
+
+        const draftOwnerEmail = String(
+          createdBy.email || author.Email || author.email || "",
+        )
+          .trim()
+          .toLowerCase();
+        const draftOwnerDisplayName = String(
+          createdBy.displayName ||
+            author.LookupValue ||
+            author.Title ||
+            author.displayName ||
+            "",
+        )
+          .trim()
+          .toLowerCase();
+        const draftOwnerLoginName = String(
+          createdBy.userPrincipalName ||
+            author.Name ||
+            author.loginName ||
+            "",
+        )
+          .trim()
+          .toLowerCase();
+
+        if (currentUserEmail && draftOwnerEmail) {
+          return draftOwnerEmail === currentUserEmail;
+        }
+
+        if (currentUserLoginName && draftOwnerLoginName) {
+          return (
+            draftOwnerLoginName === currentUserLoginName ||
+            draftOwnerLoginName.includes(currentUserLoginName)
+          );
+        }
+
+        if (currentUserDisplayName && draftOwnerDisplayName) {
+          return draftOwnerDisplayName === currentUserDisplayName;
+        }
+
+        return false;
+      };
+
+      const ownedItems = hasCurrentUserIdentity
+        ? items.filter(matchesCurrentUser)
+        : items;
+      const draftItems =
+        hasCurrentUserIdentity && ownedItems.length === 0 ? items : ownedItems;
+
       const listId = await this.locator.resolveListId(
         siteId,
         LIST_NAMES.ALERTS,
       );
-      let alerts = items.map((item: any) =>
+      let alerts = draftItems.map((item: any) =>
         AlertTransformers.mapSharePointItemToAlert(item, siteId),
       );
-      alerts = await this.attachAttachments(siteId, listId, items, alerts);
+      alerts = await this.attachAttachments(siteId, listId, draftItems, alerts);
       return alerts;
     } catch (e) {
       logger.warn("AlertOperationsService", "Failed to get drafts", e);

@@ -1,12 +1,26 @@
 import * as React from "react";
 import { AlertPriority } from "../Alerts/IAlerts";
-import { tokens } from "@fluentui/react-components";
 import * as FluentIcons from "@fluentui/react-icons";
+import styles from "./AlertItem.module.scss";
 
 type IconComponent = React.ComponentType<any>;
 
 const normalizeIconToken = (value: string): string =>
   (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const isIconComponent = (value: unknown): value is IconComponent => {
+  if (typeof value === "function") {
+    return true;
+  }
+
+  // React.forwardRef components are objects with React type metadata.
+  if (typeof value === "object" && value !== null) {
+    const candidate = value as { $$typeof?: unknown; render?: unknown };
+    return !!candidate.$$typeof || typeof candidate.render === "function";
+  }
+
+  return false;
+};
 
 const FLUENT_REGULAR_ICON_MAP: Map<string, IconComponent> = (() => {
   const map = new Map<string, IconComponent>();
@@ -16,7 +30,7 @@ const FLUENT_REGULAR_ICON_MAP: Map<string, IconComponent> = (() => {
       return;
     }
 
-    if (typeof icon !== "function") {
+    if (!isIconComponent(icon)) {
       return;
     }
 
@@ -65,26 +79,24 @@ export const ALL_FLUENT_ICON_NAMES: string[] = Array.from(
   ),
 ).sort((a, b) => a.localeCompare(b));
 
-const getIconColor = (priority: AlertPriority): string => {
+const getPriorityIconClassName = (priority: AlertPriority): string => {
   switch (priority) {
     case "critical":
-      return tokens.colorPaletteRedForeground1;
+      return styles.priorityIconCritical;
     case "high":
-      return tokens.colorPaletteDarkOrangeForeground1;
+      return styles.priorityIconHigh;
     case "medium":
-      return tokens.colorPaletteBlueForeground2;
+      return styles.priorityIconMedium;
     case "low":
-      return tokens.colorPaletteGreenForeground1;
+      return styles.priorityIconLow;
     default:
-      return tokens.colorPaletteGreenForeground1;
+      return styles.priorityIconLow;
   }
 };
 
 const getCommonIconProps = (priority: AlertPriority) => {
-  const iconColor = getIconColor(priority);
-
   return {
-    style: { color: iconColor },
+    className: `${styles.priorityIcon} ${getPriorityIconClassName(priority)}`,
     width: "20px",
     height: "20px",
     fill: "currentColor",

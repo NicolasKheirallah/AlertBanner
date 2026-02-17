@@ -1,7 +1,3 @@
-/**
- * Date utility functions for AlertBanner
- * Consolidates date formatting, parsing, and calculation logic
- */
 export class DateUtils {
   // Time duration constants in milliseconds
   public static readonly MILLISECONDS = {
@@ -14,24 +10,15 @@ export class DateUtils {
     YEAR: 365 * 24 * 60 * 60 * 1000
   };
 
-  /**
-   * Get current timestamp as ISO string
-   */
   public static nowISO(): string {
     return new Date().toISOString();
   }
 
-  /**
-   * Get current timestamp in milliseconds
-   */
   public static nowMillis(): number {
     return Date.now();
   }
 
-  /**
-   * Parse date string or Date object to Date
-   * @returns Date object or null if invalid
-   */
+  // Parse date string or Date object to Date, returns null if invalid
   public static parseDate(date: Date | string | undefined | null): Date | null {
     if (!date) {
       return null;
@@ -47,25 +34,16 @@ export class DateUtils {
     return dateObj;
   }
 
-  /**
-   * Check if a date string or Date object is valid
-   */
   public static isValidDate(date: Date | string | undefined | null): boolean {
     return this.parseDate(date) !== null;
   }
 
-  /**
-   * Convert date to ISO string, handling undefined/null
-   */
   public static toISOString(date: Date | string | undefined | null): string | undefined {
     const parsed = this.parseDate(date);
     return parsed ? parsed.toISOString() : undefined;
   }
 
-  /**
-   * Convert date for HTML datetime-local input (adjusts for timezone offset)
-   * HTML datetime-local inputs expect local time in format: YYYY-MM-DDTHH:mm
-   */
+  // Convert date for HTML datetime-local input (adjusts for timezone offset)
   public static toDateTimeLocalValue(date: Date | string | undefined | null): string {
     const parsed = this.parseDate(date);
     if (!parsed) {
@@ -77,12 +55,6 @@ export class DateUtils {
     return localDate.toISOString().slice(0, 16);
   }
 
-  /**
-   * Add duration to a date
-   * @param date - Base date
-   * @param amount - Amount to add
-   * @param unit - Time unit (seconds, minutes, hours, days, weeks, months, years)
-   */
   public static addDuration(
     date: Date | string,
     amount: number,
@@ -97,9 +69,6 @@ export class DateUtils {
     return new Date(baseDate.getTime() + millisToAdd);
   }
 
-  /**
-   * Add duration and return ISO string
-   */
   public static addDurationISO(
     date: Date | string,
     amount: number,
@@ -108,9 +77,6 @@ export class DateUtils {
     return this.addDuration(date, amount, unit).toISOString();
   }
 
-  /**
-   * Get milliseconds for a time unit
-   */
   private static getMillisecondsForUnit(unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years'): number {
     switch (unit) {
       case 'seconds': return this.MILLISECONDS.SECOND;
@@ -123,9 +89,6 @@ export class DateUtils {
     }
   }
 
-  /**
-   * Calculate difference between two dates in specified unit
-   */
   public static diff(
     date1: Date | string,
     date2: Date | string,
@@ -142,9 +105,6 @@ export class DateUtils {
     return diffInMillis / this.getMillisecondsForUnit(unit);
   }
 
-  /**
-   * Check if date1 is before date2
-   */
   public static isBefore(date1: Date | string, date2: Date | string): boolean {
     const d1 = this.parseDate(date1);
     const d2 = this.parseDate(date2);
@@ -156,9 +116,6 @@ export class DateUtils {
     return d1.getTime() < d2.getTime();
   }
 
-  /**
-   * Check if date1 is after date2
-   */
   public static isAfter(date1: Date | string, date2: Date | string): boolean {
     const d1 = this.parseDate(date1);
     const d2 = this.parseDate(date2);
@@ -170,9 +127,6 @@ export class DateUtils {
     return d1.getTime() > d2.getTime();
   }
 
-  /**
-   * Check if dates are on the same day
-   */
   public static isSameDay(date1: Date | string, date2: Date | string): boolean {
     const d1 = this.parseDate(date1);
     const d2 = this.parseDate(date2);
@@ -186,30 +140,18 @@ export class DateUtils {
            d1.getDate() === d2.getDate();
   }
 
-  /**
-   * Check if date is today
-   */
   public static isToday(date: Date | string): boolean {
     return this.isSameDay(date, new Date());
   }
 
-  /**
-   * Check if date is in the past
-   */
   public static isPast(date: Date | string, referenceDate: Date = new Date()): boolean {
     return this.isBefore(date, referenceDate);
   }
 
-  /**
-   * Check if date is in the future
-   */
   public static isFuture(date: Date | string, referenceDate: Date = new Date()): boolean {
     return this.isAfter(date, referenceDate);
   }
 
-  /**
-   * Get start of day (00:00:00.000)
-   */
   public static startOfDay(date: Date | string = new Date()): Date {
     const d = this.parseDate(date);
     if (!d) {
@@ -219,9 +161,6 @@ export class DateUtils {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }
 
-  /**
-   * Get end of day (23:59:59.999)
-   */
   public static endOfDay(date: Date | string = new Date()): Date {
     const d = this.parseDate(date);
     if (!d) {
@@ -231,9 +170,6 @@ export class DateUtils {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
   }
 
-  /**
-   * Check if date is within a range (inclusive)
-   */
   public static isWithinRange(
     date: Date | string,
     startDate: Date | string,
@@ -250,20 +186,11 @@ export class DateUtils {
     return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
   }
 
-  /**
-   * Generate a unique ID with timestamp prefix
-   * Format: {timestamp}-{randomString}
-   */
   public static generateTimestampId(length: number = 11): string {
     const randomPart = Math.random().toString(36).substring(2, 2 + length);
     return `${Date.now()}-${randomPart}`;
   }
 
-  /**
-   * Format cache age for display
-   * @param timestamp - Cache timestamp in milliseconds
-   * @returns Human-readable string like "5 minutes ago"
-   */
   public static formatCacheAge(timestamp: number): string {
     const ageInMillis = Date.now() - timestamp;
 
@@ -281,18 +208,10 @@ export class DateUtils {
     }
   }
 
-  /**
-   * Check if cached data is still fresh
-   * @param timestamp - Cache timestamp in milliseconds
-   * @param maxAge - Maximum age in milliseconds
-   */
   public static isCacheFresh(timestamp: number, maxAge: number): boolean {
     return (Date.now() - timestamp) < maxAge;
   }
 
-  /**
-   * Sort dates ascending (oldest first)
-   */
   public static sortAscending(dates: Array<Date | string>): Array<Date | string> {
     return [...dates].sort((a, b) => {
       const d1 = this.parseDate(a);
@@ -302,9 +221,6 @@ export class DateUtils {
     });
   }
 
-  /**
-   * Sort dates descending (newest first)
-   */
   public static sortDescending(dates: Array<Date | string>): Array<Date | string> {
     return [...dates].sort((a, b) => {
       const d1 = this.parseDate(a);
@@ -314,11 +230,6 @@ export class DateUtils {
     });
   }
 
-  /**
-   * Get relative time description
-   * @param date - Date to describe
-   * @returns String like "in 2 days" or "3 hours ago"
-   */
   public static getRelativeTime(date: Date | string): string {
     const d = this.parseDate(date);
     if (!d) {
@@ -351,12 +262,6 @@ export class DateUtils {
     }
   }
 
-  /**
-   * Format date for display using locale-specific formatting
-   * @param date - Date to format
-   * @param options - Intl.DateTimeFormatOptions for custom formatting
-   * @returns Formatted date string or empty string if invalid
-   */
   public static formatForDisplay(
     date: Date | string | undefined | null,
     options?: Intl.DateTimeFormatOptions
@@ -369,12 +274,6 @@ export class DateUtils {
     return parsed.toLocaleDateString(undefined, options);
   }
 
-  /**
-   * Format date and time for display using locale-specific formatting
-   * @param date - Date to format
-   * @param options - Intl.DateTimeFormatOptions for custom formatting
-   * @returns Formatted date and time string or empty string if invalid
-   */
   public static formatDateTimeForDisplay(
     date: Date | string | undefined | null,
     options?: Intl.DateTimeFormatOptions

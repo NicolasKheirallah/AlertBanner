@@ -1,16 +1,16 @@
 import * as React from "react";
 import {
-  Popover,
-  PopoverTrigger,
-  PopoverSurface,
-  Button,
-  Textarea,
+  DefaultButton,
+  PrimaryButton,
+  TextField,
   Spinner,
+  SpinnerSize,
   Dropdown,
-  Option,
+  IDropdownOption,
   Label,
-  useId,
-} from "@fluentui/react-components";
+  Callout,
+  DirectionalHint,
+} from "@fluentui/react";
 import { SparkleRegular } from "@fluentui/react-icons";
 import { CopilotService, CopilotTone } from "../Services/CopilotService";
 import { logger } from "../Services/LoggerService";
@@ -34,7 +34,20 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
   const [isDrafting, setIsDrafting] = React.useState(false);
   const [keywords, setKeywords] = React.useState("");
   const [tone, setTone] = React.useState<CopilotTone>("Professional");
-  const dropdownId = useId("tone-dropdown");
+  const triggerRef = React.useRef<HTMLDivElement | null>(null);
+  const dropdownId = React.useMemo(
+    () => `tone-dropdown-${Math.random().toString(36).slice(2, 10)}`,
+    [],
+  );
+
+  const toneOptions = React.useMemo<IDropdownOption[]>(
+    () => [
+      { key: "Professional", text: strings.CopilotToneProfessional },
+      { key: "Urgent", text: strings.CopilotToneUrgent },
+      { key: "Casual", text: strings.CopilotToneCasual },
+    ],
+    [],
+  );
 
   const handleGenerate = async (): Promise<void> => {
     if (!keywords.trim()) return;
@@ -67,31 +80,41 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={(_, data) => setIsOpen(data.open)}>
-      <PopoverTrigger disableButtonEnhancement>
-        <Button
-          appearance="subtle"
-          icon={<SparkleRegular />}
+    <>
+      <div ref={triggerRef}>
+        <DefaultButton
+          onRenderIcon={() => <SparkleRegular />}
           disabled={disabled || isDrafting}
-          size="small"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className={styles.ghostButton}
         >
           {strings.CopilotDraftButton}
-        </Button>
-      </PopoverTrigger>
-      <PopoverSurface tabIndex={-1} className={styles.popoverContent}>
+        </DefaultButton>
+      </div>
+      {isOpen && triggerRef.current && (
+        <Callout
+          target={triggerRef.current}
+          onDismiss={() => setIsOpen(false)}
+          directionalHint={DirectionalHint.bottomLeftEdge}
+          setInitialFocus={true}
+          isBeakVisible={false}
+          gapSpace={8}
+        >
+          <div tabIndex={-1} className={styles.popoverContent}>
         <h3 className={styles.popoverTitle}>{strings.CopilotDraftTitle}</h3>
 
         <div className={styles.fieldGroup}>
           <Label htmlFor="copilot-keywords">
             {strings.CopilotKeywordsLabel}
           </Label>
-          <Textarea
+          <TextField
             id="copilot-keywords"
             placeholder={strings.CopilotKeywordsPlaceholder}
             value={keywords}
-            onChange={(_, data) => setKeywords(data.value)}
-            className={styles.fullWidth}
+            multiline
             rows={3}
+            onChange={(_, value) => setKeywords(value || "")}
+            className={styles.fullWidth}
           />
         </div>
 
@@ -99,41 +122,41 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
           <Label htmlFor={dropdownId}>{strings.CopilotToneLabel}</Label>
           <Dropdown
             id={dropdownId}
-            value={tone}
-            selectedOptions={[tone]}
-            onOptionSelect={(_, data) => {
-              if (data.optionValue) {
-                setTone(data.optionValue as CopilotTone);
+            selectedKey={tone}
+            options={toneOptions}
+            onChange={(_, option) => {
+              if (option?.key) {
+                setTone(option.key as CopilotTone);
               }
             }}
             className={styles.fullWidth}
-          >
-            <Option value="Professional">
-              {strings.CopilotToneProfessional}
-            </Option>
-            <Option value="Urgent">{strings.CopilotToneUrgent}</Option>
-            <Option value="Casual">{strings.CopilotToneCasual}</Option>
-          </Dropdown>
+          />
         </div>
 
         <div className={styles.actions}>
           {isDrafting && (
-            <Button appearance="subtle" onClick={handleCancel} size="small">
+            <DefaultButton
+              onClick={handleCancel}
+              className={`${styles.ghostButton} ${styles.ghostButtonCompact}`}
+            >
               {strings.Cancel}
-            </Button>
+            </DefaultButton>
           )}
-          <Button
-            appearance="primary"
+          <PrimaryButton
             onClick={handleGenerate}
             disabled={!keywords.trim() || isDrafting}
-            icon={isDrafting ? <Spinner size="tiny" /> : undefined}
+            onRenderIcon={() =>
+              isDrafting ? <Spinner size={SpinnerSize.xSmall} /> : null
+            }
           >
             {isDrafting
               ? strings.CopilotGeneratingLabel
               : strings.CopilotGenerateButton}
-          </Button>
+          </PrimaryButton>
         </div>
-      </PopoverSurface>
-    </Popover>
+          </div>
+        </Callout>
+      )}
+    </>
   );
 };

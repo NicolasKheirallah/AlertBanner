@@ -23,9 +23,6 @@ export interface INotificationOptions {
   dismissible?: boolean;
 }
 
-/**
- * Service for displaying user-friendly notifications instead of browser alerts
- */
 export class NotificationService {
   private static instance: NotificationService;
   private static readonly DIALOG_HOST_SELECTOR =
@@ -45,9 +42,6 @@ export class NotificationService {
     return NotificationService.instance;
   }
 
-  /**
-   * Show a success notification
-   */
   public showSuccess(message: string, title?: string, actions?: INotificationAction[]): void {
     this.showNotification({
       type: NotificationType.Success,
@@ -59,9 +53,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Show a warning notification
-   */
   public showWarning(message: string, title?: string, actions?: INotificationAction[]): void {
     this.showNotification({
       type: NotificationType.Warning,
@@ -73,9 +64,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Show an error notification
-   */
   public showError(message: string, title?: string, actions?: INotificationAction[]): void {
     this.showNotification({
       type: NotificationType.Error,
@@ -87,9 +75,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Show an info notification
-   */
   public showInfo(message: string, title?: string, actions?: INotificationAction[]): void {
     this.showNotification({
       type: NotificationType.Info,
@@ -101,9 +86,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Show a notification with full options
-   */
   private showNotification(options: INotificationOptions): void {
     try {
       // Use custom notification system for better control
@@ -114,9 +96,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Show custom notification using DOM manipulation
-   */
   private showCustomNotification(options: INotificationOptions): void {
     const container = this.getOrCreateNotificationContainer();
     const notification = this.createNotificationElement(options);
@@ -154,9 +133,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Get or create the notification container
-   */
   private getOrCreateNotificationContainer(): HTMLElement {
     const hosts = Array.from(
       document.querySelectorAll<HTMLElement>(
@@ -188,9 +164,6 @@ export class NotificationService {
     return container;
   }
 
-  /**
-   * Create notification DOM element
-   */
   private createNotificationElement(options: INotificationOptions): HTMLElement {
     const notification = document.createElement('div');
     notification.setAttribute(
@@ -290,9 +263,6 @@ export class NotificationService {
     return notification;
   }
 
-  /**
-   * Remove notification element
-   */
   private removeNotification(notification: HTMLElement): void {
     notification.style.animation = 'slideOutRight 0.3s ease-in';
     setTimeout(() => {
@@ -302,9 +272,6 @@ export class NotificationService {
     }, UI_CONFIG.FADE_OUT_DURATION_MS + 100);
   }
 
-  /**
-   * Get background color for notification type
-   */
   private getBackgroundColor(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
@@ -319,9 +286,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Get text color for notification type
-   */
   private getTextColor(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
@@ -336,9 +300,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Get border color for notification type
-   */
   private getBorderColor(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
@@ -353,9 +314,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Get icon for notification type
-   */
   private getIcon(type: NotificationType): string {
     switch (type) {
       case NotificationType.Success:
@@ -370,9 +328,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Add CSS animations to document head
-   */
   private addAnimationStyles(): void {
     if (document.getElementById('alert-banner-notification-styles')) {
       return;
@@ -406,9 +361,6 @@ export class NotificationService {
     document.head.appendChild(style);
   }
 
-  /**
-   * Clear all notifications
-   */
   public clearAll(): void {
     const containers = Array.from(
       document.querySelectorAll<HTMLElement>(

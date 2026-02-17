@@ -1,8 +1,3 @@
-/**
- * Comprehensive input validation service for Alert Banner
- * Provides security-focused validation for all user inputs
- */
-
 import { logger } from './LoggerService';
 import { htmlSanitizer } from '../Utils/HtmlSanitizer';
 import { StringUtils } from '../Utils/StringUtils';
@@ -26,7 +21,6 @@ export interface IValidationRule {
 export class ValidationService {
   private static _instance: ValidationService;
 
-  // Common validation patterns - using centralized REGEX_PATTERNS where applicable
   private readonly patterns = {
     email: REGEX_PATTERNS.EMAIL,
     url: REGEX_PATTERNS.URL,
@@ -53,9 +47,6 @@ export class ValidationService {
     return ValidationService._instance;
   }
 
-  /**
-   * Validate alert title
-   */
   public validateAlertTitle(title: string): IValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -89,9 +80,6 @@ export class ValidationService {
     };
   }
 
-  /**
-   * Validate alert description
-   */
   public validateAlertDescription(description: string): IValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -129,15 +117,12 @@ export class ValidationService {
     };
   }
 
-  /**
-   * Validate URL
-   */
   public validateUrl(url: string, requireSecure: boolean = true): IValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     if (!url || typeof url !== 'string') {
-      return { isValid: true, errors, warnings, sanitizedValue: '' }; // URL is optional
+      return { isValid: true, errors, warnings, sanitizedValue: '' };
     }
 
     const trimmedUrl = url.trim();
@@ -162,7 +147,6 @@ export class ValidationService {
       errors.push('URL contains potentially malicious content');
     }
 
-    // Additional security checks for URLs
     try {
       const urlObj = new URL(trimmedUrl);
       
@@ -170,7 +154,6 @@ export class ValidationService {
         errors.push('URL must use HTTP or HTTPS protocol');
       }
 
-      // Check for suspicious domains
       const suspiciousDomains = ['bit.ly', 'tinyurl.com', 'short.link'];
       if (suspiciousDomains.some(domain => urlObj.hostname.includes(domain))) {
         warnings.push('URL uses a URL shortener which may obscure the final destination');
@@ -188,9 +171,6 @@ export class ValidationService {
     };
   }
 
-  /**
-   * Validate date range
-   */
   public validateDateRange(startDate?: Date | string, endDate?: Date | string): IValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -198,7 +178,6 @@ export class ValidationService {
     let parsedStartDate: Date | null = null;
     let parsedEndDate: Date | null = null;
 
-    // Parse start date
     if (startDate) {
       parsedStartDate = typeof startDate === 'string' ? new Date(startDate) : startDate;
       if (isNaN(parsedStartDate.getTime())) {
@@ -206,7 +185,6 @@ export class ValidationService {
       }
     }
 
-    // Parse end date
     if (endDate) {
       parsedEndDate = typeof endDate === 'string' ? new Date(endDate) : endDate;
       if (isNaN(parsedEndDate.getTime())) {
@@ -214,7 +192,6 @@ export class ValidationService {
       }
     }
 
-    // Validate date logic
     if (parsedStartDate && parsedEndDate) {
       if (parsedStartDate >= parsedEndDate) {
         errors.push('End date must be after start date');
@@ -226,7 +203,6 @@ export class ValidationService {
       }
     }
 
-    // Check if dates are in the past
     const now = new Date();
     if (parsedStartDate && parsedStartDate < now) {
       warnings.push('Start date is in the past');
@@ -244,10 +220,7 @@ export class ValidationService {
   }
 
 
-  /**
-   * Validate JSON data with security checks using JsonUtils
-   * Prevents prototype pollution and validates structure
-   */
+  // Validate JSON data with security checks using JsonUtils - prevents prototype pollution
   public validateJson(jsonString: string, maxDepth: number = VALIDATION_LIMITS.JSON_MAX_DEPTH): IValidationResult {
     const result = JsonUtils.parseWithValidation(jsonString, {
       maxDepth,
@@ -262,17 +235,12 @@ export class ValidationService {
     };
   }
 
-  /**
-   * Validate email address (for future email notification features)
-   * @param email - Email address to validate
-   * @returns Validation result with RFC 5321 compliance
-   */
   public validateEmail(email: string): IValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     if (!email || typeof email !== 'string') {
-      return { isValid: true, errors, warnings, sanitizedValue: '' }; // Email is optional
+      return { isValid: true, errors, warnings, sanitizedValue: '' };
     }
 
     const trimmedEmail = email.trim().toLowerCase();
@@ -285,7 +253,7 @@ export class ValidationService {
       errors.push('Email format is invalid');
     }
 
-    if (trimmedEmail.length > 320) { // RFC 5321 limit
+    if (trimmedEmail.length > 320) {
       errors.push('Email address is too long (maximum 320 characters)');
     }
 
@@ -297,31 +265,21 @@ export class ValidationService {
     };
   }
 
-  /**
-   * Check for malicious content
-   */
   private containsMaliciousContent(input: string): boolean {
     return this.patterns.maliciousPatterns.some(pattern => pattern.test(input));
   }
 
-  /**
-   * Sanitize plain text input
-   */
   private sanitizeText(input: string): string {
     return input
       .trim()
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
-      .replace(/\s+/g, ' '); // Normalize whitespace
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\s+/g, ' ');
   }
 
-  /**
-   * Sanitize HTML content using HtmlSanitizer (DOMPurify-based for industry-standard XSS protection)
-   */
+  // Sanitize HTML using DOMPurify-based HtmlSanitizer for XSS protection
   private sanitizeHtml(input: string): string {
-    // Use centralized HtmlSanitizer for consistent, industry-standard sanitization
     const sanitized = htmlSanitizer.sanitizeHtml(input);
 
-    // Log potential XSS attempts for security monitoring
     if (sanitized !== input) {
       logger.warn('ValidationService', 'Potential XSS attempt detected and sanitized', {
         original: StringUtils.truncate(input, 100),
@@ -332,9 +290,6 @@ export class ValidationService {
     return sanitized;
   }
 
-  // getObjectDepth and containsDangerousKeys methods moved to JsonUtils for reusability
-
 }
 
-// Export singleton instance
 export const validationService = ValidationService.getInstance();

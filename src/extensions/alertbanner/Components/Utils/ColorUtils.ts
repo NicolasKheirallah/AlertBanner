@@ -1,12 +1,3 @@
-/**
- * Color utility functions for calculating contrast and ensuring accessibility
- */
-
-/**
- * Calculate relative luminance of a color using WCAG formula
- * @param color - Color string in hex, rgb, or named format
- * @returns Luminance value between 0 and 1
- */
 export const getLuminance = (color: string): number => {
   // Convert color to RGB values
   let r: number, g: number, b: number;
@@ -82,32 +73,16 @@ export const getLuminance = (color: string): number => {
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 };
 
-/**
- * Get contrasting text color (dark or light) based on background color
- * Uses WCAG AAA standard (7:1 contrast ratio) for better accessibility
- * @param bgColor - Background color in any valid CSS format
- * @returns Appropriate text color (#323130 for dark text, #ffffff for white text)
- */
 export const getContrastText = (bgColor: string): string => {
   const bgLuminance = getLuminance(bgColor);
 
-  // More aggressive approach for better readability
-  // Use WCAG AAA standard (7:1 contrast ratio) for better accessibility
   if (bgLuminance > 0.3) {
-    // For lighter backgrounds, always use dark text for maximum readability
-    return '#323130'; // Dark text that meets AAA standards
+    return '#323130';
   } else {
-    // For darker backgrounds, always use white text
-    return '#ffffff'; // White text for maximum contrast
+    return '#ffffff';
   }
 };
 
-/**
- * Calculate contrast ratio between two colors
- * @param color1 - First color
- * @param color2 - Second color
- * @returns Contrast ratio (1-21, where 21 is maximum contrast)
- */
 export const getContrastRatio = (color1: string, color2: string): number => {
   const lum1 = getLuminance(color1);
   const lum2 = getLuminance(color2);
@@ -116,22 +91,10 @@ export const getContrastRatio = (color1: string, color2: string): number => {
   return (lighter + 0.05) / (darker + 0.05);
 };
 
-/**
- * Check if color combination meets WCAG AA standard (4.5:1 for normal text)
- * @param bgColor - Background color
- * @param textColor - Text color
- * @returns True if contrast meets WCAG AA standard
- */
 export const meetsWCAGAA = (bgColor: string, textColor: string): boolean => {
   return getContrastRatio(bgColor, textColor) >= 4.5;
 };
 
-/**
- * Check if color combination meets WCAG AAA standard (7:1 for normal text)
- * @param bgColor - Background color
- * @param textColor - Text color
- * @returns True if contrast meets WCAG AAA standard
- */
 export const meetsWCAGAAA = (bgColor: string, textColor: string): boolean => {
   return getContrastRatio(bgColor, textColor) >= 7.0;
 };

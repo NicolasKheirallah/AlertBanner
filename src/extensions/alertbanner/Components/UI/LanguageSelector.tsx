@@ -2,14 +2,11 @@ import * as React from 'react';
 import { logger } from '../Services/LoggerService';
 import {
   Dropdown,
-  Option,
-  Button,
-  Menu,
-  MenuTrigger,
-  MenuPopover,
-  MenuList,
-  MenuItem
-} from '@fluentui/react-components';
+  DefaultButton,
+  IconButton,
+  IDropdownOption,
+  IContextualMenuItem,
+} from "@fluentui/react";
 import { LocalLanguage24Regular } from '@fluentui/react-icons';
 import { useLocalization } from '../Hooks/useLocalization';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
@@ -32,6 +29,28 @@ const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
     setLanguage 
   } = useLocalization();
 
+  const dropdownOptions = React.useMemo<IDropdownOption[]>(
+    () =>
+      supportedLanguages.map((language) => ({
+        key: language.code,
+        text: `${language.nativeName} (${language.name})`,
+      })),
+    [supportedLanguages],
+  );
+
+  const compactMenuItems = React.useMemo<IContextualMenuItem[]>(
+    () =>
+      supportedLanguages.map((language) => ({
+        key: language.code,
+        text: `${language.nativeName} (${language.name})`,
+        disabled: language.code === currentLanguage.code,
+        onClick: () => {
+          void handleLanguageChange(language.code);
+        },
+      })),
+    [supportedLanguages, currentLanguage.code],
+  );
+
   const handleLanguageChange = async (languageCode: string) => {
     try {
       await setLanguage(languageCode);
@@ -43,34 +62,13 @@ const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
 
   if (compact) {
     return (
-      <Menu>
-        <MenuTrigger disableButtonEnhancement>
-          <Button
-            appearance="subtle"
-            icon={<LocalLanguage24Regular />}
-            aria-label={strings.ChangeLanguage}
-            title={strings.ChangeLanguage}
-            className={className}
-            size="small"
-          />
-        </MenuTrigger>
-        <MenuPopover>
-          <MenuList>
-            {supportedLanguages.map((language) => (
-              <MenuItem
-                key={language.code}
-                onClick={() => handleLanguageChange(language.code)}
-                disabled={language.code === currentLanguage.code}
-              >
-                <div className={styles.languageOption}>
-                  <span className={styles.languageName}>{language.nativeName}</span>
-                  <span className={styles.languageCode}>({language.name})</span>
-                </div>
-              </MenuItem>
-            ))}
-          </MenuList>
-        </MenuPopover>
-      </Menu>
+      <IconButton
+        onRenderIcon={() => <LocalLanguage24Regular />}
+        ariaLabel={strings.ChangeLanguage}
+        title={strings.ChangeLanguage}
+        className={`${styles.compactButton} ${className || ""}`}
+        menuProps={{ items: compactMenuItems }}
+      />
     );
   }
 
@@ -79,26 +77,14 @@ const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
       <Dropdown
         aria-label={strings.SelectLanguage}
         placeholder={strings.SelectLanguage}
-        value={currentLanguage.nativeName}
-        onOptionSelect={(_, data) => {
-          if (data.optionValue && data.optionValue !== currentLanguage.code) {
-            handleLanguageChange(data.optionValue);
+        selectedKey={currentLanguage.code}
+        options={dropdownOptions}
+        onChange={(_, option) => {
+          if (option?.key && option.key !== currentLanguage.code) {
+            void handleLanguageChange(String(option.key));
           }
         }}
-      >
-        {supportedLanguages.map((language) => (
-          <Option
-            key={language.code}
-            value={language.code}
-            text={language.nativeName}
-          >
-            <div className={styles.languageOption}>
-              <span className={styles.languageName}>{language.nativeName}</span>
-              <span className={styles.languageCode}>({language.name})</span>
-            </div>
-          </Option>
-        ))}
-      </Dropdown>
+      />
     </div>
   );
 };

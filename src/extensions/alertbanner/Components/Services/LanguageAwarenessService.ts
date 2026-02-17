@@ -34,9 +34,6 @@ export interface IMultiLanguageAlert {
   languageGroup: string;
 }
 
-/**
- * Service for managing language-aware alert content and audience targeting
- */
 export class LanguageAwarenessService {
   private graphClient: MSGraphClientV3;
   private context: ApplicationCustomizerContext;
@@ -51,9 +48,6 @@ export class LanguageAwarenessService {
     this.context = context;
   }
 
-  /**
-   * Get tenant's default language from SharePoint context
-   */
   public getTenantDefaultLanguage(): TargetLanguage {
     try {
       const spLanguage = (window as any)._spPageContextInfo?.currentCultureName;
@@ -73,12 +67,9 @@ export class LanguageAwarenessService {
       );
     }
 
-    return TargetLanguage.EnglishUS; // Default fallback
+    return TargetLanguage.EnglishUS;
   }
 
-  /**
-   * Get all supported languages for the tenant
-   */
   public static getSupportedLanguages(): ISupportedLanguage[] {
     return SUPPORTED_LANGUAGES.map((lang) => ({
       code: lang.code as TargetLanguage,
@@ -90,9 +81,6 @@ export class LanguageAwarenessService {
     }));
   }
 
-  /**
-   * Detect user's preferred language from browser, Azure AD, or SharePoint profile
-   */
   public async getUserPreferredLanguage(): Promise<TargetLanguage> {
     if (this.cachedPreferredLanguage) {
       return this.cachedPreferredLanguage;
@@ -143,7 +131,6 @@ export class LanguageAwarenessService {
   }
 
   private getBrowserLanguage(): TargetLanguage | null {
-    // Check full array of preferred languages (navigator.languages is supported in modern browsers)
     const languages = navigator.languages || [navigator.language];
 
     for (const lang of languages) {
@@ -194,9 +181,6 @@ export class LanguageAwarenessService {
     return null;
   }
 
-  /**
-   * Map various language codes to our TargetLanguage enum
-   */
   private mapLanguageCode(languageCode: string): TargetLanguage {
     const code = languageCode.toLowerCase();
 
@@ -225,9 +209,6 @@ export class LanguageAwarenessService {
     return languageMap[code] || TargetLanguage.EnglishUS;
   }
 
-  /**
-   * Map SharePoint LCID to our TargetLanguage enum
-   */
   private mapSharePointLCID(lcid: number): TargetLanguage {
     const lcidMap: { [key: number]: TargetLanguage } = {
       1033: TargetLanguage.EnglishUS,
@@ -243,9 +224,6 @@ export class LanguageAwarenessService {
     return lcidMap[lcid] || TargetLanguage.EnglishUS;
   }
 
-  /**
-   * Filter and prioritize alerts based on user's preferred language with fallback logic
-   */
   public filterAlertsForUser(
     alerts: IAlertItem[],
     userLanguage: TargetLanguage,
@@ -265,8 +243,6 @@ export class LanguageAwarenessService {
         }
         alertGroups.get(alert.languageGroup)!.push(alert);
       } else {
-        // Handle standalone alerts (non-multi-language)
-        // Show if: targetLanguage is "all" (case-insensitive), matches user's language, or matches tenant default
         const alertLang = (
           alert.targetLanguage || TargetLanguage.All
         )?.toLowerCase();
@@ -302,12 +278,10 @@ export class LanguageAwarenessService {
         }
       }
 
-      // Try to find alert in user's preferred language
       let selectedAlert = candidateAlerts.find(
         (alert) => alert.targetLanguage === userLanguage,
       );
 
-      // If not found, try to find alert marked as "available for all"
       if (!selectedAlert) {
         const availableForAllAlert = candidateAlerts.find(
           (alert) => alert.availableForAll,
@@ -317,7 +291,6 @@ export class LanguageAwarenessService {
         }
       }
 
-      // If still not found, fall back to configured policy language
       if (!selectedAlert) {
         const fallbackLanguage =
           effectivePolicy.fallbackLanguage === "tenant-default"
@@ -328,14 +301,12 @@ export class LanguageAwarenessService {
         );
       }
 
-      // If still not found, fall back to tenant default language
       if (!selectedAlert) {
         selectedAlert = candidateAlerts.find(
           (alert) => alert.targetLanguage === tenantDefault,
         );
       }
 
-      // Last resort: pick the first available alert in the group
       if (!selectedAlert) {
         selectedAlert = candidateAlerts[0];
       }
@@ -355,9 +326,6 @@ export class LanguageAwarenessService {
     return [...selectedAlerts, ...standaloneAlerts];
   }
 
-  /**
-   * Create a multi-language alert with content for each language
-   */
   public createMultiLanguageAlert(
     baseAlert: Omit<IAlertItem, "title" | "description" | "linkDescription">,
     content: ILanguageContent[],
@@ -375,9 +343,6 @@ export class LanguageAwarenessService {
     };
   }
 
-  /**
-   * Validate multi-language content has at least one complete language
-   */
   public validateMultiLanguageContent(content: ILanguageContent[]): {
     isValid: boolean;
     errors: string[];
@@ -419,9 +384,6 @@ export class LanguageAwarenessService {
     return { isValid: errors.length === 0, errors };
   }
 
-  /**
-   * Generate individual alert items from multi-language alert
-   */
   public generateAlertItems(multiLangAlert: IMultiLanguageAlert): IAlertItem[] {
     return multiLangAlert.content.map((content) => ({
       ...multiLangAlert.baseAlert,
@@ -437,10 +399,6 @@ export class LanguageAwarenessService {
     }));
   }
 
-  /**
-   * Get language-specific content for editing multi-language alerts
-   * Deduplicates by language to ensure each language appears only once
-   */
   public getLanguageContent(
     alerts: IAlertItem[],
     languageGroup: string,

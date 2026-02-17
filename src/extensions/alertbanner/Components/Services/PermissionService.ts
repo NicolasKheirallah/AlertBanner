@@ -1,8 +1,3 @@
-/**
- * Permission Service - Validates and manages Microsoft Graph permissions
- * Provides audit logging for high-privilege operations
- */
-
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { logger } from './LoggerService';
@@ -22,25 +17,17 @@ export interface IPermissionStatus {
   error?: string;
 }
 
-/**
- * Auditable operation metadata
- * targetSite is optional for now but recommended for all write operations
- */
 export interface IAuditableOperation {
   operation: string;
-  targetSite?: string;          // Graph site ID: host,guid,guid (recommended)
-  targetSiteUrl?: string;       // Human-readable URL for logs
-  targetSiteName?: string;      // Site title for logs
+  targetSite?: string;
+  targetSiteUrl?: string;
+  targetSiteName?: string;
   targetList?: string;
   itemCount?: number;
   justification?: string;
   error?: string;
 }
 
-/**
- * Service for managing Graph API permissions with audit logging
- * All write operations are logged for security compliance
- */
 export class PermissionService {
   private static instance: PermissionService;
   private context: ApplicationCustomizerContext;
@@ -60,9 +47,6 @@ export class PermissionService {
     return PermissionService.instance;
   }
 
-  /**
-   * Initialize Graph client and validate permissions
-   */
   public async initialize(): Promise<void> {
     try {
       this.graphClient = await this.context.msGraphClientFactory.getClient('3') as MSGraphClientV3;
@@ -87,9 +71,6 @@ export class PermissionService {
     }
   }
 
-  /**
-   * Validate all required permissions
-   */
   public async validateAllPermissions(): Promise<IPermissionStatus[]> {
     const now = Date.now();
     if (now - this.lastPermissionCheck < this.PERMISSION_CACHE_TTL && this.permissionCache.size > 0) {
@@ -112,9 +93,6 @@ export class PermissionService {
     return results;
   }
 
-  /**
-   * Check if a specific permission is granted
-   */
   private async checkPermission(scope: GraphPermission): Promise<IPermissionStatus> {
     const graphClient = await this.ensureGraphClient();
     if (!graphClient) {
@@ -122,15 +100,12 @@ export class PermissionService {
     }
 
     try {
-      // Test permission by making a lightweight API call
       switch (scope) {
         case GraphPermission.SitesReadWriteAll:
-          // Try to access current site as permission test
           await graphClient.api('/sites/root').select('id').get();
           break;
         case GraphPermission.MailSend:
           // Mail.Send can only be tested by attempting to send
-          // We'll check this during actual send operations
           break;
         case GraphPermission.UserRead:
           await graphClient.api('/me').select('id').get();
@@ -169,26 +144,17 @@ export class PermissionService {
     }
   }
 
-  /**
-   * Check if Sites.ReadWrite.All is granted
-   */
   public async canWriteSites(): Promise<boolean> {
     const status = await this.checkPermission(GraphPermission.SitesReadWriteAll);
     return status.granted;
   }
 
-  /**
-   * Check if Mail.Send is granted
-   */
   public async canSendMail(): Promise<boolean> {
     const status = await this.checkPermission(GraphPermission.MailSend);
     return status.granted;
   }
 
-  /**
-   * Log auditable operation for security compliance
-   * All write operations must be logged
-   */
+  // Log auditable operation for security compliance - all write operations must be logged
   public logAuditableOperation(operation: IAuditableOperation): void {
     const auditEntry = {
       timestamp: new Date().toISOString(),
@@ -200,28 +166,20 @@ export class PermissionService {
       ...operation
     };
 
-    // Log to console (in production, send to App Insights)
     logger.info('AUDIT', `Auditable operation: ${operation.operation}`, auditEntry);
-
-    // In production, also send to secure audit log
     this.sendToAuditLog(auditEntry);
   }
 
-  /**
-   * Execute write operation with audit logging and permission check
-   */
   public async executeWriteOperation<T>(
     operation: () => Promise<T>,
     audit: IAuditableOperation
   ): Promise<T> {
-    // Enrich audit with current context if not provided
     const enrichedAudit: IAuditableOperation = {
       ...audit,
       targetSiteUrl: audit.targetSiteUrl || this.context.pageContext.web.absoluteUrl,
       targetSiteName: audit.targetSiteName || this.context.pageContext.web.title
     };
 
-    // Verify permission first
     const canWrite = await this.canWriteSites();
     if (!canWrite) {
       const siteContext = enrichedAudit.targetSiteName || enrichedAudit.targetSiteUrl || 'target site';
@@ -239,7 +197,6 @@ export class PermissionService {
       throw error;
     }
 
-    // Log the operation start
     this.logAuditableOperation({
       ...enrichedAudit,
       operation: `${audit.operation}_START`
@@ -248,7 +205,6 @@ export class PermissionService {
     try {
       const result = await operation();
       
-      // Log success
       this.logAuditableOperation({
         ...enrichedAudit,
         operation: `${audit.operation}_SUCCESS`
@@ -256,14 +212,12 @@ export class PermissionService {
       
       return result;
     } catch (error) {
-      // Create enriched error with site context
       const errorMessage = (error as Error).message;
       const siteContext = enrichedAudit.targetSiteName || enrichedAudit.targetSiteUrl || 'target site';
       const enrichedError = new Error(
         `Operation ${audit.operation} failed on site "${siteContext}": ${errorMessage}`
       );
       
-      // Log failure with full context
       this.logAuditableOperation({
         ...enrichedAudit,
         operation: `${audit.operation}_FAILED`,
@@ -274,13 +228,10 @@ export class PermissionService {
     }
   }
 
-  /**
-   * Get admin consent URL for tenant admin
-   */
   public getAdminConsentUrl(): string {
     const tenantId = this.context.pageContext.aadInfo?.tenantId;
     const clientId = this.context.pageContext.aadInfo?.instanceId || 
-                     '00000003-0000-0ff1-ce00-000000000000'; // Graph API app ID
+                     '00000003-0000-0ff1-ce00-000000000000';
     
     const scopes = [
       GraphPermission.SitesReadWriteAll,
@@ -290,9 +241,6 @@ export class PermissionService {
     return `https://login.microsoftonline.com/${tenantId}/adminconsent?client_id=${clientId}&scope=${encodeURIComponent(scopes)}`;
   }
 
-  /**
-   * Show permission guidance to user
-   */
   public showPermissionGuidance(missingPermissions: GraphPermission[]): void {
     const permissionNames = missingPermissions.map(p => p.valueOf()).join(', ');
     
@@ -304,13 +252,11 @@ export class PermissionService {
   }
 
   private getCorrelationId(): string {
-    // Get SPFx correlation ID or generate
     return (this.context as any).correlationId || 
            `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 
   private sendToAuditLog(entry: any): void {
-    // Integration point for Azure Monitor, App Insights, or custom audit endpoint
     if ((window as any).appInsights) {
       (window as any).appInsights.trackEvent({
         name: 'AlertBannerAudit',
@@ -319,9 +265,6 @@ export class PermissionService {
     }
   }
 
-  /**
-   * Clear permission cache (call after admin consent is granted)
-   */
   public clearCache(): void {
     this.permissionCache.clear();
     this.lastPermissionCheck = 0;

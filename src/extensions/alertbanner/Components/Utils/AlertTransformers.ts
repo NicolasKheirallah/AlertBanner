@@ -14,15 +14,9 @@ import { JsonUtils } from "./JsonUtils";
 import { SiteIdUtils } from "./SiteIdUtils";
 import { DEFAULT_ALERT_TYPE_NAME } from "./AppConstants";
 
-/**
- * Utility class for transforming SharePoint items to alert objects
- * Consolidates duplicate transformation logic from AlertsContext and SharePointAlertService
- */
+// Utility class for transforming SharePoint items to alert objects
 export class AlertTransformers {
-  /**
-   * Parse target sites field from SharePoint
-   * Handles arrays, JSON strings, and CSV strings
-   */
+  // Parse target sites field from SharePoint - handles arrays, JSON strings, and CSV strings
   public static parseTargetSitesField(raw: any): string[] {
     if (!raw) {
       return [];
@@ -54,10 +48,7 @@ export class AlertTransformers {
     return [];
   }
 
-  /**
-   * Map Person field data from SharePoint to IPersonField
-   * Handles multiple SharePoint field formats
-   */
+  // Map Person field data from SharePoint to IPersonField
   public static mapPersonFieldData(
     personField: any,
     isGroup: boolean,
@@ -92,10 +83,7 @@ export class AlertTransformers {
     };
   }
 
-  /**
-   * Map target users from SharePoint field
-   * Handles both single user and array of users
-   */
+  // Map target users from SharePoint field - handles both single user and array of users
   public static mapTargetUsers(targetUsersField: any): IPersonField[] {
     if (!targetUsersField) {
       return [];
@@ -121,9 +109,6 @@ export class AlertTransformers {
     }
   }
 
-  /**
-   * Parse alert priority from SharePoint field
-   */
   public static parsePriority(priorityField: any): AlertPriority {
     if (!priorityField) {
       return AlertPriority.Medium;
@@ -138,20 +123,20 @@ export class AlertTransformers {
     }
   }
 
-  /**
-   * Determine content type from SharePoint fields
-   * Checks both ItemType and ContentType fields
-   */
+  // Determine content type from SharePoint fields - checks both ItemType and ContentType fields
   public static parseContentType(fields: any): ContentType {
+    const status = (fields.Status || "").toLowerCase();
+
     // Check ItemType field first (preferred)
     if (fields.ItemType) {
       const itemType = fields.ItemType.toLowerCase();
       if (itemType === "template") {
         return ContentType.Template;
-      } else if (itemType === "alert") {
-        return ContentType.Alert;
       } else if (itemType === "draft") {
         return ContentType.Draft;
+      } else if (itemType === "alert") {
+        // Backward-compat: older draft rows may have ItemType=alert with Status=Draft
+        return status === "draft" ? ContentType.Draft : ContentType.Alert;
       }
     }
 
@@ -165,22 +150,21 @@ export class AlertTransformers {
       }
     }
 
+    // Last fallback for legacy rows without draft ItemType markers
+    if (status === "draft") {
+      return ContentType.Draft;
+    }
+
     // Default to Alert
     return ContentType.Alert;
   }
 
-  /**
-   * Extract created date from SharePoint item
-   */
   public static extractCreatedDate(item: any, fields: any): string {
     return (
       item.createdDateTime || fields?.CreatedDateTime || fields?.Created || ""
     );
   }
 
-  /**
-   * Extract created by from SharePoint item
-   */
   public static extractCreatedBy(item: any, fields: any): string {
     return (
       item.createdBy?.user?.displayName ||
@@ -191,9 +175,6 @@ export class AlertTransformers {
     );
   }
 
-  /**
-   * Safely parse metadata field
-   */
   public static parseMetadata(value: any): any {
     if (!value) {
       return undefined;
@@ -216,10 +197,7 @@ export class AlertTransformers {
     return parsed || undefined;
   }
 
-  /**
-   * Create original list item for multi-language support
-   * Used by SharePointAlertService for complete data preservation
-   */
+  // Create original list item for multi-language support
   public static createOriginalListItem(item: any, fields: any): IAlertListItem {
     return {
       Id: parseInt(item.id.toString()),
@@ -248,7 +226,7 @@ export class AlertTransformers {
       LanguageGroup: fields.LanguageGroup || "",
       AvailableForAll: fields.AvailableForAll || false,
       TranslationStatus: fields.TranslationStatus || TranslationStatus.Approved,
-      ContentStatus: fields.ContentStatus || ContentStatus.Draft,
+      ContentStatus: fields.ContentStatus || ContentStatus.Approved,
       Reviewer: fields.Reviewer || undefined,
       ReviewNotes: fields.ReviewNotes || "",
       SubmittedDate: fields.SubmittedDate || undefined,
@@ -256,10 +234,7 @@ export class AlertTransformers {
     };
   }
 
-  /**
-   * Normalize site ID to extract the site GUID for consistent alert ID generation
-   * Handles multiple formats
-   */
+  // Normalize site ID to extract the site GUID for consistent alert ID generation
   private static normalizeSiteIdForAlertId(siteId: string): string {
     if (!siteId) {
       return "";
@@ -275,12 +250,7 @@ export class AlertTransformers {
     return SiteIdUtils.normalizeGuid(siteId);
   }
 
-  /**
-   * Map SharePoint item to IAlertItem (simplified version for AlertsContext)
-   * @param item - SharePoint list item from Graph API
-   * @param siteId - Site ID for alert identification (will be normalized)
-   * @param includeOriginalItem - Whether to include _originalListItem (default: false)
-   */
+  // Map SharePoint item to IAlertItem
   public static mapSharePointItemToAlert(
     item: any,
     siteId: string,

@@ -23,9 +23,20 @@
   }
 }
 
+.previewHeaderDynamic {
+  background: #ffffff;
+  color: #323130;
+}
+
+.headerTitle {
+  color: inherit;
+}
+
 .previewNote {
   font-size: 12px;
   font-style: italic;
+  color: inherit;
+  opacity: 0.9;
 }
 
 .alertPreview {
@@ -243,6 +254,51 @@
   border: 1px solid #c8c6c4;
   border-radius: 2px;
   flex-shrink: 0;
+}
+
+.colorSwatchBackground {
+  background-color: #0078d4;
+}
+
+.colorSwatchText {
+  background-color: #323130;
+}
+
+$preview-color-tokens: (
+  "0078d4": #0078d4,
+  "107c10": #107c10,
+  "ff8c00": #ff8c00,
+  "d13438": #d13438,
+  "5c2d91": #5c2d91,
+  "00bcf2": #00bcf2,
+  "ca5010": #ca5010,
+  "8764b8": #8764b8,
+  "00b7c3": #00b7c3,
+  "bad80a": #bad80a,
+  "ffaa44": #ffaa44,
+  "e81123": #e81123,
+  "767676": #767676,
+  "323130": #323130,
+  "000000": #000000,
+  "ffffff": #ffffff
+);
+
+@each $token, $value in $preview-color-tokens {
+  .previewHeaderBg#{$token} {
+    background: $value;
+  }
+
+  .previewHeaderFg#{$token} {
+    color: $value;
+  }
+
+  .colorSwatchBg#{$token} {
+    background-color: $value;
+  }
+
+  .colorSwatchText#{$token} {
+    background-color: $value;
+  }
 }
 
 .priorityBadge {

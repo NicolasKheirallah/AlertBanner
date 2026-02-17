@@ -1,15 +1,13 @@
 import * as React from "react";
 import {
   Dialog,
-  DialogSurface,
-  DialogBody,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Textarea,
+  DialogType,
+  DialogFooter,
+  DefaultButton,
+  PrimaryButton,
+  TextField,
   Label,
-} from "@fluentui/react-components";
+} from "@fluentui/react";
 
 export interface IConfirmDialogOptions {
   title: string;
@@ -101,68 +99,60 @@ export const useFluentDialogs = (): IUseFluentDialogsResult => {
   const dialogs = (
     <>
       <Dialog
-        open={!!confirmState?.open}
-        onOpenChange={(_, data) => {
-          if (!data.open) {
-            closeConfirm(false);
-          }
+        hidden={!confirmState?.open}
+        onDismiss={() => closeConfirm(false)}
+        dialogContentProps={{
+          type: DialogType.normal,
+          title: confirmState?.title,
+          subText: confirmState?.message,
+        }}
+        modalProps={{
+          isBlocking: false,
         }}
       >
-        <DialogSurface>
-          <DialogBody>
-            <DialogTitle>{confirmState?.title}</DialogTitle>
-            <DialogContent>{confirmState?.message}</DialogContent>
-            <DialogActions>
-              <Button appearance="secondary" onClick={() => closeConfirm(false)}>
-                {confirmState?.cancelText || "Cancel"}
-              </Button>
-              <Button appearance="primary" onClick={() => closeConfirm(true)}>
-                {confirmState?.confirmText || "Confirm"}
-              </Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
+        <DialogFooter>
+          <DefaultButton onClick={() => closeConfirm(false)}>
+            {confirmState?.cancelText || "Cancel"}
+          </DefaultButton>
+          <PrimaryButton onClick={() => closeConfirm(true)}>
+            {confirmState?.confirmText || "Confirm"}
+          </PrimaryButton>
+        </DialogFooter>
       </Dialog>
 
       <Dialog
-        open={!!promptState?.open}
-        onOpenChange={(_, data) => {
-          if (!data.open) {
-            closePrompt(null);
-          }
+        hidden={!promptState?.open}
+        onDismiss={() => closePrompt(null)}
+        dialogContentProps={{
+          type: DialogType.normal,
+          title: promptState?.title,
+        }}
+        modalProps={{
+          isBlocking: false,
         }}
       >
-        <DialogSurface>
-          <DialogBody>
-            <DialogTitle>{promptState?.title}</DialogTitle>
-            <DialogContent>
-              <p>{promptState?.message}</p>
-              {promptState?.label && <Label>{promptState.label}</Label>}
-              <Textarea
-                value={promptState?.value || ""}
-                placeholder={promptState?.placeholder}
-                onChange={(_, data) =>
-                  setPromptState((prev) =>
-                    prev ? { ...prev, value: data.value } : prev,
-                  )
-                }
-                resize="vertical"
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button appearance="secondary" onClick={() => closePrompt(null)}>
-                {promptState?.cancelText || "Cancel"}
-              </Button>
-              <Button
-                appearance="primary"
-                disabled={!!promptState?.required && !promptState.value.trim()}
-                onClick={() => closePrompt(promptState?.value ?? "")}
-              >
-                {promptState?.confirmText || "Submit"}
-              </Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
+        <p>{promptState?.message}</p>
+        {promptState?.label && <Label>{promptState.label}</Label>}
+        <TextField
+          multiline={promptState?.multiline !== false}
+          rows={3}
+          value={promptState?.value || ""}
+          placeholder={promptState?.placeholder}
+          onChange={(_, value) =>
+            setPromptState((prev) => (prev ? { ...prev, value: value || "" } : prev))
+          }
+        />
+        <DialogFooter>
+          <DefaultButton onClick={() => closePrompt(null)}>
+            {promptState?.cancelText || "Cancel"}
+          </DefaultButton>
+          <PrimaryButton
+            disabled={!!promptState?.required && !promptState.value.trim()}
+            onClick={() => closePrompt(promptState?.value ?? "")}
+          >
+            {promptState?.confirmText || "Submit"}
+          </PrimaryButton>
+        </DialogFooter>
       </Dialog>
     </>
   );
@@ -173,4 +163,3 @@ export const useFluentDialogs = (): IUseFluentDialogsResult => {
     dialogs,
   };
 };
-

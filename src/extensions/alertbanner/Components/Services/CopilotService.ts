@@ -9,23 +9,14 @@ export interface ICopilotResponse {
   citations?: ICopilotCitation[];
 }
 
-/**
- * Citation returned by Copilot when grounding with enterprise/web data.
- */
 export interface ICopilotCitation {
   title: string;
   url?: string;
   snippet?: string;
 }
 
-/**
- * Supported tones for Copilot draft generation.
- */
 export type CopilotTone = "Professional" | "Urgent" | "Casual";
 
-/**
- * Structured governance analysis result parsed from Copilot response.
- */
 export interface IGovernanceResult {
   isProfessional: boolean;
   isToneAppropriate: boolean;
@@ -34,17 +25,11 @@ export interface IGovernanceResult {
   rawContent: string;
 }
 
-/**
- * File context for grounding Copilot responses with SharePoint/OneDrive data.
- */
 export interface ICopilotFileContext {
   id: string;
   source: "oneDrive" | "sharePoint";
 }
 
-/**
- * Metadata for a Copilot conversation returned by the API.
- */
 interface IConversationMetadata {
   id: string;
   createdDateTime: string;
@@ -52,36 +37,14 @@ interface IConversationMetadata {
   turnCount: number;
 }
 
-/**
- * Service for interacting with the Microsoft 365 Copilot Chat API via Microsoft Graph.
- *
- * API Reference: https://learn.microsoft.com/en-us/graph/api/overview?view=graph-rest-beta
- *
- * IMPORTANT: This uses the /beta/copilot/conversations endpoint which is
- * in preview and subject to change. Not recommended for production use.
- *
- * Endpoints:
- *   POST /beta/copilot/conversations        → Create a new conversation
- *   POST /beta/copilot/conversations/{id}/chat → Send a message
- *
- * Required delegated permissions:
- *   - Sites.ReadWrite.All (already granted for list operations)
- *   - User.Read
- *   - Mail.Send
- *   - GroupMember.Read.All
- *   - Directory.Read.All
- *
- * Optional Copilot grounding permissions (expand what data Copilot can access):
- *   - Mail.Read, People.Read.All, Chat.Read, ChannelMessage.Read.All,
- *     ExternalItem.Read.All — not required for alert drafting/translation
- *
- * Each user must have a Microsoft 365 Copilot license.
- *
- * @file CopilotService.ts
- * @author Nicolas Kheirallah
- * @version 6.0.0
- * @since 2026-02-15
- */
+interface ICopilotLocationHint {
+  timeZone: string;
+  countryOrRegion?: string;
+}
+
+// Service for interacting with the Microsoft 365 Copilot Chat API via Microsoft Graph.
+// Uses the /beta/copilot/conversations endpoint which is in preview and subject to change.
+// Each user must have a Microsoft 365 Copilot license.
 export class CopilotService {
   private graphClient: MSGraphClientV3;
   private readonly endpoint = "/copilot/conversations";
@@ -90,7 +53,7 @@ export class CopilotService {
   private copilotAvailability: "unknown" | "available" | "unavailable" =
     "unknown";
 
-  /** Maximum conversation age (30 minutes) before forcing a new one. */
+  // Maximum conversation age (30 minutes) before forcing a new one
   private static readonly MAX_CONVERSATION_AGE_MS = 30 * 60 * 1000;
   private static readonly COPILOT_UNAVAILABLE_MESSAGE =
     "Copilot API is not available in this environment.";
@@ -99,23 +62,44 @@ export class CopilotService {
     this.graphClient = graphClient;
   }
 
-  /**
-   * Builds a Copilot Graph request against the beta API version.
-   * MSGraphClientV3 defaults to v1.0, so beta must be selected explicitly.
-   */
+  // Builds a Copilot Graph request against the beta API version
   private copilotApi(pathSuffix: string = "") {
     return this.graphClient
       .api(`${this.endpoint}${pathSuffix}`)
       .version("beta");
   }
 
-  /**
-   * Performs basic normalization/escaping before interpolating user input
-   * into prompt templates.
-   *
-   * @param input - Raw user input
-   * @returns Sanitized string for prompt interpolation
-   */
+  // Builds location data required by Copilot chat requests
+  private buildLocationHint(): ICopilotLocationHint {
+    let timeZone = "UTC";
+    try {
+      const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (typeof resolved === "string" && resolved.trim().length > 0) {
+        timeZone = resolved.trim();
+      }
+    } catch {
+      // Keep UTC fallback when browser/environment cannot resolve time zone
+    }
+
+    let countryOrRegion: string | undefined;
+    if (typeof navigator !== "undefined") {
+      const navLanguage =
+        typeof navigator.language === "string" ? navigator.language : "";
+      if (navLanguage) {
+        const regionMatch = navLanguage.match(/[-_]([A-Za-z]{2})$/);
+        if (regionMatch?.[1]) {
+          countryOrRegion = regionMatch[1].toUpperCase();
+        }
+      }
+    }
+
+    return {
+      timeZone,
+      countryOrRegion,
+    };
+  }
+
+  // Performs basic normalization/escaping before interpolating user input into prompt templates
   private sanitizeInput(input: string): string {
     return input
       .replace(/\\/g, "\\\\")
@@ -125,13 +109,7 @@ export class CopilotService {
       .trim();
   }
 
-  /**
-   * Generates a draft alert based on the provided user prompt (keywords).
-   *
-   * @param keywords - The user's input keywords or rough draft
-   * @param tone - The desired tone for the generated draft
-   * @returns The AI-generated draft text
-   */
+  // Generates a draft alert based on the provided user prompt (keywords)
   public async generateDraft(
     keywords: string,
     tone: CopilotTone = "Professional",
@@ -166,13 +144,7 @@ export class CopilotService {
     }
   }
 
-  /**
-   * Analyzes the sentiment and tone of the provided text.
-   * Returns a structured governance result with a green/yellow/red status.
-   *
-   * @param text - The alert text to analyze
-   * @returns Analysis response
-   */
+  // Analyzes the sentiment and tone of the provided text
   public async analyzeSentiment(text: string): Promise<ICopilotResponse> {
     const abortController = this.beginOperation();
     try {
@@ -209,12 +181,7 @@ export class CopilotService {
     }
   }
 
-  /**
-   * Parses a raw governance analysis response into a structured result.
-   *
-   * @param rawContent - The raw string response from analyzeSentiment
-   * @returns Parsed governance result with typed fields
-   */
+  // Parses a raw governance analysis response into a structured result
   public parseGovernanceResult(rawContent: string): IGovernanceResult {
     const lines = rawContent.split("\n").map((l) => l.trim());
     const result: IGovernanceResult = {
@@ -275,13 +242,7 @@ export class CopilotService {
     return result;
   }
 
-  /**
-   * Translates the provided text to the target language.
-   *
-   * @param text - The text to translate
-   * @param targetLanguage - The target language (e.g., "French", "German")
-   * @returns The translated text
-   */
+  // Translates the provided text to the target language
   public async translateText(
     text: string,
     targetLanguage: string,
@@ -317,14 +278,7 @@ export class CopilotService {
     }
   }
 
-  /**
-   * Sends a message with SharePoint/OneDrive file context for grounding.
-   * Copilot will use the file contents to produce more relevant responses.
-   *
-   * @param prompt - The message text
-   * @param files - Array of file references for context grounding
-   * @returns Copilot's grounded response
-   */
+  // Sends a message with SharePoint/OneDrive file context for grounding
   public async sendWithContext(
     prompt: string,
     files: ICopilotFileContext[],
@@ -354,21 +308,21 @@ export class CopilotService {
     }
   }
 
-  /**
-   * Checks if the current user has access to Copilot APIs
-   * by attempting to create a conversation. A 403 typically means
-   * either missing permissions or no M365 Copilot license.
-   */
+  // Checks if the current user has access to Copilot APIs
   public async checkAccess(): Promise<boolean> {
     const abortController = this.beginOperation();
     try {
       if (this.copilotAvailability === "unavailable") {
         return false;
       }
-      // Force a fresh API call to avoid stale true from cached conversation.
+      // Force a fresh API call to avoid stale true from cached conversation
       await this.ensureConversation(true, abortController.signal);
       return true;
     } catch (error) {
+      if (this.isAbortError(error)) {
+        // Silently handle abort errors - these are expected when component unmounts
+        return false;
+      }
       const statusCode = this.getErrorStatusCode(error);
       if (statusCode === 401 || statusCode === 403) {
         logger.warn(
@@ -385,9 +339,6 @@ export class CopilotService {
     }
   }
 
-  /**
-   * Cancels any active Copilot operation.
-   */
   public cancelActiveOperation(): void {
     if (this.activeAbortControllers.size === 0) {
       return;
@@ -396,18 +347,11 @@ export class CopilotService {
     this.activeAbortControllers.clear();
   }
 
-  /**
-   * Clears the cached conversation, forcing a new conversation
-   * on the next API call.
-   */
   public resetConversation(): void {
     this.cachedConversation = null;
   }
 
-  /**
-   * Ensures a conversation exists, re-using a cached conversation
-   * when available and not expired. Creates a new conversation if needed.
-   */
+  // Ensures a conversation exists, re-using a cached conversation when available
   private async ensureConversation(
     forceRefresh: boolean = false,
     signal?: AbortSignal,
@@ -464,9 +408,6 @@ export class CopilotService {
     }
   }
 
-  /**
-   * Checks if the cached conversation has exceeded the max age.
-   */
   private isConversationExpired(): boolean {
     if (!this.cachedConversation) return true;
 
@@ -476,18 +417,7 @@ export class CopilotService {
     return age > CopilotService.MAX_CONVERSATION_AGE_MS;
   }
 
-  /**
-   * Sends a message to a Copilot conversation via the /chat endpoint
-   * and returns the reply.
-   *
-   * API: POST /beta/copilot/conversations/{id}/chat
-   * Body: { message: { text: "..." }, context?: { files: [...] } }
-   *
-   * @param conversationId - The conversation to send to
-   * @param content - The message text
-   * @param context - Optional file context for grounding
-   * @param enableWebGrounding - Whether to enable web search grounding
-   */
+  // Sends a message to a Copilot conversation via the /chat endpoint
   private async sendMessage(
     conversationId: string,
     content: string,
@@ -499,6 +429,7 @@ export class CopilotService {
       message: {
         text: content,
       },
+      locationHint: this.buildLocationHint(),
     };
 
     if (context?.files && context.files.length > 0) {
@@ -567,10 +498,7 @@ export class CopilotService {
     }
   }
 
-  /**
-   * Extracts the response text from the API response object.
-   * Handles multiple possible response shapes from the beta API.
-   */
+  // Extracts the response text from the API response object
   private extractResponseText(response: Record<string, unknown>): string {
     // Shape 1: { message: { text: "..." } }
     const message = response.message as Record<string, unknown> | undefined;
@@ -602,11 +530,7 @@ export class CopilotService {
     return JSON.stringify(response);
   }
 
-  /**
-   * Extracts citations from the API response, if present.
-   * Citations indicate which enterprise or web data sources
-   * Copilot used to ground its response.
-   */
+  // Extracts citations from the API response, if present
   private extractCitations(
     response: Record<string, unknown>,
   ): ICopilotCitation[] {
@@ -624,9 +548,7 @@ export class CopilotService {
     }));
   }
 
-  /**
-   * Maps HTTP error codes to user-friendly messages.
-   */
+  // Maps HTTP error codes to user-friendly messages
   private getFriendlyErrorMessage(error: unknown): string {
     if (this.isAbortError(error)) {
       return "Copilot request was canceled.";

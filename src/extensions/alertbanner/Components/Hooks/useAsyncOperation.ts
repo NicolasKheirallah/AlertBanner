@@ -1,8 +1,3 @@
-/**
- * Custom React hook for async operations with loading, error, and success states
- * Consolidates duplicate async state management patterns from across components
- */
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { logger } from '../Services/LoggerService';
 import { ErrorUtils } from '../Utils/ErrorUtils';
@@ -34,25 +29,6 @@ export interface IAsyncOperationReturn<T, TArgs extends any[]> {
   clearError: () => void;
 }
 
-/**
- * Hook for managing async operations with loading, error, and success states
- *
- * @example
- * const { loading, error, data, execute, message } = useAsyncOperation(
- *   async (alertId: string) => {
- *     return await alertService.deleteAlert(alertId);
- *   },
- *   {
- *     successMessage: 'Alert deleted successfully',
- *     onSuccess: () => refreshAlerts()
- *   }
- * );
- *
- * // Later in component
- * <Button onClick={() => execute(alertId)} disabled={loading}>
- *   {loading ? 'Deleting...' : 'Delete'}
- * </Button>
- */
 export function useAsyncOperation<T, TArgs extends any[] = []>(
   operation: (...args: TArgs) => Promise<T>,
   options: IAsyncOperationOptions<T> = {}
@@ -204,19 +180,6 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
   };
 }
 
-/**
- * Hook for managing async operations with immediate execution on mount
- *
- * @example
- * const { loading, error, data, refresh } = useAsyncOperationImmediate(
- *   async () => {
- *     return await alertService.getAllAlerts();
- *   },
- *   {
- *     onError: (error) => console.error('Failed to load alerts', error)
- *   }
- * );
- */
 export function useAsyncOperationImmediate<T, TArgs extends any[] = []>(
   operation: (...args: TArgs) => Promise<T>,
   options: IAsyncOperationOptions<T> = {},
@@ -240,20 +203,6 @@ export function useAsyncOperationImmediate<T, TArgs extends any[] = []>(
   };
 }
 
-/**
- * Hook for managing async operations with polling/interval execution
- *
- * @example
- * const { loading, error, data, startPolling, stopPolling } = useAsyncOperationPolling(
- *   async () => {
- *     return await alertService.getAllAlerts();
- *   },
- *   {
- *     interval: 5000, // Poll every 5 seconds
- *     onError: (error) => console.error('Polling failed', error)
- *   }
- * );
- */
 export function useAsyncOperationPolling<T, TArgs extends any[] = []>(
   operation: (...args: TArgs) => Promise<T>,
   options: IAsyncOperationOptions<T> & {

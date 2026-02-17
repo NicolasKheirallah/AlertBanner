@@ -24,8 +24,10 @@
 
 .uploadButton {
   margin: 0 4px;
-  min-width: 32px;
-  height: 32px;
+  min-width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
 
   &:hover {
     background-color: #f3f2f1;

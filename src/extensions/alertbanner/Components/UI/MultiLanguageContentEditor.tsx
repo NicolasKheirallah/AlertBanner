@@ -1,24 +1,14 @@
 import * as React from "react";
 import {
-  Tab,
-  TabList,
-  Card,
-  CardHeader,
-  Text,
-  Button,
-  Field,
-  Badge,
-  Checkbox,
-  MessageBar,
-  MessageBarBody,
-  Spinner,
-  Dialog,
-  DialogSurface,
-  DialogTitle,
-  DialogBody,
-  DialogActions,
-  DialogContent,
-} from "@fluentui/react-components";
+  DefaultButton,
+  PrimaryButton,
+  Spinner as FluentSpinner,
+  SpinnerSize,
+  Checkbox as FluentCheckbox,
+  MessageBar as FluentMessageBar,
+  MessageBarType,
+  Dialog as FluentDialog,
+} from "@fluentui/react";
 import {
   Add24Regular,
   Dismiss24Regular,
@@ -45,6 +35,255 @@ import {
 import { CopilotService } from "../Services/CopilotService";
 import { SparkleRegular } from "@fluentui/react-icons";
 import { logger } from "../Services/LoggerService";
+
+const cx = (...classes: Array<string | undefined | false>): string =>
+  classes.filter(Boolean).join(" ");
+
+const Card: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div className={styles.f2Card}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{
+  header?: React.ReactNode;
+  description?: React.ReactNode;
+}> = ({ header, description }) => (
+  <div className={styles.f2CardHeader}>
+    {header}
+    {description}
+  </div>
+);
+
+const Text: React.FC<{
+  children?: React.ReactNode;
+  size?: number;
+  weight?: "regular" | "medium" | "semibold" | "bold";
+  className?: string;
+}> = ({ children, size, weight, className }) => (
+  <span
+    className={cx(
+      styles.f2Text,
+      size === 100 && styles.f2Text100,
+      size === 200 && styles.f2Text200,
+      size === 300 && styles.f2Text300,
+      size === 400 && styles.f2Text400,
+      size === 500 && styles.f2Text500,
+      weight === "regular" && styles.f2TextRegular,
+      weight === "medium" && styles.f2TextMedium,
+      weight === "semibold" && styles.f2TextSemibold,
+      weight === "bold" && styles.f2TextBold,
+      className,
+    )}
+  >
+    {children}
+  </span>
+);
+
+const Button: React.FC<{
+  children?: React.ReactNode;
+  appearance?: "primary" | "secondary" | "subtle";
+  size?: "small" | "medium" | "large";
+  icon?: React.ReactNode;
+  onClick?: () => void | Promise<void>;
+  disabled?: boolean;
+  title?: string;
+  className?: string;
+}> = ({ children, appearance = "secondary", icon, onClick, disabled, title, className, size }) => {
+  const buttonClassName = cx(
+    styles.f2Button,
+    appearance === "primary" && styles.f2ButtonPrimary,
+    appearance === "subtle" && styles.f2ButtonSubtle,
+    size === "small" && styles.f2ButtonSmall,
+    className,
+  );
+
+  const commonProps = {
+    onRenderIcon: icon ? () => <>{icon}</> : undefined,
+    onClick: onClick as any,
+    disabled,
+    title,
+    className: buttonClassName,
+  };
+
+  if (appearance === "primary") {
+    return <PrimaryButton {...commonProps}>{children}</PrimaryButton>;
+  }
+
+  return <DefaultButton {...commonProps}>{children}</DefaultButton>;
+};
+
+const Field: React.FC<{
+  children?: React.ReactNode;
+  label?: React.ReactNode;
+  required?: boolean;
+  validationMessage?: React.ReactNode;
+  validationState?: "error" | "warning" | "success";
+}> = ({ children, label, required, validationMessage, validationState }) => (
+  <div className={styles.f2Field}>
+    {label ? (
+      <label className={styles.f2FieldLabel}>
+        {label}
+        {required && <span className={styles.f2FieldRequired}> *</span>}
+      </label>
+    ) : null}
+    {children}
+    {validationMessage && (
+      <div
+        className={cx(
+          styles.f2ValidationMessage,
+          validationState === "warning" && styles.f2ValidationWarning,
+          validationState === "success" && styles.f2ValidationSuccess,
+          (!validationState || validationState === "error") &&
+            styles.f2ValidationError,
+        )}
+      >
+        {validationMessage}
+      </div>
+    )}
+  </div>
+);
+
+const Badge: React.FC<{
+  children?: React.ReactNode;
+  className?: string;
+  size?: "small" | "large";
+  color?: string;
+}> = ({ children, className, size }) => (
+  <span
+    className={cx(
+      styles.f2Badge,
+      size === "large" && styles.f2BadgeLarge,
+      className,
+    )}
+  >
+    {children}
+  </span>
+);
+
+const Checkbox: React.FC<{
+  checked?: boolean;
+  label?: React.ReactNode;
+  onChange?: (event: React.FormEvent<HTMLElement> | undefined, data: { checked?: boolean }) => void;
+}> = ({ checked, label, onChange }) => (
+  <FluentCheckbox
+    checked={checked}
+    label={typeof label === "string" ? label : undefined}
+    onRenderLabel={typeof label === "string" || typeof label === "undefined" ? undefined : () => <>{label}</>}
+    onChange={(event, isChecked) =>
+      onChange?.(event as React.FormEvent<HTMLElement>, { checked: isChecked })
+    }
+  />
+);
+
+const MessageBar: React.FC<{
+  intent?: "error" | "warning" | "success" | "info";
+  children?: React.ReactNode;
+}> = ({ intent = "info", children }) => (
+  <FluentMessageBar
+    messageBarType={
+      intent === "error"
+        ? MessageBarType.error
+        : intent === "warning"
+          ? MessageBarType.warning
+          : intent === "success"
+            ? MessageBarType.success
+            : MessageBarType.info
+    }
+    isMultiline
+  >
+    {children}
+  </FluentMessageBar>
+);
+
+const MessageBarBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => <>{children}</>;
+
+const Spinner: React.FC<{ size?: "tiny" | "small" | "medium" | "large"; label?: string }> = ({
+  size = "medium",
+  label,
+}) => (
+  <FluentSpinner
+    size={
+      size === "tiny"
+        ? SpinnerSize.xSmall
+        : size === "small"
+          ? SpinnerSize.small
+          : size === "large"
+            ? SpinnerSize.large
+            : SpinnerSize.medium
+    }
+    label={label}
+  />
+);
+
+const TabContext = React.createContext<{
+  selectedValue?: string;
+  onTabSelect?: (
+    event: React.MouseEvent<HTMLButtonElement>,
+    data: { value: string },
+  ) => void;
+}>({});
+
+const TabList: React.FC<{
+  selectedValue?: string;
+  onTabSelect?: (
+    event: React.MouseEvent<HTMLButtonElement>,
+    data: { value: string },
+  ) => void;
+  children?: React.ReactNode;
+}> = ({ selectedValue, onTabSelect, children }) => (
+  <TabContext.Provider value={{ selectedValue, onTabSelect }}>
+    <div role="tablist" className={styles.f2TabList}>
+      {children}
+    </div>
+  </TabContext.Provider>
+);
+
+const Tab: React.FC<{ value: string; children?: React.ReactNode }> = ({
+  value,
+  children,
+}) => {
+  const { selectedValue, onTabSelect } = React.useContext(TabContext);
+  const selected = selectedValue === value;
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={(event) => onTabSelect?.(event, { value })}
+      className={cx(styles.f2Tab, selected && styles.f2TabSelected)}
+    >
+      {children}
+    </button>
+  );
+};
+
+const Dialog: React.FC<{
+  open: boolean;
+  onOpenChange?: (
+    event: React.SyntheticEvent<HTMLElement> | undefined,
+    data: { open: boolean },
+  ) => void;
+  children?: React.ReactNode;
+}> = ({ open, onOpenChange, children }) => (
+  <FluentDialog
+    hidden={!open}
+    onDismiss={(event) => onOpenChange?.(event as React.SyntheticEvent<HTMLElement>, { open: false })}
+    modalProps={{ isBlocking: false }}
+  >
+    {children}
+  </FluentDialog>
+);
+
+const DialogSurface: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+const DialogBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+const DialogTitle: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div className={styles.f2DialogTitle}>{children}</div>
+);
+const DialogContent: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+const DialogActions: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div className={styles.f2DialogActions}>{children}</div>
+);
 
 export interface IMultiLanguageContentEditorProps {
   content: ILanguageContent[];
@@ -153,10 +392,6 @@ const MultiLanguageContentEditor: React.FC<
     return availableLanguages.find((l) => l.code === language);
   };
 
-  /**
-   * Translates the default language content into the specified target language
-   * using the CopilotService. Translates title and description in parallel.
-   */
   const handleTranslate = React.useCallback(
     async (
       targetLanguage: string,
@@ -349,7 +584,7 @@ const MultiLanguageContentEditor: React.FC<
               >
                 <span>{language.flag}</span>
                 <span>{language.nativeName}</span>
-                <Add24Regular style={{ width: "14px", height: "14px" }} />
+                <Add24Regular className={styles.languageAddIcon} />
               </button>
             ))}
           </div>
@@ -444,7 +679,7 @@ const MultiLanguageContentEditor: React.FC<
 
                   {copilotService &&
                     contentItem.language !== tenantDefaultLanguage && (
-                      <div style={{ marginBottom: "16px" }}>
+                      <div className={styles.translationRow}>
                         <Button
                           appearance="subtle"
                           disabled={translatingLanguages.includes(

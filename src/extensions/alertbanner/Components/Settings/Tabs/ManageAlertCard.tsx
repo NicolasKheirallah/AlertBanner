@@ -39,6 +39,9 @@ export interface IManageAlertCardProps {
   supportedLanguageMap: Map<string, ISupportedLanguage>;
 }
 
+const normalizeColorToken = (color?: string): string =>
+  (color || "").toLowerCase().replace("#", "").replace(/[^a-f0-9]/g, "");
+
 const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
   alert,
   isSelected,
@@ -82,6 +85,26 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
     supportedLanguageMap,
   ]);
 
+  const colorClassMap = styles as unknown as Record<string, string>;
+
+  const indicatorBackgroundClass =
+    colorClassMap[
+      `colorBg${normalizeColorToken(
+        alert.AlertType
+          ? alertTypeStyle?.backgroundColor
+          : alert.contentType === ContentType.Template
+            ? "#8764b8"
+            : "#0078d4",
+      )}`
+    ] || colorClassMap["colorBg0078d4"] || "";
+
+  const indicatorTextClass =
+    colorClassMap[
+      `colorText${normalizeColorToken(
+        alert.AlertType ? alertTypeStyle?.textColor : "#ffffff",
+      )}`
+    ] || colorClassMap["colorTextffffff"] || "";
+
   return (
     <div
       className={`${styles.alertCard} ${isSelected ? styles.selected : ""} ${alert.contentType === ContentType.Template ? styles.templateCard : ""}`}
@@ -119,58 +142,22 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
         </div>
       </div>
 
-      <div
-        className={styles.alertCardContent}
-        style={
-          alert.contentType === ContentType.Template
-            ? {
-                display: "block",
-                visibility: "visible",
-                opacity: 1,
-              }
-            : {}
-        }
-      >
-        {alert.AlertType ? (
-          <div
-            className={styles.alertTypeIndicator}
-            style={
-              {
-                "--bg-color": alertTypeStyle?.backgroundColor || "#0078d4",
-                "--text-color": alertTypeStyle?.textColor || "#ffffff",
-              } as React.CSSProperties
-            }
-          >
-            {alert.AlertType}
-          </div>
-        ) : (
-          <div
-            className={styles.alertTypeIndicator}
-            style={
-              {
-                "--bg-color":
-                  alert.contentType === ContentType.Template ? "#8764b8" : "#0078d4",
-                "--text-color": "#ffffff",
-              } as React.CSSProperties
-            }
-          >
-            {alert.contentType === ContentType.Template
+      <div className={styles.alertCardContent}>
+        <div
+          className={`${styles.alertTypeIndicator} ${indicatorBackgroundClass} ${indicatorTextClass}`}
+        >
+          {alert.AlertType
+            ? alert.AlertType
+            : alert.contentType === ContentType.Template
               ? strings.ManageAlertsTemplateBadge
               : strings.ManageAlertsAlertBadge}
-          </div>
-        )}
+        </div>
 
         <h4 className={styles.alertCardTitle}>
           {alert.title || strings.ManageAlertsNoTitleFallback}
           {isMultiLanguage && (
             <span className={styles.multiLanguageBadge}>
-              <Globe24Regular
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  marginRight: "4px",
-                }}
-              />
+              <Globe24Regular className={styles.multiLanguageIcon} />
               {Text.format(
                 strings.ManageAlertsLanguageBadge,
                 alert.languageVariants?.length || 0,
@@ -189,7 +176,7 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
               }}
             />
           ) : (
-            <em style={{ color: "#999" }}>{strings.ManageAlertsNoDescriptionFallback}</em>
+            <em className={styles.noDescriptionText}>{strings.ManageAlertsNoDescriptionFallback}</em>
           )}
         </div>
 

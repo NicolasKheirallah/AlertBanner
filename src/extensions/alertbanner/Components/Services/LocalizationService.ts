@@ -98,39 +98,28 @@ export class LocalizationService {
     }
   }
 
-  /**
-   * Initialize the localization service
-   */
   public async initialize(context?: ApplicationCustomizerContext): Promise<void> {
     if (context) {
       this._context = context;
     }
 
-    // Detect current language
     const detectedLanguage = this.detectUserLanguage();
     this._currentLanguage = this.getSupportedLanguage(detectedLanguage);
 
-    // Load language strings
     await this.loadLanguageStrings(this._currentLanguage);
     
-    // Load fallback language (English) if current language is not English
     if (this._currentLanguage !== 'en-us') {
       await this.loadFallbackStrings();
     }
   }
 
-  /**
-   * Get localized string by key
-   */
   public getString(key: string, ...args: any[]): string {
     let value = this._strings[key];
     
-    // Fall back to English if string not found in current language
     if (!value && this._fallbackStrings[key]) {
       value = this._fallbackStrings[key];
     }
 
-    // Return key if no translation found
     if (!value) {
       logger.warn('LocalizationService', `Localization key not found: ${key}`);
       return key;
@@ -143,23 +132,14 @@ export class LocalizationService {
     return value;
   }
 
-  /**
-   * Get all supported languages
-   */
   public getSupportedLanguages(): ILanguageInfo[] {
     return [...this._supportedLanguages];
   }
 
-  /**
-   * Get current language info
-   */
   public getCurrentLanguage(): ILanguageInfo {
     return this._supportedLanguages.find(lang => lang.code === this._currentLanguage) || this._supportedLanguages[0];
   }
 
-  /**
-   * Change current language
-   */
   public async setLanguage(languageCode: string): Promise<void> {
     const supportedLanguage = this.getSupportedLanguage(languageCode);
     
@@ -172,17 +152,11 @@ export class LocalizationService {
     }
   }
 
-  /**
-   * Check if current language is RTL
-   */
   public isRTL(): boolean {
     const currentLang = this.getCurrentLanguage();
     return currentLang ? currentLang.isRTL : false;
   }
 
-  /**
-   * Format date according to current locale
-   */
   public formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const locale = this._currentLanguage.replace('-', '-');
@@ -197,14 +171,10 @@ export class LocalizationService {
     try {
       return dateObj.toLocaleDateString(locale, defaultOptions);
     } catch (error) {
-      // Fallback to English if locale not supported
       return dateObj.toLocaleDateString('en-US', defaultOptions);
     }
   }
 
-  /**
-   * Format time according to current locale
-   */
   public formatTime(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const locale = this._currentLanguage.replace('-', '-');
@@ -218,14 +188,10 @@ export class LocalizationService {
     try {
       return dateObj.toLocaleTimeString(locale, defaultOptions);
     } catch (error) {
-      // Fallback to English if locale not supported
       return dateObj.toLocaleTimeString('en-US', defaultOptions);
     }
   }
 
-  /**
-   * Format relative time (e.g., "2 hours ago")
-   */
   public formatRelativeTime(date: Date | string): string {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const now = new Date();
@@ -262,21 +228,16 @@ export class LocalizationService {
     }
   }
 
-  // Private methods
-
   private detectUserLanguage(): string {
     let language = 'en-us';
 
     try {
-      // Try to get language from SharePoint context
       if (this._context?.pageContext?.cultureInfo?.currentUICultureName) {
         language = this._context.pageContext.cultureInfo.currentUICultureName.toLowerCase();
       }
-      // Try to get from browser
       else if (navigator.language) {
         language = navigator.language.toLowerCase();
       }
-      // Try to get from stored preference
       else {
         const stored = localStorage.getItem('alertbanner-language');
         if (stored) {
@@ -293,12 +254,10 @@ export class LocalizationService {
   private getSupportedLanguage(languageCode: string): string {
     const normalizedCode = languageCode.toLowerCase();
     
-    // Check exact match first
     if (this._supportedLanguages.some(lang => lang.code === normalizedCode)) {
       return normalizedCode;
     }
 
-    // Check language without region (e.g., 'en' from 'en-gb')
     const languageOnly = normalizedCode.split('-')[0];
     const matchedLanguage = this._supportedLanguages.find(lang => 
       lang.code.startsWith(languageOnly)

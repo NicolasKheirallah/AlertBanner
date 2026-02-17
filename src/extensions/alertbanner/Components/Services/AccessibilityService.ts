@@ -1,4 +1,3 @@
-
 import { logger } from './LoggerService';
 import { getContrastRatio } from '../Utils/ColorUtils';
 
@@ -6,7 +5,7 @@ export interface IAccessibilityReport {
   violations: IAccessibilityViolation[];
   warnings: IAccessibilityWarning[];
   recommendations: IAccessibilityRecommendation[];
-  score: number; // 0-100
+  score: number;
 }
 
 export interface IAccessibilityViolation {
@@ -50,7 +49,6 @@ export class AccessibilityService {
   private announcer: HTMLElement | null = null;
   private devMode: boolean = false;
 
-  // WCAG AA minimum contrast ratios
   private readonly contrastRatios = {
     normal: 4.5,
     large: 3,
@@ -70,21 +68,14 @@ export class AccessibilityService {
     return AccessibilityService._instance;
   }
 
-  /**
-   * Initialize screen reader announcer
-   */
   private initializeAnnouncer(): void {
     try {
-      // Create or find existing announcer
       this.announcer = document.getElementById('a11y-announcer') || this.createAnnouncer();
     } catch (error) {
       logger.error('AccessibilityService', 'Failed to initialize announcer', error);
     }
   }
 
-  /**
-   * Create screen reader announcer element
-   */
   private createAnnouncer(): HTMLElement {
     const announcer = document.createElement('div');
     announcer.id = 'a11y-announcer';
@@ -92,7 +83,6 @@ export class AccessibilityService {
     announcer.setAttribute('aria-atomic', 'true');
     announcer.className = 'sr-only';
     
-    // Visually hidden but accessible to screen readers
     announcer.style.cssText = `
       position: absolute !important;
       left: -10000px !important;
@@ -110,41 +100,26 @@ export class AccessibilityService {
     return announcer;
   }
 
-  /**
-   * Enable development mode for accessibility auditing
-   * Call this in development environments to enable audit features
-   */
   public enableDevMode(): void {
     this.devMode = true;
     logger.info('AccessibilityService', 'Development mode enabled - accessibility auditing active');
   }
 
-  /**
-   * Disable development mode
-   */
   public disableDevMode(): void {
     this.devMode = false;
     logger.info('AccessibilityService', 'Development mode disabled');
   }
 
-  /**
-   * Check if dev mode is enabled
-   */
   public isDevMode(): boolean {
     return this.devMode;
   }
 
-  /**
-   * Setup global accessibility monitoring
-   * Note: Only active in dev mode
-   */
   private setupGlobalAccessibilityMonitoring(): void {
     if (!this.devMode) {
       logger.debug('AccessibilityService', 'Global accessibility monitoring disabled (dev mode off)');
       return;
     }
 
-    // Monitor for dynamically added content in dev mode
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
@@ -167,9 +142,6 @@ export class AccessibilityService {
     logger.debug('AccessibilityService', 'Global accessibility monitoring enabled');
   }
 
-  /**
-   * Announce message to screen readers
-   */
   public announce(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
     if (!this.announcer) {
       logger.warn('AccessibilityService', 'Announcer not available');
@@ -177,10 +149,8 @@ export class AccessibilityService {
     }
 
     try {
-      // Update aria-live attribute based on priority
       this.announcer.setAttribute('aria-live', priority);
       
-      // Clear previous message and set new one
       this.announcer.textContent = '';
       setTimeout(() => {
         if (this.announcer) {
@@ -194,12 +164,6 @@ export class AccessibilityService {
     }
   }
 
-  /**
-   * Calculate color contrast ratio
-   */
-  /**
-   * Calculate contrast ratio using ColorUtils (consolidated implementation)
-   */
   public calculateContrastRatio(color1: string, color2: string): IColorContrastResult {
     try {
       const ratio = getContrastRatio(color1, color2);
@@ -223,18 +187,13 @@ export class AccessibilityService {
     }
   }
 
-  /**
-   * Manage focus for modals and dialogs
-   */
   public manageFocus(container: HTMLElement, options: IFocusManagementOptions = {}): () => void {
     try {
-      // Store current focused element
       const previousFocusedElement = document.activeElement as HTMLElement;
       if (options.restoreFocus && previousFocusedElement) {
         this.focusStack.push(previousFocusedElement);
       }
 
-      // Set initial focus
       if (options.initialFocusTarget) {
         const target = typeof options.initialFocusTarget === 'string'
           ? container.querySelector(options.initialFocusTarget) as HTMLElement
@@ -244,21 +203,18 @@ export class AccessibilityService {
           setTimeout(() => target.focus(), 0);
         }
       } else {
-        // Focus first focusable element
         const firstFocusable = this.findFocusableElements(container)[0];
         if (firstFocusable) {
           setTimeout(() => firstFocusable.focus(), 0);
         }
       }
 
-      // Setup focus trap if requested
       let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
       if (options.trapFocus) {
         keydownHandler = this.createFocusTrap(container);
         document.addEventListener('keydown', keydownHandler);
       }
 
-      // Return cleanup function
       return () => {
         if (keydownHandler) {
           document.removeEventListener('keydown', keydownHandler);
@@ -273,13 +229,10 @@ export class AccessibilityService {
       };
     } catch (error) {
       logger.error('AccessibilityService', 'Error managing focus', error);
-      return () => {}; // Return no-op cleanup
+      return () => {};
     }
   }
 
-  /**
-   * Create focus trap for modal/dialog
-   */
   private createFocusTrap(container: HTMLElement): (e: KeyboardEvent) => void {
     return (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
@@ -291,13 +244,11 @@ export class AccessibilityService {
       const lastElement = focusableElements[focusableElements.length - 1];
 
       if (e.shiftKey) {
-        // Shift + Tab
         if (document.activeElement === firstElement) {
           e.preventDefault();
           lastElement.focus();
         }
       } else {
-        // Tab
         if (document.activeElement === lastElement) {
           e.preventDefault();
           firstElement.focus();
@@ -306,9 +257,6 @@ export class AccessibilityService {
     };
   }
 
-  /**
-   * Find all focusable elements within a container
-   */
   private findFocusableElements(container: HTMLElement): HTMLElement[] {
     const focusableSelectors = [
       'a[href]',
@@ -327,10 +275,7 @@ export class AccessibilityService {
     });
   }
 
-  /**
-   * Audit element for accessibility issues (DEV MODE ONLY)
-   * Performs comprehensive WCAG compliance checks
-   */
+  // Audit element for accessibility issues - DEV MODE ONLY
   public auditElement(element: HTMLElement): IAccessibilityReport | null {
     if (!this.devMode) {
       logger.debug('AccessibilityService', 'Audit skipped - dev mode disabled');
@@ -342,7 +287,6 @@ export class AccessibilityService {
     const recommendations: IAccessibilityRecommendation[] = [];
 
     try {
-      // Check for missing alt text on images
       const images = element.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
       images.forEach((img: HTMLImageElement) => {
         if (!img.getAttribute('alt') && !img.getAttribute('aria-label')) {
@@ -357,7 +301,6 @@ export class AccessibilityService {
         }
       });
 
-      // Check for proper heading hierarchy
       const headings = Array.from(element.querySelectorAll('h1, h2, h3, h4, h5, h6')) as HTMLElement[];
       let previousLevel = 0;
       headings.forEach((heading: HTMLElement) => {
@@ -375,7 +318,6 @@ export class AccessibilityService {
         previousLevel = level;
       });
 
-      // Check for buttons without accessible names
       const buttons = element.querySelectorAll('button');
       buttons.forEach(button => {
         const hasAccessibleName = button.textContent?.trim() ||
@@ -394,7 +336,6 @@ export class AccessibilityService {
         }
       });
 
-      // Check for form inputs without labels
       const inputs = element.querySelectorAll('input, select, textarea') as NodeListOf<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
       inputs.forEach((input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) => {
         const hasLabel = input.getAttribute('aria-label') ||
@@ -413,7 +354,6 @@ export class AccessibilityService {
         }
       });
 
-      // Check for interactive elements without focus indicators
       const interactiveElements = element.querySelectorAll('button, a, input, select, textarea, [tabindex]');
       interactiveElements.forEach(el => {
         const styles = window.getComputedStyle(el, ':focus');
@@ -426,7 +366,6 @@ export class AccessibilityService {
         }
       });
 
-      // Calculate accessibility score
       const totalChecks = 10;
       const violationWeight = violations.reduce((sum, v) => {
         switch (v.severity) {
@@ -465,13 +404,6 @@ export class AccessibilityService {
   }
 
 
-  /**
-   * Add keyboard navigation support to a container
-   * Useful for custom components that need enhanced keyboard interaction
-   * @param container - Container element to add keyboard navigation to
-   * @param options - Navigation options (arrow keys, enter activation, escape handling)
-   * @returns Cleanup function to remove event listeners
-   */
   public addKeyboardNavigation(container: HTMLElement, options: {
     arrowKeys?: boolean;
     enterActivates?: boolean;
@@ -481,7 +413,6 @@ export class AccessibilityService {
     const keydownHandler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
 
-      // Handle Enter key activation
       if (options.enterActivates && e.key === 'Enter') {
         if (target.getAttribute('role') === 'button' && target.click) {
           e.preventDefault();
@@ -489,14 +420,12 @@ export class AccessibilityService {
         }
       }
 
-      // Handle Escape key
       if (options.escapeCloses && e.key === 'Escape') {
         if (options.onEscape) {
           options.onEscape();
         }
       }
 
-      // Handle arrow key navigation
       if (options.arrowKeys && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         const focusableElements = this.findFocusableElements(container);
         const currentIndex = focusableElements.indexOf(target);
@@ -530,9 +459,6 @@ export class AccessibilityService {
     };
   }
 
-  /**
-   * Cleanup all observers and resources
-   */
   public cleanup(): void {
     this.observers.forEach(observer => observer.disconnect());
     this.observers.clear();
@@ -545,5 +471,4 @@ export class AccessibilityService {
   }
 }
 
-// Export singleton instance
 export const accessibilityService = AccessibilityService.getInstance();

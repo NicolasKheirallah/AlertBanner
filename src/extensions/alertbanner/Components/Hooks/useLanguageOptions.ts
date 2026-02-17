@@ -9,11 +9,6 @@ export interface ISharePointSelectOption {
   label: string;
 }
 
-/**
- * Custom hook to generate language options for dropdown/select components
- * @param supportedLanguages - Array of supported languages with availability status
- * @returns Array of formatted language options
- */
 export const useLanguageOptions = (
   supportedLanguages: ISupportedLanguage[]
 ): ISharePointSelectOption[] => {

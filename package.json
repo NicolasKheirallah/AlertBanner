@@ -3,20 +3,27 @@
   "version": "5.0.1",
   "private": true,
   "engines": {
-    "node": ">=22.14.0 < 23.0.0"
+    "node": ">=22.14.0 < 22.18.0"
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "heft build --clean && heft build --production && heft package-solution --production",
-    "clean": "heft clean",
-    "test": "heft test --clean",
-    "bundle": "heft bundle",
+    "build": "npm run clean && heft build --production && heft package-solution --production",
+    "clean": "node scripts/clean.js",
+    "deploy": "heft dev-deploy",
+    "build:clean": "npm run clean && npm run build",
+    "serve": "heft start --clean",
+    "build-watch": "heft build --lite",
+    "bundle": "heft build --production",
     "package-solution": "heft package-solution",
-    "lint": "eslint src/**/*.{ts,tsx}",
-    "lint:fix": "eslint src/**/*.{ts,tsx} --fix"
+    "deploy-azure-storage": "heft deploy-azure-storage",
+    "eject-webpack": "heft eject-webpack",
+    "trust-dev-cert": "heft trust-dev-cert",
+    "untrust-dev-cert": "heft untrust-dev-cert",
+    "lint": "eslint src/**/*.ts src/**/*.tsx",
+    "lint:fix": "eslint src/**/*.ts src/**/*.tsx --fix"
   },
   "dependencies": {
-    "@fluentui/react-components": "^9.73.0",
+    "@fluentui/react": "^8.125.4",
     "@fluentui/react-icons": "^2.0.319",
     "@fluentui/style-utilities": "^8.14.0",
     "@microsoft/decorators": "1.22.2",
@@ -53,7 +60,8 @@
     "@typescript-eslint/parser": "8.46.2",
     "eslint": "8.57.0",
     "eslint-plugin-react-hooks": "4.6.2",
-    "typescript": "5.9.3"
+    "rimraf": "^5.0.5",
+    "typescript": "5.8.3"
   },
   "overrides": {
     "@babel/runtime": ">=7.26.10",

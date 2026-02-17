@@ -33,3 +33,14 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+.ghostButton {
+  border: none;
+  background: transparent;
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.ghostButtonCompact {
+  padding: 0 6px;
+}

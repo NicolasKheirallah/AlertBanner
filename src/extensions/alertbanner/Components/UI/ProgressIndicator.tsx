@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { CheckmarkCircle24Filled, CircleSmall24Regular, ErrorCircle24Filled } from '@fluentui/react-icons';
-import { Spinner } from '@fluentui/react-components';
+import { Spinner, SpinnerSize } from "@fluentui/react";
 import styles from './ProgressIndicator.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text } from '@microsoft/sp-core-library';
@@ -37,13 +37,14 @@ const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({
   const failedSteps = steps.filter(step => step.status === StepStatus.Failed).length;
   const totalSteps = steps.length;
   const progressPercentage = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
+  const progressClass = styles[`progressFill${Math.round(Math.max(0, Math.min(100, progressPercentage)))}` as keyof typeof styles];
 
   const getStepIcon = (step: IProgressStep): JSX.Element => {
     switch (step.status) {
       case StepStatus.Completed:
         return <CheckmarkCircle24Filled className={styles.completedIcon} />;
       case StepStatus.InProgress:
-        return <Spinner size="tiny" />;
+        return <Spinner size={SpinnerSize.xSmall} />;
       case StepStatus.Failed:
         return <ErrorCircle24Filled className={styles.failedIcon} />;
       case StepStatus.Pending:
@@ -86,10 +87,7 @@ const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({
         </div>
 
         <div className={styles.progressBar}>
-          <div 
-            className={styles.progressFill} 
-            style={{ width: `${progressPercentage}%` }}
-          />
+          <div className={`${styles.progressFill} ${progressClass || ""}`} />
         </div>
       </div>
 

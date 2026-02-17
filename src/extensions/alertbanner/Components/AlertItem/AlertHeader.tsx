@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Text } from "@fluentui/react-components";
+import { IconButton } from "@fluentui/react";
 import {
   ChevronDown24Regular,
   ChevronUp24Regular,
@@ -67,11 +67,11 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
           </div>
         </div>
         <div className={styles.textSection}>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div className={styles.titleRow}>
             {item.title && (
-              <Text className={styles.alertTitle} size={500} weight="semibold">
+              <span className={styles.alertTitle}>
                 {item.title}
-              </Text>
+              </span>
             )}
             <span className={`${styles.priorityBadge} ${badgeClassName}`}>
               {priorityLabel}
@@ -89,17 +89,18 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
           )}
         </div>
         <div className={styles.actionSection}>
-          <Button
-            appearance="subtle"
-            icon={expanded ? <ChevronUp24Regular /> : <ChevronDown24Regular />}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
+          <IconButton
+            onRenderIcon={() =>
+              expanded ? <ChevronUp24Regular /> : <ChevronDown24Regular />
+            }
+            onClick={(e) => {
+              (e as unknown as React.MouseEvent).stopPropagation();
               toggleExpanded();
             }}
             aria-expanded={expanded}
             aria-controls={ariaControlsId}
             aria-label={expanded ? strings.CollapseAlert : strings.ExpandAlert}
-            size="small"
+            className={styles.iconButton}
           />
         </div>
       </>

@@ -57,6 +57,12 @@
   border-radius: 2px;
 }
 
+@for $i from 0 through 100 {
+  .progressFill#{$i} {
+    width: #{$i * 1%};
+  }
+}
+
 // Steps layout
 .stepsList {
   display: flex;

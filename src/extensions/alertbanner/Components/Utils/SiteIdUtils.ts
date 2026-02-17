@@ -1,20 +1,9 @@
-/**
- * Utility class for Site ID handling
- * Consolidates normalization and parsing logic for SharePoint and Graph IDs
- */
 export class SiteIdUtils {
-  /**
-   * Normalize a GUID string (remove braces, lowercase)
-   */
   public static normalizeGuid(guid: string): string {
     if (!guid) return "";
     return guid.replace(/[{}]/g, "").toLowerCase();
   }
 
-  /**
-   * Extract the Site GUID from a composite Graph ID
-   * Format: hostname,siteGuid,webGuid
-   */
   public static extractGuidFromGraphId(graphId: string): string | null {
     if (!graphId) return null;
     
@@ -35,18 +24,11 @@ export class SiteIdUtils {
     return null;
   }
 
-  /**
-   * Check if string is a GUID
-   */
   public static isGuid(str: string): boolean {
     const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return guidRegex.test(this.normalizeGuid(str));
   }
 
-  /**
-   * Normalize a Site ID for deduplication keys
-   * Returns clean GUID if possible, otherwise lowercased string
-   */
   public static createDedupKey(siteId: string): string {
     if (!siteId) return "";
     
@@ -62,10 +44,6 @@ export class SiteIdUtils {
     return this.normalizeGuid(siteId);
   }
 
-  /**
-   * Generates possible variations of a site identifier for matching (GUID, hostname, URL)
-   * used for comparing site targets against current context
-   */
   public static generateSiteVariations(input: string): string[] {
     if (!input) return [];
 
