@@ -17,7 +17,7 @@ export interface ICopilotCitation {
 
 export type CopilotTone = "Professional" | "Urgent" | "Casual";
 
-export interface IGovernanceResult {
+export interface ISentimentResult {
   isProfessional: boolean;
   isToneAppropriate: boolean;
   issues: string[];
@@ -114,18 +114,47 @@ export class CopilotService {
     keywords: string,
     tone: CopilotTone = "Professional",
   ): Promise<ICopilotResponse> {
+    return this.generateDraftWithContext(keywords, tone, false);
+  }
+
+  // Generates a draft with optional context about alert type/priority
+  public async generateDraftWithContext(
+    promptText: string,
+    tone: CopilotTone = "Professional",
+    isRefinement: boolean = false,
+  ): Promise<ICopilotResponse> {
     const abortController = this.beginOperation();
     try {
       const conversationId = await this.ensureConversation(
         false,
         abortController.signal,
       );
-      const sanitizedKeywords = this.sanitizeInput(keywords);
+      const sanitizedPrompt = this.sanitizeInput(promptText);
 
-      const prompt = `You are an assistant for a SharePoint Administrator. 
-      Draft a ${tone.toLowerCase()} alert banner message based on these keywords: "${sanitizedKeywords}".
-      The message should be suitable for a corporate intranet. 
-      Return ONLY the message text, no pleasantries or introductions.`;
+      let prompt: string;
+      if (isRefinement) {
+        // For refinements, the promptText already contains the full instruction
+        prompt = `You are an assistant for a SharePoint Administrator. 
+Refine this ${tone.toLowerCase()} alert banner message based on the following instruction:
+
+${sanitizedPrompt}
+
+Requirements:
+- Keep it under 200 words
+- Suitable for a corporate intranet
+- Be direct and actionable
+- Return ONLY the refined message text, no explanations or markdown.`;
+      } else {
+        prompt = `You are an assistant for a SharePoint Administrator. 
+Draft a ${tone.toLowerCase()} alert banner message.
+Context and keywords: "${sanitizedPrompt}"
+
+Requirements:
+- Keep it under 200 words
+- Suitable for a corporate intranet
+- Be direct and actionable
+- Return ONLY the message text, no explanations or markdown.`;
+      }
 
       return await this.sendMessage(
         conversationId,
@@ -162,7 +191,8 @@ export class CopilotService {
       TONE_APPROPRIATE: Yes or No
       ISSUES: comma-separated list of issues, or "None"
       STATUS: Green, Yellow, or Red
-      SUMMARY: one sentence summary of your analysis`;
+      SUMMARY: one sentence summary of your analysis
+      SUGGESTIONS: If there are issues, provide 1-2 specific suggestions to improve the text. Otherwise "None"`;
 
       return await this.sendMessage(
         conversationId,
@@ -181,10 +211,10 @@ export class CopilotService {
     }
   }
 
-  // Parses a raw governance analysis response into a structured result
-  public parseGovernanceResult(rawContent: string): IGovernanceResult {
+  // Parses a raw sentiment analysis response into a structured result
+  public parseSentimentResult(rawContent: string): ISentimentResult {
     const lines = rawContent.split("\n").map((l) => l.trim());
-    const result: IGovernanceResult = {
+    const result: ISentimentResult = {
       isProfessional: false,
       isToneAppropriate: false,
       issues: [],
@@ -500,24 +530,34 @@ export class CopilotService {
 
   // Extracts the response text from the API response object
   private extractResponseText(response: Record<string, unknown>): string {
-    // Shape 1: { message: { text: "..." } }
+    // Shape 1: { messages: [{ text: "..." }, { text: "response" }] }
+    // The Copilot API returns messages array where last item is the AI response
+    const messages = response.messages as Array<Record<string, unknown>> | undefined;
+    if (messages && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.text) {
+        return String(lastMessage.text);
+      }
+    }
+
+    // Shape 2: { message: { text: "..." } }
     const message = response.message as Record<string, unknown> | undefined;
     if (message?.text) {
       return String(message.text);
     }
 
-    // Shape 2: { value: [{ content: "..." }] }
+    // Shape 3: { value: [{ content: "..." }] }
     const value = response.value as Array<Record<string, unknown>> | undefined;
     if (value && value.length > 0 && value[0].content) {
       return String(value[0].content);
     }
 
-    // Shape 3: { text: "..." }
+    // Shape 4: { text: "..." }
     if (response.text) {
       return String(response.text);
     }
 
-    // Shape 4: { content: "..." }
+    // Shape 5: { content: "..." }
     if (response.content) {
       return String(response.content);
     }

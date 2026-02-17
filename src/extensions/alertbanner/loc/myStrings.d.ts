@@ -846,6 +846,8 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CopilotTranslationFailed: string;
   CopilotDraftButton: string;
   CopilotDraftTitle: string;
+  CopilotPreviewTitle: string;
+  CopilotAcceptDraft: string;
   CopilotKeywordsLabel: string;
   CopilotKeywordsPlaceholder: string;
   CopilotToneLabel: string;
@@ -858,18 +860,69 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CopilotUnexpectedError: string;
   CopilotErrorTitle: string;
   CopilotCheckingLabel: string;
-  CopilotGovernanceButton: string;
-  CopilotGovernanceAnalysisTitle: string;
+  CopilotSentimentButton: string;
+  CopilotSentimentAnalysisTitle: string;
   CopilotNoIssuesFound: string;
   CopilotAnalyzeFailed: string;
   CopilotTranslatingLabel: string;
   CopilotTranslateButton: string;
   CopilotOverwriteConfirmationTitle: string;
   CopilotOverwriteConfirmButton: string;
-  CopilotGovernanceStatusGreen: string;
-  CopilotGovernanceStatusYellow: string;
-  CopilotGovernanceStatusRed: string;
-  CopilotGovernanceSummaryLabel: string;
+  CopilotSentimentStatusGreen: string;
+  CopilotSentimentStatusYellow: string;
+  CopilotSentimentStatusRed: string;
+  CopilotSentimentSummaryLabel: string;
+
+  // Copilot Draft - Tips and Examples
+  CopilotTipsToggleLabel: string;
+  CopilotTipsCloseAriaLabel: string;
+  CopilotTipsItem1: string;
+  CopilotTipsItem2: string;
+  CopilotTipsItem3: string;
+  CopilotTipsItem4: string;
+  CopilotExamplesLabel: string;
+  CopilotExamplePrompt1: string;
+  CopilotExamplePrompt2: string;
+  CopilotExamplePrompt3: string;
+  CopilotExamplePrompt4: string;
+  CopilotInputLabel: string;
+  CopilotInputPlaceholder: string;
+  CopilotCharLimitError: string;
+  CopilotKeyboardHint: string;
+  CopilotToneSelectorLabel: string;
+  CopilotToneProfessionalShort: string;
+  CopilotToneUrgentShort: string;
+  CopilotToneCasualShort: string;
+  CopilotGeneratingSubtext: string;
+  CopilotPreviewBadge: string;
+  CopilotDraftStatsWords: string;
+  CopilotDraftStatsChars: string;
+  CopilotRefineSectionLabel: string;
+  CopilotRefineShorter: string;
+  CopilotRefineLonger: string;
+  CopilotRefineRephrase: string;
+  CopilotRefineTryAgain: string;
+  CopilotRefiningLabel: string;
+  CopilotEditButton: string;
+
+  // Copilot Sentiment - Fix Actions
+  CopilotSentimentFixTrim: string;
+  CopilotSentimentFixConcise: string;
+  CopilotSentimentTooltipDisabled: string;
+  CopilotSentimentTooltipExpand: string;
+  CopilotSentimentTooltipMinimize: string;
+  CopilotSentimentTooltipDismiss: string;
+  CopilotSentimentDismissAriaLabel: string;
+  CopilotSentimentReadingStatsWords: string;
+  CopilotSentimentReadingStatsTime: string;
+  CopilotSentimentToneLabel: string;
+  CopilotSentimentIssuesFixedLabel: string;
+  CopilotSentimentIssuesFixedCount: string;
+  CopilotSentimentCriticalSection: string;
+  CopilotSentimentRecommendedSection: string;
+  CopilotSentimentOptionalSection: string;
+  CopilotSentimentAnalysisProfessional: string;
+  CopilotSentimentAnalysisTone: string;
 }
 
 declare module "AlertBannerApplicationCustomizerStrings" {

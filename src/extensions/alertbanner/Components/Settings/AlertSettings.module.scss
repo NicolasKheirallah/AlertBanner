@@ -207,10 +207,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   margin-top: 24px;
-  padding-top: 18px;
+  padding-top: 16px;
   border-top: 1px solid #edebe9;
+  flex-wrap: wrap;
 }
 
 .createWizardSteps {
@@ -290,23 +291,34 @@
 }
 
 .autoSaveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #f3f2f1;
+  border: 1px solid #e1dfdd;
+  color: #605e5c;
   font-size: 12px;
-  color: #666;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .formActionsPrimary {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .formActionsUtility {
   display: flex;
   align-items: center;
-  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .createEditorForm {
@@ -322,13 +334,17 @@
   }
 
   .autoSaveIndicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     margin-left: auto;
-    padding: 4px 8px;
+    padding: 6px 12px;
     border-radius: 999px;
     background: #f3f2f1;
     border: 1px solid #e1dfdd;
     color: #605e5c;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 500;
     line-height: 1.2;
     white-space: nowrap;
   }
@@ -1649,7 +1665,6 @@
       top: auto;
       min-height: 0; // Allow flex child to shrink
       overflow-y: auto;
-      border-left: 1px solid #edebe9;
       padding-left: 16px;
 
       // Better scrollbar styling
@@ -1677,7 +1692,6 @@
         background: white;
         z-index: 1;
         padding-bottom: 16px;
-        border-bottom: 1px solid #edebe9;
         margin-bottom: 16px;
       }
     }
@@ -1767,9 +1781,30 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 20px 24px;
+  padding: 20px 24px 24px;
   background: #faf9f8;
   border-top: 1px solid #edebe9;
+}
+
+// Right-aligned actions with bottom padding
+.actionsRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.ms-Dialog-action {
+  margin: 0 6px;
+  
+  &:first-child {
+    margin-left: 0;
+  }
+  
+  &:last-child {
+    margin-right: 0;
+  }
 }
 
 

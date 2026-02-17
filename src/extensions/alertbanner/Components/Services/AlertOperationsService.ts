@@ -20,6 +20,7 @@ import {
   ContentType,
   AlertPriority,
   ContentStatus,
+  IPersonField,
 } from "../Alerts/IAlerts";
 import { SPHttpClient } from "@microsoft/sp-http";
 import { RetryUtils } from "../Utils/RetryUtils";
@@ -333,8 +334,11 @@ export class AlertOperationsService {
           fields.ScheduledEnd = new Date(alert.scheduledEnd).toISOString();
         if (alert.metadata)
           fields.Metadata = JsonUtils.safeStringify(alert.metadata);
-        if ((alert.targetUsers?.length || 0) > 0)
-          fields.TargetUsers = alert.targetUsers;
+        // Format person fields correctly for SharePoint Graph API
+        const formattedTargetUsers = this.formatPersonFieldForSharePoint(alert.targetUsers);
+        if (formattedTargetUsers && formattedTargetUsers.length > 0) {
+          fields.TargetUsers = formattedTargetUsers;
+        }
 
         fields.ItemType = alert.contentType;
         fields.TargetLanguage = alert.targetLanguage;
@@ -350,7 +354,10 @@ export class AlertOperationsService {
         // Approval Workflow
         if (availableColumns.has("ContentStatus")) {
           fields.ContentStatus = alert.contentStatus || ContentStatus.Draft;
-          if (alert.reviewer) fields.Reviewer = alert.reviewer;
+          const formattedReviewer = alert.reviewer
+            ? this.formatPersonFieldForSharePoint(alert.reviewer)?.[0]
+            : undefined;
+          if (formattedReviewer) fields.Reviewer = formattedReviewer;
           if (alert.reviewNotes) fields.ReviewNotes = alert.reviewNotes;
         }
 
@@ -427,7 +434,11 @@ export class AlertOperationsService {
         }
         setIfAvailable("ScheduledStart", updates.scheduledStart, true);
         setIfAvailable("ScheduledEnd", updates.scheduledEnd, true);
-        setIfAvailable("TargetUsers", updates.targetUsers);
+        // Format person fields correctly for SharePoint Graph API
+        const formattedTargetUsers = this.formatPersonFieldForSharePoint(updates.targetUsers);
+        if (formattedTargetUsers && formattedTargetUsers.length > 0) {
+          setIfAvailable("TargetUsers", formattedTargetUsers);
+        }
         if (updates.metadata !== undefined) {
           setIfAvailable(
             "Metadata",
@@ -438,7 +449,13 @@ export class AlertOperationsService {
         setIfAvailable("Status", updates.status);
         setIfAvailable("TranslationStatus", updates.translationStatus);
         setIfAvailable("ContentStatus", updates.contentStatus);
-        setIfAvailable("Reviewer", updates.reviewer, true);
+        
+        // Format Reviewer person field correctly
+        if (updates.reviewer) {
+          const formattedReviewer = this.formatPersonFieldForSharePoint(updates.reviewer)?.[0];
+          if (formattedReviewer) setIfAvailable("Reviewer", formattedReviewer, true);
+        }
+        
         setIfAvailable("ReviewNotes", updates.reviewNotes, true);
         setIfAvailable("SubmittedDate", updates.submittedDate, true);
         setIfAvailable("ReviewedDate", updates.reviewedDate, true);
@@ -1476,5 +1493,20 @@ export class AlertOperationsService {
       reviewNotes: comments,
     };
     return this.updateAlert(alertId, updates);
+  }
+
+  // Formats person fields for SharePoint Graph API
+  // SharePoint expects person fields as an array of objects with LookupId
+  private formatPersonFieldForSharePoint(
+    persons: IPersonField[] | IPersonField | undefined,
+  ): { LookupId: string }[] | undefined {
+    if (!persons) return undefined;
+    
+    const personArray = Array.isArray(persons) ? persons : [persons];
+    if (personArray.length === 0) return undefined;
+    
+    return personArray
+      .filter((p) => p?.id) // Only include persons with valid IDs
+      .map((p) => ({ LookupId: p.id }));
   }
 }

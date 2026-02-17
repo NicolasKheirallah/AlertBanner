@@ -11,7 +11,7 @@ import {
 } from "../../UI/SharePointControls";
 import { PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import { CopilotDraftControl } from "../../CopilotControls/CopilotDraftControl";
-import { CopilotGovernanceControl } from "../../CopilotControls/CopilotGovernanceControl";
+import { CopilotSentimentControl } from "../../CopilotControls/CopilotSentimentControl";
 import SharePointRichTextEditor from "../../UI/SharePointRichTextEditor";
 import MultiLanguageContentEditor from "../../UI/MultiLanguageContentEditor";
 import AlertPreview from "../../UI/AlertPreview";
@@ -599,6 +599,9 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                         notificationService.showError(error, strings.CopilotErrorTitle)
                       }
                       disabled={isBusy}
+                      currentDescription={alert.description}
+                      alertType={alert.AlertType}
+                      priority={alert.priority}
                     />
                   </div>
                 )}
@@ -622,13 +625,19 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                 />
 
                 {canUseCopilot && (
-                  <CopilotGovernanceControl
+                  <CopilotSentimentControl
                     copilotService={copilotService}
                     textToAnalyze={alert.description}
                     onError={(error) =>
                       notificationService.showError(error, strings.CopilotErrorTitle)
                     }
                     disabled={isBusy}
+                    onApplyFix={(fixedText) =>
+                      updateAlertFields(
+                        { description: fixedText } as Partial<T>,
+                        ["description"],
+                      )
+                    }
                   />
                 )}
               </SharePointSection>

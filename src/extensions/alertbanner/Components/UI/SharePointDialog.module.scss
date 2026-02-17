@@ -1,4 +1,3 @@
-// SharePoint-style dialog implementation
 .overlay {
   position: fixed;
   top: 0;
@@ -84,7 +83,6 @@
   overflow-y: auto;
   padding: 20px 24px;
   
-  // Custom scrollbar to match SharePoint
   &::-webkit-scrollbar {
     width: 12px;
   }
@@ -113,14 +111,35 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 24px 20px 24px;
+  gap: 12px;
+  padding: 16px 24px 24px 24px;
   border-top: 1px solid var(--colorNeutralStroke2, #edebe9);
   flex-shrink: 0;
   background: var(--colorNeutralBackground2, #faf9f8);
 }
 
-// Animations
+.actionsRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+:global {
+  .ms-Dialog-action {
+    margin: 0 6px;
+    
+    &:first-child {
+      margin-left: 0;
+    }
+    
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -142,7 +161,6 @@
 }
 
 
-// High contrast mode
 @media (prefers-contrast: high) {
   .dialog {
     border: 2px solid;
@@ -162,14 +180,12 @@
   }
 }
 
-// Responsive: medium screens (tablets / narrow windows)
 @media (max-width: 1200px) {
   .dialog {
     max-width: 90vw;
   }
 }
 
-// Responsive: small screens (mobile / narrow windows)
 @media (max-width: 768px) {
   .overlay {
     padding: 0;
