@@ -70,13 +70,6 @@ export const VALIDATION_LIMITS = {
   // JSON validation
   JSON_MAX_DEPTH: 10,
 
-  // Date validation
-  MAX_ALERT_DURATION_DAYS: 365,
-
-  // Array limits
-  MAX_TARGET_SITES: 100,
-  MAX_TARGET_USERS: 100,
-
   // File size limits
   MAX_FILE_SIZE_MB: 10,
   MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024
@@ -84,30 +77,41 @@ export const VALIDATION_LIMITS = {
 
 export const CACHE_CONFIG = {
   ALERTS_CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
-  USER_CACHE_DURATION: 15 * 60 * 1000, // 15 minutes
-  SITE_CACHE_DURATION: 30 * 60 * 1000, // 30 minutes
-  DEFAULT_CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours
 
   // Storage keys
   STORAGE_PREFIX: 'alertbanner_',
   DISMISSED_ALERTS_KEY: 'alertbanner_dismissed_alerts',
-  HIDDEN_ALERTS_KEY: 'alertbanner_hidden_alerts',
-  USER_PREFERENCES_KEY: 'alertbanner_user_preferences',
-  LANGUAGE_PREFERENCE_KEY: 'alertbanner_language_preference'
+  HIDDEN_ALERTS_KEY: 'alertbanner_hidden_alerts'
 } as const;
 
 export const API_CONFIG = {
   GRAPH_BASE_URL: 'https://graph.microsoft.com/v1.0',
 
+  MAX_PAGE_SIZE: 100,
+
   MAX_RETRY_ATTEMPTS: 3,
   RETRY_DELAY_MS: 1000,
   RETRY_DELAY_MULTIPLIER: 2,
 
-  DEFAULT_TIMEOUT_MS: 30000, // 30 seconds
-  LONG_TIMEOUT_MS: 60000, // 1 minute
+  DEFAULT_TIMEOUT_MS: 30000 // 30 seconds
+} as const;
 
-  DEFAULT_PAGE_SIZE: 25,
-  MAX_PAGE_SIZE: 100
+// Window open configuration for link actions
+export const WINDOW_OPEN_CONFIG = {
+  TARGET: '_blank',
+  FEATURES: 'noopener,noreferrer'
+} as const;
+
+// Shadow configuration for critical priority alerts
+export const SHADOW_CONFIG = {
+  CRITICAL_PRIORITY: '0 4px 12px rgba(232, 17, 35, 0.4)'
+} as const;
+
+// Carousel configuration
+export const CAROUSEL_CONFIG = {
+  AUTOPLAY_INTERVAL_MS: 5000,
+  MIN_INTERVAL: 1000,
+  MAX_INTERVAL: 60000
 } as const;
 
 export const SANITIZATION_CONFIG = {
@@ -158,16 +162,11 @@ export const VALIDATION_MESSAGES = {
 export const UI_CONFIG = {
   FADE_IN_DURATION_MS: 300,
   FADE_OUT_DURATION_MS: 200,
-  SLIDE_DURATION_MS: 250,
 
   AUTO_SAVE_INTERVAL_MS: 30000, // 30 seconds
-  AUTO_SAVE_DEBOUNCE_MS: 2000, // 2 seconds
 
-  TOAST_DURATION_SHORT_MS: 3000,
   TOAST_DURATION_MEDIUM_MS: 5000,
   TOAST_DURATION_LONG_MS: 8000,
-
-  MIN_LOADING_DELAY_MS: 300,
 
   PREVIEW_DESCRIPTION_LENGTH: 150,
   CARD_TITLE_LENGTH: 60,
@@ -178,8 +177,7 @@ export const ALERT_TYPE_DEFAULTS = {
   DEFAULT_TYPE: 'Info',
   DEFAULT_ICON: 'Info',
   DEFAULT_BACKGROUND_COLOR: '#0078d4',
-  DEFAULT_TEXT_COLOR: '#ffffff',
-  DEFAULT_LINK_TEXT: 'Learn More'
+  DEFAULT_TEXT_COLOR: '#ffffff'
 } as const;
 
 // Default Alert Type Name when none is specified
@@ -301,108 +299,14 @@ export const LANGUAGE_CODES = {
   'nb-no': 'NO'
 } as const;
 
-export const ERROR_MESSAGES = {
-  GENERIC_ERROR: 'An unexpected error occurred',
-  NETWORK_ERROR: 'Network error occurred. Please check your connection',
-  PERMISSION_DENIED: 'You do not have permission to perform this action',
-  NOT_FOUND: 'The requested resource was not found',
-  VALIDATION_FAILED: 'Validation failed. Please check your input',
-  TIMEOUT: 'The request timed out. Please try again',
-  UNAUTHORIZED: 'You are not authorized to access this resource'
-} as const;
-
-export const SUCCESS_MESSAGES = {
-  SAVED: 'Changes saved successfully',
-  CREATED: 'Item created successfully',
-  UPDATED: 'Item updated successfully',
-  DELETED: 'Item deleted successfully',
-  COPIED: 'Copied to clipboard'
-} as const;
-
 export const REGEX_PATTERNS = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   URL: /^https?:\/\/.+/i,
   GUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   LANGUAGE_FIELD: /^(Title|Description|LinkDescription)_[A-Z]{2}$/,
-  HEX_COLOR: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/,
-  ALPHANUMERIC: /^[a-zA-Z0-9]+$/,
-  ALPHANUMERIC_WITH_SPACES: /^[a-zA-Z0-9\s]+$/
+  HEX_COLOR: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
 } as const;
 
-export const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  NO_CONTENT: 204,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  TOO_MANY_REQUESTS: 429,
-  INTERNAL_SERVER_ERROR: 500,
-  SERVICE_UNAVAILABLE: 503
-} as const;
-
-export const ODATA_OPERATORS = {
-  EQUAL: 'eq',
-  NOT_EQUAL: 'ne',
-  GREATER_THAN: 'gt',
-  GREATER_THAN_OR_EQUAL: 'ge',
-  LESS_THAN: 'lt',
-  LESS_THAN_OR_EQUAL: 'le',
-  AND: 'and',
-  OR: 'or',
-  NOT: 'not',
-  NULL: 'null'
-} as const;
-
-export const FEATURE_FLAGS = {
-  ENABLE_MULTI_LANGUAGE: true,
-  ENABLE_USER_TARGETING: true,
-  ENABLE_NOTIFICATIONS: true,
-  ENABLE_ATTACHMENTS: true,
-  ENABLE_TEMPLATES: true,
-  ENABLE_DRAFTS: true,
-  ENABLE_AUTO_SAVE: true,
-  ENABLE_RICH_TEXT_EDITOR: true,
-  ENABLE_ADVANCED_SCHEDULING: true,
-  ENABLE_SITE_TARGETING: true
-} as const;
-
-export const SHADOW_CONFIG = {
-  CRITICAL_PRIORITY: '0 4px 12px rgba(232, 17, 35, 0.15)',
-  HIGH_PRIORITY: '0 2px 8px rgba(234, 67, 0, 0.1)',
-  MEDIUM_PRIORITY: '0 1px 4px rgba(0, 120, 212, 0.08)',
-  CARD_HOVER: '0 2px 8px rgba(0, 0, 0, 0.1)',
-  DIALOG: '0 8px 32px rgba(0, 0, 0, 0.15)'
-} as const;
-
-export const WINDOW_OPEN_CONFIG = {
-  TARGET: '_blank',
-  FEATURES: 'noopener,noreferrer'
-} as const;
-
-export const UI_IMAGE_CONFIG = {
-  MAX_WIDTH_PX: 300,
-  MIN_WIDTH_PX: 50,
-  MAX_HEIGHT_PX: 400,
-  DEFAULT_QUALITY: 0.8
-} as const;
-
-export const CAROUSEL_CONFIG = {
-  MIN_INTERVAL: 2000,
-  MAX_INTERVAL: 30000,
-  DEFAULT_INTERVAL: 5000,
-  MIN_SLIDES: 1,
-  MAX_SLIDES: 10
-} as const;
-
-export const ANIMATION_DURATION = {
-  FAST: 150,
-  NORMAL: 300,
-  SLOW: 500,
-  CAROUSEL_TRANSITION: 400
-} as const;
 
 export type ListName = typeof LIST_NAMES[keyof typeof LIST_NAMES];
 export type FieldName = typeof FIELD_NAMES[keyof typeof FIELD_NAMES];

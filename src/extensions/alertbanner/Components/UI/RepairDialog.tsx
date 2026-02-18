@@ -22,19 +22,17 @@ import styles from './RepairDialog.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text as CoreText } from '@microsoft/sp-core-library';
 
-export interface IRepairDialogProps {
-  isOpen: boolean;
-  onDismiss: () => void;
-  onRepairComplete: (result: IRepairResult) => void;
-  alertService: SharePointAlertService;
-}
-
 interface IRepairProgress {
   message: string;
   progress: number;
 }
 
-const RepairDialog: React.FC<IRepairDialogProps> = ({
+const RepairDialog: React.FC<{
+  isOpen: boolean;
+  onDismiss: () => void;
+  onRepairComplete: (result: IRepairResult) => void;
+  alertService: SharePointAlertService;
+}> = ({
   isOpen,
   onDismiss,
   onRepairComplete,

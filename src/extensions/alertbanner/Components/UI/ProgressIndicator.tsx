@@ -20,14 +20,12 @@ export interface IProgressStep {
   error?: string;
 }
 
-export interface IProgressIndicatorProps {
+const ProgressIndicator: React.FC<{
   steps: IProgressStep[];
   title?: string;
   showStepDescriptions?: boolean;
   variant?: 'horizontal' | 'vertical';
-}
-
-const ProgressIndicator: React.FC<IProgressIndicatorProps> = ({ 
+}> = ({ 
   steps, 
   title = strings.ProgressIndicatorTitle,
   showStepDescriptions = false,

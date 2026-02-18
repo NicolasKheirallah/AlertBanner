@@ -2,7 +2,7 @@ import * as React from "react";
 import { Settings24Regular, Add24Regular } from "@fluentui/react-icons";
 import SharePointDialog from "../UI/SharePointDialog";
 import { SharePointButton } from "../UI/SharePointControls";
-import CreateAlertTab, { INewAlert, IFormErrors } from "./Tabs/CreateAlertTab";
+import CreateAlertTab, { ICreateAlertTabProps } from "./Tabs/CreateAlertTab";
 import ManageAlertsTab, { IEditingAlert } from "./Tabs/ManageAlertsTab";
 import AlertTypesTab from "./Tabs/AlertTypesTab";
 import SettingsTab, { ISettingsData } from "./Tabs/SettingsTab";
@@ -25,6 +25,12 @@ import styles from "./AlertSettings.module.scss";
 import { logger } from "../Services/LoggerService";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import { useFluentDialogs } from "../Hooks/useFluentDialogs";
+import { LanguageAwarenessService } from "../Services/LanguageAwarenessService";
+import {
+  AlertFormProvider,
+  IAlertFormProviderConfig,
+  IAlertFormServices,
+} from "../Context/AlertFormContext";
 
 export interface IAlertSettingsTabsProps {
   isInEditMode: boolean;
@@ -37,7 +43,7 @@ export interface IAlertSettingsTabsProps {
   graphClient: MSGraphClientV3;
   context: ApplicationCustomizerContext;
   onSettingsChange: (
-    settings: ISettingsData & { enableTargetSite: boolean },
+    settings: ISettingsData & { enableTargetSite: boolean }
   ) => void;
 }
 
@@ -58,16 +64,33 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     "create" | "manage" | "types" | "settings"
   >("create");
 
-  // Shared services - using useRef to prevent recreation
-  const siteDetector = React.useRef<SiteContextDetector>(
-    new SiteContextDetector(graphClient, context),
-  );
-  const alertService = React.useRef<SharePointAlertService>(
-    new SharePointAlertService(graphClient, context),
-  );
-  const [languageUpdateTrigger, setLanguageUpdateTrigger] = React.useState(0);
+  // Shared services - using lazy initialization to prevent eager creation
+  const siteDetector = React.useRef<SiteContextDetector | null>(null);
+  const alertService = React.useRef<SharePointAlertService | null>(null);
+  const languageService = React.useRef<LanguageAwarenessService | null>(null);
 
-  // Site context (removed unused variable)
+  const getSiteDetector = React.useCallback((): SiteContextDetector => {
+    if (!siteDetector.current) {
+      siteDetector.current = new SiteContextDetector(graphClient, context);
+    }
+    return siteDetector.current;
+  }, [graphClient, context]);
+
+  const getAlertService = React.useCallback((): SharePointAlertService => {
+    if (!alertService.current) {
+      alertService.current = new SharePointAlertService(graphClient, context);
+    }
+    return alertService.current;
+  }, [graphClient, context]);
+
+  const getLanguageService = React.useCallback((): LanguageAwarenessService => {
+    if (!languageService.current) {
+      languageService.current = new LanguageAwarenessService(graphClient, context);
+    }
+    return languageService.current;
+  }, [graphClient, context]);
+
+  const [languageUpdateTrigger, setLanguageUpdateTrigger] = React.useState(0);
 
   // Settings state
   const [settings, setSettings] = React.useState<
@@ -84,43 +107,12 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   // Alert types state
   const [alertTypes, setAlertTypes] = React.useState<IAlertType[]>([]);
 
-  // Create alert state
-  const [newAlert, setNewAlert] = React.useState<INewAlert>({
-    title: "",
-    description: "",
-    AlertType: "",
-    priority: AlertPriority.Medium,
-    isPinned: false,
-    notificationType: NotificationType.Browser,
-    linkUrl: "",
-    linkDescription: "",
-    targetSites: [],
-    scheduledStart: undefined,
-    scheduledEnd: undefined,
-    contentType: ContentType.Alert,
-    targetLanguage: TargetLanguage.All,
-    languageContent: [],
-  });
-  const [errors, setErrors] = React.useState<IFormErrors>({});
-  const [creationProgress, setCreationProgress] = React.useState<
-    ISiteValidationResult[]
-  >([]);
-  const [isCreatingAlert, setIsCreatingAlert] = React.useState(false);
-  const [showPreview, setShowPreview] = React.useState(true);
-  const [showTemplates, setShowTemplates] = React.useState(true);
-  const [hasUnsavedCreateChanges, setHasUnsavedCreateChanges] =
-    React.useState(false);
-  const [hasUnsavedManageChanges, setHasUnsavedManageChanges] =
-    React.useState(false);
-  const [hasUnsavedSettingsChanges, setHasUnsavedSettingsChanges] =
-    React.useState(false);
-
   // Manage alerts state
   const [existingAlerts, setExistingAlerts] = React.useState<IAlertItem[]>([]);
   const [isLoadingAlerts, setIsLoadingAlerts] = React.useState(false);
   const [selectedAlerts, setSelectedAlerts] = React.useState<string[]>([]);
   const [editingAlert, setEditingAlert] = React.useState<IEditingAlert | null>(
-    null,
+    null
   );
   const [isEditingAlert, setIsEditingAlert] = React.useState(false);
 
@@ -152,36 +144,51 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   const alertTypesLoadInFlightRef = React.useRef<Promise<void> | null>(null);
   const { confirm, dialogs } = useFluentDialogs();
 
-  const buildInitialNewAlert = React.useCallback((): INewAlert => {
-    return {
-      title: "",
-      description: "",
-      AlertType: alertTypes.length > 0 ? alertTypes[0].name : "",
-      priority: AlertPriority.Medium,
-      isPinned: false,
-      notificationType: NotificationType.Browser,
-      linkUrl: "",
-      linkDescription: "",
-      targetSites: [],
-      scheduledStart: undefined,
-      scheduledEnd: undefined,
-      contentType: ContentType.Alert,
-      targetLanguage: TargetLanguage.All,
-      languageContent: [],
-      targetUsers: [],
-      targetGroups: [],
-    };
-  }, [alertTypes]);
+  // Create alert tab - dirty state tracking
+  const [hasUnsavedCreateChanges, setHasUnsavedCreateChanges] =
+    React.useState(false);
+  const [hasUnsavedManageChanges, setHasUnsavedManageChanges] =
+    React.useState(false);
+  const [hasUnsavedSettingsChanges, setHasUnsavedSettingsChanges] =
+    React.useState(false);
 
+
+
+  // AlertForm configuration and services
+  const alertFormConfig = React.useMemo<IAlertFormProviderConfig>(
+    () => ({
+      alertTypes,
+      userTargetingEnabled,
+      notificationsEnabled,
+      enableTargetSite,
+      copilotEnabled: settings.copilotEnabled,
+      languageUpdateTrigger,
+    }),
+    [
+      alertTypes,
+      userTargetingEnabled,
+      notificationsEnabled,
+      enableTargetSite,
+      settings.copilotEnabled,
+      languageUpdateTrigger,
+    ]
+  );
+
+  const alertFormServices = React.useMemo<IAlertFormServices>(
+    () => ({
+      siteDetector: getSiteDetector(),
+      alertService: getAlertService(),
+      graphClient,
+      context,
+      languageService: getLanguageService(),
+    }),
+    [getSiteDetector, getAlertService, getLanguageService, graphClient, context]
+  );
+
+  // Reset create tab state when switching away
   const resetCreateTabState = React.useCallback(() => {
-    setShowTemplates(true);
-    setShowPreview(true);
     setHasUnsavedCreateChanges(false);
-    setErrors({});
-    setCreationProgress([]);
-    setIsCreatingAlert(false);
-    setNewAlert(buildInitialNewAlert());
-  }, [buildInitialNewAlert]);
+  }, []);
 
   const openNewCreateAlert = React.useCallback(() => {
     setEditingAlert(null);
@@ -217,7 +224,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         cancelText: strings.ManageAlertsKeepEditingButton,
       });
     },
-    [activeTab, confirm, hasUnsavedManageChanges],
+    [activeTab, confirm, hasUnsavedManageChanges]
   );
 
   const confirmDiscardSettingsChanges = React.useCallback(
@@ -233,7 +240,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         cancelText: strings.SettingsKeepEditing,
       });
     },
-    [activeTab, confirm, hasUnsavedSettingsChanges],
+    [activeTab, confirm, hasUnsavedSettingsChanges]
   );
 
   const switchTab = React.useCallback(
@@ -274,7 +281,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       confirmDiscardManageChanges,
       confirmDiscardSettingsChanges,
       openNewCreateAlert,
-    ],
+    ]
   );
 
   const handleCloseDialog = React.useCallback(async () => {
@@ -313,29 +320,18 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
 
     const task = (async () => {
       try {
-        const types = await alertService.current.getAlertTypes();
+        const types = await getAlertService().getAlertTypes();
         if (!types || types.length === 0) {
           setAlertTypes([]);
           return;
         }
 
         setAlertTypes(types);
-
-        // Set first alert type as default if none is selected
-        setNewAlert((prev) => {
-          if (
-            !prev.AlertType ||
-            !types.find((t) => t.name === prev.AlertType)
-          ) {
-            return { ...prev, AlertType: types[0].name };
-          }
-          return prev;
-        });
       } catch (error) {
         logger.error(
           "AlertSettingsTabs",
           "Error loading alert types from SharePoint",
-          error,
+          error
         );
         setAlertTypes([]);
       }
@@ -353,28 +349,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
 
     loadAlertTypes();
   }, [isOpen, loadAlertTypes]);
-
-  // Initialize site context
-  React.useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    siteDetector.current
-      .getCurrentSiteContext()
-      .then((siteContext) => {
-        // Set current site as default target if no sites selected
-        if (newAlert.targetSites.length === 0) {
-          setNewAlert((prev) => ({
-            ...prev,
-            targetSites: [siteContext.siteId],
-          }));
-        }
-      })
-      .catch((error) => {
-        logger.error("AlertSettingsTabs", "Failed to get site context", error);
-      });
-  }, [isOpen, newAlert.targetSites.length]);
 
   // Update settings when props change
   React.useEffect(() => {
@@ -400,7 +374,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       setSettings(newSettings);
       onSettingsChange(newSettings);
     },
-    [onSettingsChange],
+    [onSettingsChange]
   );
 
   const handleLanguageChange = React.useCallback((languages: string[]) => {
@@ -410,11 +384,8 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     setLanguageUpdateTrigger((prev) => prev + 1);
   }, []);
 
-  const canManageSettings =
-    isInEditMode ||
-    !!context?.pageContext?.legacyPageContext?.isSiteAdmin;
-
-  if (!canManageSettings) {
+  // Only show settings button when page is in edit mode
+  if (!isInEditMode) {
     return null;
   }
 
@@ -518,31 +489,13 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 id="tabpanel-create"
                 aria-labelledby="tab-create"
               >
-                <CreateAlertTab
-                  newAlert={newAlert}
-                  setNewAlert={setNewAlert}
-                  errors={errors}
-                  setErrors={setErrors}
-                  alertTypes={alertTypes}
-                  userTargetingEnabled={userTargetingEnabled}
-                  notificationsEnabled={notificationsEnabled}
-                  enableTargetSite={settings.enableTargetSite}
-                  siteDetector={siteDetector.current}
-                  alertService={alertService.current}
-                  graphClient={graphClient}
-                  context={context}
-                  creationProgress={creationProgress}
-                  setCreationProgress={setCreationProgress}
-                  isCreatingAlert={isCreatingAlert}
-                  setIsCreatingAlert={setIsCreatingAlert}
-                  showPreview={showPreview}
-                  setShowPreview={setShowPreview}
-                  showTemplates={showTemplates}
-                  setShowTemplates={setShowTemplates}
-                  languageUpdateTrigger={languageUpdateTrigger}
-                  copilotEnabled={settings.copilotEnabled}
+                <AlertFormProvider
+                  config={alertFormConfig}
+                  services={alertFormServices}
                   onDirtyStateChange={setHasUnsavedCreateChanges}
-                />
+                >
+                  <CreateAlertTab />
+                </AlertFormProvider>
               </div>
             )}
 
@@ -564,8 +517,8 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                   isEditingAlert={isEditingAlert}
                   setIsEditingAlert={setIsEditingAlert}
                   alertTypes={alertTypes}
-                  siteDetector={siteDetector.current}
-                  alertService={alertService.current}
+                  siteDetector={getSiteDetector()}
+                  alertService={getAlertService()}
                   graphClient={graphClient}
                   context={context}
                   userTargetingEnabled={settings.userTargetingEnabled}
@@ -599,7 +552,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                   setNewAlertType={setNewAlertType}
                   isCreatingType={isCreatingType}
                   setIsCreatingType={setIsCreatingType}
-                  alertService={alertService.current}
+                  alertService={getAlertService()}
                   context={context}
                 />
               </div>
@@ -622,11 +575,11 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                   setIsCheckingLists={setIsCheckingLists}
                   isCreatingLists={isCreatingLists}
                   setIsCreatingLists={setIsCreatingLists}
-                  alertService={alertService.current}
+                  alertService={getAlertService()}
                   onSettingsChange={handleSettingsChange}
                   onLanguageChange={handleLanguageChange}
                   onDirtyStateChange={setHasUnsavedSettingsChanges}
-                  canEdit={canManageSettings}
+                  canEdit={true}
                   context={context}
                 />
               </div>

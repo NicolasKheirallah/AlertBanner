@@ -39,7 +39,6 @@ export interface ICopilotDraftControlProps {
   onDraftGenerated: (draft: string) => void;
   onError: (error: string) => void;
   disabled?: boolean;
-  currentDescription?: string;
   alertType?: string;
   priority?: string;
 }

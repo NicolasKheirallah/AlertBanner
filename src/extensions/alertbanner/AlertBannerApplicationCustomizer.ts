@@ -423,7 +423,11 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         // Try to get Graph client with version 3, with error handling
         let msGraphClient: MSGraphClientV3;
         try {
-          msGraphClient = await this.context.msGraphClientFactory.getClient("3") as MSGraphClientV3;
+          const client = await this.context.msGraphClientFactory.getClient("3");
+          if (!client) {
+            throw new Error('Failed to initialize Graph client');
+          }
+          msGraphClient = client as MSGraphClientV3;
         } catch (graphError) {
           logger.error('ApplicationCustomizer', 'Error getting Graph client v3', graphError);
           throw graphError; // Re-throw to be caught by outer try/catch

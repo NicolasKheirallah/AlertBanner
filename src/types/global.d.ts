@@ -4,6 +4,9 @@
 
 declare global {
   interface Window {
+    // Alert Banner debug flag
+    __ALERT_BANNER_DEBUG?: boolean;
+
     // Application Insights (if using)
     appInsights?: {
       trackException: (exception: { exception: Error; properties?: Record<string, any> }) => void;
@@ -46,9 +49,7 @@ declare module "@microsoft/sp-http" {
 }
 
 // Utility types for better type safety
-export type NonEmptyString<T extends string> = T extends "" ? never : T;
 export type SafeString = string & { __brand: 'SafeString' };
-export type EmailAddress = string & { __brand: 'EmailAddress' };
 export type Url = string & { __brand: 'Url' };
 export type Guid = string & { __brand: 'Guid' };
 export type ISODateString = string & { __brand: 'ISODateString' };
@@ -60,33 +61,6 @@ export type Result<TSuccess, TError = Error> =
 
 export type AsyncResult<TSuccess, TError = Error> = Promise<Result<TSuccess, TError>>;
 
-// API response wrapper
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    message: string;
-    code?: string;
-    details?: any;
-  };
-  timestamp: string;
-}
-
-// Performance monitoring types
-export interface PerformanceEntry {
-  name: string;
-  startTime: number;
-  duration: number;
-  entryType: string;
-}
-
-export interface ErrorWithContext extends Error {
-  context?: Record<string, any>;
-  timestamp?: string;
-  userId?: string;
-  sessionId?: string;
-}
-
 // Form validation types
 export type ValidationState = 'valid' | 'invalid' | 'pending' | 'unknown';
 
@@ -96,22 +70,6 @@ export interface ValidationResult<T = any> {
   warnings: string[];
   value?: T;
 }
-
-// Event handler types with proper typing
-export type EventHandler<T = any> = (event: T) => void;
-export type AsyncEventHandler<T = any> = (event: T) => Promise<void>;
-
-// Component prop helpers
-export type ComponentWithChildren<TProps = {}> = TProps & {
-  children?: React.ReactNode;
-};
-
-export type ComponentWithOptionalChildren<TProps = {}> = TProps & {
-  children?: React.ReactNode | undefined;
-};
-
-// Strict object types
-export type StrictObject<T> = T & { [K in keyof T]: T[K] };
 
 // Export empty object to make this a module
 export {};

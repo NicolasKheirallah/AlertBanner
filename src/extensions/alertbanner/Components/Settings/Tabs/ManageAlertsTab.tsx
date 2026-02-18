@@ -22,10 +22,10 @@ import {
   ContentType,
   IPersonField,
   TranslationStatus,
+  ILanguageContent,
 } from "../../Alerts/IAlerts";
 import {
   LanguageAwarenessService,
-  ILanguageContent,
   ISupportedLanguage,
 } from "../../Services/LanguageAwarenessService";
 import {
@@ -42,9 +42,7 @@ import { ImageStorageService } from "../../Services/ImageStorageService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "../AlertSettings.module.scss";
-import {
-  validateAlertData,
-} from "../../Utils/AlertValidation";
+import { validateAlertData } from "../../Utils/AlertValidation";
 import { getLocalizedValidationMessage } from "../../Utils/AlertValidationLocalization";
 import { useLanguageOptions } from "../../Hooks/useLanguageOptions";
 import { usePriorityOptions } from "../../Hooks/usePriorityOptions";
@@ -53,6 +51,8 @@ import { CopilotService } from "../../Services/CopilotService";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import { Text } from "@microsoft/sp-core-library";
 import AlertEditorForm from "./AlertEditorForm";
+import EmptyState from "../../UI/EmptyState";
+import AlertListShimmer from "../../UI/AlertListShimmer";
 import { AlertMutationService } from "../../Services/AlertMutationService";
 import ManageAlertCard, { IDisplayAlertItem } from "./ManageAlertCard";
 
@@ -191,8 +191,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [customDateTo, setCustomDateTo] = React.useState<string>("");
   const [searchTerm, setSearchTerm] = React.useState<string>("");
   const [showFilters, setShowFilters] = React.useState(false);
-  const [isBulkActionInFlight, setIsBulkActionInFlight] =
-    React.useState(false);
+  const [isBulkActionInFlight, setIsBulkActionInFlight] = React.useState(false);
   const [busyAlertIds, setBusyAlertIds] = React.useState<string[]>([]);
   const advancedFiltersId = "manage-alerts-advanced-filters";
   const [alertsListId, setAlertsListId] = React.useState<string>("");
@@ -203,8 +202,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [copilotAvailability, setCopilotAvailability] = React.useState<
     "unknown" | "available" | "unavailable"
   >("unknown");
-  const [copilotAvailabilityMessage, setCopilotAvailabilityMessage] =
-    React.useState<string>("");
   const searchInputContainerRef = React.useRef<HTMLDivElement>(null);
   const initialEditSnapshotRef = React.useRef<string>("");
   const didHydrateFiltersRef = React.useRef(false);
@@ -239,7 +236,14 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
       const normalizePeople = (items?: IPersonField[]): string[] =>
         (items || [])
-          .map((item) => (item.loginName || item.email || item.displayName || "").toLowerCase())
+          .map((item) =>
+            (
+              item.loginName ||
+              item.email ||
+              item.displayName ||
+              ""
+            ).toLowerCase(),
+          )
           .filter((item) => item.length > 0)
           .sort();
 
@@ -513,14 +517,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
     if (!copilotEnabled) {
       setCopilotAvailability("unknown");
-      setCopilotAvailabilityMessage("");
       return () => {
         isMounted = false;
       };
     }
 
     setCopilotAvailability("unknown");
-    setCopilotAvailabilityMessage("");
 
     copilotService
       .checkAccess()
@@ -530,18 +532,18 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         }
 
         setCopilotAvailability(isAvailable ? "available" : "unavailable");
-        setCopilotAvailabilityMessage(
-          isAvailable ? "" : strings.CreateAlertCopilotUnavailableMessage,
-        );
       })
       .catch((error) => {
-        logger.warn("ManageAlertsTab", "Copilot access preflight failed", error);
+        logger.warn(
+          "ManageAlertsTab",
+          "Copilot access preflight failed",
+          error,
+        );
         if (!isMounted) {
           return;
         }
 
         setCopilotAvailability("unavailable");
-        setCopilotAvailabilityMessage(strings.CopilotUnexpectedError);
       });
 
     return () => {
@@ -775,7 +777,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     setIsBulkActionInFlight(true);
 
     // Optimistic remove for faster perceived response.
-    setExistingAlerts((prev) => prev.filter((item) => !selectedSet.has(item.id)));
+    setExistingAlerts((prev) =>
+      prev.filter((item) => !selectedSet.has(item.id)),
+    );
     setSelectedAlerts([]);
 
     try {
@@ -1083,7 +1087,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
       const shouldSubmit = await confirm({
         title: strings.ManageAlertsSubmitDialogTitle,
-        message: Text.format(strings.ManageAlertsSubmitDialogMessage, alert.title),
+        message: Text.format(
+          strings.ManageAlertsSubmitDialogMessage,
+          alert.title,
+        ),
         confirmText: strings.ManageAlertsSubmitDialogConfirm,
       });
       if (!shouldSubmit) {
@@ -1138,7 +1145,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
       const shouldApprove = await confirm({
         title: strings.ManageAlertsApproveDialogTitle,
-        message: Text.format(strings.ManageAlertsApproveDialogMessage, alert.title),
+        message: Text.format(
+          strings.ManageAlertsApproveDialogMessage,
+          alert.title,
+        ),
         confirmText: strings.ManageAlertsApproveDialogConfirm,
       });
       if (!shouldApprove) {
@@ -1193,7 +1203,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
       const notes = await prompt({
         title: strings.ManageAlertsRejectDialogTitle,
-        message: Text.format(strings.ManageAlertsRejectDialogMessage, alert.title),
+        message: Text.format(
+          strings.ManageAlertsRejectDialogMessage,
+          alert.title,
+        ),
         confirmText: strings.ManageAlertsRejectDialogConfirm,
         label: strings.ManageAlertsRejectDialogLabel,
         placeholder: strings.ManageAlertsRejectDialogPlaceholder,
@@ -1244,7 +1257,17 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const validateEditForm = React.useCallback((): boolean => {
     if (!editingAlert) return false;
 
-    const validationErrors = validateAlertData(editingAlert, {
+    const validationData: Partial<IAlertItem> = {
+      ...editingAlert,
+      scheduledStart: editingAlert.scheduledStart
+        ? editingAlert.scheduledStart.toISOString()
+        : undefined,
+      scheduledEnd: editingAlert.scheduledEnd
+        ? editingAlert.scheduledEnd.toISOString()
+        : undefined,
+    };
+
+    const validationErrors = validateAlertData(validationData, {
       useMultiLanguage,
       languagePolicy,
       tenantDefaultLanguage,
@@ -1279,7 +1302,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           languagePolicy,
         );
       } else {
-        await AlertMutationService.updateSingleAlert(alertService, editingAlert);
+        await AlertMutationService.updateSingleAlert(
+          alertService,
+          editingAlert,
+        );
       }
 
       setEditingAlert(null);
@@ -1565,7 +1591,10 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   }, [priorityOptions]);
 
   const alertTypeStyleMap = React.useMemo(() => {
-    const map = new Map<string, { backgroundColor?: string; textColor?: string }>();
+    const map = new Map<
+      string,
+      { backgroundColor?: string; textColor?: string }
+    >();
     alertTypes.forEach((type) =>
       map.set(type.name, {
         backgroundColor: type.backgroundColor,
@@ -1608,13 +1637,16 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   );
   const activeFilterCount = React.useMemo(() => {
     let count = 0;
-    if (contentTypeFilter !== DEFAULT_MANAGE_FILTERS.contentTypeFilter) count += 1;
+    if (contentTypeFilter !== DEFAULT_MANAGE_FILTERS.contentTypeFilter)
+      count += 1;
     if (priorityFilter !== DEFAULT_MANAGE_FILTERS.priorityFilter) count += 1;
     if (alertTypeFilter !== DEFAULT_MANAGE_FILTERS.alertTypeFilter) count += 1;
     if (statusFilter !== DEFAULT_MANAGE_FILTERS.statusFilter) count += 1;
-    if (contentStatusFilter !== DEFAULT_MANAGE_FILTERS.contentStatusFilter) count += 1;
+    if (contentStatusFilter !== DEFAULT_MANAGE_FILTERS.contentStatusFilter)
+      count += 1;
     if (languageFilter !== DEFAULT_MANAGE_FILTERS.languageFilter) count += 1;
-    if (notificationFilter !== DEFAULT_MANAGE_FILTERS.notificationFilter) count += 1;
+    if (notificationFilter !== DEFAULT_MANAGE_FILTERS.notificationFilter)
+      count += 1;
     if (dateFilter !== DEFAULT_MANAGE_FILTERS.dateFilter) count += 1;
     if (customDateFrom !== DEFAULT_MANAGE_FILTERS.customDateFrom) count += 1;
     if (customDateTo !== DEFAULT_MANAGE_FILTERS.customDateTo) count += 1;
@@ -1656,7 +1688,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         return;
       }
 
-      if (isMeta && key === "e" && !editingAlert && selectedAlerts.length === 1) {
+      if (
+        isMeta &&
+        key === "e" &&
+        !editingAlert &&
+        selectedAlerts.length === 1
+      ) {
         event.preventDefault();
         const selectedAlert = groupedAlerts.find((alert) =>
           selectedAlerts.includes(alert.id),
@@ -1719,9 +1756,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           <div className={styles.tabHeader}>
             <div>
               <h3>{strings.ManageAlerts}</h3>
-              <p>
-                {strings.ManageAlertsSubtitle}
-              </p>
+              <p>{strings.ManageAlertsSubtitle}</p>
             </div>
             <div className={styles.flexRowGap12}>
               <SharePointButton
@@ -1729,7 +1764,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 onClick={loadExistingAlerts}
                 disabled={isLoadingAlerts || isBulkActionInFlight}
               >
-                {isLoadingAlerts ? strings.ManageAlertsRefreshingLabel : strings.Refresh}
+                {isLoadingAlerts
+                  ? strings.ManageAlertsRefreshingLabel
+                  : strings.Refresh}
               </SharePointButton>
               <button
                 type="button"
@@ -1754,72 +1791,15 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           </div>
 
           {isLoadingAlerts ? (
-            <div className={styles.alertsList}>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className={styles.alertCard} aria-hidden="true">
-                  <div className={styles.alertCardHeader}>
-                    <div
-                      className={`${styles.skeletonLine} ${styles.skeletonW60H14}`}
-                    />
-                    <div
-                      className={`${styles.skeletonLine} ${styles.skeletonW80H20Pill}`}
-                    />
-                  </div>
-                  <div className={styles.alertCardContent}>
-                    <div
-                      className={`${styles.skeletonLine} ${styles.skeletonW70H16Mb8}`}
-                    />
-                    <div
-                      className={`${styles.skeletonLine} ${styles.skeletonW100H14Mb6}`}
-                    />
-                    <div
-                      className={`${styles.skeletonLine} ${styles.skeletonW85H14Mb12}`}
-                    />
-                    <div className={styles.alertMetaData}>
-                      <div
-                        className={`${styles.skeletonLine} ${styles.skeletonW45H12}`}
-                      />
-                      <div
-                        className={`${styles.skeletonLine} ${styles.skeletonW50H12}`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AlertListShimmer />
           ) : existingAlerts.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>📢</div>
-              <h4>{strings.ManageAlertsEmptyTitle}</h4>
-              <p>
-                {strings.ManageAlertsEmptyDescription}
-              </p>
-              <ul className={styles.emptyStateList}>
-                <li>
-                  {strings.ManageAlertsEmptyReasonListsMissing}
-                </li>
-                <li>
-                  {strings.ManageAlertsEmptyReasonNoAccess}
-                </li>
-                <li>
-                  {strings.ManageAlertsEmptyReasonNoAlerts}
-                </li>
-              </ul>
-              <div className={styles.flexRowCentered}>
-                <SharePointButton
-                  variant="primary"
-                  onClick={() => setActiveTab("create")}
-                >
-                  {strings.ManageAlertsEmptyCreateFirstButton}
-                </SharePointButton>
-                <SharePointButton
-                  variant="secondary"
-                  onClick={loadExistingAlerts}
-                >
-                  {strings.Refresh}
-                </SharePointButton>
-              </div>
-            </div>
+            <EmptyState
+              icon="AlertSolid"
+              title={strings.ManageAlertsEmptyTitle}
+              description={`${strings.ManageAlertsEmptyDescription}\n\n• ${strings.ManageAlertsEmptyReasonListsMissing}\n• ${strings.ManageAlertsEmptyReasonNoAccess}\n• ${strings.ManageAlertsEmptyReasonNoAlerts}`}
+              actionText={strings.ManageAlertsEmptyCreateFirstButton}
+              onAction={() => setActiveTab("create")}
+            />
           ) : (
             <div className={styles.alertsList}>
               {selectedAlerts.length > 0 && (
@@ -1956,14 +1936,19 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     label={strings.ManageAlertsSearchLabel}
                     value={searchTerm}
                     onChange={setSearchTerm}
-                    placeholder={stripFilterEmoji(strings.ManageAlertsSearchPlaceholder)}
+                    placeholder={stripFilterEmoji(
+                      strings.ManageAlertsSearchPlaceholder,
+                    )}
                     className={styles.searchInput}
                   />
                 </div>
 
                 {/* Collapsible Advanced Filters */}
                 {showFilters && (
-                  <div id={advancedFiltersId} className={styles.advancedFilters}>
+                  <div
+                    id={advancedFiltersId}
+                    className={styles.advancedFilters}
+                  >
                     <div className={styles.filterGrid}>
                       {/* Priority Filter */}
                       <SharePointSelect
@@ -1975,7 +1960,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label: stripFilterEmoji(strings.ManageAlertsPriorityAllOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsPriorityAllOption,
+                            ),
                           },
                           {
                             value: AlertPriority.Critical,
@@ -2004,7 +1991,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label: stripFilterEmoji(strings.ManageAlertsAlertTypeAllOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsAlertTypeAllOption,
+                            ),
                           },
                           ...alertTypes.map((type) => ({
                             value: type.name,
@@ -2021,7 +2010,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label: stripFilterEmoji(strings.ManageAlertsStatusAllOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsStatusAllOption,
+                            ),
                           },
                           {
                             value: "active",
@@ -2048,23 +2039,33 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label: stripFilterEmoji(strings.ManageAlertsApprovalAnyStatusOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsApprovalAnyStatusOption,
+                            ),
                           },
                           {
                             value: ContentStatus.Draft,
-                            label: stripFilterEmoji(strings.ManageAlertsApprovalDraftOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsApprovalDraftOption,
+                            ),
                           },
                           {
                             value: ContentStatus.PendingReview,
-                            label: stripFilterEmoji(strings.ManageAlertsApprovalPendingOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsApprovalPendingOption,
+                            ),
                           },
                           {
                             value: ContentStatus.Approved,
-                            label: stripFilterEmoji(strings.ManageAlertsApprovalApprovedOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsApprovalApprovedOption,
+                            ),
                           },
                           {
                             value: ContentStatus.Rejected,
-                            label: stripFilterEmoji(strings.ManageAlertsApprovalRejectedOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsApprovalRejectedOption,
+                            ),
                           },
                         ]}
                       />
@@ -2079,11 +2080,15 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label: stripFilterEmoji(strings.ManageAlertsLanguageAllOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsLanguageAllOption,
+                            ),
                           },
                           {
                             value: TargetLanguage.All,
-                            label: stripFilterEmoji(strings.ManageAlertsLanguageMultiOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsLanguageMultiOption,
+                            ),
                           },
                           ...supportedLanguages.map((lang) => ({
                             value: lang.code,
@@ -2104,23 +2109,33 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         options={[
                           {
                             value: "all",
-                            label: stripFilterEmoji(strings.ManageAlertsNotificationAllOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsNotificationAllOption,
+                            ),
                           },
                           {
                             value: NotificationType.None,
-                            label: stripFilterEmoji(strings.ManageAlertsNotificationNoneOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsNotificationNoneOption,
+                            ),
                           },
                           {
                             value: NotificationType.Browser,
-                            label: stripFilterEmoji(strings.ManageAlertsNotificationBrowserOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsNotificationBrowserOption,
+                            ),
                           },
                           {
                             value: NotificationType.Email,
-                            label: stripFilterEmoji(strings.ManageAlertsNotificationEmailOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsNotificationEmailOption,
+                            ),
                           },
                           {
                             value: NotificationType.Both,
-                            label: stripFilterEmoji(strings.ManageAlertsNotificationBothOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsNotificationBothOption,
+                            ),
                           },
                         ]}
                       />
@@ -2131,29 +2146,44 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         value={dateFilter}
                         onChange={(value) =>
                           setDateFilter(
-                            value as "all" | "today" | "week" | "month" | "custom",
+                            value as
+                              | "all"
+                              | "today"
+                              | "week"
+                              | "month"
+                              | "custom",
                           )
                         }
                         options={[
                           {
                             value: "all",
-                            label: stripFilterEmoji(strings.ManageAlertsDateAllOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsDateAllOption,
+                            ),
                           },
                           {
                             value: "today",
-                            label: stripFilterEmoji(strings.ManageAlertsDateTodayOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsDateTodayOption,
+                            ),
                           },
                           {
                             value: "week",
-                            label: stripFilterEmoji(strings.ManageAlertsDateWeekOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsDateWeekOption,
+                            ),
                           },
                           {
                             value: "month",
-                            label: stripFilterEmoji(strings.ManageAlertsDateMonthOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsDateMonthOption,
+                            ),
                           },
                           {
                             value: "custom",
-                            label: stripFilterEmoji(strings.ManageAlertsDateCustomOption),
+                            label: stripFilterEmoji(
+                              strings.ManageAlertsDateCustomOption,
+                            ),
                           },
                         ]}
                       />
@@ -2191,6 +2221,43 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 )}
               </div>
 
+              {/* Empty state for filtered drafts view */}
+              {contentTypeFilter === ContentType.Draft &&
+                groupedAlerts.length === 0 && (
+                  <EmptyState
+                    icon="Edit"
+                    title={strings.ManageAlertsNoDraftsTitle}
+                    description={strings.CreateAlertDraftsEmptyMessage}
+                    actionText={strings.ManageAlertsEmptyCreateFirstButton}
+                    onAction={() => setActiveTab("create")}
+                  />
+                )}
+
+              {/* Empty state for filtered templates view */}
+              {contentTypeFilter === ContentType.Template &&
+                groupedAlerts.length === 0 && (
+                  <EmptyState
+                    icon="PageListSolid"
+                    title={strings.ManageAlertsNoTemplatesTitle}
+                    description={strings.AlertTemplatesEmptyDescription}
+                    actionText={strings.ManageAlertsEmptyCreateFirstButton}
+                    onAction={() => setActiveTab("create")}
+                  />
+                )}
+
+              {/* Empty state when filters return no results */}
+              {contentTypeFilter !== ContentType.Draft &&
+                contentTypeFilter !== ContentType.Template &&
+                groupedAlerts.length === 0 && (
+                  <EmptyState
+                    icon="FilterSolid"
+                    title={strings.AlertTemplatesNoResultsTitle}
+                    description={strings.AlertTemplatesNoResultsDescription}
+                    actionText={strings.ManageAlertsClearFiltersButton}
+                    onAction={resetFilters}
+                  />
+                )}
+
               {groupedAlerts.map((alert) => (
                 <ManageAlertCard
                   key={alert.id}
@@ -2219,7 +2286,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   onApprove={() => handleApprove(alert)}
                   onReject={() => handleReject(alert)}
                   priorityLabel={
-                    priorityLabelMap.get(String(alert.priority)) || alert.priority
+                    priorityLabelMap.get(String(alert.priority)) ||
+                    alert.priority
                   }
                   alertTypeStyle={alertTypeStyleMap.get(alert.AlertType)}
                   supportedLanguageMap={supportedLanguageMap}
@@ -2241,7 +2309,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             setErrors={setEditErrors}
             alertTypes={alertTypes}
             alertTypeOptions={alertTypeOptions}
-            priorityOptions={priorityOptions}
             notificationOptions={notificationOptions}
             contentTypeOptions={contentTypeOptions}
             languageOptions={languageOptions}
@@ -2259,7 +2326,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             copilotEnabled={copilotEnabled}
             copilotService={copilotService}
             copilotAvailability={copilotAvailability}
-            copilotAvailabilityMessage={copilotAvailabilityMessage}
             notificationService={notificationService}
             isBusy={isEditingAlert}
             showPreview={showPreview}

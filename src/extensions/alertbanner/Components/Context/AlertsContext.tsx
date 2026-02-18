@@ -3,12 +3,12 @@ import { createContext, useReducer, useContext, useCallback } from "react";
 import {
   IAlertType,
   AlertPriority,
-  IPersonField,
-  ITargetingRule,
   ContentType,
   TargetLanguage,
   NotificationType,
   IAlertItem,
+  IGraphListItem,
+  IPriorityColorConfig,
 } from "../Alerts/IAlerts";
 import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
@@ -39,6 +39,7 @@ interface AlertsState {
   userHiddenAlerts: string[];
   carouselEnabled: boolean;
   carouselInterval: number;
+  priorityBorderColors: Record<AlertPriority, IPriorityColorConfig>;
 }
 
 type AlertsAction =
@@ -54,6 +55,10 @@ type AlertsAction =
       type: "SET_CAROUSEL_SETTINGS";
       payload: { carouselEnabled?: boolean; carouselInterval?: number };
     }
+  | {
+      type: "SET_PRIORITY_BORDER_COLORS";
+      payload: Record<AlertPriority, IPriorityColorConfig>;
+    }
   | { type: "BATCH_UPDATE"; payload: Partial<AlertsState> };
 
 const initialState: AlertsState = {
@@ -66,6 +71,12 @@ const initialState: AlertsState = {
   userHiddenAlerts: [],
   carouselEnabled: false,
   carouselInterval: 5000,
+  priorityBorderColors: {
+    [AlertPriority.Critical]: { borderColor: "#d13438" },
+    [AlertPriority.High]: { borderColor: "#f7630c" },
+    [AlertPriority.Medium]: { borderColor: "#0078d4" },
+    [AlertPriority.Low]: { borderColor: "#107c10" },
+  },
 };
 
 const alertsReducer = (
@@ -120,6 +131,12 @@ const alertsReducer = (
         }),
       };
 
+    case "SET_PRIORITY_BORDER_COLORS":
+      return {
+        ...state,
+        priorityBorderColors: action.payload,
+      };
+
     case "BATCH_UPDATE":
       return { ...state, ...action.payload };
 
@@ -140,6 +157,7 @@ interface AlertsContextProps {
     carouselEnabled?: boolean;
     carouselInterval?: number;
   }) => void;
+  updatePriorityBorderColors: (colors: Record<AlertPriority, IPriorityColorConfig>) => void;
 }
 
 const AlertsContext = createContext<AlertsContextProps | undefined>(undefined);
@@ -263,7 +281,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Map SharePoint item to alert using consolidated transformer
   const mapSharePointItemToAlert = useCallback(
-    (item: any, siteId: string): IAlertItem => {
+    (item: IGraphListItem, siteId: string): IAlertItem => {
       return AlertTransformers.mapSharePointItemToAlert(item, siteId, false);
     },
     [],
@@ -502,22 +520,28 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        const userLanguage =
-          await servicesRef.current.languageAwarenessService.getUserPreferredLanguage();
+        // Get language with source for better debugging
+        const detectionResult =
+          await servicesRef.current.languageAwarenessService.getUserPreferredLanguageWithSource();
+        const userPreferences =
+          servicesRef.current.languageAwarenessService.getUserLanguagePreferences();
+        
         const filteredAlerts =
           servicesRef.current.languageAwarenessService.filterAlertsForUser(
             alertsToFilter,
-            userLanguage,
+            detectionResult.language,
             servicesRef.current.languagePolicy || DEFAULT_LANGUAGE_POLICY,
           );
 
         logger.info(
           "AlertsContext",
-          `Applied language filtering: ${userLanguage}`,
+          `Applied language filtering: ${detectionResult.language} (from ${detectionResult.source})`,
           {
             originalCount: alertsToFilter.length,
             filteredCount: filteredAlerts.length,
-            userLanguage,
+            userLanguage: detectionResult.language,
+            languageSource: detectionResult.source,
+            allPreferences: userPreferences,
           },
         );
 
@@ -820,6 +844,13 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
+  const updatePriorityBorderColors = useCallback(
+    (colors: Record<AlertPriority, IPriorityColorConfig>) => {
+      dispatch({ type: "SET_PRIORITY_BORDER_COLORS", payload: colors });
+    },
+    [],
+  );
+
   // The value we'll provide to consumers
   const value = React.useMemo(
     () => ({
@@ -830,6 +861,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       initializeAlerts,
       refreshAlerts,
       updateCarouselSettings,
+      updatePriorityBorderColors,
     }),
     [
       state,
@@ -838,6 +870,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       initializeAlerts,
       refreshAlerts,
       updateCarouselSettings,
+      updatePriorityBorderColors,
     ],
   );
 
@@ -889,9 +922,14 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     servicesRef.current = {};
 
     // Dispatch final cleanup state
-    dispatch({ type: "SET_ALERTS", payload: [] });
-    dispatch({ type: "SET_LOADING", payload: false });
-    dispatch({ type: "SET_ERROR", payload: { hasError: false } });
+    dispatch({
+      type: "BATCH_UPDATE",
+      payload: {
+        alerts: [],
+        isLoading: false,
+        hasError: false,
+      },
+    });
   }, []);
 
   React.useEffect(() => {

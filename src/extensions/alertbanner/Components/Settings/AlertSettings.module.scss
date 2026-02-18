@@ -1,16 +1,34 @@
 // User-Friendly Alert Settings Styles
 
+// Settings button - positioned at top-right of viewport, only visible in edit mode
 .settingsButton {
   position: fixed;
   top: 60px;
   right: 20px;
-  z-index: 1001;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease-out;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  
+  button {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background-color: #ffffff;
+    border: 1px solid #e1dfdd;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transform: translateY(-1px);
+      background-color: #f3f2f1;
+    }
+    
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
   }
 }
 
@@ -73,10 +91,6 @@
   &:hover {
     background: #ffffff;
   }
-}
-
-.tabIcon {
-  font-size: 16px;
 }
 
 // Tab content
@@ -334,10 +348,11 @@
   }
 
   .autoSaveIndicator {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
-    margin-left: auto;
+    margin: 8px 0;
     padding: 6px 12px;
     border-radius: 999px;
     background: #f3f2f1;
@@ -347,6 +362,8 @@
     font-weight: 500;
     line-height: 1.2;
     white-space: nowrap;
+    width: fit-content;
+    margin-left: auto;
   }
 }
 
@@ -504,6 +521,56 @@
         line-height: 16px;
       }
     }
+  }
+}
+
+.priorityColorsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.priorityColorItem {
+  min-width: 0;
+
+  // Override ColorPicker field styles to be more compact
+  :global {
+    .sp-field {
+      margin-bottom: 0 !important;
+
+      .sp-label {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+    }
+  }
+}
+
+.priorityColorsSection {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e1e5e9;
+  border-radius: 4px;
+
+  .fieldLabel {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: #323130;
+    margin-bottom: 4px;
+  }
+
+  .fieldDescription {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 12px;
   }
 }
 
@@ -2495,5 +2562,78 @@
   .schedulingGrid {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+}
+
+// About Section - Fluent UI 2 Design
+.aboutSection {
+  padding: var(--spacingVerticalM, 16px);
+}
+
+.aboutCard {
+  background-color: var(--colorNeutralBackground3, #f5f5f5);
+  border-radius: var(--borderRadiusMedium, 8px);
+  padding: var(--spacingVerticalXL, 24px) var(--spacingHorizontalXL, 24px);
+  text-align: center;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.aboutTitle {
+  font-size: var(--fontSizeBase500, 20px);
+  font-weight: var(--fontWeightSemibold, 600);
+  color: var(--colorNeutralForeground1, #323130);
+  margin: 0 0 var(--spacingVerticalXS, 4px) 0;
+  line-height: var(--lineHeightBase500, 28px);
+}
+
+.aboutVersion {
+  font-size: var(--fontSizeBase200, 12px);
+  color: var(--colorNeutralForeground2, #605e5c);
+  font-family: var(--fontFamilyMonospace, 'Monaco', 'Menlo', 'Consolas', monospace);
+  margin: 0 0 var(--spacingVerticalL, 16px) 0;
+  line-height: var(--lineHeightBase200, 16px);
+}
+
+.aboutDescription {
+  font-size: var(--fontSizeBase300, 14px);
+  color: var(--colorNeutralForeground2, #605e5c);
+  line-height: var(--lineHeightBase300, 20px);
+  margin: 0 0 var(--spacingVerticalM, 12px) 0;
+}
+
+.aboutAuthor {
+  font-size: var(--fontSizeBase300, 14px);
+  color: var(--colorNeutralForeground2, #605e5c);
+  margin: 0 0 var(--spacingVerticalXL, 20px) 0;
+  line-height: var(--lineHeightBase300, 20px);
+}
+
+.aboutLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacingHorizontalXS, 4px);
+  font-size: var(--fontSizeBase300, 14px);
+  color: var(--colorNeutralForegroundOnBrand, #ffffff);
+  text-decoration: none;
+  font-weight: var(--fontWeightSemibold, 600);
+  padding: var(--spacingVerticalS, 8px) var(--spacingHorizontalM, 16px);
+  background-color: var(--colorBrandBackground, #0078d4);
+  border-radius: var(--borderRadiusMedium, 4px);
+  transition: background-color var(--durationFast, 0.1s) ease;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background-color: var(--colorBrandBackgroundHover, #106ebe);
+    text-decoration: none;
+  }
+
+  &:active {
+    background-color: var(--colorBrandBackgroundPressed, #005a9e);
   }
 }

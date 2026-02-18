@@ -142,7 +142,7 @@
     var(--colorPaletteRedBackground1, #fef9f9) 100%
   );
   border: 1px solid var(--colorPaletteRedBorder1, #f3d6d8);
-  border-left: 4px solid var(--colorPaletteRedForeground1, #d13438);
+  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorPaletteRedForeground1, #d13438);
@@ -166,7 +166,7 @@
     var(--colorPaletteDarkOrangeBackground1, #fffaf7) 100%
   );
   border: 1px solid var(--colorPaletteDarkOrangeBorder1, #f7e6d3);
-  border-left: 4px solid var(--colorPaletteDarkOrangeForeground1, #f7630c);
+  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorPaletteDarkOrangeForeground1, #f7630c);
@@ -190,7 +190,7 @@
     var(--colorBrandBackground2, #f8fcff) 100%
   );
   border: 1px solid var(--colorBrandStroke2, #d1e7f0);
-  border-left: 4px solid var(--colorBrandForeground1, #0078d4);
+  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorBrandForeground1, #0078d4);
@@ -214,7 +214,7 @@
     var(--colorPaletteGreenBackground1, #f9fcf9) 100%
   );
   border: 1px solid var(--colorPaletteGreenBorder1, #d3e7d3);
-  border-left: 4px solid var(--colorPaletteGreenForeground1, #107c10);
+  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorPaletteGreenForeground1, #107c10);
@@ -533,41 +533,4 @@
   transition: color 0.2s ease;
 }
 
-// Priority badge for non-color-only priority indication (WCAG 1.4.1)
-.priorityBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 8px;
-  border-radius: var(--borderRadiusMedium, 4px);
-  font-size: 11px;
-  font-weight: var(--fontWeightSemibold, 600);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  line-height: 18px;
-  margin-left: var(--spacingHorizontalS, 8px);
-  flex-shrink: 0;
 
-  &.badgeCritical {
-    background-color: var(--colorPaletteRedBackground1, #fef6f6);
-    color: var(--colorPaletteRedForeground1, #d13438);
-    border: 1px solid var(--colorPaletteRedBorder1, #f3d6d8);
-  }
-
-  &.badgeHigh {
-    background-color: var(--colorPaletteDarkOrangeBackground1, #fffaf7);
-    color: var(--colorPaletteDarkOrangeForeground1, #f7630c);
-    border: 1px solid var(--colorPaletteDarkOrangeBorder1, #f7e6d3);
-  }
-
-  &.badgeMedium {
-    background-color: var(--colorBrandBackground2, #f8fcff);
-    color: var(--colorBrandForeground1, #0078d4);
-    border: 1px solid var(--colorBrandStroke2, #d1e7f0);
-  }
-
-  &.badgeLow {
-    background-color: var(--colorPaletteGreenBackground1, #f9fcf9);
-    color: var(--colorPaletteGreenForeground1, #107c10);
-    border: 1px solid var(--colorPaletteGreenBorder1, #d3e7d3);
-  }
-}

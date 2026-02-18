@@ -1,13 +1,9 @@
 import { useMemo } from 'react';
 import { TargetLanguage } from '../Alerts/IAlerts';
 import { ISupportedLanguage } from '../Services/LanguageAwarenessService';
+import { ISharePointSelectOption } from '../UI/SharePointControls';
 
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
-
-export interface ISharePointSelectOption {
-  value: string;
-  label: string;
-}
 
 export const useLanguageOptions = (
   supportedLanguages: ISupportedLanguage[]

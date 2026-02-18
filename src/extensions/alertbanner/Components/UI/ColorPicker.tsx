@@ -25,7 +25,6 @@ const PresetColorButton: React.FC<{
       className={`${styles.presetColor} ${colorClassName} ${isSelected ? styles.selected : ''}`}
       onClick={onSelect}
       aria-label={Text.format(strings.ColorPickerSelectColorAria, color)}
-      title={color}
     />
   );
 };
@@ -81,18 +80,18 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use click instead of mousedown to avoid conflicts with color inputs
+      document.addEventListener('click', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
     };
   }, [isOpen]);
 
   const handleColorSelect = React.useCallback((color: string) => {
     onChange(color);
     setCustomColor(color);
-    setIsOpen(false);
   }, [onChange]);
 
   const isValidColor = React.useCallback((color: string): boolean => {
@@ -109,13 +108,6 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
     
     return cssColors.includes(color.toLowerCase());
   }, []);
-
-  const handleCustomColorChange = React.useCallback((color: string) => {
-    setCustomColor(color);
-    if (isValidColor(color)) {
-      onChange(color);
-    }
-  }, [onChange, isValidColor]);
 
   const selectedColorClassName =
     getColorTokenClass(value);
@@ -146,7 +138,7 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
         </button>
 
         {isOpen && (
-          <div className={styles.colorDropdown}>
+          <div className={styles.colorDropdown} onClick={(e) => e.stopPropagation()}>
             <div className={styles.presetColors}>
               <h4>{strings.ColorPickerPresetColorsTitle}</h4>
               <div className={styles.colorGrid}>
@@ -155,43 +147,43 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
                     key={color}
                     color={color}
                     isSelected={color === value}
-                    onSelect={() => handleColorSelect(color)}
+                    onSelect={() => {
+                      handleColorSelect(color);
+                      // Close after selecting a preset color
+                      setIsOpen(false);
+                    }}
                   />
                 ))}
               </div>
             </div>
 
-            <div className={styles.customColor}>
-              <h4>{strings.ColorPickerCustomColorTitle}</h4>
-              <div className={styles.customColorInputs}>
-                <input
-                  type="color"
-                  value={customColor}
-                  onChange={(e) => handleCustomColorChange(e.target.value)}
-                  className={styles.nativeColorPicker}
-                />
-                <input
-                  type="text"
-                  value={customColor}
-                  onChange={(e) => {
-                    const newColor = e.target.value;
-                    setCustomColor(newColor);
-                    if (isValidColor(newColor)) {
-                      onChange(newColor);
-                    }
-                  }}
-                  className={styles.colorTextInput}
-                  placeholder="#000000"
-                />
-                <button
-                  type="button"
-                  className={styles.applyButton}
-                  onClick={() => handleColorSelect(customColor)}
-                  disabled={!isValidColor(customColor)}
-                >
-                  {strings.ColorPickerApplyButton}
-                </button>
-              </div>
+            <div className={styles.customColorInputs} onClick={(e) => e.stopPropagation()}>
+              <input
+                type="color"
+                value={isValidColor(customColor) ? customColor : '#0078d4'}
+                onChange={(e) => {
+                  const newColor = e.target.value;
+                  onChange(newColor);
+                  setCustomColor(newColor);
+                }}
+                className={styles.nativeColorPicker}
+                title="Choose custom color"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <input
+                type="text"
+                value={customColor}
+                onChange={(e) => {
+                  const newColor = e.target.value;
+                  setCustomColor(newColor);
+                  if (isValidColor(newColor)) {
+                    onChange(newColor);
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className={styles.colorTextInput}
+                placeholder="#000000"
+              />
             </div>
           </div>
         )}

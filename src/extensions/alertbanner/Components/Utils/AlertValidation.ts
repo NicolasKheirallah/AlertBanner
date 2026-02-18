@@ -1,5 +1,8 @@
-import { TargetLanguage } from "../Alerts/IAlerts";
-import { ILanguageContent } from "../Services/LanguageAwarenessService";
+import {
+  TargetLanguage,
+  IAlertItem,
+  ILanguageContent,
+} from "../Alerts/IAlerts";
 import { validationService } from "../Services/ValidationService";
 import { VALIDATION_MESSAGES } from "./AppConstants";
 import {
@@ -20,7 +23,7 @@ export interface IValidationOptions {
 }
 
 export const validateAlertData = (
-  alert: any,
+  alert: Partial<IAlertItem>,
   options: IValidationOptions,
 ): IFormErrors => {
   const { useMultiLanguage, getString } = options;
@@ -63,7 +66,7 @@ export const validateAlertData = (
         content: ILanguageContent,
         field: "title" | "description" | "linkDescription",
       ): boolean => {
-        const value = (content as any)[field] as string | undefined;
+        const value = content[field];
         if (value && value.trim().length > 0) {
           return true;
         }
@@ -74,7 +77,7 @@ export const validateAlertData = (
           return false;
         }
         const fallbackValue = fallbackContent
-          ? ((fallbackContent as any)[field] as string | undefined)
+          ? fallbackContent[field]
           : undefined;
         return !!fallbackValue && fallbackValue.trim().length > 0;
       };
@@ -212,7 +215,7 @@ export const validateAlertData = (
     // Single language validation
     if (!alert.title?.trim()) {
       errors.title = getLocalizedString("TitleRequired");
-    } else if (alert.title.length < 3) {
+    } else if (alert.title.trim().length < 3) {
       errors.title = getLocalizedString("TitleMinLength");
     } else if (alert.title.length > 100) {
       errors.title = getLocalizedString("TitleMaxLength");

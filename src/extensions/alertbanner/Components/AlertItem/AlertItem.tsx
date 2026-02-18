@@ -1,13 +1,13 @@
 import * as React from "react";
 import { logger } from "../Services/LoggerService";
-import { IAlertType, IQuickAction } from "../Alerts/IAlerts";
-import { IAlertItem } from "../Alerts/IAlerts";
+import { IAlertType, IAlertItem, AlertPriority } from "../Alerts/IAlerts";
+import { useAlerts } from "../Context/AlertsContext";
 import { getContrastText } from "../Utils/ColorUtils";
 import styles from "./AlertItem.module.scss";
 import AlertHeader from "./AlertHeader";
 import AlertContent from "./AlertContent";
 import AlertActions from "./AlertActions";
-import { WINDOW_OPEN_CONFIG, SHADOW_CONFIG } from "../Utils/AppConstants";
+import { SHADOW_CONFIG } from "../Utils/AppConstants";
 
 // Whitelist of safe CSS properties for alert styling
 const ALLOWED_CSS_PROPERTIES = new Set([
@@ -131,63 +131,21 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     [remove, hideForever],
   );
 
-  const handleQuickAction = React.useCallback(
-    (action: IQuickAction) => {
-      switch (action.actionType) {
-        case "link":
-          if (action.url) {
-            window.open(
-              action.url,
-              WINDOW_OPEN_CONFIG.TARGET,
-              WINDOW_OPEN_CONFIG.FEATURES,
-            );
-          }
-          break;
-        case "dismiss":
-          handlers.remove(item.id);
-          break;
-        case "acknowledge":
-          logger.debug("AlertItem", `Alert ${item.id} acknowledged`);
-          handlers.remove(item.id);
-          break;
-        case "custom":
-          const allowedCustomActions: {
-            [key: string]: (item: IAlertItem) => void;
-          } = {
-            showDetails: (item) => {
-              logger.debug(
-                "AlertItem",
-                `Showing details for alert: ${item.id}`,
-              );
-            },
-            logInteraction: (item) => {
-              logger.debug(
-                "AlertItem",
-                `User interacted with alert: ${item.id}`,
-              );
-            },
-            markAsRead: (item) => {
-              logger.debug("AlertItem", `Marking alert as read: ${item.id}`);
-              handlers.remove(item.id);
-            },
-          };
-
-          if (
-            action.callback &&
-            typeof allowedCustomActions[action.callback] === "function"
-          ) {
-            allowedCustomActions[action.callback](item);
-          } else {
-            logger.warn(
-              "AlertItem",
-              `Unknown or disallowed custom action: ${action.callback}. Allowed actions: ${Object.keys(allowedCustomActions).join(", ")}`,
-            );
-          }
-          break;
+  // Memoized keyboard event handler for accessibility
+  const handleHeaderKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handlers.toggleExpanded();
       }
     },
-    [handlers.remove, item],
+    [handlers.toggleExpanded],
   );
+
+  // Memoized header click handler
+  const handleHeaderClick = React.useCallback(() => {
+    handlers.toggleExpanded();
+  }, [handlers.toggleExpanded]);
 
   const baseContainerStyle = React.useMemo<React.CSSProperties>(() => {
     const backgroundColor = alertType.backgroundColor || "#389899";
@@ -210,44 +168,56 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     [alertType.priorityStyles, item.priority],
   );
 
+  // Get global priority border colors from context
+  const { state: alertsState } = useAlerts();
+  const priorityBorderColors = alertsState.priorityBorderColors;
+  
+  // Get border color from global settings based on alert priority
+  const borderColor = React.useMemo(() => {
+    return priorityBorderColors[item.priority as AlertPriority]?.borderColor || 
+           alertType.backgroundColor || 
+           "#389899";
+  }, [priorityBorderColors, item.priority, alertType.backgroundColor]);
+
   const containerStyle = React.useMemo<React.CSSProperties>(
     () => ({
       ...baseContainerStyle,
       ...parseAdditionalStyles(priorityStyle),
+      // Set border-left color directly using priority-specific or alert type background color
+      borderLeft: `4px solid ${borderColor}`,
       ...(item.priority === "critical" && {
         boxShadow: SHADOW_CONFIG.CRITICAL_PRIORITY,
       }),
-    }),
-    [baseContainerStyle, priorityStyle, item.priority],
+    } as React.CSSProperties),
+    [baseContainerStyle, priorityStyle, item.priority, borderColor],
   );
 
-  const containerClassNames = [
-    styles.container,
-    styles.clickable,
-    item.priority === "critical" ? styles.critical : "",
-    item.priority === "high" ? styles.high : "",
-    item.priority === "medium" ? styles.medium : "",
-    item.priority === "low" ? styles.low : "",
-    item.isPinned ? styles.pinned : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const containerClassNames = React.useMemo(
+    () =>
+      [
+        styles.container,
+        styles.clickable,
+        item.priority === "critical" ? styles.critical : "",
+        item.priority === "high" ? styles.high : "",
+        item.priority === "medium" ? styles.medium : "",
+        item.priority === "low" ? styles.low : "",
+        item.isPinned ? styles.pinned : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    [item.priority, item.isPinned],
+  );
 
   return (
     <div className={styles.alertItem}>
       <div className={containerClassNames} style={containerStyle}>
         <div
           className={styles.headerRow}
-          onClick={handlers.toggleExpanded}
+          onClick={handleHeaderClick}
           role="button"
           tabIndex={0}
           aria-expanded={expanded}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handlers.toggleExpanded();
-            }
-          }}
+          onKeyDown={handleHeaderKeyDown}
         >
           <AlertHeader
             item={item}
@@ -255,6 +225,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
             expanded={expanded}
             toggleExpanded={handlers.toggleExpanded}
             ariaControlsId={ariaControlsId}
+            titleColor={undefined}
           />
           <AlertActions
             item={item}
@@ -264,7 +235,6 @@ const AlertItem: React.FC<IAlertItemProps> = ({
             onNext={onNext}
             onPrevious={onPrevious}
             expanded={expanded}
-            toggleExpanded={handlers.toggleExpanded}
             remove={handlers.remove}
             hideForever={handlers.hideForever}
             stopPropagation={handlers.stopPropagation}
@@ -282,4 +252,39 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   );
 };
 
-export default AlertItem;
+// Custom comparison function for React.memo
+// Only re-render when alert data or relevant props actually change
+const arePropsEqual = (
+  prevProps: IAlertItemProps,
+  nextProps: IAlertItemProps,
+): boolean => {
+  // Compare alert item data
+  if (prevProps.item.id !== nextProps.item.id) return false;
+  if (prevProps.item.title !== nextProps.item.title) return false;
+  if (prevProps.item.description !== nextProps.item.description) return false;
+  if (prevProps.item.priority !== nextProps.item.priority) return false;
+  if (prevProps.item.isPinned !== nextProps.item.isPinned) return false;
+  if (prevProps.item.linkUrl !== nextProps.item.linkUrl) return false;
+  if (prevProps.item.AlertType !== nextProps.item.AlertType) return false;
+
+  // Compare carousel-related props
+  if (prevProps.isCarousel !== nextProps.isCarousel) return false;
+  if (prevProps.currentIndex !== nextProps.currentIndex) return false;
+  if (prevProps.totalAlerts !== nextProps.totalAlerts) return false;
+
+  // Compare alert type
+  if (prevProps.alertType !== nextProps.alertType) return false;
+
+  // Compare user targeting
+  if (prevProps.userTargetingEnabled !== nextProps.userTargetingEnabled) return false;
+
+  // Compare callbacks (reference equality)
+  if (prevProps.remove !== nextProps.remove) return false;
+  if (prevProps.hideForever !== nextProps.hideForever) return false;
+  if (prevProps.onNext !== nextProps.onNext) return false;
+  if (prevProps.onPrevious !== nextProps.onPrevious) return false;
+
+  return true;
+};
+
+export default React.memo(AlertItem, arePropsEqual);

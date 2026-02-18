@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import {
   DefaultButton,
   PrimaryButton,
@@ -21,10 +22,11 @@ import {
 } from "./SharePointControls";
 import SharePointRichTextEditor from "./SharePointRichTextEditor";
 import {
+  TargetLanguage,
+  TranslationStatus,
   ILanguageContent,
-  ISupportedLanguage,
-} from "../Services/LanguageAwarenessService";
-import { TargetLanguage, TranslationStatus } from "../Alerts/IAlerts";
+} from "../Alerts/IAlerts";
+import { ISupportedLanguage } from "../Services/LanguageAwarenessService";
 import styles from "./MultiLanguageContentEditor.module.scss";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import { Text as CoreText } from "@microsoft/sp-core-library";
@@ -40,9 +42,7 @@ const cx = (...classes: Array<string | undefined | false>): string =>
   classes.filter(Boolean).join(" ");
 
 const Card: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
-  <div className={styles.f2Card}>
-    {children}
-  </div>
+  <div className={styles.f2Card}>{children}</div>
 );
 
 const CardHeader: React.FC<{
@@ -89,7 +89,16 @@ const Button: React.FC<{
   disabled?: boolean;
   title?: string;
   className?: string;
-}> = ({ children, appearance = "secondary", icon, onClick, disabled, title, className, size }) => {
+}> = ({
+  children,
+  appearance = "secondary",
+  icon,
+  onClick,
+  disabled,
+  title,
+  className,
+  size,
+}) => {
   const buttonClassName = cx(
     styles.f2Button,
     appearance === "primary" && styles.f2ButtonPrimary,
@@ -100,7 +109,7 @@ const Button: React.FC<{
 
   const commonProps = {
     onRenderIcon: icon ? () => <>{icon}</> : undefined,
-    onClick: onClick as any,
+    onClick,
     disabled,
     title,
     className: buttonClassName,
@@ -164,12 +173,19 @@ const Badge: React.FC<{
 const Checkbox: React.FC<{
   checked?: boolean;
   label?: React.ReactNode;
-  onChange?: (event: React.FormEvent<HTMLElement> | undefined, data: { checked?: boolean }) => void;
+  onChange?: (
+    event: React.FormEvent<HTMLElement> | undefined,
+    data: { checked?: boolean },
+  ) => void;
 }> = ({ checked, label, onChange }) => (
   <FluentCheckbox
     checked={checked}
     label={typeof label === "string" ? label : undefined}
-    onRenderLabel={typeof label === "string" || typeof label === "undefined" ? undefined : () => <>{label}</>}
+    onRenderLabel={
+      typeof label === "string" || typeof label === "undefined"
+        ? undefined
+        : () => <>{label}</>
+    }
     onChange={(event, isChecked) =>
       onChange?.(event as React.FormEvent<HTMLElement>, { checked: isChecked })
     }
@@ -196,12 +212,14 @@ const MessageBar: React.FC<{
   </FluentMessageBar>
 );
 
-const MessageBarBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => <>{children}</>;
+const MessageBarBody: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => <>{children}</>;
 
-const Spinner: React.FC<{ size?: "tiny" | "small" | "medium" | "large"; label?: string }> = ({
-  size = "medium",
-  label,
-}) => (
+const Spinner: React.FC<{
+  size?: "tiny" | "small" | "medium" | "large";
+  label?: string;
+}> = ({ size = "medium", label }) => (
   <FluentSpinner
     size={
       size === "tiny"
@@ -268,40 +286,46 @@ const Dialog: React.FC<{
 }> = ({ open, onOpenChange, children }) => (
   <FluentDialog
     hidden={!open}
-    onDismiss={(event) => onOpenChange?.(event as React.SyntheticEvent<HTMLElement>, { open: false })}
+    onDismiss={(event) =>
+      onOpenChange?.(event as React.SyntheticEvent<HTMLElement>, {
+        open: false,
+      })
+    }
     modalProps={{ isBlocking: false }}
   >
     {children}
   </FluentDialog>
 );
 
-const DialogSurface: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
-const DialogBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
-const DialogTitle: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
-  <div className={styles.f2DialogTitle}>{children}</div>
+const DialogSurface: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => <div>{children}</div>;
+const DialogBody: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <div>{children}</div>
 );
-const DialogContent: React.FC<{ children?: React.ReactNode }> = ({ children }) => <div>{children}</div>;
-const DialogActions: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
-  <div className={styles.f2DialogActions}>{children}</div>
-);
+const DialogTitle: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => <div className={styles.f2DialogTitle}>{children}</div>;
+const DialogContent: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => <div>{children}</div>;
+const DialogActions: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => <div className={styles.f2DialogActions}>{children}</div>;
 
-export interface IMultiLanguageContentEditorProps {
+const MultiLanguageContentEditor: React.FC<{
   content: ILanguageContent[];
   onContentChange: (content: ILanguageContent[]) => void;
   availableLanguages: ISupportedLanguage[];
   errors?: { [key: string]: string | undefined };
   linkUrl?: string;
   tenantDefaultLanguage?: TargetLanguage;
-  context?: any;
+  context?: ApplicationCustomizerContext;
   imageFolderName?: string;
   disableImageUpload?: boolean;
   languagePolicy?: ILanguagePolicy;
   copilotService?: CopilotService;
-}
-
-const MultiLanguageContentEditor: React.FC<
-  IMultiLanguageContentEditorProps
-> = ({
+}> = ({
   content,
   onContentChange,
   availableLanguages,
@@ -330,6 +354,13 @@ const MultiLanguageContentEditor: React.FC<
   const [isTranslatingAll, setIsTranslatingAll] = React.useState(false);
   const [noDefaultContentError, setNoDefaultContentError] =
     React.useState(false);
+  
+  // Use ref to always access latest content (avoid stale closure in async callbacks)
+  const contentRef = React.useRef(content);
+  React.useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+  
   const effectivePolicy = React.useMemo(
     () => normalizeLanguagePolicy(languagePolicy),
     [languagePolicy],
@@ -343,7 +374,7 @@ const MultiLanguageContentEditor: React.FC<
     if (content.length > 0 && !selectedTab) {
       setSelectedTab(content[0].language);
     }
-  }, [content.length, selectedTab]);
+  }, [content, content.length, selectedTab]);
 
   const addLanguage = (language: TargetLanguage) => {
     const languageInfo = availableLanguages.find((l) => l.code === language);
@@ -398,115 +429,173 @@ const MultiLanguageContentEditor: React.FC<
       targetLangName: string,
       overwriteExisting: boolean = true,
     ): Promise<void> => {
-      if (!copilotService) return;
-
-      const defaultContent = content.find(
-        (c) => c.language === tenantDefaultLanguage,
+      // Use ref to get latest content (avoid stale closure)
+      const currentContent = contentRef.current;
+      
+      // Find any language that has content to use as source
+      // 1. Prefer fallback language
+      // 2. Try any language except target language
+      // 3. Fall back to any language with content (even if it's the target - for copy/paste scenarios)
+      const sourceContent = 
+        currentContent.find((c) => c.language === fallbackLanguage && (c.title || c.description)) ||
+        currentContent.find((c) => c.language !== targetLanguage && (c.title || c.description)) ||
+        currentContent.find((c) => c.title || c.description);
+      
+      const targetContentIndex = currentContent.findIndex(
+        (c) => c.language === targetLanguage,
       );
-      if (
-        !defaultContent ||
-        (!defaultContent.title && !defaultContent.description)
-      ) {
-        setNoDefaultContentError(true);
+      const targetContent =
+        targetContentIndex >= 0 ? currentContent[targetContentIndex] : null;
+
+      if (!sourceContent) {
+        setTranslationError(
+          "No source content found. Please add content to at least one language first.",
+        );
         return;
       }
 
+      // Check if target already has content and we're not overwriting
+      // Consider content existing if title OR description has content
+      if (
+        targetContent &&
+        !overwriteExisting &&
+        (targetContent.title?.trim() || targetContent.description?.trim())
+      ) {
+        return;
+      }
+
+      // Add target language to translating list
       setTranslatingLanguages((prev) => [...prev, targetLanguage]);
+      setTranslationError(null);
+
+      if (!copilotService) {
+        setTranslationError("Copilot service not available");
+        setTranslatingLanguages((prev) => prev.filter((l) => l !== targetLanguage));
+        return;
+      }
 
       try {
-        const promises: Promise<{
-          field: "title" | "description";
-          value: string;
-        }>[] = [];
+        const results: Partial<ILanguageContent> = {
+          language: targetLanguage as TargetLanguage,
+        };
 
-        if (defaultContent.title) {
-          promises.push(
-            copilotService
-              .translateText(defaultContent.title, targetLangName)
-              .then((res) => ({
-                field: "title" as const,
-                value: res.isError ? "" : res.content,
-              })),
+        // Translate title if source has one
+        if (sourceContent.title) {
+          const titleResponse = await copilotService.translateText(
+            sourceContent.title,
+            targetLangName,
           );
-        }
-
-        if (defaultContent.description) {
-          promises.push(
-            copilotService
-              .translateText(defaultContent.description, targetLangName)
-              .then((res) => ({
-                field: "description" as const,
-                value: res.isError ? "" : res.content,
-              })),
-          );
-        }
-
-        const results = await Promise.all(promises);
-
-        const updatedContentList = content.map((c) => {
-          if (c.language === targetLanguage) {
-            const updates: Partial<ILanguageContent> = {};
-            results.forEach((r) => {
-              const currentValue = (c as any)[r.field] as string | undefined;
-              const canWrite =
-                overwriteExisting ||
-                !currentValue ||
-                currentValue.trim().length === 0;
-              if (r.value && canWrite) {
-                updates[r.field] = r.value;
-              }
-            });
-            return { ...c, ...updates };
+          if (titleResponse.isError) {
+            throw new Error(
+              titleResponse.errorMessage || "Title translation failed",
+            );
           }
-          return c;
-        });
+          results.title = titleResponse.content.trim();
+        }
 
-        onContentChange(updatedContentList);
-      } catch (e) {
-        logger.error("MultiLanguageContentEditor", "Translation failed", e);
+        // Translate description if source has one
+        if (sourceContent.description) {
+          const descResponse = await copilotService.translateText(
+            sourceContent.description,
+            targetLangName,
+          );
+          if (descResponse.isError) {
+            throw new Error(
+              descResponse.errorMessage || "Description translation failed",
+            );
+          }
+          results.description = descResponse.content.trim();
+        }
+
+        // Translate link description if source has one
+        if (sourceContent.linkDescription) {
+          const linkResponse = await copilotService.translateText(
+            sourceContent.linkDescription,
+            targetLangName,
+          );
+          if (linkResponse.isError) {
+            throw new Error(
+              linkResponse.errorMessage || "Link description translation failed",
+            );
+          }
+          results.linkDescription = linkResponse.content.trim();
+        }
+
+        // Update content with translation using latest ref
+        const updatedContent = currentContent.map((c) =>
+          c.language === targetLanguage ? { ...c, ...results } : c,
+        );
+        onContentChange(updatedContent);
+
+        logger.info(
+          "MultiLanguageContentEditor",
+          `Translated content to ${targetLangName}`,
+        );
+      } catch (error) {
+        logger.error("MultiLanguageContentEditor", "Translation failed", error);
         setTranslationError(strings.CopilotTranslationFailed);
       } finally {
-        setTranslatingLanguages((prev) =>
-          prev.filter((l) => l !== targetLanguage),
-        );
+        // Remove target language from translating list
+        setTranslatingLanguages((prev) => prev.filter((l) => l !== targetLanguage));
       }
     },
-    [content, copilotService, onContentChange, tenantDefaultLanguage],
+    [fallbackLanguage, copilotService, onContentChange, strings],
   );
 
   const handleTranslateAllMissing = React.useCallback(async (): Promise<void> => {
-    if (!copilotService) {
+    // Use ref to get latest content
+    const currentContent = contentRef.current;
+    
+    logger.debug("MultiLanguageContentEditor", "Translate all missing clicked", {
+      contentCount: currentContent.length,
+      languages: currentContent.map(c => ({ lang: c.language, hasTitle: !!c.title, hasDesc: !!c.description }))
+    });
+    
+    // Find source content (any language with content)
+    const sourceContent = currentContent.find((c) => c.title || c.description);
+    if (!sourceContent) {
+      logger.debug("MultiLanguageContentEditor", "No source content found");
+      setTranslationError(
+        "No source content found. Please add content to at least one language first.",
+      );
       return;
     }
 
-    setTranslationInfo(null);
-    const missing = content.filter(
-      (item) =>
-        item.language !== tenantDefaultLanguage &&
-        (!item.title.trim() || !item.description.trim()),
+    // Find all languages missing content (excluding the source language)
+    const missingTranslations = currentContent.filter(
+      (c) =>
+        c.language !== sourceContent.language &&
+        (!c.title || !c.description),
     );
 
-    if (missing.length === 0) {
-      setTranslationInfo(strings.MultiLanguageEditorNoMissingTranslations);
+    logger.debug("MultiLanguageContentEditor", "Missing translations found", {
+      sourceLanguage: sourceContent.language,
+      missingCount: missingTranslations.length,
+      missingLanguages: missingTranslations.map(c => c.language)
+    });
+
+    if (missingTranslations.length === 0) {
+      setTranslationInfo("All languages already have content. Nothing to translate.");
       return;
     }
 
     setIsTranslatingAll(true);
+    setTranslationError(null);
+
     try {
-      await Promise.all(
-        missing.map(async (item) => {
-          const language = getLanguageInfo(item.language);
-          await handleTranslate(
-            item.language,
-            language?.nativeName || item.language,
-            false,
-          );
-        }),
-      );
+      for (const targetContent of missingTranslations) {
+        const langInfo = getLanguageInfo(targetContent.language as TargetLanguage);
+        if (langInfo) {
+          await handleTranslate(targetContent.language, langInfo.nativeName, false);
+        }
+      }
+    } catch (error) {
+      logger.error("MultiLanguageContentEditor", "Batch translation failed", error);
+      setTranslationError(strings.CopilotTranslationFailed);
     } finally {
       setIsTranslatingAll(false);
     }
-  }, [content, copilotService, tenantDefaultLanguage, handleTranslate]);
+  }, [handleTranslate, strings]);
 
   const getAvailableLanguagesToAdd = () => {
     const usedLanguages = content.map((c) => c.language);
@@ -593,7 +682,13 @@ const MultiLanguageContentEditor: React.FC<
               <Button
                 appearance="secondary"
                 size="small"
-                icon={isTranslatingAll ? <Spinner size="tiny" /> : <SparkleRegular />}
+                icon={
+                  isTranslatingAll ? (
+                    <Spinner size="tiny" />
+                  ) : (
+                    <SparkleRegular />
+                  )
+                }
                 onClick={() => void handleTranslateAllMissing()}
                 disabled={isTranslatingAll}
               >
@@ -678,7 +773,12 @@ const MultiLanguageContentEditor: React.FC<
                   </div>
 
                   {copilotService &&
-                    contentItem.language !== tenantDefaultLanguage && (
+                    // Show translate button if there's content in another language to use as source
+                    content.some(
+                      (c) =>
+                        c.language !== contentItem.language &&
+                        (c.title?.trim() || c.description?.trim()),
+                    ) && (
                       <div className={styles.translationRow}>
                         <Button
                           appearance="subtle"

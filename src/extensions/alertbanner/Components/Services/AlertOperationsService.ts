@@ -21,6 +21,7 @@ import {
   AlertPriority,
   ContentStatus,
   IPersonField,
+  IGraphListItem,
 } from "../Alerts/IAlerts";
 import { SPHttpClient } from "@microsoft/sp-http";
 import { RetryUtils } from "../Utils/RetryUtils";
@@ -165,7 +166,7 @@ export class AlertOperationsService {
         LIST_NAMES.ALERTS,
       );
 
-      let alerts = items.map((item: any) =>
+      let alerts = items.map((item: IGraphListItem) =>
         AlertTransformers.mapSharePointItemToAlert(item, resolvedSiteId),
       );
       alerts = await this.attachAttachments(siteId, listId, items, alerts);
@@ -174,6 +175,7 @@ export class AlertOperationsService {
         AlertFilters.excludeNonPublicAlerts(alerts),
         now,
         availableColumns.has("ContentStatus"),
+        siteId,
       );
     };
 
@@ -245,6 +247,7 @@ export class AlertOperationsService {
     alerts: IAlertItem[],
     now: Date,
     enforceApprovedStatus: boolean,
+    currentSiteId: string,
   ): IAlertItem[] {
     return alerts.filter((alert) => {
       if (
@@ -268,14 +271,24 @@ export class AlertOperationsService {
         }
       }
 
+      // Target sites filtering:
+      // - If targetSites is empty/not set, show on all sites
+      // - If targetSites has values, only show if current site is in the list
+      if (alert.targetSites && alert.targetSites.length > 0) {
+        const currentSiteIdLower = currentSiteId.toLowerCase();
+        const isTargeted = alert.targetSites.some(
+          (site) => site.toLowerCase() === currentSiteIdLower,
+        );
+        if (!isTargeted) {
+          return false;
+        }
+      }
+
       return true;
     });
   }
 
-  public async createAlert(
-    alert: Omit<IAlertItem, "id" | "createdDate" | "createdBy" | "status"> &
-      Partial<Pick<IAlertItem, "status">>,
-  ): Promise<IAlertItem> {
+  public async createAlert(alert: Partial<IAlertItem>): Promise<IAlertItem> {
     const siteId = this.context.pageContext.site.id.toString();
 
     return this.permissionService.executeWriteOperation(
@@ -284,8 +297,6 @@ export class AlertOperationsService {
         if (!alert.description?.trim())
           throw new Error("Alert description is required");
         if (!alert.AlertType?.trim()) throw new Error("Alert type is required");
-        if (!alert.targetSites || alert.targetSites.length === 0)
-          throw new Error("At least one target site is required");
 
         const alertsListApi = await this.locator.getAlertsListApi(siteId);
 
@@ -320,7 +331,7 @@ export class AlertOperationsService {
         if (alert.linkUrl?.trim()) fields.LinkUrl = alert.linkUrl.trim();
         if (alert.linkDescription?.trim())
           fields.LinkDescription = alert.linkDescription.trim();
-        if (alert.targetSites?.length > 0)
+        if (alert.targetSites && alert.targetSites.length > 0)
           fields.TargetSites = JsonUtils.safeStringify(alert.targetSites);
 
         fields.Status =
@@ -335,7 +346,9 @@ export class AlertOperationsService {
         if (alert.metadata)
           fields.Metadata = JsonUtils.safeStringify(alert.metadata);
         // Format person fields correctly for SharePoint Graph API
-        const formattedTargetUsers = this.formatPersonFieldForSharePoint(alert.targetUsers);
+        const formattedTargetUsers = this.formatPersonFieldForSharePoint(
+          alert.targetUsers,
+        );
         if (formattedTargetUsers && formattedTargetUsers.length > 0) {
           fields.TargetUsers = formattedTargetUsers;
         }
@@ -435,7 +448,9 @@ export class AlertOperationsService {
         setIfAvailable("ScheduledStart", updates.scheduledStart, true);
         setIfAvailable("ScheduledEnd", updates.scheduledEnd, true);
         // Format person fields correctly for SharePoint Graph API
-        const formattedTargetUsers = this.formatPersonFieldForSharePoint(updates.targetUsers);
+        const formattedTargetUsers = this.formatPersonFieldForSharePoint(
+          updates.targetUsers,
+        );
         if (formattedTargetUsers && formattedTargetUsers.length > 0) {
           setIfAvailable("TargetUsers", formattedTargetUsers);
         }
@@ -449,13 +464,16 @@ export class AlertOperationsService {
         setIfAvailable("Status", updates.status);
         setIfAvailable("TranslationStatus", updates.translationStatus);
         setIfAvailable("ContentStatus", updates.contentStatus);
-        
+
         // Format Reviewer person field correctly
         if (updates.reviewer) {
-          const formattedReviewer = this.formatPersonFieldForSharePoint(updates.reviewer)?.[0];
-          if (formattedReviewer) setIfAvailable("Reviewer", formattedReviewer, true);
+          const formattedReviewer = this.formatPersonFieldForSharePoint(
+            updates.reviewer,
+          )?.[0];
+          if (formattedReviewer)
+            setIfAvailable("Reviewer", formattedReviewer, true);
         }
-        
+
         setIfAvailable("ReviewNotes", updates.reviewNotes, true);
         setIfAvailable("SubmittedDate", updates.submittedDate, true);
         setIfAvailable("ReviewedDate", updates.reviewedDate, true);
@@ -558,7 +576,7 @@ export class AlertOperationsService {
         const request = this.graphClient
           .api(`${listApi}/items`)
           .expand(
-            "fields($select=Title,IconName,BackgroundColor,TextColor,AdditionalStyles,PriorityStyles,SortOrder)",
+            "fields($select=Title,IconName,BackgroundColor,TextColor,AdditionalStyles,PriorityStyles,PriorityColors,SortOrder)",
           )
           .top(API_CONFIG.MAX_PAGE_SIZE);
 
@@ -567,38 +585,56 @@ export class AlertOperationsService {
           return DEFAULT_ALERT_TYPES.map((t) => ({ ...t }));
         }
 
-        const sortedItems = [...items].sort((a: any, b: any) => {
-          const sortA = Number(a?.fields?.SortOrder);
-          const sortB = Number(b?.fields?.SortOrder);
-          const hasSortA = Number.isFinite(sortA);
-          const hasSortB = Number.isFinite(sortB);
-          if (hasSortA && hasSortB && sortA !== sortB) {
-            return sortA - sortB;
-          }
-          if (hasSortA !== hasSortB) {
-            return hasSortA ? -1 : 1;
-          }
-          return String(a?.fields?.Title || "").localeCompare(
-            String(b?.fields?.Title || ""),
-          );
-        });
+        const sortedItems = [...items].sort(
+          (a: IGraphListItem, b: IGraphListItem) => {
+            const sortA = Number(a?.fields?.SortOrder);
+            const sortB = Number(b?.fields?.SortOrder);
+            const hasSortA = Number.isFinite(sortA);
+            const hasSortB = Number.isFinite(sortB);
+            if (hasSortA && hasSortB && sortA !== sortB) {
+              return sortA - sortB;
+            }
+            if (hasSortA !== hasSortB) {
+              return hasSortA ? -1 : 1;
+            }
+            return String(a?.fields?.Title || "").localeCompare(
+              String(b?.fields?.Title || ""),
+            );
+          },
+        );
 
-        const types = sortedItems.map((item: any) => {
+        const typesMap = new Map<string, IAlertType>();
+        sortedItems.forEach((item: IGraphListItem) => {
+          const name = String(item?.fields?.Title || "").trim();
+          if (!name) return;
+          
+          // Normalize for duplicate check (case-insensitive)
+          const normalizedName = name.toLowerCase();
+          
+          // Skip duplicates - keep first occurrence (which respects SortOrder due to sorting)
+          if (typesMap.has(normalizedName)) return;
+          
           const parsedStyles =
             JsonUtils.safeParse(item?.fields?.PriorityStyles) || {};
           const defaultPriority = parsedStyles.__defaultPriority;
+          
+          // Parse priority colors if stored
+          const parsedPriorityColors =
+            JsonUtils.safeParse(item?.fields?.PriorityColors) || undefined;
 
-          return {
-            name: item?.fields?.Title || "",
+          typesMap.set(normalizedName, {
+            name,
             iconName: item?.fields?.IconName || "Info",
             backgroundColor: item?.fields?.BackgroundColor || "#0078d4",
             textColor: item?.fields?.TextColor || "#ffffff",
             additionalStyles: item?.fields?.AdditionalStyles || "",
             priorityStyles: parsedStyles,
+            priorityColors: parsedPriorityColors,
             defaultPriority: defaultPriority as AlertPriority,
-          };
+          });
         });
 
+        const types = Array.from(typesMap.values());
         this.alertTypesCache.set(cacheKey, { types, timestamp: Date.now() });
         return types;
       } catch (e) {
@@ -741,7 +777,7 @@ export class AlertOperationsService {
     filters: string[],
     operationLabel: string,
     siteId: string,
-  ): Promise<any[]> {
+  ): Promise<IGraphListItem[]> {
     const primaryFields = this.buildAlertFieldSelection(availableColumns);
 
     try {
@@ -882,7 +918,7 @@ export class AlertOperationsService {
         currentUserDisplayName.length > 0 ||
         currentUserLoginName.length > 0;
 
-      const matchesCurrentUser = (item: any): boolean => {
+      const matchesCurrentUser = (item: IGraphListItem): boolean => {
         const createdBy = item?.createdBy?.user || {};
         const author = item?.fields?.Author || {};
 
@@ -901,10 +937,7 @@ export class AlertOperationsService {
           .trim()
           .toLowerCase();
         const draftOwnerLoginName = String(
-          createdBy.userPrincipalName ||
-            author.Name ||
-            author.loginName ||
-            "",
+          createdBy.userPrincipalName || author.Name || author.loginName || "",
         )
           .trim()
           .toLowerCase();
@@ -937,7 +970,7 @@ export class AlertOperationsService {
         siteId,
         LIST_NAMES.ALERTS,
       );
-      let alerts = draftItems.map((item: any) =>
+      let alerts = draftItems.map((item: IGraphListItem) =>
         AlertTransformers.mapSharePointItemToAlert(item, siteId),
       );
       alerts = await this.attachAttachments(siteId, listId, draftItems, alerts);
@@ -949,7 +982,7 @@ export class AlertOperationsService {
   }
 
   public async saveDraft(draft: Partial<IAlertItem>): Promise<IAlertItem> {
-    const data: any = {
+    const data: Partial<IAlertItem> = {
       ...draft,
       contentType: ContentType.Draft,
       status: "Draft",
@@ -1057,7 +1090,7 @@ export class AlertOperationsService {
         siteId,
         LIST_NAMES.ALERTS,
       );
-      const filteredItems = items.filter((item: any) => {
+      const filteredItems = items.filter((item: IGraphListItem) => {
         const type = (item.fields?.ItemType || "").toLowerCase();
         const status = (item.fields?.Status || "").toLowerCase();
         const title = item.fields?.Title || "";
@@ -1071,7 +1104,7 @@ export class AlertOperationsService {
         );
       });
 
-      let alerts = filteredItems.map((item: any) =>
+      let alerts = filteredItems.map((item: IGraphListItem) =>
         AlertTransformers.mapSharePointItemToAlert(item, siteId),
       );
       alerts = await this.attachAttachments(
@@ -1117,7 +1150,7 @@ export class AlertOperationsService {
         siteId,
         LIST_NAMES.ALERTS,
       );
-      const filteredItems = items.filter((item: any) => {
+      const filteredItems = items.filter((item: IGraphListItem) => {
         const type = (item.fields?.ItemType || "").toLowerCase();
         const title = item.fields?.Title || "";
         return (
@@ -1127,7 +1160,7 @@ export class AlertOperationsService {
         );
       });
 
-      let alerts = filteredItems.map((item: any) =>
+      let alerts = filteredItems.map((item: IGraphListItem) =>
         AlertTransformers.mapSharePointItemToAlert(item, siteId),
       );
       alerts = await this.attachAttachments(
@@ -1167,13 +1200,14 @@ export class AlertOperationsService {
         siteId,
       );
       const filteredItems = items.filter(
-        (item: any) => (item.fields?.ItemType || "").toLowerCase() === "template",
+        (item: IGraphListItem) =>
+          (item.fields?.ItemType || "").toLowerCase() === "template",
       );
       const listId = await this.locator.resolveListId(
         siteId,
         LIST_NAMES.ALERTS,
       );
-      let alerts = filteredItems.map((item: any) =>
+      let alerts = filteredItems.map((item: IGraphListItem) =>
         AlertTransformers.mapSharePointItemToAlert(item, siteId),
       );
       alerts = await this.attachAttachments(
@@ -1221,7 +1255,7 @@ export class AlertOperationsService {
       const items = response?.value || [];
       const policyItem =
         items.find(
-          (item: any) =>
+          (item: IGraphListItem) =>
             (item.fields?.Title || "").toLowerCase() ===
             this.languagePolicyTitle.toLowerCase(),
         ) || items[0];
@@ -1272,7 +1306,7 @@ export class AlertOperationsService {
         const items = response?.value || [];
         const existing =
           items.find(
-            (item: any) =>
+            (item: IGraphListItem) =>
               (item.fields?.Title || "").toLowerCase() ===
               this.languagePolicyTitle.toLowerCase(),
           ) || items[0];
@@ -1305,8 +1339,6 @@ export class AlertOperationsService {
     );
   }
 
-  public async updateAlertStatuses(siteIds?: string[]): Promise<void> {}
-
   public async saveAlertTypes(alertTypes: IAlertType[]): Promise<void> {
     try {
       const siteId = this.context.pageContext.site.id.toString();
@@ -1317,9 +1349,21 @@ export class AlertOperationsService {
         .expand("fields")
         .get();
       for (const item of existingItems.value) {
-        await this.graphClient
-          .api(`${alertTypesListApi}/items/${item.id}`)
-          .delete();
+        try {
+          await this.graphClient
+            .api(`${alertTypesListApi}/items/${item.id}`)
+            .delete();
+        } catch (deleteError) {
+          // Ignore 404 errors - item may have been already deleted
+          const error = deleteError as { statusCode?: number };
+          if (error?.statusCode !== 404) {
+            throw deleteError;
+          }
+          logger.debug(
+            "AlertOperationsService",
+            `Item ${item.id} not found during deletion, skipping`,
+          );
+        }
       }
 
       for (let i = 0; i < alertTypes.length; i++) {
@@ -1336,6 +1380,9 @@ export class AlertOperationsService {
                 ...(alertType.priorityStyles || {}),
                 __defaultPriority: alertType.defaultPriority || undefined,
               }) || "{}",
+            PriorityColors: alertType.priorityColors
+              ? JsonUtils.safeStringify(alertType.priorityColors)
+              : undefined,
             SortOrder: i,
           },
         });
@@ -1353,11 +1400,11 @@ export class AlertOperationsService {
     }
   }
 
-  private async fetchPagedItems(request: any): Promise<any[]> {
-    const items: any[] = [];
+  private async fetchPagedItems(request: any): Promise<IGraphListItem[]> {
+    const items: IGraphListItem[] = [];
 
     interface GraphResponse {
-      value?: any[];
+      value?: IGraphListItem[];
       "@odata.nextLink"?: string;
     }
 
@@ -1387,33 +1434,39 @@ export class AlertOperationsService {
   private async attachAttachments(
     siteId: string,
     listId: string,
-    items: any[],
+    items: IGraphListItem[],
     alerts: IAlertItem[],
   ): Promise<IAlertItem[]> {
     for (let i = 0; i < items.length; i += this.attachmentFetchConcurrency) {
       const batch = items.slice(i, i + this.attachmentFetchConcurrency);
-      const batchTasks = batch.map(async (item: any, batchIndex: number) => {
-        const hasAttachments = Boolean(item?.fields?.Attachments);
-        if (!hasAttachments) {
-          return;
-        }
+      const batchTasks = batch.map(
+        async (item: IGraphListItem, batchIndex: number) => {
+          const hasAttachments = Boolean(item?.fields?.Attachments);
+          if (!hasAttachments) {
+            return;
+          }
 
-        const originalIndex = i + batchIndex;
-        try {
-          const attachments = await this.getAttachmentsForItem(
-            siteId,
-            listId,
-            item.id,
-          );
-          alerts[originalIndex].attachments = attachments;
-        } catch (error) {
-          logger.warn("AlertOperationsService", "Failed to fetch attachments", {
-            itemId: item.id,
-            siteId,
-            error,
-          });
-        }
-      });
+          const originalIndex = i + batchIndex;
+          try {
+            const attachments = await this.getAttachmentsForItem(
+              siteId,
+              listId,
+              item.id,
+            );
+            alerts[originalIndex].attachments = attachments;
+          } catch (error) {
+            logger.warn(
+              "AlertOperationsService",
+              "Failed to fetch attachments",
+              {
+                itemId: item.id,
+                siteId,
+                error,
+              },
+            );
+          }
+        },
+      );
       await Promise.allSettled(batchTasks);
     }
 
@@ -1501,10 +1554,10 @@ export class AlertOperationsService {
     persons: IPersonField[] | IPersonField | undefined,
   ): { LookupId: string }[] | undefined {
     if (!persons) return undefined;
-    
+
     const personArray = Array.isArray(persons) ? persons : [persons];
     if (personArray.length === 0) return undefined;
-    
+
     return personArray
       .filter((p) => p?.id) // Only include persons with valid IDs
       .map((p) => ({ LookupId: p.id }));

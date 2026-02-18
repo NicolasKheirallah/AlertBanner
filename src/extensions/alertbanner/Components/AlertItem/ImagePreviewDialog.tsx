@@ -39,6 +39,7 @@ export const ImagePreviewDialog: React.FC<IImagePreviewDialogProps> = ({
           alt={imageAlt || "Full size preview"}
           className={styles.fullSizeImage}
           onClick={(e) => e.stopPropagation()}
+          role="img"
         />
       </div>
     </Dialog>

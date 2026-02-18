@@ -9,11 +9,14 @@ import {
   EyeOff24Regular,
   Search24Regular,
 } from "@fluentui/react-icons";
+import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import {
   SharePointButton,
   SharePointInput,
   SharePointTextArea,
   SharePointSection,
+  SharePointSelect,
+  ISharePointSelectOption,
 } from "../../UI/SharePointControls";
 import SharePointDialog from "../../UI/SharePointDialog";
 import ColorPicker from "../../UI/ColorPicker";
@@ -66,7 +69,7 @@ export interface IAlertTypesTabProps {
   isCreatingType: boolean;
   setIsCreatingType: React.Dispatch<React.SetStateAction<boolean>>;
   alertService: SharePointAlertService;
-  context?: any;
+  context?: ApplicationCustomizerContext;
 }
 
 const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
@@ -112,7 +115,8 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
     }
 
     const duplicate = alertTypes.some((type) => {
-      const sameName = normalizeName(type.name).toLowerCase() === name.toLowerCase();
+      const sameName =
+        normalizeName(type.name).toLowerCase() === name.toLowerCase();
       if (!sameName) {
         return false;
       }
@@ -121,7 +125,10 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
         return true;
       }
 
-      return normalizeName(type.name).toLowerCase() !== normalizeName(editingType.name).toLowerCase();
+      return (
+        normalizeName(type.name).toLowerCase() !==
+        normalizeName(editingType.name).toLowerCase()
+      );
     });
 
     if (duplicate) {
@@ -209,7 +216,10 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
         const updatedTypes = alertTypes.filter((_, i) => i !== index);
         await alertService.saveAlertTypes(updatedTypes);
         setAlertTypes(updatedTypes);
-        notificationService?.showSuccess("Alert type deleted.", strings.Success);
+        notificationService?.showSuccess(
+          "Alert type deleted.",
+          strings.Success,
+        );
       } catch (error) {
         logger.error("AlertTypesTab", "Error deleting alert type", error);
         notificationService?.showError(
@@ -292,7 +302,9 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
 
     try {
       const normalizedType = buildNormalizedType();
-      const editingNameNormalized = normalizeName(editingType.name).toLowerCase();
+      const editingNameNormalized = normalizeName(
+        editingType.name,
+      ).toLowerCase();
       const updatedTypes = alertTypes.map((type) =>
         normalizeName(type.name).toLowerCase() === editingNameNormalized
           ? normalizedType
@@ -301,7 +313,10 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
 
       await alertService.saveAlertTypes(updatedTypes);
       setAlertTypes(updatedTypes);
-      notificationService?.showSuccess(strings.AlertUpdatedSuccess, strings.Success);
+      notificationService?.showSuccess(
+        strings.AlertUpdatedSuccess,
+        strings.Success,
+      );
       resetTypeForm();
     } catch (error) {
       logger.error("AlertTypesTab", "Failed to update alert type", error);
@@ -418,7 +433,9 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>🎨</div>
               <h4>No Alert Types</h4>
-              <p>Create your first alert type to start customizing alert styling.</p>
+              <p>
+                Create your first alert type to start customizing alert styling.
+              </p>
               <SharePointButton
                 variant="primary"
                 icon={<Add24Regular />}
@@ -448,7 +465,11 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
             <SharePointButton
               variant="primary"
               icon={<Save24Regular />}
-              onClick={isEditMode ? () => void handleUpdateAlertType() : () => void handleCreateAlertType()}
+              onClick={
+                isEditMode
+                  ? () => void handleUpdateAlertType()
+                  : () => void handleCreateAlertType()
+              }
               disabled={!canSubmit}
             >
               {isEditMode ? "Update Type" : "Create Type"}
@@ -530,12 +551,53 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
               />
             </div>
 
+            <SharePointSelect
+              label="Default Priority"
+              value={newAlertType.defaultPriority || ""}
+              onChange={(value) =>
+                setNewAlertType((prev) => ({
+                  ...prev,
+                  defaultPriority: value as AlertPriority || undefined,
+                }))
+              }
+              options={[
+                { value: "", label: "None (user must select)" },
+                { value: AlertPriority.Low, label: "Low" },
+                { value: AlertPriority.Medium, label: "Medium" },
+                { value: AlertPriority.High, label: "High" },
+                { value: AlertPriority.Critical, label: "Critical" },
+              ]}
+              description="Default priority level for this alert type"
+            />
+
+            <SharePointSelect
+              label="Preview Priority"
+              value={(newAlertType as any).previewPriority || newAlertType.defaultPriority || AlertPriority.Medium}
+              onChange={(value) =>
+                setNewAlertType((prev) => ({
+                  ...prev,
+                  previewPriority: value as AlertPriority,
+                }))
+              }
+              options={[
+                { value: AlertPriority.Low, label: "Low - Preview" },
+                { value: AlertPriority.Medium, label: "Medium - Preview" },
+                { value: AlertPriority.High, label: "High - Preview" },
+                { value: AlertPriority.Critical, label: "Critical - Preview" },
+              ]}
+              description="Select priority to preview styling"
+            />
+
             <SharePointButton
               variant="secondary"
-              icon={showAdvancedStyles ? <EyeOff24Regular /> : <Code24Regular />}
+              icon={
+                showAdvancedStyles ? <EyeOff24Regular /> : <Code24Regular />
+              }
               onClick={() => setShowAdvancedStyles((prev) => !prev)}
             >
-              {showAdvancedStyles ? "Hide Advanced Styles" : "Show Advanced Styles"}
+              {showAdvancedStyles
+                ? "Hide Advanced Styles"
+                : "Show Advanced Styles"}
             </SharePointButton>
 
             {showAdvancedStyles && (
@@ -567,7 +629,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
               title="Sample Alert Title"
               description="This is how this alert type will appear to users."
               alertType={buildNormalizedType()}
-              priority={AlertPriority.Medium}
+              priority={(newAlertType as any).previewPriority || newAlertType.defaultPriority || AlertPriority.Medium}
               isPinned={false}
             />
           </div>

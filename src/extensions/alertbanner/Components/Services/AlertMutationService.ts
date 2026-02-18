@@ -7,11 +7,9 @@ import {
   NotificationType,
   TargetLanguage,
   TranslationStatus,
-} from "../Alerts/IAlerts";
-import {
   ILanguageContent,
-  LanguageAwarenessService,
-} from "./LanguageAwarenessService";
+} from "../Alerts/IAlerts";
+import { LanguageAwarenessService } from "./LanguageAwarenessService";
 import { ILanguagePolicy } from "./LanguagePolicyService";
 import { SharePointAlertService } from "./SharePointAlertService";
 import { logger } from "./LoggerService";
@@ -65,30 +63,30 @@ export class AlertMutationService {
       alert.languageContent &&
       alert.languageContent.length > 0
     ) {
-      const multiLanguageAlert = options.languageService.createMultiLanguageAlert(
-        {
-          AlertType: alert.AlertType,
-          priority: alert.priority,
-          isPinned: alert.isPinned,
-          linkUrl: alert.linkUrl || "",
-          notificationType: alert.notificationType,
-          createdDate: new Date().toISOString(),
-          createdBy: options.createdBy,
-          contentType: alert.contentType,
-          contentStatus: this.getContentStatus(alert.contentType),
-          targetLanguage: TargetLanguage.All,
-          status: "Active" as IAlertItem["status"],
-          targetSites: alert.targetSites || [],
-          id: "0",
-          targetUsers: this.getCombinedTargets(alert),
-          languageGroup: alert.languageGroup,
-        },
-        alert.languageContent,
-      );
+      const multiLanguageAlert =
+        options.languageService.createMultiLanguageAlert(
+          {
+            AlertType: alert.AlertType,
+            priority: alert.priority,
+            isPinned: alert.isPinned,
+            linkUrl: alert.linkUrl || "",
+            notificationType: alert.notificationType,
+            createdDate: new Date().toISOString(),
+            createdBy: options.createdBy,
+            contentType: alert.contentType,
+            contentStatus: this.getContentStatus(alert.contentType),
+            targetLanguage: TargetLanguage.All,
+            status: "Active" as IAlertItem["status"],
+            targetSites: alert.targetSites || [],
+            id: "0",
+            targetUsers: this.getCombinedTargets(alert),
+            languageGroup: alert.languageGroup,
+          },
+          alert.languageContent,
+        );
 
-      const alertItems = options.languageService.generateAlertItems(
-        multiLanguageAlert,
-      );
+      const alertItems =
+        options.languageService.generateAlertItems(multiLanguageAlert);
       const createdVariantIds: string[] = [];
 
       try {
@@ -124,7 +122,9 @@ export class AlertMutationService {
       contentStatus: this.getContentStatus(alert.contentType),
       targetLanguage: alert.targetLanguage,
       languageGroup: alert.languageGroup,
-      translationStatus: this.getDefaultTranslationStatus(options.languagePolicy),
+      translationStatus: this.getDefaultTranslationStatus(
+        options.languagePolicy,
+      ),
     });
 
     return 1;
@@ -172,9 +172,8 @@ export class AlertMutationService {
       return true;
     });
 
-    const defaultTranslationStatus = this.getDefaultTranslationStatus(
-      languagePolicy,
-    );
+    const defaultTranslationStatus =
+      this.getDefaultTranslationStatus(languagePolicy);
     const createdVariantIds: string[] = [];
 
     for (const content of languageContent) {
@@ -190,7 +189,8 @@ export class AlertMutationService {
           linkDescription: content.linkDescription || "",
         }),
         availableForAll: content.availableForAll,
-        translationStatus: content.translationStatus || defaultTranslationStatus,
+        translationStatus:
+          content.translationStatus || defaultTranslationStatus,
       };
 
       if (existingAlert) {

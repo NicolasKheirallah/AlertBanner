@@ -5,6 +5,7 @@ import {
   Wrench24Regular,
   Globe24Regular,
   ArrowClockwise24Regular,
+  ArrowRight24Regular,
 } from "@fluentui/react-icons";
 import {
   Checkbox as FluentCheckbox,
@@ -41,9 +42,11 @@ import RepairDialog from "../../UI/RepairDialog";
 import PermissionStatus from "../../UI/PermissionStatus";
 import { logger } from "../../Services/LoggerService";
 import { EmailNotificationService } from "../../Services/EmailNotificationService";
+import { Text as CoreText } from "@microsoft/sp-core-library";
 import styles from "../AlertSettings.module.scss";
 import { CAROUSEL_CONFIG } from "../../Utils/AppConstants";
-import { TranslationStatus } from "../../Alerts/IAlerts";
+import { AlertPriority, TranslationStatus, IPriorityColorConfig } from "../../Alerts/IAlerts";
+import ColorPicker from "../../UI/ColorPicker";
 import { useAlerts } from "../../Context/AlertsContext";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 
@@ -203,7 +206,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   canEdit = true,
   context,
 }) => {
-  const { updateCarouselSettings } = useAlerts();
+  const { updateCarouselSettings, updatePriorityBorderColors } = useAlerts();
   const storageService = React.useRef<StorageService>(
     StorageService.getInstance(),
   );
@@ -236,6 +239,22 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const [showAdvancedMaintenance, setShowAdvancedMaintenance] =
     React.useState(false);
   const [lastSavedAt, setLastSavedAt] = React.useState<Date | null>(null);
+  const [priorityBorderColors, setPriorityBorderColors] = React.useState<
+    Record<AlertPriority, IPriorityColorConfig>
+  >({
+    [AlertPriority.Critical]: { borderColor: "#d13438" },
+    [AlertPriority.High]: { borderColor: "#f7630c" },
+    [AlertPriority.Medium]: { borderColor: "#0078d4" },
+    [AlertPriority.Low]: { borderColor: "#107c10" },
+  });
+  const [savedPriorityBorderColors, setSavedPriorityBorderColors] = React.useState<
+    Record<AlertPriority, IPriorityColorConfig>
+  >({
+    [AlertPriority.Critical]: { borderColor: "#d13438" },
+    [AlertPriority.High]: { borderColor: "#f7630c" },
+    [AlertPriority.Medium]: { borderColor: "#0078d4" },
+    [AlertPriority.Low]: { borderColor: "#107c10" },
+  });
   const importInputRef = React.useRef<HTMLInputElement | null>(null);
   const isSiteAdmin = !!context?.pageContext?.legacyPageContext?.isSiteAdmin;
   const canPersistSettings = canEdit && isSiteAdmin;
@@ -270,6 +289,16 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       const seconds = savedCarouselInterval / 1000;
       setCarouselInterval(seconds.toString());
       setSavedCarouselSettings((prev) => ({ ...prev, interval: seconds }));
+    }
+
+    // Load priority border colors
+    const savedPriorityColors =
+      storageService.current.getFromLocalStorage<Record<AlertPriority, IPriorityColorConfig>>(
+        "priorityBorderColors"
+      );
+    if (savedPriorityColors) {
+      setPriorityBorderColors(savedPriorityColors);
+      setSavedPriorityBorderColors(savedPriorityColors);
     }
   }, []);
 
@@ -426,7 +455,14 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     );
   }, [languagePolicy, savedLanguagePolicy]);
 
-  const hasUnsavedChanges = settingsDirty || carouselDirty || languagePolicyDirty;
+  const priorityColorsDirty = React.useMemo(() => {
+    return (
+      JSON.stringify(priorityBorderColors) !==
+      JSON.stringify(savedPriorityBorderColors)
+    );
+  }, [priorityBorderColors, savedPriorityBorderColors]);
+
+  const hasUnsavedChanges = settingsDirty || carouselDirty || languagePolicyDirty || priorityColorsDirty;
 
   React.useEffect(() => {
     onDirtyStateChange?.(hasUnsavedChanges);
@@ -526,7 +562,8 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     setCarouselEnabled(savedCarouselSettings.enabled);
     setCarouselInterval(String(savedCarouselSettings.interval));
     setLanguagePolicy(savedLanguagePolicy);
-  }, [savedCarouselSettings, savedLanguagePolicy, settings]);
+    setPriorityBorderColors(savedPriorityBorderColors);
+  }, [savedCarouselSettings, savedLanguagePolicy, savedPriorityBorderColors, settings]);
 
   const handleResetToDefaults = React.useCallback(() => {
     setDraftSettings((prev) => ({
@@ -561,6 +598,15 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       if (languagePolicyDirty) {
         await alertService.saveLanguagePolicy(languagePolicy);
         setSavedLanguagePolicy(languagePolicy);
+      }
+
+      if (priorityColorsDirty) {
+        storageService.current.saveToLocalStorage(
+          "priorityBorderColors",
+          priorityBorderColors
+        );
+        setSavedPriorityBorderColors(priorityBorderColors);
+        updatePriorityBorderColors(priorityBorderColors);
       }
 
       setLastSavedAt(new Date());
@@ -606,6 +652,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           : 5,
       },
       languagePolicy,
+      priorityBorderColors,
     };
 
     try {
@@ -656,6 +703,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           settings?: Partial<ISettingsData>;
           carousel?: { enabled?: boolean; intervalSeconds?: number };
           languagePolicy?: ILanguagePolicy;
+          priorityBorderColors?: Record<AlertPriority, IPriorityColorConfig>;
         };
 
         if (parsed.settings) {
@@ -677,6 +725,9 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
             ...DEFAULT_LANGUAGE_POLICY,
             ...parsed.languagePolicy,
           });
+        }
+        if (parsed.priorityBorderColors) {
+          setPriorityBorderColors(parsed.priorityBorderColors);
         }
 
         notificationService?.showSuccess(
@@ -1292,6 +1343,34 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         </div>
       </SharePointSection>
 
+      <SharePointSection title="Priority Border Colors">
+        <p className={styles.fieldDescription}>
+          Customize the left border color for each priority level.
+        </p>
+        <div className={styles.priorityColorsGrid}>
+          {([
+            { priority: AlertPriority.Critical, label: "Critical", defaultColor: "#d13438" },
+            { priority: AlertPriority.High, label: "High", defaultColor: "#f7630c" },
+            { priority: AlertPriority.Medium, label: "Medium", defaultColor: "#0078d4" },
+            { priority: AlertPriority.Low, label: "Low", defaultColor: "#107c10" },
+          ] as const).map(({ priority, label, defaultColor }) => (
+            <div key={priority} className={styles.priorityColorItem}>
+              <ColorPicker
+                label={label}
+                value={priorityBorderColors[priority]?.borderColor || defaultColor}
+                onChange={(color) =>
+                  setPriorityBorderColors((prev) => ({
+                    ...prev,
+                    [priority]: { borderColor: color },
+                  }))
+                }
+                description=""
+              />
+            </div>
+          ))}
+        </div>
+      </SharePointSection>
+
       <div id="settings-section-setup">
         {(alertsListExists === false || alertTypesListExists === false) && (
           <SharePointSection title={strings.SettingsSectionSetupTitle}>
@@ -1778,6 +1857,26 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
           </div>
         </SharePointSection>
       </div>
+
+      <SharePointSection title={strings.SettingsAboutTitle}>
+        <div className={styles.aboutSection}>
+          <div className={styles.aboutCard}>
+            <p className={styles.aboutTitle}>{strings.SettingsAboutProductName}</p>
+            <p className={styles.aboutVersion}>{CoreText.format(strings.SettingsAboutVersion, "5.0.1")}</p>
+            <p className={styles.aboutDescription}>{strings.SettingsAboutDescription}</p>
+            <p className={styles.aboutAuthor}>{strings.SettingsAboutAuthor}</p>
+            <a
+              href={strings.SettingsAboutGitHubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.aboutLink}
+            >
+              {strings.SettingsAboutGitHubLink}
+              <ArrowRight24Regular />
+            </a>
+          </div>
+        </div>
+      </SharePointSection>
 
       <RepairDialog
         isOpen={isRepairDialogOpen}

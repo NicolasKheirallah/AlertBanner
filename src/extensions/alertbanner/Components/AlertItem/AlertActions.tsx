@@ -21,7 +21,6 @@ interface IAlertActionsProps {
   onNext?: () => void;
   onPrevious?: () => void;
   expanded: boolean;
-  toggleExpanded: () => void;
   remove: (id: string) => void;
   hideForever: (id: string) => void;
   stopPropagation: (e: React.MouseEvent) => void;
@@ -50,8 +49,8 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
       {item.linkUrl && (
         <IconButton
           onRenderIcon={() => <Link24Regular />}
-          onClick={(e) => {
-            stopPropagation(e as unknown as React.MouseEvent);
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            stopPropagation(e);
             if (item.linkUrl) {
               window.open(item.linkUrl, WINDOW_OPEN_CONFIG.TARGET, WINDOW_OPEN_CONFIG.FEATURES);
             }
@@ -65,8 +64,8 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
         <>
           <IconButton
             onRenderIcon={() => <ChevronLeft24Regular />}
-            onClick={(e) => {
-              stopPropagation(e as unknown as React.MouseEvent);
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+              stopPropagation(e);
               onPrevious?.();
             }}
             aria-label={strings.AlertActionsPrevious}
@@ -80,8 +79,8 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
           </div>
           <IconButton
             onRenderIcon={() => <ChevronRight24Regular />}
-            onClick={(e) => {
-              stopPropagation(e as unknown as React.MouseEvent);
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+              stopPropagation(e);
               onNext?.();
             }}
             aria-label={strings.AlertActionsNext}
@@ -93,8 +92,8 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
       )}
       <IconButton
         onRenderIcon={() => <Dismiss24Regular />}
-        onClick={(e) => {
-          stopPropagation(e as unknown as React.MouseEvent);
+        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+          stopPropagation(e);
           remove(item.id);
         }}
         aria-label={strings.AlertActionsDismiss}
@@ -104,8 +103,8 @@ const AlertActions: React.FC<IAlertActionsProps> = React.memo(({
       {userTargetingEnabled && (
         <IconButton
           onRenderIcon={() => <EyeOff24Regular />}
-          onClick={(e) => {
-            stopPropagation(e as unknown as React.MouseEvent);
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            stopPropagation(e);
             hideForever(item.id);
           }}
           aria-label={strings.AlertActionsHideForever}

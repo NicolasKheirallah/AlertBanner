@@ -18,17 +18,11 @@ interface IAlertHeaderProps {
   expanded: boolean;
   toggleExpanded: () => void;
   ariaControlsId: string;
+  titleColor?: string;
 }
 
-const PRIORITY_BADGE_CLASS_MAP: Record<string, string> = {
-  [AlertPriority.Critical]: styles.badgeCritical,
-  [AlertPriority.High]: styles.badgeHigh,
-  [AlertPriority.Medium]: styles.badgeMedium,
-  [AlertPriority.Low]: styles.badgeLow,
-};
-
 const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
-  ({ item, iconName, expanded, toggleExpanded, ariaControlsId }) => {
+  ({ item, iconName, expanded, toggleExpanded, ariaControlsId, titleColor }) => {
     const priorityLabel = React.useMemo(() => {
       switch (item.priority) {
         case AlertPriority.Critical:
@@ -56,9 +50,6 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
       [priorityLabel],
     );
 
-    const badgeClassName =
-      PRIORITY_BADGE_CLASS_MAP[item.priority] || styles.badgeLow;
-
     return (
       <>
         <div className={styles.iconSection}>
@@ -69,13 +60,13 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
         <div className={styles.textSection}>
           <div className={styles.titleRow}>
             {item.title && (
-              <span className={styles.alertTitle}>
+              <span 
+                className={styles.alertTitle} 
+                style={titleColor ? { color: titleColor } : undefined}
+              >
                 {item.title}
               </span>
             )}
-            <span className={`${styles.priorityBadge} ${badgeClassName}`}>
-              {priorityLabel}
-            </span>
           </div>
           {!expanded && item.description && (
             <div className={styles.alertDescription} id={ariaControlsId}>
@@ -93,8 +84,8 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
             onRenderIcon={() =>
               expanded ? <ChevronUp24Regular /> : <ChevronDown24Regular />
             }
-            onClick={(e) => {
-              (e as unknown as React.MouseEvent).stopPropagation();
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.stopPropagation();
               toggleExpanded();
             }}
             aria-expanded={expanded}

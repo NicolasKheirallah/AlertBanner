@@ -455,6 +455,11 @@ export class ListProvisioningService {
         name: "ReviewedDate",
         dateTime: { displayAs: "default", format: "dateTime" },
       },
+      {
+        name: "SortOrder",
+        number: { decimalPlaces: "none" },
+        indexed: true,
+      },
     ];
 
     for (const column of columns) {

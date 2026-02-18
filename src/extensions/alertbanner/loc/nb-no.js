@@ -877,5 +877,14 @@ define([], function() {
     CopilotSentimentOptionalSection: "Suggestions",
     CopilotSentimentAnalysisProfessional: "Professional",
     CopilotSentimentAnalysisTone: "Tone",
+
+    // About Section
+    SettingsAboutTitle: "About",
+    SettingsAboutProductName: "Alert Banner",
+    SettingsAboutVersion: "Version {0}",
+    SettingsAboutDescription: "A free, open-source SharePoint SPFx extension for managing alert banners across your tenant.",
+    SettingsAboutAuthor: "Created with ❤️ by the community",
+    SettingsAboutGitHubLink: "View on GitHub",
+    SettingsAboutGitHubUrl: "https://github.com/nicolaskheirallah/AlertBanner",
   }
 });

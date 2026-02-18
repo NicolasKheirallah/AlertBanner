@@ -23,11 +23,10 @@ import {
   IPersonField,
   NotificationType,
   TargetLanguage,
-} from "../../Alerts/IAlerts";
-import {
   ILanguageContent,
-  ISupportedLanguage,
-} from "../../Services/LanguageAwarenessService";
+  TranslationStatus,
+} from "../../Alerts/IAlerts";
+import { ISupportedLanguage } from "../../Services/LanguageAwarenessService";
 import { ILanguagePolicy } from "../../Services/LanguagePolicyService";
 import { SiteContextDetector } from "../../Utils/SiteContextDetector";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
@@ -65,7 +64,10 @@ export interface IAlertEditorState {
 export type CreateWizardStep = "content" | "audience" | "publish";
 
 const stripRichText = (value: string): string =>
-  value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 export interface IAlertEditorFormProps<T extends IAlertEditorState> {
   mode: "create" | "manage";
@@ -75,7 +77,6 @@ export interface IAlertEditorFormProps<T extends IAlertEditorState> {
   setErrors: React.Dispatch<React.SetStateAction<IFormErrors>>;
   alertTypes: IAlertType[];
   alertTypeOptions: ISharePointSelectOption[];
-  priorityOptions: ISharePointSelectOption[];
   notificationOptions: ISharePointSelectOption[];
   contentTypeOptions: ISharePointSelectOption[];
   languageOptions: ISharePointSelectOption[];
@@ -102,12 +103,10 @@ export interface IAlertEditorFormProps<T extends IAlertEditorState> {
   actionButtons: React.ReactNode;
   afterActions?: React.ReactNode;
   showScheduleSummary?: boolean;
-  applySelectedAlertTypeDefaultPriority?: boolean;
   createStep?: CreateWizardStep;
   onCreateStepChange?: (step: CreateWizardStep) => void;
   stepCompletion?: Record<CreateWizardStep, boolean>;
   copilotAvailability?: "unknown" | "available" | "unavailable";
-  copilotAvailabilityMessage?: string;
 }
 
 const AlertEditorForm = <T extends IAlertEditorState>({
@@ -118,7 +117,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
   setErrors,
   alertTypes,
   alertTypeOptions,
-  priorityOptions,
   notificationOptions,
   contentTypeOptions,
   languageOptions,
@@ -145,12 +143,10 @@ const AlertEditorForm = <T extends IAlertEditorState>({
   actionButtons,
   afterActions,
   showScheduleSummary,
-  applySelectedAlertTypeDefaultPriority,
   createStep,
   onCreateStepChange,
   stepCompletion,
   copilotAvailability,
-  copilotAvailabilityMessage,
 }: IAlertEditorFormProps<T>): JSX.Element => {
   const languageContent = alert.languageContent || [];
   const editorRootRef = React.useRef<HTMLDivElement>(null);
@@ -172,37 +168,80 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     wasBusyRef.current = isBusy;
   }, [isBusy]);
 
+  // Track previous multi-language state to detect toggle
+  const prevMultiLanguageRef = React.useRef(useMultiLanguage);
+  
+  // Initialize language content when switching to multi-language mode
   React.useEffect(() => {
-    if (mode !== "create" || !applySelectedAlertTypeDefaultPriority) {
-      previousAlertTypeRef.current = alert.AlertType || "";
-      return;
-    }
-
-    const currentAlertType = alert.AlertType || "";
-    const hasAlertTypeChanged = previousAlertTypeRef.current !== currentAlertType;
-    previousAlertTypeRef.current = currentAlertType;
-
-    if (!hasAlertTypeChanged || !currentAlertType) {
-      return;
-    }
-
-    const selectedType = alertTypes.find((type) => type.name === currentAlertType);
+    const switchedToMultiLanguage = useMultiLanguage && !prevMultiLanguageRef.current;
+    prevMultiLanguageRef.current = useMultiLanguage;
+    
+    // Only run when switching FROM single-language TO multi-language
     if (
-      selectedType?.defaultPriority &&
-      alert.priority !== selectedType.defaultPriority
+      switchedToMultiLanguage &&
+      (!alert.languageContent || alert.languageContent.length === 0) &&
+      (alert.title || alert.description)
     ) {
+      // User toggled multi-language mode - initialize with current alert content
+      // Use tenant default if targetLanguage is "all" or not set
+      const sourceLanguage =
+        alert.targetLanguage && alert.targetLanguage !== TargetLanguage.All
+          ? alert.targetLanguage
+          : tenantDefaultLanguage;
+
+      const initialContent: ILanguageContent = {
+        language: sourceLanguage,
+        title: alert.title || "",
+        description: alert.description || "",
+        linkDescription: alert.linkDescription || undefined,
+        availableForAll: sourceLanguage === tenantDefaultLanguage,
+        translationStatus: languagePolicy.workflow?.enabled
+          ? languagePolicy.workflow.defaultStatus
+          : TranslationStatus.Approved,
+      };
+
       setAlert((prev) =>
-        ({ ...prev, priority: selectedType.defaultPriority } as T),
+        prev
+          ? {
+              ...prev,
+              languageContent: [initialContent],
+              languageGroup:
+                prev.languageGroup ||
+                `lg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            }
+          : prev,
       );
+    } else if (
+      !useMultiLanguage &&
+      alert.languageContent &&
+      alert.languageContent.length > 0
+    ) {
+      // User toggled back to single language - use first language content
+      const firstLang = alert.languageContent[0];
+      if (firstLang) {
+        setAlert((prev) =>
+          prev
+            ? {
+                ...prev,
+                title: firstLang.title,
+                description: firstLang.description,
+                linkDescription: firstLang.linkDescription || "",
+                targetLanguage: firstLang.language,
+                languageContent: undefined,
+              }
+            : prev,
+        );
+      }
     }
   }, [
-    alert.AlertType,
-    alert.priority,
-    alertTypes,
-    applySelectedAlertTypeDefaultPriority,
-    mode,
+    useMultiLanguage,
+    alert.languageContent,
+    tenantDefaultLanguage,
+    languagePolicy.workflow?.enabled,
     setAlert,
   ]);
+
+  // Priority is now always derived from the selected Alert Type's defaultPriority
 
   const handlePeoplePickerChange = React.useCallback(
     (items: any[]) => {
@@ -230,12 +269,13 @@ const AlertEditorForm = <T extends IAlertEditorState>({
         }
       });
 
-      setAlert((prev) =>
-        ({
-          ...prev,
-          targetUsers: users,
-          targetGroups: groups,
-        }) as T,
+      setAlert(
+        (prev) =>
+          ({
+            ...prev,
+            targetUsers: users,
+            targetGroups: groups,
+          }) as T,
       );
     },
     [setAlert],
@@ -285,11 +325,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
       ? strings.ManageAlertsAlertTypeDescription
       : strings.CreateAlertConfigurationDescription;
 
-  const priorityDescription =
-    mode === "manage"
-      ? strings.ManageAlertsPriorityDescription
-      : strings.CreateAlertPriorityDescription;
-
   const pinDescription =
     mode === "manage"
       ? strings.ManageAlertsPinDescription
@@ -325,10 +360,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     ? createStep || "content"
     : "content";
   const canUseCopilot = !!copilotEnabled && copilotAvailability === "available";
-  const shouldShowCopilotNotice =
-    !!copilotEnabled &&
-    copilotAvailability === "unavailable" &&
-    !!copilotAvailabilityMessage;
 
   const wizardSteps = React.useMemo(
     () => [
@@ -355,20 +386,26 @@ const AlertEditorForm = <T extends IAlertEditorState>({
   );
 
   const getValidationErrors = React.useCallback(
-    (nextAlert: T): IFormErrors =>
-      validateAlertData(nextAlert, {
+    (nextAlert: T): IFormErrors => {
+      const validationData = {
+        ...nextAlert,
+        scheduledStart: nextAlert.scheduledStart
+          ? nextAlert.scheduledStart.toISOString()
+          : undefined,
+        scheduledEnd: nextAlert.scheduledEnd
+          ? nextAlert.scheduledEnd.toISOString()
+          : undefined,
+      };
+
+      return validateAlertData(validationData, {
         useMultiLanguage,
         languagePolicy,
         tenantDefaultLanguage,
         getString: getLocalizedValidationMessage,
         validateTargetSites: enableTargetSite,
-      }),
-    [
-      enableTargetSite,
-      languagePolicy,
-      tenantDefaultLanguage,
-      useMultiLanguage,
-    ],
+      });
+    },
+    [enableTargetSite, languagePolicy, tenantDefaultLanguage, useMultiLanguage],
   );
 
   const applyFieldValidation = React.useCallback(
@@ -390,14 +427,30 @@ const AlertEditorForm = <T extends IAlertEditorState>({
         }
       }
 
-      if (!useMultiLanguage && fields.includes("title")) {
+      // Always clear title error when title field is being validated
+      // This ensures errors from validateAlertData are properly cleared
+      if (fields.includes("title")) {
         const plainTitle = (nextAlert.title || "").trim();
-        if (plainTitle.length === 0) {
-          nextErrors.title = getLocalizedValidationMessage("TitleRequired");
-        } else if (plainTitle.length < 3) {
-          nextErrors.title = getLocalizedValidationMessage("TitleMinLength");
+        if (!useMultiLanguage) {
+          if (plainTitle.length === 0) {
+            nextErrors.title = getLocalizedValidationMessage("TitleRequired");
+          } else if (plainTitle.length < 3) {
+            nextErrors.title = getLocalizedValidationMessage("TitleMinLength");
+          } else {
+            delete nextErrors.title;
+          }
         } else {
+          // In multi-language mode, just clear the single-language title error
           delete nextErrors.title;
+        }
+      }
+
+      if (fields.includes("linkDescription") || fields.includes("linkUrl")) {
+        // Clear linkDescription error when URL is empty or description is provided
+        if (!nextAlert.linkUrl?.trim()) {
+          delete nextErrors.linkDescription;
+        } else if (nextAlert.linkDescription?.trim()) {
+          delete nextErrors.linkDescription;
         }
       }
 
@@ -413,7 +466,7 @@ const AlertEditorForm = <T extends IAlertEditorState>({
         return updated;
       });
     },
-    [getValidationErrors, setErrors],
+    [getValidationErrors, setErrors, useMultiLanguage],
   );
 
   const updateAlertFields = React.useCallback(
@@ -429,23 +482,13 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     [applyFieldValidation, setAlert],
   );
 
-  const showPriorityInheritanceMessage =
-    mode === "create" &&
-    !!applySelectedAlertTypeDefaultPriority &&
-    !!alertTypes.find(
-      (alertType) =>
-        alertType.name === alert.AlertType && !!alertType.defaultPriority,
-    );
-
   return (
     <div
       className={`${styles.alertForm} ${isCreateMode ? styles.createEditorForm : ""}`}
       ref={editorRootRef}
       tabIndex={-1}
       aria-label={
-        mode === "manage"
-          ? strings.ManageAlerts
-          : strings.CreateAlert
+        mode === "manage" ? strings.ManageAlerts : strings.CreateAlert
       }
     >
       <div className={styles.formWithPreview}>
@@ -526,7 +569,9 @@ const AlertEditorForm = <T extends IAlertEditorState>({
           )}
 
           {userTargetingEnabled && shouldRenderStep("audience") && (
-            <SharePointSection title={strings.CreateAlertSectionUserTargetingTitle}>
+            <SharePointSection
+              title={strings.CreateAlertSectionUserTargetingTitle}
+            >
               <SharePointPeoplePicker
                 context={context}
                 titleText={strings.CreateAlertPeoplePickerLabel}
@@ -537,8 +582,12 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                 disabled={isBusy}
                 onChange={handlePeoplePickerChange}
                 defaultSelectedUsers={[
-                  ...(alert.targetUsers?.map((u) => u.email || u.loginName || u.displayName) || []),
-                  ...(alert.targetGroups?.map((g) => g.loginName || g.displayName) || []),
+                  ...(alert.targetUsers?.map(
+                    (u) => u.email || u.loginName || u.displayName,
+                  ) || []),
+                  ...(alert.targetGroups?.map(
+                    (g) => g.loginName || g.displayName,
+                  ) || []),
                 ]}
                 principalTypes={[
                   PrincipalType.User,
@@ -553,217 +602,201 @@ const AlertEditorForm = <T extends IAlertEditorState>({
 
           {shouldRenderStep("content") &&
             (!useMultiLanguage ? (
-            <>
-              <SharePointSection title={strings.CreateAlertSectionLanguageTargetingTitle}>
-                <SharePointSelect
-                  label={strings.CreateAlertTargetLanguageLabel}
-                  value={alert.targetLanguage}
-                  onChange={(value) =>
-                    updateAlertFields({
-                      targetLanguage: value as TargetLanguage,
-                    } as Partial<T>)
-                  }
-                  options={languageOptions}
-                  required
-                  description={targetLanguageDescription}
-                />
-              </SharePointSection>
+              <>
+                <SharePointSection
+                  title={strings.CreateAlertSectionLanguageTargetingTitle}
+                >
+                  <SharePointSelect
+                    label={strings.CreateAlertTargetLanguageLabel}
+                    value={alert.targetLanguage}
+                    onChange={(value) =>
+                      updateAlertFields({
+                        targetLanguage: value as TargetLanguage,
+                      } as Partial<T>)
+                    }
+                    options={languageOptions}
+                    required
+                    description={targetLanguageDescription}
+                  />
+                </SharePointSection>
 
-              <SharePointSection title={strings.CreateAlertSectionBasicInformationTitle}>
-                <SharePointInput
-                  label={strings.AlertTitle}
-                  value={alert.title}
-                  onChange={(value) => {
-                    updateAlertFields(
-                      { title: value } as Partial<T>,
-                      ["title"],
-                    );
-                  }}
-                  placeholder={strings.CreateAlertTitlePlaceholder}
-                  required
-                  error={errors.title}
-                  description={strings.CreateAlertTitleDescription}
-                />
+                <SharePointSection
+                  title={strings.CreateAlertSectionBasicInformationTitle}
+                >
+                  <SharePointInput
+                    label={strings.AlertTitle}
+                    value={alert.title}
+                    onChange={(value) => {
+                      updateAlertFields({ title: value } as Partial<T>, [
+                        "title",
+                      ]);
+                    }}
+                    placeholder={strings.CreateAlertTitlePlaceholder}
+                    required
+                    error={errors.title}
+                    description={strings.CreateAlertTitleDescription}
+                  />
 
-                {canUseCopilot && (
-                  <div className={styles.copilotActionsRow}>
-                    <CopilotDraftControl
+                  {canUseCopilot && (
+                    <div className={styles.copilotActionsRow}>
+                      <CopilotDraftControl
+                        copilotService={copilotService}
+                        onDraftGenerated={(draft) =>
+                          updateAlertFields(
+                            { description: draft } as Partial<T>,
+                            ["description"],
+                          )
+                        }
+                        onError={(error) =>
+                          notificationService.showError(
+                            error,
+                            strings.CopilotErrorTitle,
+                          )
+                        }
+                        disabled={isBusy}
+                        alertType={alert.AlertType}
+                        priority={alert.priority}
+                      />
+                    </div>
+                  )}
+
+                  <SharePointRichTextEditor
+                    label={strings.AlertDescription}
+                    value={alert.description}
+                    onChange={(value) => {
+                      updateAlertFields({ description: value } as Partial<T>, [
+                        "description",
+                      ]);
+                    }}
+                    context={context}
+                    placeholder={descriptionPlaceholder}
+                    required
+                    error={errors.description}
+                    description={descriptionHelp}
+                    imageFolderName={
+                      imageFolderName ||
+                      alert.languageGroup ||
+                      alert.title ||
+                      "Untitled_Alert"
+                    }
+                    disableImageUpload={disableImageUpload}
+                  />
+
+                  {canUseCopilot && (
+                    <CopilotSentimentControl
                       copilotService={copilotService}
-                      onDraftGenerated={(draft) =>
+                      textToAnalyze={alert.description}
+                      onError={(error) =>
+                        notificationService.showError(
+                          error,
+                          strings.CopilotErrorTitle,
+                        )
+                      }
+                      disabled={isBusy}
+                      onApplyFix={(fixedText) =>
                         updateAlertFields(
-                          { description: draft } as Partial<T>,
+                          { description: fixedText } as Partial<T>,
                           ["description"],
                         )
                       }
-                      onError={(error) =>
-                        notificationService.showError(error, strings.CopilotErrorTitle)
-                      }
-                      disabled={isBusy}
-                      currentDescription={alert.description}
-                      alertType={alert.AlertType}
-                      priority={alert.priority}
                     />
-                  </div>
-                )}
-
-                <SharePointRichTextEditor
-                  label={strings.AlertDescription}
-                  value={alert.description}
-                  onChange={(value) => {
-                    updateAlertFields(
-                      { description: value } as Partial<T>,
-                      ["description"],
-                    );
-                  }}
+                  )}
+                </SharePointSection>
+              </>
+            ) : (
+              <SharePointSection title={strings.MultiLanguageContent}>
+                <MultiLanguageContentEditor
+                  content={languageContent}
+                  onContentChange={(content) =>
+                    setAlert(
+                      (prev) => ({ ...prev, languageContent: content }) as T,
+                    )
+                  }
+                  availableLanguages={supportedLanguages}
+                  errors={errors}
+                  linkUrl={alert.linkUrl || ""}
                   context={context}
-                  placeholder={descriptionPlaceholder}
-                  required
-                  error={errors.description}
-                  description={descriptionHelp}
-                  imageFolderName={imageFolderName || alert.languageGroup || alert.title || "Untitled_Alert"}
+                  imageFolderName={alert.languageGroup}
                   disableImageUpload={disableImageUpload}
+                  tenantDefaultLanguage={tenantDefaultLanguage}
+                  languagePolicy={languagePolicy}
+                  copilotService={canUseCopilot ? copilotService : undefined}
                 />
-
-                {canUseCopilot && (
-                  <CopilotSentimentControl
-                    copilotService={copilotService}
-                    textToAnalyze={alert.description}
-                    onError={(error) =>
-                      notificationService.showError(error, strings.CopilotErrorTitle)
-                    }
-                    disabled={isBusy}
-                    onApplyFix={(fixedText) =>
-                      updateAlertFields(
-                        { description: fixedText } as Partial<T>,
-                        ["description"],
-                      )
-                    }
-                  />
-                )}
               </SharePointSection>
-            </>
-          ) : (
-            <SharePointSection title={strings.MultiLanguageContent}>
-              <MultiLanguageContentEditor
-                content={languageContent}
-                onContentChange={(content) =>
-                  setAlert((prev) => ({ ...prev, languageContent: content }) as T)
-                }
-                availableLanguages={supportedLanguages}
-                errors={errors}
-                linkUrl={alert.linkUrl || ""}
-                context={context}
-                imageFolderName={alert.languageGroup}
-                disableImageUpload={disableImageUpload}
-                tenantDefaultLanguage={tenantDefaultLanguage}
-                languagePolicy={languagePolicy}
-                copilotService={canUseCopilot ? copilotService : undefined}
-              />
-            </SharePointSection>
-          ))}
-
-          {shouldShowCopilotNotice && shouldRenderStep("content") && (
-            <div className={styles.infoMessage}>
-              <p>{copilotAvailabilityMessage}</p>
-            </div>
-          )}
+            ))}
 
           {shouldRenderStep("audience") && renderMiddleSections}
 
           {shouldRenderStep("content") && (
-            <SharePointSection title={strings.CreateAlertConfigurationSectionTitle}>
-            <SharePointSelect
-              label={strings.AlertType}
-              value={alert.AlertType}
-              onChange={(value) => {
-                const selectedType = alertTypes.find((t) => t.name === value);
-                updateAlertFields(
-                  {
-                    AlertType: value,
-                    priority:
-                      applySelectedAlertTypeDefaultPriority &&
-                      selectedType?.defaultPriority
-                        ? selectedType.defaultPriority
-                        : alert.priority,
-                  } as Partial<T>,
-                  ["AlertType"],
-                );
-              }}
-              options={alertTypeOptions}
-              required
-              error={errors.AlertType}
-              description={alertTypeDescription}
-            />
-
-            <SharePointSelect
-              label={strings.CreateAlertPriorityLabel}
-              value={alert.priority}
-              onChange={(value) =>
-                updateAlertFields({
-                  priority: value as AlertPriority,
-                } as Partial<T>)
-              }
-              options={priorityOptions}
-              required
-              description={priorityDescription}
-            />
-
-            {showPriorityInheritanceMessage && (
-              <div className={styles.infoMessage}>
-                <p>
-                  {Text.format(
-                    strings.CreateAlertPriorityInheritedMessage,
-                    alert.AlertType,
-                  )}
-                </p>
-              </div>
-            )}
-
-            <SharePointToggle
-              label={strings.CreateAlertPinLabel}
-              checked={alert.isPinned}
-              onChange={(checked) =>
-                updateAlertFields({ isPinned: checked } as Partial<T>)
-              }
-              description={pinDescription}
-            />
-
-            {notificationsEnabled && (
+            <SharePointSection
+              title={strings.CreateAlertConfigurationSectionTitle}
+            >
               <SharePointSelect
-                label={notificationLabel}
-                value={alert.notificationType}
-                onChange={(value) =>
-                  updateAlertFields({
-                    notificationType: value as NotificationType,
-                  } as Partial<T>)
-                }
-                options={notificationOptions}
-                description={notificationDescription}
+                label={strings.AlertType}
+                value={alert.AlertType}
+                onChange={(value) => {
+                  const selectedType = alertTypes.find((t) => t.name === value);
+                  updateAlertFields(
+                    {
+                      AlertType: value,
+                      priority: selectedType?.defaultPriority || AlertPriority.Medium,
+                    } as Partial<T>,
+                    ["AlertType"],
+                  );
+                }}
+                options={alertTypeOptions}
+                required
+                error={errors.AlertType}
+                description={alertTypeDescription}
               />
-            )}
+
+              <SharePointToggle
+                label={strings.CreateAlertPinLabel}
+                checked={alert.isPinned}
+                onChange={(checked) =>
+                  updateAlertFields({ isPinned: checked } as Partial<T>)
+                }
+                description={pinDescription}
+              />
+
+              {notificationsEnabled && (
+                <SharePointSelect
+                  label={notificationLabel}
+                  value={alert.notificationType}
+                  onChange={(value) =>
+                    updateAlertFields({
+                      notificationType: value as NotificationType,
+                    } as Partial<T>)
+                  }
+                  options={notificationOptions}
+                  description={notificationDescription}
+                />
+              )}
             </SharePointSection>
           )}
 
           {shouldRenderStep("audience") && (
-            <SharePointSection title={strings.CreateAlertActionLinkSectionTitle}>
-            <SharePointInput
-              label={strings.CreateAlertLinkUrlLabel}
-              value={alert.linkUrl || ""}
-              onChange={(value) => {
-                updateAlertFields(
-                  {
-                    linkUrl: value,
-                    linkDescription: value ? alert.linkDescription : "",
-                  } as Partial<T>,
-                  ["linkUrl", "linkDescription"],
-                );
-              }}
-              placeholder={strings.CreateAlertLinkUrlPlaceholder}
-              error={errors.linkUrl}
-              description={strings.CreateAlertLinkUrlDescription}
-            />
+            <SharePointSection
+              title={strings.CreateAlertActionLinkSectionTitle}
+            >
+              <SharePointInput
+                label={strings.CreateAlertLinkUrlLabel}
+                value={alert.linkUrl || ""}
+                onChange={(value) => {
+                  updateAlertFields(
+                    {
+                      linkUrl: value,
+                      linkDescription: value ? alert.linkDescription : "",
+                    } as Partial<T>,
+                    ["linkUrl", "linkDescription"],
+                  );
+                }}
+                placeholder={strings.CreateAlertLinkUrlPlaceholder}
+                error={errors.linkUrl}
+                description={strings.CreateAlertLinkUrlDescription}
+              />
 
-            {alert.linkUrl && !useMultiLanguage && (
+              {alert.linkUrl && !useMultiLanguage && (
                 <SharePointInput
                   label={strings.CreateAlertLinkDescriptionLabel}
                   value={alert.linkDescription || ""}
@@ -774,29 +807,30 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                     );
                   }}
                   placeholder={strings.CreateAlertLinkDescriptionPlaceholder}
-                required={!!alert.linkUrl}
-                error={errors.linkDescription}
-                description={strings.CreateAlertLinkDescriptionDescription}
-              />
-            )}
+                  required={!!alert.linkUrl}
+                  error={errors.linkDescription}
+                  description={strings.CreateAlertLinkDescriptionDescription}
+                />
+              )}
 
-            {alert.linkUrl && useMultiLanguage && (
-              <div className={styles.infoMessage}>
-                <p>{linkDescriptionInfo}</p>
-              </div>
-            )}
+              {alert.linkUrl && useMultiLanguage && (
+                <div className={styles.infoMessage}>
+                  <p>{linkDescriptionInfo}</p>
+                </div>
+              )}
             </SharePointSection>
           )}
 
           {enableTargetSite && shouldRenderStep("audience") && (
-            <SharePointSection title={strings.CreateAlertTargetSitesSectionTitle}>
+            <SharePointSection
+              title={strings.CreateAlertTargetSitesSectionTitle}
+            >
               <SiteSelector
                 selectedSites={alert.targetSites || []}
                 onSitesChange={(sites) => {
-                  updateAlertFields(
-                    { targetSites: sites } as Partial<T>,
-                    ["targetSites"],
-                  );
+                  updateAlertFields({ targetSites: sites } as Partial<T>, [
+                    "targetSites",
+                  ]);
                 }}
                 siteDetector={siteDetector}
                 graphClient={graphClient}
@@ -815,130 +849,92 @@ const AlertEditorForm = <T extends IAlertEditorState>({
           )}
 
           {shouldRenderStep("publish") && (
-            <SharePointSection title={strings.CreateAlertSchedulingSectionTitle}>
-            {mode === "manage" && (
-              <div className={styles.schedulingHeader}>
-                <p className={styles.schedulingDescription}>
-                  {strings.ManageAlertsSchedulingDescription}
-                </p>
-              </div>
-            )}
-
-            {mode === "create" && (
-              <div className={styles.schedulePresets}>
-                <SharePointButton
-                  variant="secondary"
-                  onClick={() =>
-                    updateAlertFields(
-                      { scheduledStart: new Date() } as Partial<T>,
-                      ["scheduledStart", "scheduledEnd"],
-                    )
-                  }
-                >
-                  {strings.CreateAlertSchedulePresetNow}
-                </SharePointButton>
-                <SharePointButton
-                  variant="secondary"
-                  onClick={() => {
-                    const endOfDay = new Date();
-                    endOfDay.setHours(23, 59, 0, 0);
-                    updateAlertFields(
-                      { scheduledEnd: endOfDay } as Partial<T>,
-                      ["scheduledStart", "scheduledEnd"],
-                    );
-                  }}
-                >
-                  {strings.CreateAlertSchedulePresetEndOfDay}
-                </SharePointButton>
-                <SharePointButton
-                  variant="secondary"
-                  onClick={() => {
-                    const oneWeek = new Date();
-                    oneWeek.setDate(oneWeek.getDate() + 7);
-                    updateAlertFields(
-                      { scheduledEnd: oneWeek } as Partial<T>,
-                      ["scheduledStart", "scheduledEnd"],
-                    );
-                  }}
-                >
-                  {strings.CreateAlertSchedulePresetPlusWeek}
-                </SharePointButton>
-              </div>
-            )}
-
-            <SharePointInput
-              label={strings.CreateAlertStartDateLabel}
-              type="datetime-local"
-              value={DateUtils.toDateTimeLocalValue(alert.scheduledStart)}
-              onChange={(value) => {
-                updateAlertFields(
-                  {
-                    scheduledStart: value ? new Date(value) : undefined,
-                  } as Partial<T>,
-                  ["scheduledStart", "scheduledEnd"],
-                );
-              }}
-              error={errors.scheduledStart}
-              description={startDateDescription}
-            />
-
-            <SharePointInput
-              label={strings.CreateAlertEndDateLabel}
-              type="datetime-local"
-              value={DateUtils.toDateTimeLocalValue(alert.scheduledEnd)}
-              onChange={(value) => {
-                updateAlertFields(
-                  {
-                    scheduledEnd: value ? new Date(value) : undefined,
-                  } as Partial<T>,
-                  ["scheduledStart", "scheduledEnd"],
-                );
-              }}
-              error={errors.scheduledEnd}
-              description={endDateDescription}
-            />
-
-            {mode === "create" && (
-              <div className={styles.timezoneInfo}>
-                <p>
-                  {Text.format(
-                    strings.ManageAlertsScheduleTimezone,
-                    Intl.DateTimeFormat().resolvedOptions().timeZone,
-                  )}
-                </p>
-              </div>
-            )}
-
-            {showScheduleSummary && (
-              <>
-                <div className={styles.scheduleSummary}>
-                  <h4>{strings.ManageAlertsScheduleSummaryTitle}</h4>
-                  {!alert.scheduledStart && !alert.scheduledEnd ? (
-                    <p>{strings.ManageAlertsScheduleImmediate}</p>
-                  ) : alert.scheduledStart && !alert.scheduledEnd ? (
-                    <p>
-                      {Text.format(
-                        strings.ManageAlertsScheduleStartOnly,
-                        new Date(alert.scheduledStart).toLocaleString(),
-                      )}
-                    </p>
-                  ) : !alert.scheduledStart && alert.scheduledEnd ? (
-                    <p>
-                      {Text.format(
-                        strings.ManageAlertsScheduleEndOnly,
-                        new Date(alert.scheduledEnd).toLocaleString(),
-                      )}
-                    </p>
-                  ) : (
-                    <p>
-                      {Text.format(
-                        strings.ManageAlertsScheduleWindow,
-                        new Date(alert.scheduledStart!).toLocaleString(),
-                        new Date(alert.scheduledEnd!).toLocaleString(),
-                      )}
-                    </p>
-                  )}
+            <SharePointSection
+              title={strings.CreateAlertSchedulingSectionTitle}
+            >
+              {mode === "manage" && (
+                <div className={styles.schedulingHeader}>
+                  <p className={styles.schedulingDescription}>
+                    {strings.ManageAlertsSchedulingDescription}
+                  </p>
                 </div>
+              )}
+
+              {mode === "create" && (
+                <div className={styles.schedulePresets}>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={() =>
+                      updateAlertFields(
+                        { scheduledStart: new Date() } as Partial<T>,
+                        ["scheduledStart", "scheduledEnd"],
+                      )
+                    }
+                  >
+                    {strings.CreateAlertSchedulePresetNow}
+                  </SharePointButton>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={() => {
+                      const endOfDay = new Date();
+                      endOfDay.setHours(23, 59, 0, 0);
+                      updateAlertFields(
+                        { scheduledEnd: endOfDay } as Partial<T>,
+                        ["scheduledStart", "scheduledEnd"],
+                      );
+                    }}
+                  >
+                    {strings.CreateAlertSchedulePresetEndOfDay}
+                  </SharePointButton>
+                  <SharePointButton
+                    variant="secondary"
+                    onClick={() => {
+                      const oneWeek = new Date();
+                      oneWeek.setDate(oneWeek.getDate() + 7);
+                      updateAlertFields(
+                        { scheduledEnd: oneWeek } as Partial<T>,
+                        ["scheduledStart", "scheduledEnd"],
+                      );
+                    }}
+                  >
+                    {strings.CreateAlertSchedulePresetPlusWeek}
+                  </SharePointButton>
+                </div>
+              )}
+
+              <SharePointInput
+                label={strings.CreateAlertStartDateLabel}
+                type="datetime-local"
+                value={DateUtils.toDateTimeLocalValue(alert.scheduledStart)}
+                onChange={(value) => {
+                  updateAlertFields(
+                    {
+                      scheduledStart: value ? new Date(value) : undefined,
+                    } as Partial<T>,
+                    ["scheduledStart", "scheduledEnd"],
+                  );
+                }}
+                error={errors.scheduledStart}
+                description={startDateDescription}
+              />
+
+              <SharePointInput
+                label={strings.CreateAlertEndDateLabel}
+                type="datetime-local"
+                value={DateUtils.toDateTimeLocalValue(alert.scheduledEnd)}
+                onChange={(value) => {
+                  updateAlertFields(
+                    {
+                      scheduledEnd: value ? new Date(value) : undefined,
+                    } as Partial<T>,
+                    ["scheduledStart", "scheduledEnd"],
+                  );
+                }}
+                error={errors.scheduledEnd}
+                description={endDateDescription}
+              />
+
+              {mode === "create" && (
                 <div className={styles.timezoneInfo}>
                   <p>
                     {Text.format(
@@ -947,8 +943,48 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                     )}
                   </p>
                 </div>
-              </>
-            )}
+              )}
+
+              {showScheduleSummary && (
+                <>
+                  <div className={styles.scheduleSummary}>
+                    <h4>{strings.ManageAlertsScheduleSummaryTitle}</h4>
+                    {!alert.scheduledStart && !alert.scheduledEnd ? (
+                      <p>{strings.ManageAlertsScheduleImmediate}</p>
+                    ) : alert.scheduledStart && !alert.scheduledEnd ? (
+                      <p>
+                        {Text.format(
+                          strings.ManageAlertsScheduleStartOnly,
+                          new Date(alert.scheduledStart).toLocaleString(),
+                        )}
+                      </p>
+                    ) : !alert.scheduledStart && alert.scheduledEnd ? (
+                      <p>
+                        {Text.format(
+                          strings.ManageAlertsScheduleEndOnly,
+                          new Date(alert.scheduledEnd).toLocaleString(),
+                        )}
+                      </p>
+                    ) : (
+                      <p>
+                        {Text.format(
+                          strings.ManageAlertsScheduleWindow,
+                          new Date(alert.scheduledStart!).toLocaleString(),
+                          new Date(alert.scheduledEnd!).toLocaleString(),
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <div className={styles.timezoneInfo}>
+                    <p>
+                      {Text.format(
+                        strings.ManageAlertsScheduleTimezone,
+                        Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      )}
+                    </p>
+                  </div>
+                </>
+              )}
             </SharePointSection>
           )}
 
@@ -964,7 +1000,9 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                 aria-expanded={showPreview}
                 aria-controls={previewRegionId}
               >
-                {showPreview ? strings.CreateAlertHidePreview : strings.CreateAlertShowPreview}
+                {showPreview
+                  ? strings.CreateAlertHidePreview
+                  : strings.CreateAlertShowPreview}
               </SharePointButton>
             </div>
           </div>
@@ -980,7 +1018,9 @@ const AlertEditorForm = <T extends IAlertEditorState>({
           <div className={styles.previewColumn} id={previewRegionId}>
             <div className={styles.previewSticky}>
               <div className={styles.alertCard}>
-                {mode === "manage" && <h3>{strings.ManageAlertsLivePreviewTitle}</h3>}
+                {mode === "manage" && (
+                  <h3>{strings.ManageAlertsLivePreviewTitle}</h3>
+                )}
 
                 {useMultiLanguage && languageContent.length > 0 && (
                   <div className={styles.previewLanguageSelector}>
@@ -1000,18 +1040,22 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                             onClick={() => {
                               const reorderedContent = [
                                 content,
-                                ...languageContent.filter((_, i) => i !== index),
+                                ...languageContent.filter(
+                                  (_, i) => i !== index,
+                                ),
                               ];
-                              setAlert((prev) =>
-                                ({
-                                  ...prev,
-                                  languageContent: reorderedContent,
-                                }) as T,
+                              setAlert(
+                                (prev) =>
+                                  ({
+                                    ...prev,
+                                    languageContent: reorderedContent,
+                                  }) as T,
                               );
                             }}
                             className={styles.previewLanguageButton}
                           >
-                            {lang?.flag || content.language} {lang?.nativeName || content.language}
+                            {lang?.flag || content.language}{" "}
+                            {lang?.nativeName || content.language}
                           </SharePointButton>
                         );
                       })}
@@ -1022,13 +1066,16 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                 <AlertPreview
                   title={
                     useMultiLanguage && languageContent.length > 0
-                      ? languageContent[0]?.title || strings.CreateAlertMultiLanguagePreviewTitle
+                      ? languageContent[0]?.title ||
+                        strings.CreateAlertMultiLanguagePreviewTitle
                       : alert.title || strings.AlertPreviewDefaultTitle
                   }
                   description={
                     useMultiLanguage && languageContent.length > 0
-                      ? languageContent[0]?.description || strings.CreateAlertMultiLanguagePreviewDescription
-                      : alert.description || strings.AlertPreviewDefaultDescription
+                      ? languageContent[0]?.description ||
+                        strings.CreateAlertMultiLanguagePreviewDescription
+                      : alert.description ||
+                        strings.AlertPreviewDefaultDescription
                   }
                   alertType={
                     getCurrentAlertType() || {
@@ -1044,14 +1091,20 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                   linkUrl={alert.linkUrl || ""}
                   linkDescription={
                     useMultiLanguage && languageContent.length > 0
-                      ? languageContent[0]?.linkDescription || strings.CreateAlertLinkPreviewFallback
-                      : alert.linkDescription || strings.CreateAlertLinkPreviewFallback
+                      ? languageContent[0]?.linkDescription ||
+                        strings.CreateAlertLinkPreviewFallback
+                      : alert.linkDescription ||
+                        strings.CreateAlertLinkPreviewFallback
                   }
                   isPinned={alert.isPinned}
                 />
 
                 {useMultiLanguage && languageContent.length > 0 && (
-                  <div className={styles.multiLanguagePreviewInfo} role="status" aria-live="polite">
+                  <div
+                    className={styles.multiLanguagePreviewInfo}
+                    role="status"
+                    aria-live="polite"
+                  >
                     <p>
                       <strong>
                         {mode === "manage"
@@ -1078,7 +1131,9 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                         languageContent
                           .map(
                             (c) =>
-                              supportedLanguages.find((l) => l.code === c.language)?.flag || c.language,
+                              supportedLanguages.find(
+                                (l) => l.code === c.language,
+                              )?.flag || c.language,
                           )
                           .join(" "),
                       )}

@@ -235,6 +235,8 @@ define([], function () {
     CreateAlertTemplatesButtonLabel: "Templates",
     CreateAlertPreviousAlertsButtonLabel: "Previous Alerts ({0})",
     CreateAlertDraftsButtonLabel: "My Drafts ({0})",
+    CreateAlertNoDraftsTitle: "No drafts yet",
+    CreateAlertNoPreviousAlertsTitle: "No recent alerts",
     CreateAlertDraftsEmptyMessage:
       "No drafts found. Save your work as a draft to continue later!",
     CreateAlertPreviousAlertsEmptyMessage:
@@ -367,6 +369,8 @@ define([], function () {
     ManageAlertsFilterSummaryCount: "Showing {0} of {1} items",
     ManageAlertsFilterSummaryLanguageGroups: "{0} multi-language groups",
     ManageAlertsFilterAlertsLabel: "📢 Alerts ({0})",
+    ManageAlertsNoDraftsTitle: "No drafts yet",
+    ManageAlertsNoTemplatesTitle: "No templates available",
     ManageAlertsFilterDraftsLabel: "✏️ Drafts ({0})",
     ManageAlertsFilterTemplatesLabel: "📄 Templates ({0})",
     ManageAlertsFilterAllLabel: "📋 All ({0})",
@@ -1153,5 +1157,14 @@ define([], function () {
     CopilotSentimentOptionalSection: "Suggestions",
     CopilotSentimentAnalysisProfessional: "Professional",
     CopilotSentimentAnalysisTone: "Tone",
+
+    // About Section
+    SettingsAboutTitle: "About",
+    SettingsAboutProductName: "Alert Banner",
+    SettingsAboutVersion: "Version {0}",
+    SettingsAboutDescription: "A free, open-source SharePoint SPFx extension for managing alert banners across your tenant.",
+    SettingsAboutAuthor: "Created with ❤️ by the community",
+    SettingsAboutGitHubLink: "View on GitHub",
+    SettingsAboutGitHubUrl: "https://github.com/nicolaskheirallah/AlertBanner",
   };
 });

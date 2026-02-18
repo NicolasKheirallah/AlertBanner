@@ -9,14 +9,12 @@ import { useAsyncOperation } from '../Hooks/useAsyncOperation';
 import styles from './ImageUpload.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 
-export interface IImageUploadProps {
+const ImageUpload: React.FC<{
   context: ApplicationCustomizerContext;
   onImageUploaded: (imageUrl: string, file: File, widthPercent?: number) => void;
   folderName?: string;
   disabled?: boolean;
-}
-
-const ImageUpload: React.FC<IImageUploadProps> = ({
+}> = ({
   context,
   onImageUploaded,
   folderName,

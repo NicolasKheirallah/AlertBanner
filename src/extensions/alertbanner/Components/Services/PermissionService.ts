@@ -155,7 +155,7 @@ export class PermissionService {
   }
 
   // Log auditable operation for security compliance - all write operations must be logged
-  public logAuditableOperation(operation: IAuditableOperation): void {
+  public logAuditableOperation(operation: { operation: string; targetSite?: string; targetSiteUrl?: string; targetSiteName?: string; targetList?: string; itemCount?: number; justification?: string; error?: string; }): void {
     const auditEntry = {
       timestamp: new Date().toISOString(),
       userId: this.context.pageContext.user.loginName,
@@ -174,7 +174,7 @@ export class PermissionService {
     operation: () => Promise<T>,
     audit: IAuditableOperation
   ): Promise<T> {
-    const enrichedAudit: IAuditableOperation = {
+    const enrichedAudit = {
       ...audit,
       targetSiteUrl: audit.targetSiteUrl || this.context.pageContext.web.absoluteUrl,
       targetSiteName: audit.targetSiteName || this.context.pageContext.web.title
@@ -239,16 +239,6 @@ export class PermissionService {
     ].join(' ');
 
     return `https://login.microsoftonline.com/${tenantId}/adminconsent?client_id=${clientId}&scope=${encodeURIComponent(scopes)}`;
-  }
-
-  public showPermissionGuidance(missingPermissions: GraphPermission[]): void {
-    const permissionNames = missingPermissions.map(p => p.valueOf()).join(', ');
-    
-    logger.warn('PermissionService', 'Missing permissions detected', {
-      missing: permissionNames,
-      currentSite: this.context.pageContext.web.absoluteUrl,
-      adminConsentUrl: this.getAdminConsentUrl()
-    });
   }
 
   private getCorrelationId(): string {

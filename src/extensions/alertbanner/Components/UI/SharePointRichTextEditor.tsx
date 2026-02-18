@@ -181,7 +181,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
   // Update character count
   const updateCharacterCount = React.useCallback((text: string) => {
     // Strip HTML tags for character counting
-    const textContent = text.replace(/<[^>]*>/g, '');
+    const textContent = (text || '').replace(/<[^>]*>/g, '');
     setCharacterCount(textContent.length);
   }, []);
 
@@ -367,10 +367,17 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
           };
 
           const ModuleCtor = Quill.import('modules/imageResize');
-          editorAny.modules = {
-            ...(editorAny.modules || {}),
-            imageResize: new ModuleCtor(editorAny, editorAny.options.modules.imageResize)
-          };
+          // Suppress module logging
+          const originalLog = console.log;
+          console.log = () => {};
+          try {
+            editorAny.modules = {
+              ...(editorAny.modules || {}),
+              imageResize: new ModuleCtor(editorAny, editorAny.options.modules.imageResize)
+            };
+          } finally {
+            console.log = originalLog;
+          }
         })
         .catch(error => {
           console.error('Failed to initialize Quill image resize module', error);

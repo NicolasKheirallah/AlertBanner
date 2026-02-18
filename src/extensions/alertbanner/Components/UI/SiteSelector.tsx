@@ -20,7 +20,13 @@ import styles from "./SiteSelector.module.scss";
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import { Text as CoreText } from '@microsoft/sp-core-library';
 
-export interface ISiteSelectorProps {
+interface IFilterOptions {
+  showOnlyWritable: boolean;
+  siteType: 'all' | 'hub' | 'team' | 'communication' | 'homesite';
+  searchTerm: string;
+}
+
+const SiteSelector: React.FC<{
   selectedSites: string[];
   onSitesChange: (siteIds: string[]) => void;
   siteDetector: SiteContextDetector;
@@ -29,15 +35,7 @@ export interface ISiteSelectorProps {
   allowMultiple?: boolean;
   showPermissionStatus?: boolean;
   className?: string;
-}
-
-interface IFilterOptions {
-  showOnlyWritable: boolean;
-  siteType: 'all' | 'hub' | 'team' | 'communication' | 'homesite';
-  searchTerm: string;
-}
-
-const SiteSelector: React.FC<ISiteSelectorProps> = ({
+}> = ({
   selectedSites,
   onSitesChange,
   siteDetector,

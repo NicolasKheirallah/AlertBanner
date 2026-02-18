@@ -14,17 +14,15 @@ import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import styles from './PermissionStatus.module.scss';
 
-interface IPermissionStatusProps {
-  context: ApplicationCustomizerContext;
-}
-
 interface IPermissionState {
   isLoading: boolean;
   permissions: Map<GraphPermission, boolean>;
   showDetails: boolean;
 }
 
-export const PermissionStatus: React.FC<IPermissionStatusProps> = ({ context }) => {
+export const PermissionStatus: React.FC<{
+  context: ApplicationCustomizerContext;
+}> = ({ context }) => {
   const [state, setState] = React.useState<IPermissionState>({
     isLoading: true,
     permissions: new Map(),
@@ -75,7 +73,6 @@ export const PermissionStatus: React.FC<IPermissionStatusProps> = ({ context }) 
     return (
       <MessageBar messageBarType={MessageBarType.success}>
         <div className={styles.inlineRow}>
-          <CheckmarkCircle24Regular />
           <span>{strings.PermissionStatusAllGranted}</span>
         </div>
       </MessageBar>

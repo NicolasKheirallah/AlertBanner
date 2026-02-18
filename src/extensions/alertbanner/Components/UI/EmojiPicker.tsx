@@ -5,13 +5,11 @@ import { Emoji24Regular } from '@fluentui/react-icons';
 import styles from './EmojiPicker.module.scss';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 
-export interface IEmojiPickerProps {
+const EmojiPicker: React.FC<{
   onEmojiSelect: (emoji: string) => void;
   disabled?: boolean;
   showLabel?: boolean;
-}
-
-const EmojiPicker: React.FC<IEmojiPickerProps> = ({
+}> = ({
   onEmojiSelect,
   disabled = false,
   showLabel = false

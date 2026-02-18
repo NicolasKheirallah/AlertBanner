@@ -12,13 +12,11 @@ import { useLocalization } from '../Hooks/useLocalization';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
 import styles from './LanguageSelector.module.scss';
 
-export interface ILanguageSelectorProps {
+const LanguageSelector: React.FC<{
   compact?: boolean;
   className?: string;
   onLanguageChange?: (languageCode: string) => void;
-}
-
-const LanguageSelector: React.FC<ILanguageSelectorProps> = ({
+}> = ({
   compact = false,
   className,
   onLanguageChange

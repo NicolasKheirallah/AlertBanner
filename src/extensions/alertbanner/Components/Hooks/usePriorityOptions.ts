@@ -1,11 +1,7 @@
 import { useMemo } from 'react';
 import { AlertPriority } from '../Alerts/IAlerts';
+import { ISharePointSelectOption } from '../UI/SharePointControls';
 import * as strings from 'AlertBannerApplicationCustomizerStrings';
-
-export interface ISharePointSelectOption {
-  value: string;
-  label: string;
-}
 
 export const usePriorityOptions = (): ISharePointSelectOption[] => {
   return useMemo(() => ([

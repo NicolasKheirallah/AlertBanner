@@ -36,7 +36,8 @@ export class LoggerService {
   private sessionId: string;
   private buildVersion: string = '2.0.0';
   private isDevelopment: boolean;
-  private performanceMetrics: IPerformanceMetric[] = [];
+  private performanceMetrics: IPerformanceMetric[] = []
+
 
   private constructor() {
     this.sessionId = this.generateSessionId();
@@ -66,7 +67,7 @@ export class LoggerService {
     try {
       const hostname = window.location?.hostname || '';
       const queryString = window.location?.search || document.location?.search || '';
-      const explicitDebugFlag = (window as any).__ALERT_BANNER_DEBUG === true;
+      const explicitDebugFlag = window.__ALERT_BANNER_DEBUG === true;
 
       if (explicitDebugFlag) {
         return true;
@@ -180,8 +181,8 @@ export class LoggerService {
 
   private sendToExternalLogging(entry: ILogEntry): void {
     try {
-      if ((window as any).appInsights) {
-        (window as any).appInsights.trackException({
+      if (window.appInsights) {
+        window.appInsights.trackException({
           exception: entry.error || new Error(entry.message),
           properties: {
             component: entry.component,
@@ -233,6 +234,22 @@ export class LoggerService {
     }
   }
 
+  public logApiCall(component: string, method: string, url: string, status?: number, duration?: number, error?: Error): void {
+    const logData = {
+      method,
+      url,
+      status,
+      duration: duration ? `${duration}ms` : undefined,
+      timestamp: new Date().toISOString()
+    };
+
+    if (error || (status && status >= 400)) {
+      this.error(component, `API call failed: ${method} ${url}`, error, logData);
+    } else {
+      this.info(component, `API call successful: ${method} ${url}`, logData);
+    }
+  }
+
   public startPerformanceTracking(name: string): () => void {
     const startTime = performance.now();
     
@@ -253,22 +270,6 @@ export class LoggerService {
     };
   }
 
-  public logApiCall(component: string, method: string, url: string, status?: number, duration?: number, error?: Error): void {
-    const logData = {
-      method,
-      url,
-      status,
-      duration: duration ? `${duration}ms` : undefined,
-      timestamp: new Date().toISOString()
-    };
-
-    if (error || (status && status >= 400)) {
-      this.error(component, `API call failed: ${method} ${url}`, error, logData);
-    } else {
-      this.info(component, `API call successful: ${method} ${url}`, logData);
-    }
-  }
-
   public logUserAction(component: string, action: string, metadata?: any): void {
     this.info(component, `User action: ${action}`, {
       action,
@@ -277,47 +278,6 @@ export class LoggerService {
     });
   }
 
-  public getRecentLogs(count: number = 50): ILogEntry[] {
-    return this.logEntries.slice(-count);
-  }
-
-  public getLogsByLevel(level: LogLevel): ILogEntry[] {
-    return this.logEntries.filter(entry => entry.level === level);
-  }
-
-  public getPerformanceMetrics(): IPerformanceMetric[] {
-    return [...this.performanceMetrics];
-  }
-
-  public exportLogs(): string {
-    return JSON.stringify({
-      sessionId: this.sessionId,
-      buildVersion: this.buildVersion,
-      exportTime: new Date().toISOString(),
-      logEntries: this.logEntries,
-      performanceMetrics: this.performanceMetrics
-    }, null, 2);
-  }
-
-  public clearLogs(): void {
-    this.logEntries = [];
-    this.performanceMetrics = [];
-    this.info('LoggerService', 'Logs cleared');
-  }
-
-  public setLogLevel(level: LogLevel): void {
-    this.logLevel = level;
-    this.info('LoggerService', `Log level set to ${LogLevel[level]}`);
-  }
-
-  public getConfiguration(): { sessionId: string; logLevel: string; isDevelopment: boolean; buildVersion: string } {
-    return {
-      sessionId: this.sessionId,
-      logLevel: LogLevel[this.logLevel],
-      isDevelopment: this.isDevelopment,
-      buildVersion: this.buildVersion
-    };
-  }
 }
 
 export const logger = LoggerService.getInstance();

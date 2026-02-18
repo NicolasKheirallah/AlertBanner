@@ -55,6 +55,17 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     [],
   );
 
+  // Memoized siteIds normalization for stable dependency
+  const normalizedSiteIds = React.useMemo(() => {
+    return (props.siteIds ?? [])
+      .map((id) => (id ?? "").toString().trim())
+      .filter((id) => StringUtils.isNotEmpty(id));
+  }, [props.siteIds]);
+
+  const uniqueSortedSiteIds = React.useMemo(() => {
+    return ArrayUtils.unique(normalizedSiteIds).sort();
+  }, [normalizedSiteIds]);
+
   // Store initial props to prevent unnecessary re-initialization
   const previousInitPropsRef = React.useRef<{
     siteIds: string[];
@@ -67,11 +78,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
 
   // Initialize alerts and edit mode detection on mount
   React.useEffect(() => {
-    const normalizedSiteIds = (props.siteIds ?? [])
-      .map((id) => (id ?? "").toString().trim())
-      .filter((id) => StringUtils.isNotEmpty(id));
-    const uniqueSortedSiteIds = ArrayUtils.unique(normalizedSiteIds).sort();
-
     const nextInitProps = {
       siteIds: uniqueSortedSiteIds,
       alertTypesJson: props.alertTypesJson,
@@ -120,13 +126,15 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     props.alertTypesJson,
     props.userTargetingEnabled,
     props.notificationsEnabled,
-    (props.siteIds || []).join("|"),
+    props.enableTargetSite,
+    uniqueSortedSiteIds,
     initializeAlerts,
   ]);
 
   // Monitor for edit mode changes using MutationObserver with debouncing
   React.useEffect(() => {
     let debounceTimer: number | null = null;
+    let intervalTimer: number | null = null;
 
     const checkEditMode = () => {
       const newEditMode = EditModeDetector.isPageInEditMode(props.context);
@@ -145,7 +153,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       if (debounceTimer) {
         window.clearTimeout(debounceTimer);
       }
-      debounceTimer = window.setTimeout(checkEditMode, 200);
+      debounceTimer = window.setTimeout(checkEditMode, 50);
     };
 
     const observer = new MutationObserver(debouncedCheckEditMode);
@@ -171,15 +179,22 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     observeCommandBar();
 
     const retryTimer = window.setTimeout(observeCommandBar, 1000);
+    
+    // Poll more frequently when in edit mode to catch exit faster
+    intervalTimer = window.setInterval(checkEditMode, 500);
+    
     checkEditMode();
     return () => {
       if (debounceTimer) {
         window.clearTimeout(debounceTimer);
       }
+      if (intervalTimer) {
+        window.clearInterval(intervalTimer);
+      }
       window.clearTimeout(retryTimer);
       observer.disconnect();
     };
-  }, []);
+  }, [props.context]);
 
   // Effect to reset index when alerts change
   React.useEffect(() => {
@@ -190,11 +205,17 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     }
   }, [alerts, currentIndex]);
 
+  // Ref to always get latest alerts.length in interval callbacks
+  const alertsLengthRef = React.useRef(alerts.length);
+  React.useEffect(() => {
+    alertsLengthRef.current = alerts.length;
+  }, [alerts.length]);
+
   // Carousel timer effect
   React.useEffect(() => {
     if (carouselEnabled && alerts.length > 1) {
       carouselTimer.current = window.setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % alerts.length);
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % alertsLengthRef.current);
       }, carouselInterval);
     } else if (carouselTimer.current) {
       window.clearInterval(carouselTimer.current);
@@ -205,6 +226,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     return () => {
       if (carouselTimer.current) {
         window.clearInterval(carouselTimer.current);
+        carouselTimer.current = null;
       }
     };
   }, [carouselEnabled, carouselInterval, alerts.length]);
@@ -265,12 +287,12 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   }, []);
 
   const handleMouseLeave = React.useCallback(() => {
-    if (carouselEnabled && alerts.length > 1) {
+    if (carouselEnabled && alertsLengthRef.current > 1) {
       carouselTimer.current = window.setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % alerts.length);
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % alertsLengthRef.current);
       }, carouselInterval);
     }
-  }, [carouselEnabled, alerts.length, carouselInterval]);
+  }, [carouselEnabled, carouselInterval]);
 
   // Edit mode guard disabled — always show alerts area
   // if (isLoading && !isInEditMode) {
@@ -279,14 +301,8 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   }
 
   const hasAlerts = alerts.length > 0;
-  const canAccessSettings =
-    isInEditMode ||
-    !!props.context?.pageContext?.legacyPageContext?.isSiteAdmin;
 
-  // Edit mode guard disabled — always show component (even with no alerts, so settings gear is visible)
-  // if (!hasAlerts && !isInEditMode && !hasError) {
-  //   return null;
-  // }
+  // Only show settings button when page is in edit mode
 
   return (
     <div className={styles.alerts}>
@@ -334,9 +350,8 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
           </ErrorBoundary>
         </div>
       )}
-      {/* Edit mode guard disabled — always render settings */}
-      {/* {isInEditMode && ( */}
-      {canAccessSettings && (
+      {/* Settings button only visible in edit mode */}
+      {isInEditMode && (
         <AlertSettingsTabs
           isInEditMode={isInEditMode}
           alertTypesJson={props.alertTypesJson}
@@ -350,7 +365,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
           onSettingsChange={handleSettingsChange}
         />
       )}
-      {/* )} */}
     </div>
   );
 };

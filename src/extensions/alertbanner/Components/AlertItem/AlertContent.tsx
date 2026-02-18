@@ -30,22 +30,6 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(
 
     if (!expanded) return null;
 
-    const resolveAttachmentUrl = (serverRelativeUrl?: string): string => {
-      if (!serverRelativeUrl) {
-        return "#";
-      }
-
-      if (/^https?:\/\//i.test(serverRelativeUrl)) {
-        return serverRelativeUrl;
-      }
-
-      if (typeof window === "undefined") {
-        return serverRelativeUrl;
-      }
-
-      return `${window.location.origin}${serverRelativeUrl}`;
-    };
-
     const formatFileSize = (bytes?: number): string => {
       if (!bytes) return "";
 

@@ -8,6 +8,7 @@ import {
   IPersonField,
   TranslationStatus,
   ContentStatus,
+  IGraphListItem,
 } from "../Alerts/IAlerts";
 import { logger } from "../Services/LoggerService";
 import { JsonUtils } from "./JsonUtils";
@@ -159,13 +160,13 @@ export class AlertTransformers {
     return ContentType.Alert;
   }
 
-  public static extractCreatedDate(item: any, fields: any): string {
+  private static extractCreatedDate(item: any, fields: any): string {
     return (
       item.createdDateTime || fields?.CreatedDateTime || fields?.Created || ""
     );
   }
 
-  public static extractCreatedBy(item: any, fields: any): string {
+  private static extractCreatedBy(item: any, fields: any): string {
     return (
       item.createdBy?.user?.displayName ||
       fields?.CreatedBy?.LookupValue ||
@@ -175,7 +176,7 @@ export class AlertTransformers {
     );
   }
 
-  public static parseMetadata(value: any): any {
+  private static parseMetadata(value: any): any {
     if (!value) {
       return undefined;
     }
@@ -198,7 +199,7 @@ export class AlertTransformers {
   }
 
   // Create original list item for multi-language support
-  public static createOriginalListItem(item: any, fields: any): IAlertListItem {
+  private static createOriginalListItem(item: any, fields: any): IAlertListItem {
     return {
       Id: parseInt(item.id.toString()),
       Title: fields.Title || "",
@@ -252,7 +253,7 @@ export class AlertTransformers {
 
   // Map SharePoint item to IAlertItem
   public static mapSharePointItemToAlert(
-    item: any,
+    item: IGraphListItem,
     siteId: string,
     includeOriginalItem: boolean = false,
   ): IAlertItem {
@@ -304,6 +305,7 @@ export class AlertTransformers {
       translationStatus:
         (fields.TranslationStatus as TranslationStatus) ||
         TranslationStatus.Approved,
+      sortOrder: typeof fields.SortOrder === "number" ? fields.SortOrder : undefined,
       contentStatus:
         (fields.ContentStatus as ContentStatus) || ContentStatus.Draft,
       reviewer: reviewer,

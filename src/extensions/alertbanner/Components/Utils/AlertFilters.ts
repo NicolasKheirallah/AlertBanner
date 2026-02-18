@@ -1,5 +1,5 @@
 import { SiteIdUtils } from './SiteIdUtils';
-import { IAlertItem, ContentType, AlertPriority, NotificationType, TargetLanguage } from '../Alerts/IAlerts';
+import { IAlertItem, ContentType, AlertPriority, TargetLanguage } from '../Alerts/IAlerts';
 import { logger } from '../Services/LoggerService';
 
 // Utility class for filtering alerts
@@ -171,16 +171,6 @@ export class AlertFilters {
     );
   }
 
-  public static filterByNotificationType(
-    alerts: IAlertItem[],
-    notificationType: NotificationType | 'all'
-  ): IAlertItem[] {
-    if (notificationType === 'all') {
-      return alerts;
-    }
-    return alerts.filter(alert => alert.notificationType === notificationType);
-  }
-
   // Check if alert is currently active based on schedule
   public static isActive(alert: IAlertItem, currentTime: Date = new Date()): boolean {
     // If scheduledStart exists and is in the future, not yet active
@@ -203,61 +193,6 @@ export class AlertFilters {
     return alerts.filter(alert => this.isActive(alert, currentTime));
   }
 
-  // Check if alert should be expired based on schedule
-  public static shouldBeExpired(alert: IAlertItem, currentTime: Date = new Date()): boolean {
-    return alert.scheduledEnd !== undefined &&
-           new Date(alert.scheduledEnd) < currentTime &&
-           alert.status !== 'Expired';
-  }
-
-  // Check if alert should transition from Scheduled to Active
-  public static shouldBeActivated(alert: IAlertItem, currentTime: Date = new Date()): boolean {
-    return alert.scheduledStart !== undefined &&
-           new Date(alert.scheduledStart) <= currentTime &&
-           alert.status === 'Scheduled';
-  }
-
-  public static filterByDateRange(
-    alerts: IAlertItem[],
-    fromDate?: Date,
-    toDate?: Date,
-    dateField: 'createdDate' | 'scheduledStart' | 'scheduledEnd' = 'createdDate'
-  ): IAlertItem[] {
-    return alerts.filter(alert => {
-      const dateValue = alert[dateField];
-      if (!dateValue) {
-        return false;
-      }
-
-      const alertDate = new Date(dateValue);
-
-      if (fromDate && alertDate < fromDate) {
-        return false;
-      }
-
-      if (toDate && alertDate > toDate) {
-        return false;
-      }
-
-      return true;
-    });
-  }
-
-  public static filterCreatedToday(alerts: IAlertItem[]): IAlertItem[] {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-    return this.filterByDateRange(alerts, todayStart, todayEnd, 'createdDate');
-  }
-
-  public static filterCreatedInLastDays(alerts: IAlertItem[], days: number): IAlertItem[] {
-    const now = new Date();
-    const fromDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-
-    return this.filterByDateRange(alerts, fromDate, now, 'createdDate');
-  }
-
   // Full-text search across alert fields
   public static searchAlerts(alerts: IAlertItem[], searchTerm: string): IAlertItem[] {
     if (!searchTerm || searchTerm.trim() === '') {
@@ -278,42 +213,4 @@ export class AlertFilters {
     );
   }
 
-  // Build GraphQL/OData filter string for server-side filtering (useful for SharePoint list queries)
-  public static buildODataFilter(options: {
-    excludeTemplates?: boolean;
-    excludeDrafts?: boolean;
-    includeScheduledOnly?: boolean;
-    dateTime?: string; // ISO format
-  }): string {
-    const filters: string[] = [];
-    const dateTimeNow = options.dateTime || new Date().toISOString();
-
-    // Schedule filtering
-    if (options.includeScheduledOnly) {
-      filters.push(
-        `(fields/ScheduledStart le '${dateTimeNow}' or fields/ScheduledStart eq null)`,
-        `(fields/ScheduledEnd ge '${dateTimeNow}' or fields/ScheduledEnd eq null)`
-      );
-    }
-
-    // Exclude templates
-    if (options.excludeTemplates) {
-      filters.push(`(fields/ItemType ne 'template')`);
-    }
-
-    // Exclude drafts
-    if (options.excludeDrafts) {
-      filters.push(`(fields/ItemType ne 'draft')`);
-    }
-
-    return filters.length > 0 ? filters.join(' and ') : '';
-  }
-
-  // Combine multiple filter functions - useful for chaining filters efficiently
-  public static applyMultipleFilters(
-    alerts: IAlertItem[],
-    filters: Array<(alerts: IAlertItem[]) => IAlertItem[]>
-  ): IAlertItem[] {
-    return filters.reduce((filtered, filterFn) => filterFn(filtered), alerts);
-  }
 }

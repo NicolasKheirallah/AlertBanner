@@ -5,7 +5,7 @@ import { getAlertTypeIcon } from "../AlertItem/utils";
 import { getContrastText } from "../Utils/ColorUtils";
 import styles from "./AlertPreview.module.scss";
 
-interface IAlertPreviewProps {
+const AlertPreview: React.FC<{
   title: string;
   description: string;
   alertType: IAlertType;
@@ -14,9 +14,7 @@ interface IAlertPreviewProps {
   linkUrl?: string;
   linkDescription?: string;
   className?: string;
-}
-
-const AlertPreview: React.FC<IAlertPreviewProps> = ({
+}> = ({
   title,
   description,
   alertType,
@@ -36,8 +34,8 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
     }
   };
 
-  // Use the alert type's background color for priority indicators
-  const priorityColor = alertType.backgroundColor;
+  // Get priority-specific border color or fallback to alert type's background color
+  const priorityColor = alertType.priorityColors?.[priority]?.borderColor || alertType.backgroundColor;
   const priorityTextColor = getContrastText(priorityColor);
   const normalizeColorToken = (color?: string): string =>
     (color || "").toLowerCase().replace("#", "").replace(/[^a-f0-9]/g, "");
@@ -65,6 +63,9 @@ const AlertPreview: React.FC<IAlertPreviewProps> = ({
 
       <div
         className={`${styles.alertPreview} ${getPriorityClass(priority)} ${isPinned ? styles.pinned : ''}`}
+        style={{
+          borderLeftColor: priorityColor,
+        } as React.CSSProperties}
       >
         <div className={styles.headerRow}>
           <div className={styles.iconSection}>

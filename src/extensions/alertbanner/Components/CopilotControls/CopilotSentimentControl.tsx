@@ -276,19 +276,6 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
     }
   }, [textToAnalyze, copilotService, onError]);
 
-  // Auto-check when text changes significantly
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (textToAnalyze && textToAnalyze.trim().length >= 10) {
-        if (textToAnalyze !== lastCheckedRef.current) {
-          void performCheck();
-        }
-      }
-    }, 3000);
-    
-    return () => clearTimeout(timer);
-  }, [textToAnalyze, performCheck]);
-
   const handleCheck = (): void => {
     void performCheck(true);
   };

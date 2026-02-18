@@ -186,6 +186,8 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CreateAlertTemplatesButtonLabel: string;
   CreateAlertPreviousAlertsButtonLabel: string;
   CreateAlertDraftsButtonLabel: string;
+  CreateAlertNoDraftsTitle: string;
+  CreateAlertNoPreviousAlertsTitle: string;
   CreateAlertDraftsEmptyMessage: string;
   CreateAlertPreviousAlertsEmptyMessage: string;
   CreateAlertLoadDraftButton: string;
@@ -292,6 +294,8 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ManageAlertsFilterSummaryCount: string;
   ManageAlertsFilterSummaryLanguageGroups: string;
   ManageAlertsFilterAlertsLabel: string;
+  ManageAlertsNoDraftsTitle: string;
+  ManageAlertsNoTemplatesTitle: string;
   ManageAlertsFilterDraftsLabel: string;
   ManageAlertsFilterTemplatesLabel: string;
   ManageAlertsFilterAllLabel: string;
@@ -923,6 +927,15 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CopilotSentimentOptionalSection: string;
   CopilotSentimentAnalysisProfessional: string;
   CopilotSentimentAnalysisTone: string;
+
+  // About Section
+  SettingsAboutTitle: string;
+  SettingsAboutProductName: string;
+  SettingsAboutVersion: string;
+  SettingsAboutDescription: string;
+  SettingsAboutAuthor: string;
+  SettingsAboutGitHubLink: string;
+  SettingsAboutGitHubUrl: string;
 }
 
 declare module "AlertBannerApplicationCustomizerStrings" {

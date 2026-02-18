@@ -25,11 +25,6 @@ export interface ISentimentResult {
   rawContent: string;
 }
 
-export interface ICopilotFileContext {
-  id: string;
-  source: "oneDrive" | "sharePoint";
-}
-
 interface IConversationMetadata {
   id: string;
   createdDateTime: string;
@@ -159,7 +154,6 @@ Requirements:
       return await this.sendMessage(
         conversationId,
         prompt,
-        undefined,
         false,
         abortController.signal,
       );
@@ -197,13 +191,46 @@ Requirements:
       return await this.sendMessage(
         conversationId,
         prompt,
-        undefined,
         false,
         abortController.signal,
       );
     } catch (error) {
       if (!this.isAbortError(error)) {
         logger.error("CopilotService", "Failed to analyze sentiment", error);
+      }
+      return this.createErrorResponse(error);
+    } finally {
+      this.endOperation(abortController);
+    }
+  }
+
+  // Translates text to the target language
+  public async translateText(
+    text: string,
+    targetLanguage: string,
+  ): Promise<ICopilotResponse> {
+    const abortController = this.beginOperation();
+    try {
+      const conversationId = await this.ensureConversation(
+        false,
+        abortController.signal,
+      );
+      const sanitizedText = this.sanitizeInput(text);
+
+      const prompt = `Translate the following text to ${targetLanguage}. 
+      Only return the translated text, nothing else.
+      
+      Text: "${sanitizedText}"`;
+
+      return await this.sendMessage(
+        conversationId,
+        prompt,
+        false,
+        abortController.signal,
+      );
+    } catch (error) {
+      if (!this.isAbortError(error)) {
+        logger.error("CopilotService", "Failed to translate text", error);
       }
       return this.createErrorResponse(error);
     } finally {
@@ -270,72 +297,6 @@ Requirements:
     }
 
     return result;
-  }
-
-  // Translates the provided text to the target language
-  public async translateText(
-    text: string,
-    targetLanguage: string,
-  ): Promise<ICopilotResponse> {
-    const abortController = this.beginOperation();
-    try {
-      const conversationId = await this.ensureConversation(
-        false,
-        abortController.signal,
-      );
-      const sanitizedText = this.sanitizeInput(text);
-      const sanitizedLang = this.sanitizeInput(targetLanguage);
-
-      const prompt = `Translate the following corporate alert message to ${sanitizedLang}. 
-      Maintain the professional tone and urgency.
-      Text: "${sanitizedText}"
-      Return ONLY the translated text.`;
-
-      return await this.sendMessage(
-        conversationId,
-        prompt,
-        undefined,
-        false,
-        abortController.signal,
-      );
-    } catch (error) {
-      if (!this.isAbortError(error)) {
-        logger.error("CopilotService", "Failed to translate text", error);
-      }
-      return this.createErrorResponse(error);
-    } finally {
-      this.endOperation(abortController);
-    }
-  }
-
-  // Sends a message with SharePoint/OneDrive file context for grounding
-  public async sendWithContext(
-    prompt: string,
-    files: ICopilotFileContext[],
-  ): Promise<ICopilotResponse> {
-    const abortController = this.beginOperation();
-    try {
-      const conversationId = await this.ensureConversation(
-        false,
-        abortController.signal,
-      );
-      const sanitizedPrompt = this.sanitizeInput(prompt);
-
-      return await this.sendMessage(conversationId, sanitizedPrompt, {
-        files,
-      }, false, abortController.signal);
-    } catch (error) {
-      if (!this.isAbortError(error)) {
-        logger.error(
-          "CopilotService",
-          "Failed to send message with context",
-          error,
-        );
-      }
-      return this.createErrorResponse(error);
-    } finally {
-      this.endOperation(abortController);
-    }
   }
 
   // Checks if the current user has access to Copilot APIs
@@ -451,7 +412,6 @@ Requirements:
   private async sendMessage(
     conversationId: string,
     content: string,
-    context?: { files: ICopilotFileContext[] },
     enableWebGrounding: boolean = false,
     signal?: AbortSignal,
   ): Promise<ICopilotResponse> {
@@ -461,15 +421,6 @@ Requirements:
       },
       locationHint: this.buildLocationHint(),
     };
-
-    if (context?.files && context.files.length > 0) {
-      requestBody.context = {
-        files: context.files.map((f) => ({
-          id: f.id,
-          source: f.source,
-        })),
-      };
-    }
 
     if (enableWebGrounding) {
       requestBody.enableWebGrounding = true;

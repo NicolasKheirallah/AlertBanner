@@ -215,41 +215,6 @@ export class SharePointAlertService {
     );
   }
 
-  public async updateAlertStatuses(): Promise<void> {
-    try {
-      const alerts = await this.getAlerts(); // Get all from hierarchy
-      const now = new Date();
-      const updates: { id: string; status: NonNullable<IAlertItem["status"]> }[] = [];
-
-      for (const alert of alerts) {
-        let newStatus: IAlertItem["status"] = alert.status;
-        if (
-          alert.scheduledEnd &&
-          new Date(alert.scheduledEnd) < now &&
-          alert.status !== "Expired"
-        ) {
-          newStatus = "Expired";
-        } else if (
-          alert.scheduledStart &&
-          new Date(alert.scheduledStart) <= now &&
-          alert.status === "Scheduled"
-        ) {
-          newStatus = "Active";
-        }
-        if (newStatus && newStatus !== alert.status)
-          updates.push({ id: alert.id, status: newStatus });
-      }
-
-      for (const update of updates) {
-        await this.operations.updateAlert(update.id, {
-          status: update.status,
-        });
-      }
-    } catch (e) {
-      logger.error("SharePointAlertService", "Failed to update statuses", e);
-    }
-  }
-
   private async resolveSiteIds(siteIds?: string[]): Promise<string[]> {
     if (siteIds) return siteIds;
 

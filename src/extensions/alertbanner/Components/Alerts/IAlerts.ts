@@ -1,5 +1,20 @@
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+
+export interface IGraphListItem {
+  id: string;
+  createdDateTime: string;
+  lastModifiedDateTime: string;
+  createdBy: {
+    user: {
+      displayName: string;
+      email?: string;
+      userPrincipalName?: string;
+      id?: string;
+    };
+  };
+  fields: { [key: string]: any };
+}
 // IAlertItem definition moved here to avoid circular dependencies
 export interface IAlertItem {
   id: string;
@@ -25,6 +40,7 @@ export interface IAlertItem {
   languageGroup?: string;
   availableForAll?: boolean;
   translationStatus?: TranslationStatus;
+  languageContent?: ILanguageContent[];
   // Approval Workflow
   contentStatus?: ContentStatus;
   reviewer?: IPersonField[];
@@ -38,12 +54,28 @@ export interface IAlertItem {
     size?: number;
   }[];
   modified?: string;
+  sortOrder?: number;
   // Store the original SharePoint list item for multi-language access
   _originalListItem?: IAlertListItem;
 }
 
 export interface IMultiLanguageContent {
   [languageCode: string]: string;
+}
+
+export interface ILanguageContent {
+  language: TargetLanguage;
+  title: string;
+  description: string;
+  linkDescription?: string;
+  availableForAll?: boolean; // If true, this version can be shown to users of other languages
+  translationStatus?: TranslationStatus;
+}
+
+export interface IMultiLanguageAlert {
+  baseAlert: Omit<IAlertItem, "title" | "description" | "linkDescription">;
+  content: ILanguageContent[];
+  languageGroup: string;
 }
 
 export interface IAlertListItem {
@@ -209,6 +241,10 @@ export interface IQuickAction {
   icon?: string; // Icon name for the action button
 }
 
+export interface IPriorityColorConfig {
+  borderColor?: string; // Color for the left border
+}
+
 export interface IAlertType {
   name: string;
   iconName: string;
@@ -216,5 +252,6 @@ export interface IAlertType {
   textColor: string;
   additionalStyles?: string;
   defaultPriority?: AlertPriority; // Optional default priority to be selected when this type is chosen
-  priorityStyles?: { [key in AlertPriority]?: string }; // Different styles based on priority
+  priorityStyles?: { [key in AlertPriority]?: string }; // Different styles based on priority (CSS)
+  priorityColors?: { [key in AlertPriority]?: IPriorityColorConfig }; // Structured color config per priority
 }

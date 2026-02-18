@@ -53,31 +53,11 @@
     sans-serif;
 }
 
-.container {
-  margin: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
 .carousel {
   position: relative;
   width: 100%;
   margin: 0;
   padding: 0;
-}
-
-.loadingContainer {
-  padding: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.noAlerts {
-  width: 100%;
-  padding: 5px 0;
 }
 
 .errorContainer {

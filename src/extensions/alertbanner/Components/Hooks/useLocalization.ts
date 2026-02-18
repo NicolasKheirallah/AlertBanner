@@ -81,13 +81,3 @@ export const LocalizationProvider: React.FC<ILocalizationProviderProps> = ({
   );
 };
 
-export const useLocalizationContext = (): ILocalizationContext => {
-  const context = React.useContext(LocalizationContext);
-  
-  if (!context) {
-    // Fallback to direct hook if not within provider
-    return useLocalization();
-  }
-  
-  return context;
-};

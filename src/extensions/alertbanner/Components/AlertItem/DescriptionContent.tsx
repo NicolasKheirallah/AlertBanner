@@ -41,17 +41,23 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
   // Enhanced HTML component that adds click handlers to images
   const HtmlContent: React.FC<{ html: string }> = React.memo(({ html }) => {
     const contentRef = React.useRef<HTMLDivElement>(null);
+    const handleClickRef = React.useRef(handleImageClick);
+    
+    // Keep ref current
+    React.useEffect(() => {
+      handleClickRef.current = handleImageClick;
+    });
 
     React.useEffect(() => {
       if (!contentRef.current || !isAlertExpanded) return;
 
       const images = contentRef.current.querySelectorAll('img');
 
-      const handleClick = (e: Event) => {
+      const handleClick = (e: Event): void => {
         const img = e.currentTarget as HTMLImageElement;
         e.preventDefault();
         e.stopPropagation();
-        handleImageClick(img.src, img.alt || "Image");
+        handleClickRef.current(img.src, img.alt || "Image");
       };
 
       images.forEach(img => {
@@ -63,7 +69,7 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
           img.removeEventListener('click', handleClick);
         });
       };
-    }, [html, isAlertExpanded, handleImageClick]);
+    }, [html, isAlertExpanded]); // Removed handleImageClick from deps
 
     return (
       <div
