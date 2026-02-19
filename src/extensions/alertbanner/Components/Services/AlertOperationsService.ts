@@ -123,7 +123,9 @@ export class AlertOperationsService {
 
     const selectedFields = [
       ...baseFields.filter(
-        (f) => availableColumns.has(f) || ["Title", "Attachments"].includes(f),
+        (f) =>
+          availableColumns.has(f) ||
+          ["Title", "Attachments", "Description", "Body"].includes(f),
       ),
       ...optionalFields.filter((f) => availableColumns.has(f)),
     ];
@@ -319,14 +321,39 @@ export class AlertOperationsService {
         if (missing.length > 0 && !availableColumns.has("Title")) {
         }
 
+        // Resolve AlertType lookup ID
+        let alertTypeLookupId: string | undefined;
+        const alertTypes = await this.getAlertTypes(siteId);
+        const matchedType = alertTypes.find(
+          (t) => t.name === alert.AlertType?.trim(),
+        );
+        if (matchedType?.id) {
+          alertTypeLookupId = matchedType.id;
+          logger.debug(
+            "AlertOperationsService",
+            "Resolved AlertType for create",
+            { name: alert.AlertType, id: alertTypeLookupId },
+          );
+        } else {
+          logger.warn(
+            "AlertOperationsService",
+            `Could not find AlertType "${alert.AlertType}" for lookup`,
+          );
+        }
+
         const fields: any = {
           Title: alert.title.trim(),
           Description: alert.description.trim(),
-          AlertType: alert.AlertType.trim(),
           Priority: alert.priority,
           IsPinned: Boolean(alert.isPinned),
           NotificationType: alert.notificationType,
         };
+        // Include AlertTypeLookupId for lookup fields, or AlertType as fallback
+        if (alertTypeLookupId) {
+          fields.AlertTypeLookupId = alertTypeLookupId;
+        } else if (alert.AlertType) {
+          fields.AlertType = alert.AlertType.trim();
+        }
 
         if (alert.linkUrl?.trim()) fields.LinkUrl = alert.linkUrl.trim();
         if (alert.linkDescription?.trim())
@@ -412,13 +439,47 @@ export class AlertOperationsService {
         const availableColumns =
           await this.locator.getAvailableColumns(alertsListApi);
 
+        // Handle AlertType lookup field - need to convert name to LookupId format
+        let alertTypeLookupId: string | undefined;
+        if (updates.AlertType !== undefined) {
+          const alertTypes = await this.getAlertTypes(siteId);
+          const matchedType = alertTypes.find(
+            (t) => t.name === updates.AlertType,
+          );
+          if (matchedType?.id) {
+            alertTypeLookupId = matchedType.id;
+            logger.debug(
+              "AlertOperationsService",
+              "Resolved AlertType to lookup ID",
+              { name: updates.AlertType, id: alertTypeLookupId },
+            );
+          } else {
+            logger.warn(
+              "AlertOperationsService",
+              `Could not find AlertType "${updates.AlertType}" in AlertTypes list for site ${siteId}`,
+              { availableTypes: alertTypes.map((t) => t.name) },
+            );
+          }
+        }
+
         const fields: any = {};
         const setIfAvailable = (
           columnName: string,
           value: unknown,
           allowEmptyString = false,
         ): void => {
-          if (!availableColumns.has(columnName)) {
+          // Core fields that should always be set if provided (bypass column check)
+          // AlertTypeLookupId is used for lookup field updates
+          const coreFields = ["Title", "Description", "AlertType", "AlertTypeLookupId", "Priority", "IsPinned", "NotificationType"];
+          if (
+            !coreFields.includes(columnName) &&
+            !availableColumns.has(columnName)
+          ) {
+            logger.debug(
+              "AlertOperationsService",
+              `Skipping field "${columnName}" - not in available columns`,
+              { available: Array.from(availableColumns).slice(0, 20) }
+            );
             return;
           }
           if (value === undefined) {
@@ -432,10 +493,28 @@ export class AlertOperationsService {
 
         setIfAvailable("Title", updates.title);
         setIfAvailable("Description", updates.description);
-        setIfAvailable("AlertType", updates.AlertType);
+        // AlertType is a lookup field - use FieldNameLookupId format for Graph API
+        if (alertTypeLookupId) {
+          setIfAvailable("AlertTypeLookupId", alertTypeLookupId);
+        } else if (updates.AlertType !== undefined) {
+          // Fallback: if we can't find the ID, try setting the name directly
+          // (this might fail for lookup fields, but logs will show the issue)
+          setIfAvailable("AlertType", updates.AlertType);
+        }
         setIfAvailable("Priority", updates.priority);
         setIfAvailable("IsPinned", updates.isPinned);
         setIfAvailable("NotificationType", updates.notificationType);
+        
+        logger.debug(
+          "AlertOperationsService",
+          "Prepared update fields",
+          {
+            itemId,
+            fields: Object.keys(fields),
+            priority: fields.Priority,
+            alertType: fields.AlertType || fields.AlertTypeLookupId,
+          },
+        );
         setIfAvailable("LinkUrl", updates.linkUrl, true);
         setIfAvailable("LinkDescription", updates.linkDescription, true);
         if (updates.targetSites !== undefined) {
@@ -479,6 +558,16 @@ export class AlertOperationsService {
         setIfAvailable("ReviewedDate", updates.reviewedDate, true);
 
         if (Object.keys(fields).length > 0) {
+          logger.debug(
+            "AlertOperationsService",
+            "Updating alert fields",
+            {
+              siteId,
+              itemId,
+              fields: Object.keys(fields),
+              alertType: fields.AlertType,
+            },
+          );
           await this.graphClient
             .api(`${alertsListApi}/items/${itemId}/fields`)
             .patch(fields);
@@ -498,7 +587,17 @@ export class AlertOperationsService {
           .api(`${alertsListApi}/items/${itemId}`)
           .expand("fields")
           .get();
-        return AlertTransformers.mapSharePointItemToAlert(updated, siteId);
+        const mappedAlert = AlertTransformers.mapSharePointItemToAlert(updated, siteId);
+        logger.debug(
+          "AlertOperationsService",
+          "Alert updated successfully",
+          {
+            itemId,
+            alertType: mappedAlert.AlertType,
+            priority: mappedAlert.priority,
+          },
+        );
+        return mappedAlert;
       },
       {
         operation: "UPDATE_ALERT",
@@ -535,6 +634,59 @@ export class AlertOperationsService {
 
   public async deleteAlerts(alertIds: string[]): Promise<void> {
     await Promise.allSettled(alertIds.map((id) => this.deleteAlert(id)));
+  }
+
+  /**
+   * Update the sort order for multiple alerts
+   * @param alertOrders Array of {alertId, sortOrder} objects
+   */
+  public async updateAlertsSortOrder(
+    alertOrders: { alertId: string; sortOrder: number }[],
+  ): Promise<void> {
+    // Group by site for batch processing
+    const bySite = new Map<string, { itemId: string; sortOrder: number }[]>();
+
+    for (const { alertId, sortOrder } of alertOrders) {
+      const { siteId, itemId } = this.parseAlertId(alertId);
+      if (!bySite.has(siteId)) {
+        bySite.set(siteId, []);
+      }
+      bySite.get(siteId)!.push({ itemId, sortOrder });
+    }
+
+    // Update each site in parallel
+    await Promise.all(
+      Array.from(bySite.entries()).map(async ([siteId, items]) => {
+        return this.permissionService.executeWriteOperation(
+          async () => {
+            const alertsListApi = await this.locator.getAlertsListApi(siteId);
+            if (!alertsListApi) {
+              throw new Error(`Alerts list not found for site ${siteId}`);
+            }
+
+            // Update each alert's sort order
+            await Promise.all(
+              items.map(({ itemId, sortOrder }) =>
+                this.graphClient
+                  .api(`${alertsListApi}/items/${itemId}/fields`)
+                  .patch({ SortOrder: sortOrder }),
+              ),
+            );
+
+            logger.info(
+              "AlertOperationsService",
+              `Updated sort order for ${items.length} alerts in site ${siteId}`,
+            );
+          },
+          {
+            operation: "UPDATE_SORT_ORDER",
+            targetSite: siteId,
+            targetList: LIST_NAMES.ALERTS,
+            justification: `Updating sort order for ${items.length} alerts`,
+          },
+        );
+      }),
+    );
   }
 
   public parseAlertId(alertId: string): { siteId: string; itemId: string } {
@@ -604,25 +756,40 @@ export class AlertOperationsService {
         );
 
         const typesMap = new Map<string, IAlertType>();
+        const seenNames = new Set<string>(); // For case-insensitive duplicate detection
         sortedItems.forEach((item: IGraphListItem) => {
           const name = String(item?.fields?.Title || "").trim();
           if (!name) return;
-          
+
           // Normalize for duplicate check (case-insensitive)
           const normalizedName = name.toLowerCase();
-          
+
           // Skip duplicates - keep first occurrence (which respects SortOrder due to sorting)
-          if (typesMap.has(normalizedName)) return;
-          
+          if (seenNames.has(normalizedName)) return;
+          seenNames.add(normalizedName);
+
           const parsedStyles =
             JsonUtils.safeParse(item?.fields?.PriorityStyles) || {};
           const defaultPriority = parsedStyles.__defaultPriority;
-          
+
+          logger.debug(
+            "AlertOperationsService",
+            "Parsed alert type PriorityStyles",
+            {
+              name,
+              priorityStylesRaw: item?.fields?.PriorityStyles,
+              parsedStyles,
+              defaultPriority,
+            },
+          );
+
           // Parse priority colors if stored
           const parsedPriorityColors =
             JsonUtils.safeParse(item?.fields?.PriorityColors) || undefined;
 
-          typesMap.set(normalizedName, {
+          // Use original name as key for proper lookup matching
+          typesMap.set(name, {
+            id: item.id, // Store SharePoint item ID for lookup field reference
             name,
             iconName: item?.fields?.IconName || "Info",
             backgroundColor: item?.fields?.BackgroundColor || "#0078d4",
@@ -662,6 +829,7 @@ export class AlertOperationsService {
       "Title",
       "AlertType",
       "Description",
+      "Body",
       "ScheduledStart",
       "ScheduledEnd",
       "Priority",
@@ -691,7 +859,11 @@ export class AlertOperationsService {
 
     const selectedFields = [
       ...baseFields.filter(
-        (field) => availableColumns.has(field) || field === "Title",
+        (field) =>
+          availableColumns.has(field) ||
+          field === "Title" ||
+          field === "Description" ||
+          field === "Body",
       ),
       ...optionalFields.filter((field) => availableColumns.has(field)),
     ];
@@ -710,6 +882,7 @@ export class AlertOperationsService {
       "Title",
       "AlertType",
       "Description",
+      "Body",
       "ScheduledStart",
       "ScheduledEnd",
       "Priority",
@@ -733,7 +906,11 @@ export class AlertOperationsService {
     ];
 
     const selectedFields = graphSafeFields.filter(
-      (field) => availableColumns.has(field) || field === "Title",
+      (field) =>
+        availableColumns.has(field) ||
+        field === "Title" ||
+        field === "Description" ||
+        field === "Body",
     );
 
     if (!selectedFields.includes("Title")) {
@@ -1008,6 +1185,14 @@ export class AlertOperationsService {
         ? await this.locator.getSiteUrlFromIdentifier(siteId)
         : this.context.pageContext.web.absoluteUrl;
       const uploadUrl = `${siteUrl}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/add(FileName='${encodeURIComponent(fileName)}')`;
+      
+      logger.debug("AlertOperationsService", "Uploading attachment", {
+        fileName,
+        itemId,
+        listId,
+        contentLength: fileContent.byteLength,
+      });
+      
       const response = await this.context.spHttpClient.post(
         uploadUrl,
         SPHttpClient.configurations.v1,
@@ -1015,12 +1200,26 @@ export class AlertOperationsService {
           headers: {
             Accept: "application/json;odata=verbose",
             "Content-Type": "application/octet-stream",
+            "X-RequestDigest": (document.getElementById("__REQUESTDIGEST") as HTMLInputElement)?.value || "",
           },
           body: fileContent,
         },
       );
-      if (!response.ok)
-        throw new Error(`Upload failed: ${response.statusText}`);
+      
+      if (!response.ok) {
+        let errorMessage = `Upload failed with status ${response.status}`;
+        try {
+          const errorBody = await response.json();
+          errorMessage = errorBody.error?.message?.value || 
+                        errorBody.error?.message || 
+                        JSON.stringify(errorBody.error) ||
+                        errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+      
       const result = await response.json();
       return {
         fileName: result.d.FileName,
@@ -1368,6 +1567,19 @@ export class AlertOperationsService {
 
       for (let i = 0; i < alertTypes.length; i++) {
         const alertType = alertTypes[i];
+        const priorityStylesPayload = {
+          ...(alertType.priorityStyles || {}),
+          __defaultPriority: alertType.defaultPriority || undefined,
+        };
+        logger.debug(
+          "AlertOperationsService",
+          "Saving alert type with PriorityStyles",
+          {
+            name: alertType.name,
+            defaultPriority: alertType.defaultPriority,
+            priorityStylesPayload,
+          },
+        );
         await this.graphClient.api(`${alertTypesListApi}/items`).post({
           fields: {
             Title: alertType.name,
@@ -1376,10 +1588,7 @@ export class AlertOperationsService {
             TextColor: alertType.textColor,
             AdditionalStyles: alertType.additionalStyles || "",
             PriorityStyles:
-              JsonUtils.safeStringify({
-                ...(alertType.priorityStyles || {}),
-                __defaultPriority: alertType.defaultPriority || undefined,
-              }) || "{}",
+              JsonUtils.safeStringify(priorityStylesPayload) || "{}",
             PriorityColors: alertType.priorityColors
               ? JsonUtils.safeStringify(alertType.priorityColors)
               : undefined,

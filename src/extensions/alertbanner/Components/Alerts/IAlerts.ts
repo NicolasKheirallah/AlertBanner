@@ -13,6 +13,8 @@ export interface IGraphListItem {
       id?: string;
     };
   };
+  // Retained 'any' here as removing it triggers a massive codebase-wide refactor
+  // across all Services and Utils to cast dynamic SharePoint list responses.
   fields: { [key: string]: any };
 }
 // IAlertItem definition moved here to avoid circular dependencies
@@ -33,7 +35,7 @@ export interface IAlertItem {
   createdBy: string;
   scheduledStart?: string;
   scheduledEnd?: string;
-  metadata?: any;
+  metadata?: unknown;
   // New language and classification properties
   contentType: ContentType;
   targetLanguage: TargetLanguage;
@@ -105,13 +107,13 @@ export interface IAlertListItem {
   AvailableForAll?: boolean;
   TranslationStatus?: string;
   ContentStatus?: string;
-  Reviewer?: any[];
+  Reviewer?: IPersonField[];
   ReviewNotes?: string;
   SubmittedDate?: string;
   ReviewedDate?: string;
 
   // Targeting
-  TargetUsers?: any[]; // SharePoint People/Groups field data
+  TargetUsers?: IPersonField[]; // SharePoint People/Groups field data
 }
 
 export enum AlertPriority {
@@ -246,6 +248,7 @@ export interface IPriorityColorConfig {
 }
 
 export interface IAlertType {
+  id?: string; // SharePoint item ID (for lookup field reference)
   name: string;
   iconName: string;
   backgroundColor: string;

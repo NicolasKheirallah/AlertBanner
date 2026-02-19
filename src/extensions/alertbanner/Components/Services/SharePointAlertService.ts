@@ -52,7 +52,10 @@ export class SharePointAlertService {
   public async initializeLists(siteId?: string) {
     return this.provisioning.initializeLists(siteId);
   }
-  public async repairAlertsList(siteId: string, cb?: any) {
+  public async repairAlertsList(
+    siteId: string,
+    cb?: (msg: string, percent: number) => void,
+  ) {
     return this.provisioning.repairAlertsList(siteId, cb);
   }
   public async getSupportedLanguages(siteId?: string) {
@@ -72,10 +75,10 @@ export class SharePointAlertService {
   public async getActiveAlerts(siteId: string) {
     return this.operations.getActiveAlerts(siteId);
   }
-  public async createAlert(alert: any) {
+  public async createAlert(alert: Record<string, unknown>) {
     return this.operations.createAlert(alert);
   }
-  public async updateAlert(id: string, updates: any) {
+  public async updateAlert(id: string, updates: Record<string, unknown>) {
     return this.operations.updateAlert(id, updates);
   }
   public async deleteAlert(id: string) {
@@ -84,16 +87,21 @@ export class SharePointAlertService {
   public async deleteAlerts(ids: string[]) {
     return this.operations.deleteAlerts(ids);
   }
+  public async updateAlertsSortOrder(
+    alertOrders: { alertId: string; sortOrder: number }[],
+  ) {
+    return this.operations.updateAlertsSortOrder(alertOrders);
+  }
   public async getAlertTypes(siteId?: string) {
     return this.operations.getAlertTypes(siteId);
   }
-  public async saveAlertTypes(alertTypes: any[]) {
+  public async saveAlertTypes(alertTypes: IAlertType[]) {
     return this.operations.saveAlertTypes(alertTypes);
   }
   public async getDraftAlerts(siteId: string) {
     return this.operations.getDraftAlerts(siteId);
   }
-  public async saveDraft(draft: any) {
+  public async saveDraft(draft: Record<string, unknown>) {
     return this.operations.saveDraft(draft);
   }
   public async deleteDraft(id: string) {

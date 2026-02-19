@@ -136,21 +136,11 @@
 
 // Modern priority styling with improved visual hierarchy
 .critical {
-  background: linear-gradient(
-    135deg,
-    var(--colorNeutralBackground1, #ffffff) 0%,
-    var(--colorPaletteRedBackground1, #fef9f9) 100%
-  );
   border: 1px solid var(--colorPaletteRedBorder1, #f3d6d8);
-  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorPaletteRedForeground1, #d13438);
     font-weight: 600;
-  }
-
-  .priorityIndicator {
-    background-color: var(--colorPaletteRedForeground1, #d13438);
   }
 
   &:hover {
@@ -160,21 +150,11 @@
 }
 
 .high {
-  background: linear-gradient(
-    135deg,
-    var(--colorNeutralBackground1, #ffffff) 0%,
-    var(--colorPaletteDarkOrangeBackground1, #fffaf7) 100%
-  );
   border: 1px solid var(--colorPaletteDarkOrangeBorder1, #f7e6d3);
-  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorPaletteDarkOrangeForeground1, #f7630c);
     font-weight: 600;
-  }
-
-  .priorityIndicator {
-    background-color: var(--colorPaletteDarkOrangeForeground1, #f7630c);
   }
 
   &:hover {
@@ -184,21 +164,11 @@
 }
 
 .medium {
-  background: linear-gradient(
-    135deg,
-    var(--colorNeutralBackground1, #ffffff) 0%,
-    var(--colorBrandBackground2, #f8fcff) 100%
-  );
   border: 1px solid var(--colorBrandStroke2, #d1e7f0);
-  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorBrandForeground1, #0078d4);
     font-weight: 600;
-  }
-
-  .priorityIndicator {
-    background-color: var(--colorBrandForeground1, #0078d4);
   }
 
   &:hover {
@@ -208,21 +178,11 @@
 }
 
 .low {
-  background: linear-gradient(
-    135deg,
-    var(--colorNeutralBackground1, #ffffff) 0%,
-    var(--colorPaletteGreenBackground1, #f9fcf9) 100%
-  );
   border: 1px solid var(--colorPaletteGreenBorder1, #d3e7d3);
-  // border-left is set inline via React inline styles
 
   .alertTitle {
     color: var(--colorPaletteGreenForeground1, #107c10);
     font-weight: 600;
-  }
-
-  .priorityIndicator {
-    background-color: var(--colorPaletteGreenForeground1, #107c10);
   }
 
   &:hover {
@@ -305,11 +265,29 @@
   letter-spacing: 0;
 }
 
+.alertTypeBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid currentColor;
+  margin-bottom: 6px;
+  margin-left: 8px;
+  opacity: 0.9;
+  background-color: var(--colorNeutralBackground2, #f3f2f1);
+}
+
 .truncatedHtml {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   line-height: 1.4;
   color: var(--colorNeutralForeground2, rgba(50, 49, 48, 0.8));

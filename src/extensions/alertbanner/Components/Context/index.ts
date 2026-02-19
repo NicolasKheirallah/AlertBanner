@@ -18,7 +18,8 @@ export type {
 // Re-export from AlertsContext for convenience
 export {
   AlertsProvider,
-  useAlerts,
+  useAlertsState,
+  useAlertsDispatch,
 } from "./AlertsContext";
 
 export type { AlertsContextOptions } from "./AlertsContext";

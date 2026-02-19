@@ -47,6 +47,15 @@
   }
 }
 
+// Fixed height container for tab content to prevent dialog resizing
+.tabContentContainer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 // Tab navigation
 .tabs {
   display: flex;
@@ -104,8 +113,37 @@
   min-height: 0; // Allow flex child to shrink
 }
 
-.tabPane {
+// Tab panel wrapper - ensures consistent height across tabs
+.tabPanelWrapper {
+  flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tabPane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// Scrollable content container for SettingsTab
+.settingsContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+// Scrollable content container for AlertTypesTab
+.alertTypesContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
 .tabHeader {
@@ -131,6 +169,9 @@
 // Templates section
 .templatesSection {
   margin-bottom: 32px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .templates {
@@ -148,6 +189,10 @@
 .alertForm {
   max-width: none;
   min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .formWithPreview {
@@ -155,10 +200,15 @@
   grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
   gap: 32px;
   align-items: start;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .formColumn {
   min-width: 0;
+  overflow-y: auto;
+  max-height: 100%;
 }
 
 .previewColumn {
@@ -578,6 +628,9 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .dragDropInstructions {
@@ -1674,6 +1727,169 @@
   padding: 12px 16px;
   background: #faf9f8;
   border-top: 1px solid #edebe9;
+}
+
+// Drag and Drop Styles
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  margin-right: 8px;
+  cursor: grab;
+  color: #605e5c;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #e1dfdd;
+    color: #323130;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.dragging {
+  opacity: 0.7;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+  border: 2px dashed #0078d4;
+}
+
+.dragOver {
+  border: 2px solid #0078d4;
+  background: #f0f8ff;
+  transform: translateY(2px);
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.2);
+}
+
+// Sort Controls Styles
+.sortControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 12px;
+}
+
+.sortButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #605e5c;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: #f3f2f1;
+    border-color: #e1dfdd;
+    color: #323130;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.sortOrderInput {
+  width: 50px;
+  padding: 4px 8px;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  background: #ffffff;
+  color: #323130;
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+  }
+}
+
+// Sort Mode Bar Styles
+.sortModeBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #f3f2f1;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.sortModeLabel {
+  font-size: 13px;
+  color: #605e5c;
+  font-weight: 500;
+}
+
+.sortModeToggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.sortModeButton {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: #ffffff;
+  color: #605e5c;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f3f2f1;
+    color: #323130;
+  }
+
+  &.active {
+    background: #0078d4;
+    color: #ffffff;
+
+    &:hover {
+      background: #106ebe;
+    }
+  }
+
+  &:first-child {
+    border-right: 1px solid #e1dfdd;
+  }
+}
+
+.sortModeHint {
+  font-size: 12px;
+  color: #605e5c;
+  font-style: italic;
 }
 
 .pinnedBadge {

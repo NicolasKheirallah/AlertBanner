@@ -1,5 +1,12 @@
 import * as React from "react";
-import { Delete24Regular, Edit24Regular, Globe24Regular } from "@fluentui/react-icons";
+import { 
+  Delete24Regular, 
+  Edit24Regular, 
+  Globe24Regular,
+  ChevronUp24Regular,
+  ChevronDown24Regular,
+  Drag24Regular,
+} from "@fluentui/react-icons";
 import { SharePointButton } from "../../UI/SharePointControls";
 import {
   ContentStatus,
@@ -37,6 +44,20 @@ export interface IManageAlertCardProps {
     textColor?: string;
   };
   supportedLanguageMap: Map<string, ISupportedLanguage>;
+  // Sort order props
+  sortOrder?: number;
+  onSortOrderChange?: (newOrder: number) => void;
+  onMoveToTop?: () => void;
+  onMoveToBottom?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
+  // Drag and drop props
+  isDragging?: boolean;
+  isDragOver?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  onDragOver?: () => void;
+  onDrop?: () => void;
 }
 
 const normalizeColorToken = (color?: string): string =>
@@ -56,6 +77,18 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
   priorityLabel,
   alertTypeStyle,
   supportedLanguageMap,
+  sortOrder,
+  onSortOrderChange,
+  onMoveToTop,
+  onMoveToBottom,
+  isFirst,
+  isLast,
+  isDragging,
+  isDragOver,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
 }) => {
   const isMultiLanguage =
     !!alert.isLanguageGroup &&
@@ -105,11 +138,41 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
       )}`
     ] || colorClassMap["colorTextffffff"] || "";
 
+  const [localSortOrder, setLocalSortOrder] = React.useState(sortOrder?.toString() || "");
+  
+  const handleSortOrderBlur = () => {
+    const num = parseInt(localSortOrder, 10);
+    if (!isNaN(num) && onSortOrderChange) {
+      onSortOrderChange(num);
+    }
+  };
+
   return (
     <div
-      className={`${styles.alertCard} ${isSelected ? styles.selected : ""} ${alert.contentType === ContentType.Template ? styles.templateCard : ""}`}
+      className={`${styles.alertCard} ${isSelected ? styles.selected : ""} ${alert.contentType === ContentType.Template ? styles.templateCard : ""} ${isDragging ? (styles as any).dragging : ""} ${isDragOver ? (styles as any).dragOver : ""}`}
+      draggable={!!onDragStart}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver?.();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop?.();
+      }}
     >
       <div className={styles.alertCardHeader}>
+        {/* Drag Handle */}
+        {onDragStart && (
+          <div 
+            className={(styles as any).dragHandle}
+            title="Drag to reorder"
+          >
+            <Drag24Regular />
+          </div>
+        )}
+        
         <input
           type="checkbox"
           checked={isSelected}
@@ -121,6 +184,48 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
           onChange={(e) => onSelectionChange(e.target.checked)}
           className={styles.alertCheckbox}
         />
+        
+        {/* Sort Order Controls */}
+        {(onSortOrderChange || onMoveToTop || onMoveToBottom) && (
+          <div className={(styles as any).sortControls}>
+            {onMoveToTop && (
+              <button
+                type="button"
+                className={(styles as any).sortButton}
+                onClick={onMoveToTop}
+                disabled={isBusy || isFirst}
+                title="Move to top"
+              >
+                <ChevronUp24Regular />
+              </button>
+            )}
+            
+            {onSortOrderChange && (
+              <input
+                type="number"
+                className={(styles as any).sortOrderInput}
+                value={localSortOrder}
+                onChange={(e) => setLocalSortOrder(e.target.value)}
+                onBlur={handleSortOrderBlur}
+                min="0"
+                title="Sort order (lower = first)"
+              />
+            )}
+            
+            {onMoveToBottom && (
+              <button
+                type="button"
+                className={(styles as any).sortButton}
+                onClick={onMoveToBottom}
+                disabled={isBusy || isLast}
+                title="Move to bottom"
+              >
+                <ChevronDown24Regular />
+              </button>
+            )}
+          </div>
+        )}
+        
         <div className={styles.alertStatus}>
           <span
             className={`${styles.statusBadge} ${alert.status.toLowerCase() === "active" ? styles.active : alert.status.toLowerCase() === "expired" ? styles.expired : styles.scheduled}`}

@@ -116,6 +116,17 @@ export class AlertTransformers {
     }
 
     try {
+      // Normalize to lowercase for case-insensitive matching
+      const normalizedValue = String(priorityField).toLowerCase().trim();
+
+      // Try to match by enum value (lowercase string)
+      if (normalizedValue === AlertPriority.Critical)
+        return AlertPriority.Critical;
+      if (normalizedValue === AlertPriority.High) return AlertPriority.High;
+      if (normalizedValue === AlertPriority.Medium) return AlertPriority.Medium;
+      if (normalizedValue === AlertPriority.Low) return AlertPriority.Low;
+
+      // Fallback: try to match by enum key (capitalized)
       const priority =
         AlertPriority[priorityField as keyof typeof AlertPriority];
       return priority || AlertPriority.Medium;
@@ -199,7 +210,10 @@ export class AlertTransformers {
   }
 
   // Create original list item for multi-language support
-  private static createOriginalListItem(item: any, fields: any): IAlertListItem {
+  private static createOriginalListItem(
+    item: any,
+    fields: any,
+  ): IAlertListItem {
     return {
       Id: parseInt(item.id.toString()),
       Title: fields.Title || "",
@@ -257,7 +271,7 @@ export class AlertTransformers {
     siteId: string,
     includeOriginalItem: boolean = false,
   ): IAlertItem {
-    const fields = item.fields;
+    const fields = item.fields as any;
 
     // Parse all the fields using helper methods
     const priority = this.parsePriority(fields.Priority);
@@ -278,7 +292,12 @@ export class AlertTransformers {
     const alert: IAlertItem = {
       id: `${normalizedSiteId}-${item.id}`,
       title: fields.Title || "",
-      description: fields.Description || "",
+      description:
+        fields.Description ||
+        fields.description ||
+        fields.Body ||
+        fields.body ||
+        "",
       AlertType:
         fields.AlertType?.LookupValue ||
         fields.AlertType ||
@@ -290,14 +309,17 @@ export class AlertTransformers {
       linkUrl: fields.LinkUrl || "",
       linkDescription: fields.LinkDescription || "Learn More",
       targetSites: targetSites,
-      status: fields.Status || "Active",
+      status:
+        (fields.Status as "Active" | "Expired" | "Scheduled" | "Draft") ||
+        "Active",
       createdDate,
       createdBy,
       contentType: contentType,
-      modified: item.lastModifiedDateTime || fields.Modified,
+      modified:
+        item.lastModifiedDateTime || (fields.Modified as string | undefined),
       targetLanguage:
         (fields.TargetLanguage as TargetLanguage) || TargetLanguage.All,
-      languageGroup: fields.LanguageGroup || undefined,
+      languageGroup: (fields.LanguageGroup as string) || undefined,
       availableForAll:
         typeof fields.AvailableForAll === "boolean"
           ? fields.AvailableForAll
@@ -305,18 +327,19 @@ export class AlertTransformers {
       translationStatus:
         (fields.TranslationStatus as TranslationStatus) ||
         TranslationStatus.Approved,
-      sortOrder: typeof fields.SortOrder === "number" ? fields.SortOrder : undefined,
+      sortOrder:
+        typeof fields.SortOrder === "number" ? fields.SortOrder : undefined,
       contentStatus:
         (fields.ContentStatus as ContentStatus) || ContentStatus.Draft,
       reviewer: reviewer,
-      reviewNotes: fields.ReviewNotes || "",
-      submittedDate: fields.SubmittedDate || undefined,
-      reviewedDate: fields.ReviewedDate || undefined,
-      scheduledStart: fields.ScheduledStart || undefined,
-      scheduledEnd: fields.ScheduledEnd || undefined,
+      reviewNotes: (fields.ReviewNotes as string) || "",
+      submittedDate: (fields.SubmittedDate as string) || undefined,
+      reviewedDate: (fields.ReviewedDate as string) || undefined,
+      scheduledStart: (fields.ScheduledStart as string) || undefined,
+      scheduledEnd: (fields.ScheduledEnd as string) || undefined,
       metadata: this.parseMetadata(fields.Metadata),
       attachments:
-        fields.AttachmentFiles?.map((file: any) => ({
+        (fields.AttachmentFiles as any[])?.map((file: any) => ({
           fileName: file.FileName || file.fileName || "",
           serverRelativeUrl:
             file.ServerRelativeUrl || file.serverRelativeUrl || "",

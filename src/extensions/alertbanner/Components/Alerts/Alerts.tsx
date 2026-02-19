@@ -1,16 +1,14 @@
 import * as React from "react";
 import { logger } from "../Services/LoggerService";
-import {
-  MessageBar,
-  MessageBarType,
-} from "@fluentui/react";
+import { MessageBar, MessageBarType } from "@fluentui/react";
 import styles from "./Alerts.module.scss";
 import { IAlertsProps, IAlertType, AlertPriority } from "./IAlerts";
 import AlertItem from "../AlertItem/AlertItem";
+import AlertListShimmer from "../UI/AlertListShimmer";
 import AlertSettingsTabs from "../Settings/AlertSettingsTabs";
 import { ISettingsData } from "../Settings/Tabs/SettingsTab";
 import { EditModeDetector } from "../Utils/EditModeDetector";
-import { useAlerts } from "../Context/AlertsContext";
+import { useAlertsState, useAlertsDispatch } from "../Context/AlertsContext";
 import { StorageService } from "../Services/StorageService";
 import { ArrayUtils } from "../Utils/ArrayUtils";
 import { StringUtils } from "../Utils/StringUtils";
@@ -19,13 +17,13 @@ import { ErrorBoundary } from "../Utils/ErrorBoundary";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 
 const Alerts: React.FC<IAlertsProps> = (props) => {
+  const state = useAlertsState();
   const {
-    state,
     initializeAlerts,
     removeAlert,
     hideAlertForever,
     updateCarouselSettings,
-  } = useAlerts();
+  } = useAlertsDispatch();
   const { alerts, alertTypes, isLoading, hasError, errorMessage } = state;
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
@@ -45,11 +43,12 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       backgroundColor: "#ffffff",
       textColor: "#323130",
       additionalStyles: "",
+      defaultPriority: AlertPriority.Medium,
       priorityStyles: {
-        [AlertPriority.Critical]: "border: 2px solid #a4262c;",
-        [AlertPriority.High]: "border: 1px solid #ca5010;",
-        [AlertPriority.Medium]: "",
-        [AlertPriority.Low]: "",
+        [AlertPriority.Critical]: "border: 4px solid #a4262c;",
+        [AlertPriority.High]: "border: 3px solid #ca5010;",
+        [AlertPriority.Medium]: "border: 2px solid #0078d4;",
+        [AlertPriority.Low]: "border: 1px solid #107c10;",
       },
     }),
     [],
@@ -179,10 +178,10 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     observeCommandBar();
 
     const retryTimer = window.setTimeout(observeCommandBar, 1000);
-    
+
     // Poll more frequently when in edit mode to catch exit faster
     intervalTimer = window.setInterval(checkEditMode, 500);
-    
+
     checkEditMode();
     return () => {
       if (debounceTimer) {
@@ -196,14 +195,19 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     };
   }, [props.context]);
 
-  // Effect to reset index when alerts change
+  // Effect to reset index when alerts count changes (not on every array reference change)
+  const prevAlertsLengthRef = React.useRef(alerts.length);
   React.useEffect(() => {
-    if (alerts.length > 0 && currentIndex >= alerts.length) {
-      setCurrentIndex(alerts.length - 1);
-    } else if (alerts.length === 0) {
-      setCurrentIndex(0);
+    // Only reset index if the number of alerts actually changed
+    if (alerts.length !== prevAlertsLengthRef.current) {
+      prevAlertsLengthRef.current = alerts.length;
+      if (alerts.length > 0 && currentIndex >= alerts.length) {
+        setCurrentIndex(alerts.length - 1);
+      } else if (alerts.length === 0) {
+        setCurrentIndex(0);
+      }
     }
-  }, [alerts, currentIndex]);
+  }, [alerts.length, currentIndex]);
 
   // Ref to always get latest alerts.length in interval callbacks
   const alertsLengthRef = React.useRef(alerts.length);
@@ -215,7 +219,9 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   React.useEffect(() => {
     if (carouselEnabled && alerts.length > 1) {
       carouselTimer.current = window.setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % alertsLengthRef.current);
+        setCurrentIndex(
+          (prevIndex) => (prevIndex + 1) % alertsLengthRef.current,
+        );
       }, carouselInterval);
     } else if (carouselTimer.current) {
       window.clearInterval(carouselTimer.current);
@@ -289,23 +295,33 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   const handleMouseLeave = React.useCallback(() => {
     if (carouselEnabled && alertsLengthRef.current > 1) {
       carouselTimer.current = window.setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % alertsLengthRef.current);
+        setCurrentIndex(
+          (prevIndex) => (prevIndex + 1) % alertsLengthRef.current,
+        );
       }, carouselInterval);
     }
   }, [carouselEnabled, carouselInterval]);
 
-  // Edit mode guard disabled — always show alerts area
-  // if (isLoading && !isInEditMode) {
-  if (isLoading) {
-    return null;
-  }
-
   const hasAlerts = alerts.length > 0;
+
+  // Don't hide the banner during loading - show cached data or skeleton
+  // This prevents the flicker when refreshing data
 
   // Only show settings button when page is in edit mode
 
   return (
-    <div className={styles.alerts}>
+    <div
+      className={`${styles.alerts} ${isLoading ? (styles as any).loading : ""}`}
+      aria-live="polite"
+      aria-atomic="true"
+      role="region"
+      aria-label="Organization Alerts"
+    >
+      {isLoading && !hasAlerts && !hasError && (
+        <div style={{ padding: "8px 16px" }}>
+          <AlertListShimmer rowCount={1} />
+        </div>
+      )}
       {hasError && (
         <div className={`${styles.errorContainer} ${styles.errorWrapper}`}>
           <MessageBar
@@ -313,7 +329,9 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
             isMultiline={true}
             className={styles.errorMessageBar}
           >
-            <div className={styles.errorTitle}>{strings.AlertsLoadErrorTitle}</div>
+            <div className={styles.errorTitle}>
+              {strings.AlertsLoadErrorTitle}
+            </div>
             <div className={styles.errorDetail}>
               {errorMessage || strings.AlertsLoadErrorFallback}
             </div>

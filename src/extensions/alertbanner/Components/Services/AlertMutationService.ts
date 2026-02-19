@@ -134,7 +134,14 @@ export class AlertMutationService {
     alertService: SharePointAlertService,
     alert: IEditableAlertMutationModel,
   ): Promise<void> {
-    await alertService.updateAlert(alert.id, this.toBaseMutationFields(alert));
+    const payload = this.toBaseMutationFields(alert);
+    logger.debug("AlertMutationService", "Updating single alert", {
+      alertId: alert.id,
+      alertType: payload.AlertType,
+      priority: payload.priority,
+      title: payload.title,
+    });
+    await alertService.updateAlert(alert.id, payload);
   }
 
   public static async syncMultiLanguageAlerts(
@@ -243,13 +250,17 @@ export class AlertMutationService {
     for (const alertToDelete of toDelete) {
       try {
         await alertService.deleteAlert(alertToDelete.id);
-      } catch (deleteError: any) {
+      } catch (deleteError: unknown) {
+        const err = deleteError as {
+          statusCode?: number;
+          status?: number;
+          response?: { status?: number };
+          code?: string;
+          message?: string;
+        };
         const statusCode =
-          deleteError?.statusCode ||
-          deleteError?.status ||
-          deleteError?.response?.status ||
-          deleteError?.code;
-        const errorMessage = deleteError?.message || String(deleteError);
+          err?.statusCode || err?.status || err?.response?.status || err?.code;
+        const errorMessage = err?.message || String(deleteError);
 
         const isNotFound =
           statusCode === 404 ||

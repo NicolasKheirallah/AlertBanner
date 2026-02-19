@@ -24,6 +24,7 @@ import {
   TranslationStatus,
   ILanguageContent,
 } from "../../Alerts/IAlerts";
+import { AlertSortMode } from "../../Context/AlertsContext";
 import {
   LanguageAwarenessService,
   ISupportedLanguage,
@@ -194,6 +195,13 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [isBulkActionInFlight, setIsBulkActionInFlight] = React.useState(false);
   const [busyAlertIds, setBusyAlertIds] = React.useState<string[]>([]);
   const advancedFiltersId = "manage-alerts-advanced-filters";
+  
+  // Drag and drop state
+  const [draggingAlertId, setDraggingAlertId] = React.useState<string | null>(null);
+  const [dragOverAlertId, setDragOverAlertId] = React.useState<string | null>(null);
+  
+  // Sort mode for Manage Alerts tab (default to priority)
+  const [manageSortMode, setManageSortMode] = React.useState<"priority" | "manual">("priority");
   const [alertsListId, setAlertsListId] = React.useState<string>("");
   const [editingAlertSiteId, setEditingAlertSiteId] =
     React.useState<string>("");
@@ -1253,6 +1261,121 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     ],
   );
 
+  // Drag and Drop Handlers
+  const handleDragStart = React.useCallback((alertId: string) => {
+    setDraggingAlertId(alertId);
+  }, []);
+
+  const handleDragEnd = React.useCallback(() => {
+    setDraggingAlertId(null);
+    setDragOverAlertId(null);
+  }, []);
+
+  const handleDragOver = React.useCallback((alertId: string) => {
+    if (draggingAlertId && draggingAlertId !== alertId) {
+      setDragOverAlertId(alertId);
+    }
+  }, [draggingAlertId]);
+
+  const handleDrop = React.useCallback(async (targetAlertId: string) => {
+    if (!draggingAlertId || draggingAlertId === targetAlertId) {
+      return;
+    }
+
+    // Find indices in existingAlerts (the source of truth)
+    const draggedIndex = existingAlerts.findIndex(a => a.id === draggingAlertId);
+    const targetIndex = existingAlerts.findIndex(a => a.id === targetAlertId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Reorder the alerts
+    const newAlerts = [...existingAlerts];
+    const [removed] = newAlerts.splice(draggedIndex, 1);
+    newAlerts.splice(targetIndex, 0, removed);
+
+    // Update sort orders
+    const updatedAlerts = newAlerts.map((alert, index) => ({
+      ...alert,
+      sortOrder: index,
+    }));
+
+    // Update local state immediately for smooth UX
+    setExistingAlerts(updatedAlerts);
+
+    // Persist to SharePoint (debounced - only update the changed alerts)
+    try {
+      // Only update the dragged alert and the alerts between dragged and target positions
+      const minIndex = Math.min(draggedIndex, targetIndex);
+      const maxIndex = Math.max(draggedIndex, targetIndex);
+      const alertOrders = updatedAlerts
+        .slice(minIndex, maxIndex + 1)
+        .map((alert) => ({
+          alertId: alert.id,
+          sortOrder: alert.sortOrder ?? 0,
+        }));
+      await alertService.updateAlertsSortOrder(alertOrders);
+      notificationService.showSuccess("Alert order updated", "Success");
+    } catch (error) {
+      logger.error("ManageAlertsTab", "Error updating sort order", error);
+      notificationService.showError("Failed to save alert order", "Error");
+      // Reload to get correct state
+      loadExistingAlerts();
+    }
+
+    setDraggingAlertId(null);
+    setDragOverAlertId(null);
+  }, [draggingAlertId, existingAlerts, alertService, notificationService, setExistingAlerts, loadExistingAlerts]);
+
+  // Sort Order Input Handler
+  const handleSortOrderChange = React.useCallback(async (alertId: string, newOrder: number) => {
+    const alertIndex = existingAlerts.findIndex(a => a.id === alertId);
+    if (alertIndex === -1) return;
+
+    // Clamp newOrder to valid range
+    const clampedOrder = Math.max(0, Math.min(newOrder, existingAlerts.length - 1));
+    if (clampedOrder === alertIndex) return; // No change needed
+
+    // Create new array with reordered alerts
+    const newAlerts = [...existingAlerts];
+    const [movedAlert] = newAlerts.splice(alertIndex, 1);
+    newAlerts.splice(clampedOrder, 0, movedAlert);
+
+    // Reindex all alerts
+    const reindexedAlerts = newAlerts.map((alert, index) => ({
+      ...alert,
+      sortOrder: index,
+    }));
+
+    setExistingAlerts(reindexedAlerts);
+
+    // Persist to SharePoint (only update affected range)
+    try {
+      const minIndex = Math.min(alertIndex, clampedOrder);
+      const maxIndex = Math.max(alertIndex, clampedOrder);
+      const alertOrders = reindexedAlerts
+        .slice(minIndex, maxIndex + 1)
+        .map((alert) => ({
+          alertId: alert.id,
+          sortOrder: alert.sortOrder ?? 0,
+        }));
+      await alertService.updateAlertsSortOrder(alertOrders);
+      notificationService.showSuccess("Alert order updated", "Success");
+    } catch (error) {
+      logger.error("ManageAlertsTab", "Error updating sort order", error);
+      notificationService.showError("Failed to save sort order", "Error");
+      loadExistingAlerts();
+    }
+  }, [existingAlerts, alertService, notificationService, setExistingAlerts, loadExistingAlerts]);
+
+  // Move to Top/Bottom Handlers
+  const handleMoveToTop = React.useCallback(async (alertId: string) => {
+    await handleSortOrderChange(alertId, 0);
+  }, [handleSortOrderChange]);
+
+  const handleMoveToBottom = React.useCallback(async (alertId: string) => {
+    await handleSortOrderChange(alertId, Number.MAX_SAFE_INTEGER); // Will be clamped to valid range
+  }, [handleSortOrderChange]);
+
   // Validation using shared utility with localization
   const validateEditForm = React.useCallback((): boolean => {
     if (!editingAlert) return false;
@@ -1432,9 +1555,24 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     [dateFilter, customDateFrom, customDateTo],
   );
 
-  // Group alerts by language group with enhanced filtering
+  // Group alerts by language group with enhanced filtering and sorting
   const groupedAlerts = React.useMemo(() => {
     let filteredAlerts = [...existingAlerts];
+
+    // Apply sorting based on sort mode
+    if (manageSortMode === "manual") {
+      // Sort by sortOrder (nulls/undefined at the end), then by created date as tiebreaker
+      filteredAlerts.sort((a, b) => {
+        const orderA = typeof a.sortOrder === "number" ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+        const orderB = typeof b.sortOrder === "number" ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        // Tiebreaker: created date (newest first)
+        return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+      });
+    }
+    // For "priority" mode, keep default order (which is by date from API)
 
     // Apply content type filter
     if (contentTypeFilter !== "all") {
@@ -1552,6 +1690,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     searchTerm,
     matchesDateFilter,
     contentStatusFilter,
+    manageSortMode,
   ]);
 
   const languageGroupCount = React.useMemo(
@@ -1789,6 +1928,36 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Sort Mode Toggle */}
+          {!isLoadingAlerts && existingAlerts.length > 0 && (
+            <div className={(styles as any).sortModeBar}>
+              <span className={(styles as any).sortModeLabel}>Sort by:</span>
+              <div className={(styles as any).sortModeToggle}>
+                <button
+                  type="button"
+                  className={`${(styles as any).sortModeButton} ${manageSortMode === "priority" ? (styles as any).active : ""}`}
+                  onClick={() => setManageSortMode("priority")}
+                  title="Sort by priority"
+                >
+                  Priority
+                </button>
+                <button
+                  type="button"
+                  className={`${(styles as any).sortModeButton} ${manageSortMode === "manual" ? (styles as any).active : ""}`}
+                  onClick={() => setManageSortMode("manual")}
+                  title="Manual drag & drop sorting"
+                >
+                  Manual
+                </button>
+              </div>
+              {manageSortMode === "manual" && (
+                <span className={(styles as any).sortModeHint}>
+                  Drag cards or use arrows to reorder
+                </span>
+              )}
+            </div>
+          )}
 
           {isLoadingAlerts ? (
             <AlertListShimmer />
@@ -2258,7 +2427,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   />
                 )}
 
-              {groupedAlerts.map((alert) => (
+              {groupedAlerts.map((alert, index) => (
                 <ManageAlertCard
                   key={alert.id}
                   alert={alert}
@@ -2291,6 +2460,26 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   }
                   alertTypeStyle={alertTypeStyleMap.get(alert.AlertType)}
                   supportedLanguageMap={supportedLanguageMap}
+                  // Sort controls - only show when in manual sort mode
+                  sortOrder={alert.sortOrder ?? index}
+                  onSortOrderChange={manageSortMode === "manual" ? 
+                    (newOrder) => handleSortOrderChange(alert.id, newOrder) : undefined}
+                  onMoveToTop={manageSortMode === "manual" ? 
+                    () => handleMoveToTop(alert.id) : undefined}
+                  onMoveToBottom={manageSortMode === "manual" ? 
+                    () => handleMoveToBottom(alert.id) : undefined}
+                  isFirst={index === 0}
+                  isLast={index === groupedAlerts.length - 1}
+                  // Drag and drop - only in manual mode
+                  isDragging={draggingAlertId === alert.id}
+                  isDragOver={dragOverAlertId === alert.id}
+                  onDragStart={manageSortMode === "manual" ? 
+                    () => handleDragStart(alert.id) : undefined}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={manageSortMode === "manual" ? 
+                    () => handleDragOver(alert.id) : undefined}
+                  onDrop={manageSortMode === "manual" ? 
+                    () => handleDrop(alert.id) : undefined}
                 />
               ))}
             </div>

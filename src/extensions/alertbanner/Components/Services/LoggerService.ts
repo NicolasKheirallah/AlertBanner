@@ -3,7 +3,7 @@ export enum LogLevel {
   INFO = 1,
   WARN = 2,
   ERROR = 3,
-  FATAL = 4
+  FATAL = 4,
 }
 
 export interface ILogEntry {
@@ -11,7 +11,7 @@ export interface ILogEntry {
   level: LogLevel;
   component: string;
   message: string;
-  data?: any;
+  data?: unknown;
   error?: Error;
   userId?: string;
   sessionId: string;
@@ -25,7 +25,7 @@ export interface IPerformanceMetric {
   name: string;
   duration: number;
   timestamp: string;
-  metadata?: any;
+  metadata?: unknown;
 }
 
 export class LoggerService {
@@ -34,16 +34,15 @@ export class LoggerService {
   private maxLogEntries: number = 1000;
   private logEntries: ILogEntry[] = [];
   private sessionId: string;
-  private buildVersion: string = '2.0.0';
+  private buildVersion: string = "2.0.0";
   private isDevelopment: boolean;
-  private performanceMetrics: IPerformanceMetric[] = []
-
+  private performanceMetrics: IPerformanceMetric[] = [];
 
   private constructor() {
     this.sessionId = this.generateSessionId();
     this.isDevelopment = this.detectDevelopmentMode();
     this.logLevel = this.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
-    
+
     this.setupGlobalErrorHandling();
     this.setupLogCleanup();
   }
@@ -60,21 +59,27 @@ export class LoggerService {
   }
 
   private detectDevelopmentMode(): boolean {
-    if (typeof process !== 'undefined' && typeof process.env !== 'undefined' && process.env.NODE_ENV === 'development') {
+    if (
+      typeof process !== "undefined" &&
+      typeof process.env !== "undefined" &&
+      process.env.NODE_ENV === "development"
+    ) {
       return true;
     }
 
     try {
-      const hostname = window.location?.hostname || '';
-      const queryString = window.location?.search || document.location?.search || '';
+      const hostname = window.location?.hostname || "";
+      const queryString =
+        window.location?.search || document.location?.search || "";
       const explicitDebugFlag = window.__ALERT_BANNER_DEBUG === true;
 
       if (explicitDebugFlag) {
         return true;
       }
 
-      const isLocalHost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
-      const debugQuery = queryString.includes('debug=true');
+      const isLocalHost =
+        hostname.includes("localhost") || hostname.includes("127.0.0.1");
+      const debugQuery = queryString.includes("debug=true");
 
       return isLocalHost || debugQuery;
     } catch {
@@ -83,44 +88,55 @@ export class LoggerService {
   }
 
   private setupGlobalErrorHandling(): void {
-    window.addEventListener('unhandledrejection', (event) => {
-      const stack = event.reason?.stack || '';
-      const isOurCode = stack.includes('alert-banner') || stack.includes('AlertBanner');
+    window.addEventListener("unhandledrejection", (event) => {
+      const stack = event.reason?.stack || "";
+      const isOurCode =
+        stack.includes("alert-banner") || stack.includes("AlertBanner");
 
       if (isOurCode) {
-        this.error('GlobalError', 'Unhandled promise rejection', {
+        this.error("GlobalError", "Unhandled promise rejection", {
           reason: event.reason,
-          promise: event.promise?.toString()
+          promise: event.promise?.toString(),
         });
         event.preventDefault();
       }
     });
 
-    window.addEventListener('error', (event) => {
-      const filename = event.filename || '';
-      const isOurCode = filename.includes('alert-banner') || filename.includes('AlertBanner');
+    window.addEventListener("error", (event) => {
+      const filename = event.filename || "";
+      const isOurCode =
+        filename.includes("alert-banner") || filename.includes("AlertBanner");
 
       if (isOurCode) {
-        this.error('GlobalError', 'Uncaught error', {
+        this.error("GlobalError", "Uncaught error", {
           message: event.message,
           filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,
-          error: event.error
+          error: event.error,
         });
       }
     });
   }
 
   private setupLogCleanup(): void {
-    setInterval(() => {
-      if (this.logEntries.length > this.maxLogEntries) {
-        this.logEntries = this.logEntries.slice(-this.maxLogEntries);
-      }
-    }, 5 * 60 * 1000);
+    setInterval(
+      () => {
+        if (this.logEntries.length > this.maxLogEntries) {
+          this.logEntries = this.logEntries.slice(-this.maxLogEntries);
+        }
+      },
+      5 * 60 * 1000,
+    );
   }
 
-  private createLogEntry(level: LogLevel, component: string, message: string, data?: any, error?: Error): ILogEntry {
+  private createLogEntry(
+    level: LogLevel,
+    component: string,
+    message: string,
+    data?: unknown,
+    error?: Error,
+  ): ILogEntry {
     return {
       timestamp: new Date().toISOString(),
       level,
@@ -132,7 +148,7 @@ export class LoggerService {
       buildVersion: this.buildVersion,
       userAgent: navigator.userAgent,
       url: window.location.href,
-      correlationId: this.generateCorrelationId()
+      correlationId: this.generateCorrelationId(),
     };
   }
 
@@ -149,9 +165,9 @@ export class LoggerService {
 
     const consoleMethod = this.getConsoleMethod(entry.level);
     const prefix = `[${entry.component}]`;
-    
+
     if (entry.error) {
-      consoleMethod(prefix, entry.message, entry.error, entry.data || '');
+      consoleMethod(prefix, entry.message, entry.error, entry.data || "");
     } else if (entry.data) {
       consoleMethod(prefix, entry.message, entry.data);
     } else {
@@ -188,63 +204,119 @@ export class LoggerService {
             component: entry.component,
             sessionId: entry.sessionId,
             correlationId: entry.correlationId,
-            ...entry.data
-          }
+            ...(typeof entry.data === "object" && entry.data !== null
+              ? entry.data
+              : { data: entry.data }),
+          },
         });
       }
     } catch (error) {
-      this.getConsoleMethod(LogLevel.ERROR)('Failed to send log to external service:', error);
+      this.getConsoleMethod(LogLevel.ERROR)(
+        "Failed to send log to external service:",
+        error,
+      );
     }
   }
 
-  public debug(component: string, message: string, data?: any): void {
+  public debug(component: string, message: string, data?: unknown): void {
     if (this.shouldLog(LogLevel.DEBUG)) {
-      const entry = this.createLogEntry(LogLevel.DEBUG, component, message, data);
+      const entry = this.createLogEntry(
+        LogLevel.DEBUG,
+        component,
+        message,
+        data,
+      );
       this.writeLog(entry);
     }
   }
 
-  public info(component: string, message: string, data?: any): void {
+  public info(component: string, message: string, data?: unknown): void {
     if (this.shouldLog(LogLevel.INFO)) {
-      const entry = this.createLogEntry(LogLevel.INFO, component, message, data);
+      const entry = this.createLogEntry(
+        LogLevel.INFO,
+        component,
+        message,
+        data,
+      );
       this.writeLog(entry);
     }
   }
 
-  public warn(component: string, message: string, data?: any): void {
+  public warn(component: string, message: string, data?: unknown): void {
     if (this.shouldLog(LogLevel.WARN)) {
-      const entry = this.createLogEntry(LogLevel.WARN, component, message, data);
+      const entry = this.createLogEntry(
+        LogLevel.WARN,
+        component,
+        message,
+        data,
+      );
       this.writeLog(entry);
     }
   }
 
-  public error(component: string, message: string, error?: Error | any, data?: any): void {
+  public error(
+    component: string,
+    message: string,
+    error?: Error | unknown,
+    data?: unknown,
+  ): void {
     if (this.shouldLog(LogLevel.ERROR)) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      const entry = this.createLogEntry(LogLevel.ERROR, component, message, data, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      const entry = this.createLogEntry(
+        LogLevel.ERROR,
+        component,
+        message,
+        data,
+        errorObj,
+      );
       this.writeLog(entry);
     }
   }
 
-  public fatal(component: string, message: string, error?: Error | any, data?: any): void {
+  public fatal(
+    component: string,
+    message: string,
+    error?: Error | unknown,
+    data?: unknown,
+  ): void {
     if (this.shouldLog(LogLevel.FATAL)) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      const entry = this.createLogEntry(LogLevel.FATAL, component, message, data, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      const entry = this.createLogEntry(
+        LogLevel.FATAL,
+        component,
+        message,
+        data,
+        errorObj,
+      );
       this.writeLog(entry);
     }
   }
 
-  public logApiCall(component: string, method: string, url: string, status?: number, duration?: number, error?: Error): void {
+  public logApiCall(
+    component: string,
+    method: string,
+    url: string,
+    status?: number,
+    duration?: number,
+    error?: Error,
+  ): void {
     const logData = {
       method,
       url,
       status,
       duration: duration ? `${duration}ms` : undefined,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     if (error || (status && status >= 400)) {
-      this.error(component, `API call failed: ${method} ${url}`, error, logData);
+      this.error(
+        component,
+        `API call failed: ${method} ${url}`,
+        error,
+        logData,
+      );
     } else {
       this.info(component, `API call successful: ${method} ${url}`, logData);
     }
@@ -252,32 +324,38 @@ export class LoggerService {
 
   public startPerformanceTracking(name: string): () => void {
     const startTime = performance.now();
-    
+
     return () => {
       const duration = performance.now() - startTime;
       const metric: IPerformanceMetric = {
         name,
         duration,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-      
+
       this.performanceMetrics.push(metric);
-      this.debug('Performance', `${name} completed in ${duration.toFixed(2)}ms`);
-      
+      this.debug(
+        "Performance",
+        `${name} completed in ${duration.toFixed(2)}ms`,
+      );
+
       if (this.performanceMetrics.length > 100) {
         this.performanceMetrics = this.performanceMetrics.slice(-100);
       }
     };
   }
 
-  public logUserAction(component: string, action: string, metadata?: any): void {
+  public logUserAction(
+    component: string,
+    action: string,
+    metadata?: unknown,
+  ): void {
     this.info(component, `User action: ${action}`, {
       action,
       metadata,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
-
 }
 
 export const logger = LoggerService.getInstance();

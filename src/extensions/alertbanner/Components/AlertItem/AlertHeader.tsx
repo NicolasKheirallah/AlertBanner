@@ -22,7 +22,14 @@ interface IAlertHeaderProps {
 }
 
 const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
-  ({ item, iconName, expanded, toggleExpanded, ariaControlsId, titleColor }) => {
+  ({
+    item,
+    iconName,
+    expanded,
+    toggleExpanded,
+    ariaControlsId,
+    titleColor,
+  }) => {
     const priorityLabel = React.useMemo(() => {
       switch (item.priority) {
         case AlertPriority.Critical:
@@ -54,17 +61,29 @@ const AlertHeader: React.FC<IAlertHeaderProps> = React.memo(
       <>
         <div className={styles.iconSection}>
           <div className={styles.alertIcon} title={priorityTooltip}>
-            {getAlertTypeIcon(iconName, item.priority)}
+            {getAlertTypeIcon(iconName, item.priority, titleColor)}
           </div>
         </div>
         <div className={styles.textSection}>
           <div className={styles.titleRow}>
             {item.title && (
-              <span 
-                className={styles.alertTitle} 
+              <span
+                className={styles.alertTitle}
                 style={titleColor ? { color: titleColor } : undefined}
               >
                 {item.title}
+              </span>
+            )}
+            {item.AlertType && (
+              <span
+                className={styles.alertTypeBadge}
+                style={
+                  titleColor
+                    ? { color: titleColor, borderColor: titleColor }
+                    : undefined
+                }
+              >
+                {item.AlertType}
               </span>
             )}
           </div>

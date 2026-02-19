@@ -1,4 +1,4 @@
-import { AlertPriority } from "../Alerts/IAlerts";
+import { AlertPriority, IAlertType } from "../Alerts/IAlerts";
 
 export const LIST_NAMES = {
   ALERTS: 'Alerts',
@@ -183,18 +183,19 @@ export const ALERT_TYPE_DEFAULTS = {
 // Default Alert Type Name when none is specified
 export const DEFAULT_ALERT_TYPE_NAME = "Info";
 
-export const DEFAULT_ALERT_TYPES = [
+export const DEFAULT_ALERT_TYPES: IAlertType[] = [
   {
     name: "Info",
     iconName: "Info",
     backgroundColor: "#389899",
     textColor: "#ffffff",
     additionalStyles: "",
+    defaultPriority: AlertPriority.Medium,
     priorityStyles: {
-      [AlertPriority.Critical]: "border: 2px solid #E81123;",
-      [AlertPriority.High]: "border: 1px solid #EA4300;",
-      [AlertPriority.Medium]: "",
-      [AlertPriority.Low]: ""
+      [AlertPriority.Critical]: "border: 4px solid #E81123;",
+      [AlertPriority.High]: "border: 3px solid #EA4300;",
+      [AlertPriority.Medium]: "border: 2px solid #0078d4;",
+      [AlertPriority.Low]: "border: 1px solid #107c10;"
     }
   },
   {
@@ -203,11 +204,12 @@ export const DEFAULT_ALERT_TYPES = [
     backgroundColor: "#f1c40f",
     textColor: "#000000",
     additionalStyles: "",
+    defaultPriority: AlertPriority.Medium,
     priorityStyles: {
-      [AlertPriority.Critical]: "border: 2px solid #E81123;",
-      [AlertPriority.High]: "border: 1px solid #EA4300;",
-      [AlertPriority.Medium]: "",
-      [AlertPriority.Low]: ""
+      [AlertPriority.Critical]: "border: 4px solid #E81123;",
+      [AlertPriority.High]: "border: 3px solid #EA4300;",
+      [AlertPriority.Medium]: "border: 2px solid #f1c40f;",
+      [AlertPriority.Low]: "border: 1px solid #107c10;"
     }
   },
   {
@@ -216,11 +218,12 @@ export const DEFAULT_ALERT_TYPES = [
     backgroundColor: "#afd6d6",
     textColor: "#000000",
     additionalStyles: "",
+    defaultPriority: AlertPriority.Low,
     priorityStyles: {
-      [AlertPriority.Critical]: "border: 2px solid #E81123;",
-      [AlertPriority.High]: "border: 1px solid #EA4300;",
-      [AlertPriority.Medium]: "",
-      [AlertPriority.Low]: ""
+      [AlertPriority.Critical]: "border: 4px solid #E81123;",
+      [AlertPriority.High]: "border: 3px solid #EA4300;",
+      [AlertPriority.Medium]: "border: 2px solid #0078d4;",
+      [AlertPriority.Low]: "border: 1px solid #afd6d6;"
     }
   },
   {
@@ -229,14 +232,15 @@ export const DEFAULT_ALERT_TYPES = [
     backgroundColor: "#c54644",
     textColor: "#ffffff",
     additionalStyles: "",
+    defaultPriority: AlertPriority.High,
     priorityStyles: {
-      [AlertPriority.Critical]: "border: 2px solid #E81123;",
-      [AlertPriority.High]: "border: 1px solid #EA4300;",
-      [AlertPriority.Medium]: "",
-      [AlertPriority.Low]: ""
+      [AlertPriority.Critical]: "border: 4px solid #8B0000;",
+      [AlertPriority.High]: "border: 3px solid #c54644;",
+      [AlertPriority.Medium]: "border: 2px solid #EA4300;",
+      [AlertPriority.Low]: "border: 1px solid #f1c40f;"
     }
   }
-] as const;
+];
 
 export const NOTIFICATION_STYLES = {
   SUCCESS: { 

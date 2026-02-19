@@ -1,7 +1,7 @@
 import * as React from "react";
 import { logger } from "../Services/LoggerService";
 import { IAlertType, IAlertItem, AlertPriority } from "../Alerts/IAlerts";
-import { useAlerts } from "../Context/AlertsContext";
+import { useAlertsState } from "../Context/AlertsContext";
 import { getContrastText } from "../Utils/ColorUtils";
 import styles from "./AlertItem.module.scss";
 import AlertHeader from "./AlertHeader";
@@ -148,8 +148,10 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   }, [handlers.toggleExpanded]);
 
   const baseContainerStyle = React.useMemo<React.CSSProperties>(() => {
-    const backgroundColor = alertType.backgroundColor || "#389899";
-    const textColor = alertType.textColor || getContrastText(backgroundColor);
+    // Use white/neutral background instead of alert type color
+    // Only the left border and title will use the alert type color
+    const backgroundColor = "#ffffff";
+    const textColor = "#323130"; // Neutral dark text color
 
     return {
       backgroundColor,
@@ -169,28 +171,54 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   );
 
   // Get global priority border colors from context
-  const { state: alertsState } = useAlerts();
+  const alertsState = useAlertsState();
   const priorityBorderColors = alertsState.priorityBorderColors;
-  
-  // Get border color from global settings based on alert priority
-  const borderColor = React.useMemo(() => {
-    return priorityBorderColors[item.priority as AlertPriority]?.borderColor || 
-           alertType.backgroundColor || 
-           "#389899";
-  }, [priorityBorderColors, item.priority, alertType.backgroundColor]);
 
-  const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({
+  // Extract color from CSS border string (e.g., "2px solid #E81123;" -> "#E81123")
+  const extractBorderColor = (borderStr?: string): string | null => {
+    if (!borderStr) return null;
+    const match = borderStr.match(/#[a-fA-F0-9]{6}|#[a-fA-F0-9]{3}/);
+    return match ? match[0] : null;
+  };
+
+  // Get border color from priorityStyle first, then fall back to other sources
+  const borderColor = React.useMemo(() => {
+    const priorityStyleColor = extractBorderColor(priorityStyle);
+    return (
+      priorityStyleColor ||
+      alertType.backgroundColor ||
+      priorityBorderColors[item.priority as AlertPriority]?.borderColor ||
+      "#389899"
+    );
+  }, [
+    priorityBorderColors,
+    item.priority,
+    alertType.backgroundColor,
+    priorityStyle,
+  ]);
+
+  const containerStyle = React.useMemo<React.CSSProperties>(() => {
+    const parsedPriorityStyle = parseAdditionalStyles(priorityStyle);
+
+    // If priorityStyle has a border property, use it directly
+    // Otherwise fall back to borderLeft with the alert type color
+    const hasPriorityBorder =
+      parsedPriorityStyle.border ||
+      parsedPriorityStyle.borderLeft ||
+      parsedPriorityStyle.borderWidth;
+
+    return {
       ...baseContainerStyle,
-      ...parseAdditionalStyles(priorityStyle),
-      // Set border-left color directly using priority-specific or alert type background color
-      borderLeft: `4px solid ${borderColor}`,
+      ...parsedPriorityStyle,
+      // Only set borderLeft if priorityStyle doesn't already define a border
+      ...(!hasPriorityBorder && {
+        borderLeft: `4px solid ${borderColor}`,
+      }),
       ...(item.priority === "critical" && {
         boxShadow: SHADOW_CONFIG.CRITICAL_PRIORITY,
       }),
-    } as React.CSSProperties),
-    [baseContainerStyle, priorityStyle, item.priority, borderColor],
-  );
+    } as React.CSSProperties;
+  }, [baseContainerStyle, priorityStyle, item.priority, borderColor]);
 
   const containerClassNames = React.useMemo(
     () =>
@@ -225,7 +253,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
             expanded={expanded}
             toggleExpanded={handlers.toggleExpanded}
             ariaControlsId={ariaControlsId}
-            titleColor={undefined}
+            titleColor={borderColor}
           />
           <AlertActions
             item={item}
@@ -276,7 +304,8 @@ const arePropsEqual = (
   if (prevProps.alertType !== nextProps.alertType) return false;
 
   // Compare user targeting
-  if (prevProps.userTargetingEnabled !== nextProps.userTargetingEnabled) return false;
+  if (prevProps.userTargetingEnabled !== nextProps.userTargetingEnabled)
+    return false;
 
   // Compare callbacks (reference equality)
   if (prevProps.remove !== nextProps.remove) return false;

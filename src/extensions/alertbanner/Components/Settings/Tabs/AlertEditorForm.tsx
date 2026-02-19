@@ -35,6 +35,7 @@ import { NotificationService } from "../../Services/NotificationService";
 import { CopilotService } from "../../Services/CopilotService";
 import { DateUtils } from "../../Utils/DateUtils";
 import { Text } from "@microsoft/sp-core-library";
+import { logger } from "../../Services/LoggerService";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import styles from "../AlertSettings.module.scss";
 import { IFormErrors } from "./SharedTypes";
@@ -736,6 +737,16 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                 value={alert.AlertType}
                 onChange={(value) => {
                   const selectedType = alertTypes.find((t) => t.name === value);
+                  logger.debug(
+                    "AlertEditorForm",
+                    "Alert type selected",
+                    {
+                      selectedTypeName: value,
+                      foundType: selectedType,
+                      defaultPriority: selectedType?.defaultPriority,
+                      allAlertTypes: alertTypes.map((t) => ({ name: t.name, defaultPriority: t.defaultPriority })),
+                    },
+                  );
                   updateAlertFields(
                     {
                       AlertType: value,
@@ -1088,14 +1099,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                     }
                   }
                   priority={alert.priority}
-                  linkUrl={alert.linkUrl || ""}
-                  linkDescription={
-                    useMultiLanguage && languageContent.length > 0
-                      ? languageContent[0]?.linkDescription ||
-                        strings.CreateAlertLinkPreviewFallback
-                      : alert.linkDescription ||
-                        strings.CreateAlertLinkPreviewFallback
-                  }
                   isPinned={alert.isPinned}
                 />
 

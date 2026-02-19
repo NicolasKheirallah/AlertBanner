@@ -20,6 +20,13 @@ export interface IAlertListStatus {
   error?: string;
 }
 
+interface ICachedSiteContext {
+  timestamp: number;
+  currentSiteInfo: ISiteInfo | null;
+  hubSiteInfo: ISiteInfo | null;
+  homeSiteInfo: ISiteInfo | null;
+}
+
 export class SiteContextService {
   private static _instance: SiteContextService;
   private _context: ApplicationCustomizerContext;
@@ -28,6 +35,12 @@ export class SiteContextService {
   private _hubSiteInfo: ISiteInfo | null = null;
   private _currentSiteInfo: ISiteInfo | null = null;
   private readonly alertsListName = LIST_NAMES.ALERTS;
+  private _isInitializing: boolean = false;
+  private _initPromise: Promise<void> | null = null;
+  
+  // Cache configuration
+  private static readonly CACHE_KEY = 'AlertBanner_SiteContext';
+  private static readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
   public static getInstance(
     context?: ApplicationCustomizerContext,
@@ -60,208 +73,198 @@ export class SiteContextService {
       throw new Error('SiteContextService requires context and graphClient');
     }
 
-    await this.detectSiteContext();
+    // Return existing promise if initialization is in progress
+    if (this._isInitializing && this._initPromise) {
+      return this._initPromise;
+    }
+
+    // Check if we have valid cached data
+    const cached = this._loadFromCache();
+    if (cached && !this._isCacheExpired(cached)) {
+      logger.debug('SiteContextService', 'Using cached site context');
+      this._currentSiteInfo = cached.currentSiteInfo;
+      this._hubSiteInfo = cached.hubSiteInfo;
+      this._homeSiteInfo = cached.homeSiteInfo;
+      return;
+    }
+
+    this._isInitializing = true;
+    this._initPromise = this._doInitialization();
+    
+    try {
+      await this._initPromise;
+    } finally {
+      this._isInitializing = false;
+      this._initPromise = null;
+    }
   }
 
-  private async detectSiteContext(): Promise<void> {
+  private async _doInitialization(): Promise<void> {
+    const initStartTime = performance.now();
+    
     try {
-      // Get current site info
-      const hostname = new URL(this._context.pageContext.web.absoluteUrl).hostname;
-      const siteId = this._context.pageContext.site.id.toString();
-      const siteCollectionUrl = this._context.pageContext.site.absoluteUrl || this._context.pageContext.web.absoluteUrl;
-      const graphId = this.buildGraphSiteIdentifier(siteCollectionUrl);
+      // Get current site info immediately (no API call needed)
+      this._initializeCurrentSite();
 
-      // Get current site info
-      this._currentSiteInfo = {
-        id: siteId,
-        url: siteCollectionUrl,
-        name: this._context.pageContext.web.title,
-        type: 'current',
-        graphId: graphId
-      };
+      // Detect home and hub sites in parallel with aggressive timeouts
+      const [homeSiteResult, hubSiteResult] = await Promise.all([
+        this._detectHomeSiteWithTimeout(),
+        this._detectHubSiteWithTimeout(),
+      ]);
 
-      // Detect home site
-      await this.detectHomeSite();
+      this._homeSiteInfo = homeSiteResult;
+      this._hubSiteInfo = hubSiteResult;
 
-      // Detect hub site if current site is connected to a hub
-      await this.detectHubSite();
+      // Check alert lists in parallel (fast operation)
+      await this._checkAlertListsParallel();
 
-      // Check alert lists for all sites
-      await this.checkAlertLists();
+      // Save to cache
+      this._saveToCache();
 
+      logger.info('SiteContextService', 'Initialization complete', {
+        durationMs: Math.round(performance.now() - initStartTime),
+        hasHomeSite: !!this._homeSiteInfo,
+        hasHubSite: !!this._hubSiteInfo,
+      });
     } catch (error) {
       logger.error('SiteContextService', 'Failed to detect site context', error);
+      // Ensure we at least have current site info
+      if (!this._currentSiteInfo) {
+        this._initializeCurrentSite();
+      }
     }
   }
 
-  private async detectHomeSite(): Promise<void> {
+  private _initializeCurrentSite(): void {
+    const siteCollectionUrl = this._context.pageContext.site.absoluteUrl || this._context.pageContext.web.absoluteUrl;
+    this._currentSiteInfo = {
+      id: this._context.pageContext.site.id.toString(),
+      url: siteCollectionUrl,
+      name: this._context.pageContext.web.title,
+      type: 'current',
+      graphId: this._buildGraphSiteIdentifier(siteCollectionUrl)
+    };
+  }
+
+  private async _detectHomeSiteWithTimeout(): Promise<ISiteInfo | null> {
+    return Promise.race([
+      this._detectHomeSiteFast(),
+      new Promise<null>((resolve) => 
+        setTimeout(() => {
+          logger.warn('SiteContextService', 'Home site detection timed out');
+          resolve(null);
+        }, 1500)
+      ),
+    ]);
+  }
+
+  private async _detectHomeSiteFast(): Promise<ISiteInfo | null> {
+    // Try the fastest method first: /sites/root
     try {
-      // Use the more accessible approach: try to get organization settings
-      // This doesn't require SharePoint Admin permissions
-      const orgResponse = await this._graphClient
-        .api('/organization')
+      const homeSiteResponse = await this._graphClient
+        .api('/sites/root')
         .get();
 
-      // Try to get tenant information which might include home site
-      if (orgResponse?.value?.[0]) {
-        const tenantId = orgResponse.value[0].id;
-        
-        // Try to find home site through organization information
-        try {
-          const homeSiteResponse = await this._graphClient
-            .api('/sites/root')
-            .get();
-
-          // Check if root site is configured as home site
-          if (homeSiteResponse?.sharepointIds?.tenantId === tenantId) {
-            this._homeSiteInfo = {
-              id: homeSiteResponse.id,
-              url: homeSiteResponse.webUrl,
-              name: (homeSiteResponse as any).displayName || (homeSiteResponse as any).name || 'Home Site',
-              type: 'home',
-              graphId: homeSiteResponse.id
-            };
-          }
-        } catch (rootError) {
-          // Root site not accessible or not home site
-        }
+      if (homeSiteResponse?.webUrl) {
+        return {
+          id: homeSiteResponse.id,
+          url: homeSiteResponse.webUrl,
+          name: (homeSiteResponse as any).displayName || (homeSiteResponse as any).name || 'Home Site',
+          type: 'home',
+          graphId: homeSiteResponse.id
+        };
       }
-
-      // If still no home site found, try alternative search method
-      if (!this._homeSiteInfo) {
-        await this.searchForHomeSite();
-      }
-    } catch (error) {
-      logger.warn('SiteContextService', 'Could not detect home site through organization API', error);
-      // Try alternative method using search
-      await this.searchForHomeSite();
+    } catch (rootError) {
+      // Root site not accessible, try search
     }
-  }
 
-  private async searchForHomeSite(): Promise<void> {
+    // Fallback to search (faster than organization API)
     try {
-      // Try to use Microsoft Search API which is more accessible
       const searchResponse = await this._graphClient
         .api('/search/query')
         .post({
           requests: [{
             entityTypes: ['site'],
-            query: {
-              queryString: 'IsHomeSite:true OR SiteTemplate:SITEPAGEPUBLISHING'
-            },
+            query: { queryString: 'IsHomeSite:true' },
             from: 0,
-            size: 5
+            size: 1
           }]
         });
 
-      const results = searchResponse.value[0]?.hitsContainers[0]?.hits;
-      if (results && results.length > 0) {
-        // Look for a site that might be the home site
-        for (const result of results) {
-          const site = result.resource;
-          // Check if this looks like a home site (typically has specific characteristics)
-          if (site.webUrl && (site.webUrl.includes('/sites/home') || 
-                             site.webUrl.includes('/sites/intranet') ||
-                             site.displayName?.toLowerCase().includes('home') ||
-                             site.displayName?.toLowerCase().includes('intranet'))) {
-            this._homeSiteInfo = {
-              id: site.id || site.siteId,
-              url: site.webUrl,
-              name: site.displayName || site.name || 'Home Site',
-              type: 'home',
-              graphId: site.id || site.siteId
-            };
-            break;
-          }
-        }
-
-        // If no obvious home site found, use the first result as a fallback
-        if (!this._homeSiteInfo && results.length > 0) {
-          const firstSite = results[0].resource;
-          this._homeSiteInfo = {
-            id: firstSite.id || firstSite.siteId,
-            url: firstSite.webUrl,
-            name: firstSite.displayName || firstSite.name || 'Tenant Root Site',
-            type: 'home',
-            graphId: firstSite.id || firstSite.siteId
-          };
-        }
-      }
-    } catch (error) {
-      logger.warn('SiteContextService', 'Could not find home site through search API', error);
-      
-      // Final fallback: try to find sites the user can access and look for patterns
-      try {
-        const sitesResponse = await this._graphClient
-          .api('/sites?search=*')
-          .get();
-
-        if (sitesResponse?.value?.length > 0) {
-          // Look for a site that might be home site based on naming patterns
-          const potentialHomeSite = sitesResponse.value.find((site: any) => 
-            site.webUrl?.includes('/sites/home') || 
-            site.webUrl?.includes('/sites/intranet') ||
-            site.displayName?.toLowerCase().includes('home') ||
-            site.displayName?.toLowerCase().includes('intranet')
-          );
-
-          if (potentialHomeSite) {
-            this._homeSiteInfo = {
-              id: potentialHomeSite.id,
-              url: potentialHomeSite.webUrl,
-              name: potentialHomeSite.displayName || 'Home Site',
-              type: 'home',
-              graphId: potentialHomeSite.id
-            };
-          }
-        }
-      } catch (sitesError) {
-        logger.warn('SiteContextService', 'Could not access sites collection', sitesError);
-        // At this point, we'll proceed without home site detection
-      }
-    }
-  }
-
-  private async detectHubSite(): Promise<void> {
-    try {
-      if (this._context.pageContext.legacyPageContext.hubSiteId) {
-        // Current site is connected to a hub
-        const hubSiteId = this._context.pageContext.legacyPageContext.hubSiteId;
-        const hubResponse = await this._graphClient
-          .api(`/sites/${hubSiteId}`)
-          .get();
-
-        this._hubSiteInfo = {
-          id: hubSiteId,
-          url: hubResponse.webUrl,
-          name: (hubResponse as any).displayName || (hubResponse as any).name || 'Hub Site',
-          type: 'hub',
-          graphId: hubResponse.id
+      const result = searchResponse.value[0]?.hitsContainers[0]?.hits?.[0];
+      if (result?.resource) {
+        const site = result.resource;
+        return {
+          id: site.id || site.siteId,
+          url: site.webUrl,
+          name: site.displayName || site.name || 'Home Site',
+          type: 'home',
+          graphId: site.id || site.siteId
         };
       }
+    } catch (searchError) {
+      // Search failed, return null
+    }
+
+    return null;
+  }
+
+  private async _detectHubSiteWithTimeout(): Promise<ISiteInfo | null> {
+    return Promise.race([
+      this._detectHubSite(),
+      new Promise<null>((resolve) => 
+        setTimeout(() => {
+          logger.warn('SiteContextService', 'Hub site detection timed out');
+          resolve(null);
+        }, 1000)
+      ),
+    ]);
+  }
+
+  private async _detectHubSite(): Promise<ISiteInfo | null> {
+    try {
+      const hubSiteId = this._context.pageContext.legacyPageContext.hubSiteId;
+      if (!hubSiteId) {
+        return null;
+      }
+
+      const hubResponse = await this._graphClient
+        .api(`/sites/${hubSiteId}`)
+        .get();
+
+      return {
+        id: hubSiteId,
+        url: hubResponse.webUrl,
+        name: (hubResponse as any).displayName || (hubResponse as any).name || 'Hub Site',
+        type: 'hub',
+        graphId: hubResponse.id
+      };
     } catch (error) {
       logger.warn('SiteContextService', 'Could not detect hub site', error);
+      return null;
     }
   }
 
-  private async checkAlertLists(): Promise<void> {
-    const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo].filter(Boolean) as ISiteInfo[];
+  private async _checkAlertListsParallel(): Promise<void> {
+    const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo]
+      .filter((s): s is ISiteInfo => s !== null);
 
-    for (const site of sites) {
-      if (site) {
+    // Check all sites in parallel
+    await Promise.all(
+      sites.map(async (site) => {
         try {
-          site.hasAlertsList = await this.checkAlertListExists(site);
+          site.hasAlertsList = await this._checkAlertListExists(site);
         } catch (error) {
-          logger.warn('SiteContextService', `Failed to check alerts list for site ${site.name}`, error);
+          logger.warn('SiteContextService', `Failed to check alerts list for ${site.name}`, error);
           site.hasAlertsList = false;
         }
-      }
-    }
+      })
+    );
   }
 
-  public async checkAlertListExists(site: ISiteInfo): Promise<boolean> {
+  private async _checkAlertListExists(site: ISiteInfo): Promise<boolean> {
     try {
-      const graphSiteId = site.graphId ?? this.buildGraphSiteIdentifier(site.url);
+      const graphSiteId = site.graphId ?? this._buildGraphSiteIdentifier(site.url);
       const response = await this._graphClient
         .api(`/sites/${graphSiteId}/lists`)
         .filter(`displayName eq '${this.alertsListName}'`)
@@ -275,88 +278,95 @@ export class SiteContextService {
     }
   }
 
+  private _loadFromCache(): ICachedSiteContext | null {
+    try {
+      const cached = localStorage.getItem(SiteContextService.CACHE_KEY);
+      if (cached) {
+        return JSON.parse(cached) as ICachedSiteContext;
+      }
+    } catch {
+      // Ignore cache errors
+    }
+    return null;
+  }
+
+  private _saveToCache(): void {
+    try {
+      const cacheData: ICachedSiteContext = {
+        timestamp: Date.now(),
+        currentSiteInfo: this._currentSiteInfo,
+        hubSiteInfo: this._hubSiteInfo,
+        homeSiteInfo: this._homeSiteInfo,
+      };
+      localStorage.setItem(SiteContextService.CACHE_KEY, JSON.stringify(cacheData));
+    } catch {
+      // Ignore cache errors
+    }
+  }
+
+  private _isCacheExpired(cached: ICachedSiteContext): boolean {
+    return Date.now() - cached.timestamp > SiteContextService.CACHE_DURATION_MS;
+  }
+
+  public async checkAlertListExists(site: ISiteInfo): Promise<boolean> {
+    return this._checkAlertListExists(site);
+  }
+
   public async getAlertListStatus(site: ISiteInfo): Promise<IAlertListStatus> {
     try {
-      const graphSiteId = site.graphId ?? this.buildGraphSiteIdentifier(site.url);
-      // Try to access the list
+      const graphSiteId = site.graphId ?? this._buildGraphSiteIdentifier(site.url);
       await this._graphClient
         .api(`/sites/${graphSiteId}/lists`)
         .filter(`displayName eq '${this.alertsListName}'`)
         .top(1)
         .get();
 
-      return {
-        exists: true,
-        canAccess: true,
-        canCreate: false // Already exists
-      };
-    } catch (error) {
+      return { exists: true, canAccess: true, canCreate: false };
+    } catch (error: any) {
       if (error.message?.includes('404') || error.message?.includes('not found')) {
-        // List doesn't exist, check if we can create it
         try {
-          // Test permissions by trying to get all lists
           await this._graphClient
-            .api(`/sites/${site.graphId ?? this.buildGraphSiteIdentifier(site.url)}/lists`)
+            .api(`/sites/${site.graphId ?? this._buildGraphSiteIdentifier(site.url)}/lists`)
             .select('id')
             .top(1)
             .get();
 
-          return {
-            exists: false,
-            canAccess: true,
-            canCreate: true
-          };
+          return { exists: false, canAccess: true, canCreate: true };
         } catch (permError) {
-          return {
-            exists: false,
-            canAccess: false,
-            canCreate: false,
-            error: 'Insufficient permissions to access or create lists'
-          };
+          return { exists: false, canAccess: false, canCreate: false, error: 'Insufficient permissions' };
         }
       } else if (error.message?.includes('403') || error.message?.includes('Access denied')) {
-        return {
-          exists: true, // Assume it exists but we can't access it
-          canAccess: false,
-          canCreate: false,
-          error: 'Access denied to alerts list'
-        };
+        return { exists: true, canAccess: false, canCreate: false, error: 'Access denied' };
       }
 
-      return {
-        exists: false,
-        canAccess: false,
-        canCreate: false,
-        error: error.message
-      };
+      return { exists: false, canAccess: false, canCreate: false, error: error.message };
     }
   }
 
   public async createAlertsList(siteId: string, selectedLanguages?: string[]): Promise<boolean> {
     try {
-      // Import SharePointAlertService dynamically to avoid circular dependency
       const { SharePointAlertService } = await import('./SharePointAlertService');
       const alertService = new SharePointAlertService(this._graphClient, this._context);
       
-      // Pass siteId directly to initializeLists and addLanguageSupport
       await alertService.initializeLists(siteId);
       
       if (selectedLanguages && selectedLanguages.length > 0) {
         await alertService.updateSupportedLanguages(siteId, selectedLanguages);
       }
       
-      // Update the hasAlertsList flag for the site
       const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo];
       const targetSite = sites.find(s => s && s.id === siteId);
       if (targetSite) {
         targetSite.hasAlertsList = true;
       }
       
+      // Invalidate cache after creating list
+      this._clearCache();
+      
       return true;
-    } catch (error) {
+    } catch (error: any) {
       logger.error('SiteContextService', `Failed to create alerts list on site ${siteId}`, error);
       
-      // Provide more detailed error messages
       if (error.message?.includes('PERMISSION_DENIED')) {
         throw new Error(`PERMISSION_DENIED: Cannot create alerts list on site ${siteId}. User lacks required permissions.`);
       } else if (error.message?.includes('CRITICAL_COLUMNS_FAILED')) {
@@ -369,22 +379,18 @@ export class SiteContextService {
 
   public async getSupportedLanguagesForSite(siteId: string): Promise<string[]> {
     try {
-      // Import SharePointAlertService dynamically to avoid circular dependency
       const { SharePointAlertService } = await import('./SharePointAlertService');
       const alertService = new SharePointAlertService(this._graphClient, this._context);
-      
-      // Pass siteId directly to getSupportedLanguages
       return await alertService.getSupportedLanguages(siteId);
     } catch (error) {
       logger.warn('SiteContextService', `Failed to get supported languages for site ${siteId}`, error);
-      return ['en-us']; // Default fallback
+      return ['en-us'];
     }
   }
 
   public getSitesHierarchy(): ISiteInfo[] {
     const sites: ISiteInfo[] = [];
     
-    // Add in priority order: Home → Hub → Current
     if (this._homeSiteInfo) sites.push(this._homeSiteInfo);
     if (this._hubSiteInfo && this._hubSiteInfo.id !== this._homeSiteInfo?.id) {
       sites.push(this._hubSiteInfo);
@@ -399,59 +405,35 @@ export class SiteContextService {
   }
 
   public getAlertSourceSites(): string[] {
-    const siteMap = new Map<string, string>(); // Map: dedup key -> canonical site identifier
+    const siteMap = new Map<string, string>();
 
-    // Helper to add site to map
     const addSite = (siteInfo: ISiteInfo | null) => {
       if (siteInfo && siteInfo.hasAlertsList) {
-        const idGuid =
-          SiteIdUtils.extractGuidFromGraphId(siteInfo.id) ||
-          (SiteIdUtils.isGuid(siteInfo.id)
-            ? SiteIdUtils.normalizeGuid(siteInfo.id)
-            : "");
-        const graphGuid =
-          SiteIdUtils.extractGuidFromGraphId(siteInfo.graphId || "") ||
-          (SiteIdUtils.isGuid(siteInfo.graphId || "")
-            ? SiteIdUtils.normalizeGuid(siteInfo.graphId || "")
-            : "");
+        const idGuid = SiteIdUtils.extractGuidFromGraphId(siteInfo.id) ||
+          (SiteIdUtils.isGuid(siteInfo.id) ? SiteIdUtils.normalizeGuid(siteInfo.id) : "");
+        const graphGuid = SiteIdUtils.extractGuidFromGraphId(siteInfo.graphId || "") ||
+          (SiteIdUtils.isGuid(siteInfo.graphId || "") ? SiteIdUtils.normalizeGuid(siteInfo.graphId || "") : "");
 
-        const dedupKey =
-          idGuid ||
-          graphGuid ||
+        const dedupKey = idGuid || graphGuid ||
           (siteInfo.url || "").toLowerCase().replace(/\/$/, "") ||
           (siteInfo.id || "").toLowerCase();
 
-        if (!dedupKey || siteMap.has(dedupKey)) {
-          return;
-        }
+        if (!dedupKey || siteMap.has(dedupKey)) return;
 
-        // Prefer GUID to keep downstream alert IDs stable across site identifier formats.
-        const canonicalIdentifier =
-          idGuid ||
-          graphGuid ||
-          siteInfo.graphId ||
-          siteInfo.id ||
-          this.buildGraphSiteIdentifier(siteInfo.url);
+        const canonicalIdentifier = idGuid || graphGuid || siteInfo.graphId ||
+          siteInfo.id || this._buildGraphSiteIdentifier(siteInfo.url);
 
         siteMap.set(dedupKey, canonicalIdentifier);
       }
     };
 
-    // 1. Current Site
     addSite(this._currentSiteInfo);
-
-    // 2. Hub Site (if connected and different from Current)
-    if (this._hubSiteInfo?.id !== this._currentSiteInfo?.id) {
-      addSite(this._hubSiteInfo);
-    }
-
-    // 3. Home Site (Always, if different from Current and Hub)
+    if (this._hubSiteInfo?.id !== this._currentSiteInfo?.id) addSite(this._hubSiteInfo);
     if (this._homeSiteInfo?.id !== this._currentSiteInfo?.id && 
         this._homeSiteInfo?.id !== this._hubSiteInfo?.id) {
       addSite(this._homeSiteInfo);
     }
 
-    // Return unique site IDs
     return Array.from(siteMap.values());
   }
 
@@ -462,7 +444,7 @@ export class SiteContextService {
   public getHubSite(): ISiteInfo | null {
     return this._hubSiteInfo;
   }
-
+ 
   public getHomeSite(): ISiteInfo | null {
     return this._homeSiteInfo;
   }
@@ -475,11 +457,9 @@ export class SiteContextService {
     return this._graphClient;
   }
 
-  private buildGraphSiteIdentifier(siteUrl: string): string {
+  private _buildGraphSiteIdentifier(siteUrl: string): string {
     const normalizedUrl = new URL(siteUrl);
     let path = normalizedUrl.pathname || '';
-
-    // Normalize redundant slashes and remove trailing slash except for root
     path = path.replace(/\/+/g, '/');
     if (path !== '/' && path.endsWith('/')) {
       path = path.slice(0, -1);
@@ -493,6 +473,17 @@ export class SiteContextService {
   }
 
   public async refresh(): Promise<void> {
-    await this.detectSiteContext();
+    this._clearCache();
+    await this._doInitialization();
+  }
+
+  private _clearCache(): void {
+    try {
+      localStorage.removeItem(SiteContextService.CACHE_KEY);
+    } catch {
+      // Ignore
+    }
   }
 }
+
+export default SiteContextService;

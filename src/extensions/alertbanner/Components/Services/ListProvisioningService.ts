@@ -53,11 +53,8 @@ export class ListProvisioningService {
   > {
     const results = [];
     const currentSiteId = this.context.pageContext.site.id.toString();
-    const isHomeSite = await this.locator.isCurrentSite(currentSiteId); // Simplified home site check? No, need proper check.
+    const isHomeSite = await this.locator.isCurrentSite(currentSiteId);
 
-    // Locator doesn't have isHomeSite (it had isCurrentSite). I need isHomeSite logic.
-    // I'll reimplement isHomeSite here or use logic from Original.
-    // Logic: fetch /sites/root and compare ID.
     let isHome = false;
     try {
       const homeSiteResponse = await this.graphClient
@@ -85,7 +82,7 @@ export class ListProvisioningService {
 
     try {
       await this.locator.resolveListId(currentSiteId, this.alertsListName);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (ErrorUtils.isListNotFoundError(error)) {
         needsAlerts = true;
       } else if (!ErrorUtils.isAccessDeniedError(error)) {
@@ -99,7 +96,7 @@ export class ListProvisioningService {
           currentSiteId,
           this.alertTypesListName,
         );
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (ErrorUtils.isListNotFoundError(error)) {
           needsTypes = true;
         } else if (!ErrorUtils.isAccessDeniedError(error)) {
@@ -133,9 +130,7 @@ export class ListProvisioningService {
         await this.locator.ensureGraphSiteIdentifier(targetSiteId)
       ).toLowerCase();
       const normalizedHome = homeSiteResponse.id.toLowerCase();
-      // This comparison assumes ensureGraphSiteIdentifier returns UUID for both.
-      // Better to use exact logic from Original if valid.
-      // Original used direct comparison of siteId vs homeSiteId.
+
       isHomeSite =
         targetSiteId === homeSiteResponse.id ||
         normalizedTarget === normalizedHome;
@@ -145,8 +140,11 @@ export class ListProvisioningService {
 
     try {
       await this.ensureAlertsList(targetSiteId);
-    } catch (alertsError: any) {
-      if (alertsError.message?.includes("PERMISSION_DENIED")) {
+    } catch (alertsError: unknown) {
+      if (
+        alertsError instanceof Error &&
+        alertsError.message?.includes("PERMISSION_DENIED")
+      ) {
         logger.warn(
           "ListProvisioningService",
           "Cannot create alerts list due to insufficient permissions",
@@ -159,8 +157,11 @@ export class ListProvisioningService {
     if (isHomeSite) {
       try {
         await this.ensureAlertTypesList(targetSiteId);
-      } catch (typesError: any) {
-        if (typesError.message?.includes("PERMISSION_DENIED")) {
+      } catch (typesError: unknown) {
+        if (
+          typesError instanceof Error &&
+          typesError.message?.includes("PERMISSION_DENIED")
+        ) {
           logger.warn(
             "ListProvisioningService",
             "Cannot create types list on home site due to insufficient permissions",
@@ -176,7 +177,7 @@ export class ListProvisioningService {
     try {
       await this.locator.resolveListId(siteId, this.alertsListName);
       return false;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (ErrorUtils.isAccessDeniedError(error)) {
         logger.warn(
           "ListProvisioningService",
@@ -201,7 +202,7 @@ export class ListProvisioningService {
         .select("id")
         .top(1)
         .get();
-    } catch (permissionError: any) {
+    } catch (permissionError: unknown) {
       if (ErrorUtils.isAccessDeniedError(permissionError)) {
         throw new Error(
           "PERMISSION_DENIED: User lacks permissions to create SharePoint lists.",
@@ -226,22 +227,13 @@ export class ListProvisioningService {
       );
       await this.enableListAttachments(siteId, createdList?.id);
       await this.addAlertsListColumns(siteId);
-      await this.seedDefaultAlertTypes(siteId); // Original called this here? No, seedDefaultAlertTypes is for Types list.
-      // Original Line 583: await this.seedDefaultAlertTypes(siteId);
-      // Wait, Alerts List doesn't need Alert Types seeding?
-      // Ah, maybe it seeds Types locally if they don't exist?
-      // Step 479 Line 583 says: await this.seedDefaultAlertTypes(siteId).
-      // But seedDefaultAlertTypes (Line 1231) seeds into ALERT TYPES LIST.
-      // So if I create Alerts List, I also ensure Types are seeded?
-      // Or maybe it was a mistake in Original?
-      // I'll keep it to maintain behavior. But usually Types List is separate.
-      // Actually, if Types List doesn't exist, seedDefaultAlertTypes will fail or create it?
-      // seedDefaultAlertTypes uses getAlertTypesListApi.
+      await this.addAlertsListColumns(siteId);
+      await this.seedDefaultAlertTypes(siteId);
 
       await this.createTemplateAlerts(siteId);
 
       return true;
-    } catch (createError: any) {
+    } catch (createError: unknown) {
       if (ErrorUtils.isAccessDeniedError(createError))
         throw new Error("PERMISSION_DENIED");
       throw createError;
@@ -252,7 +244,7 @@ export class ListProvisioningService {
     try {
       await this.locator.resolveListId(siteId, this.alertTypesListName);
       return false;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!ErrorUtils.isListNotFoundError(error)) throw error;
     }
 
@@ -428,7 +420,6 @@ export class ListProvisioningService {
           chooseFromType: "peopleAndGroups",
         },
       },
-      // Approval Workflow
       {
         name: "ContentStatus",
         choice: {
@@ -522,6 +513,11 @@ export class ListProvisioningService {
       const defaults = DEFAULT_ALERT_TYPES;
       let sortOrder = 0;
       for (const type of defaults) {
+        // Include defaultPriority in PriorityStyles JSON
+        const priorityStylesPayload = {
+          ...(type.priorityStyles || {}),
+          __defaultPriority: type.defaultPriority || undefined,
+        };
         const payload = {
           fields: {
             Title: type.name,
@@ -530,7 +526,7 @@ export class ListProvisioningService {
             TextColor: type.textColor,
             AdditionalStyles: type.additionalStyles || "",
             PriorityStyles:
-              JsonUtils.safeStringify(type.priorityStyles || {}) || "{}",
+              JsonUtils.safeStringify(priorityStylesPayload) || "{}",
             SortOrder: sortOrder++,
           },
         };
@@ -554,16 +550,23 @@ export class ListProvisioningService {
       const defaultTemplates = require("../Data/defaultTemplates.json");
       const alertsListApi = await this.locator.getAlertsListApi(siteId);
 
-      const templateAlerts = defaultTemplates.map((template: any) => ({
-        ...template,
-        fields: {
-          ...template.fields,
-          ScheduledStart: new Date().toISOString(),
-          ScheduledEnd: this.getTemplateEndDate(template.fields.AlertType),
-          ItemType: template.fields.ContentType,
-          ContentType: undefined,
-        },
-      }));
+      const templateAlerts = defaultTemplates.map(
+        (template: {
+          fields: Record<string, unknown>;
+          [key: string]: unknown;
+        }) => ({
+          ...template,
+          fields: {
+            ...template.fields,
+            ScheduledStart: new Date().toISOString(),
+            ScheduledEnd: this.getTemplateEndDate(
+              String(template.fields.AlertType || ""),
+            ),
+            ItemType: template.fields.ContentType,
+            ContentType: undefined,
+          },
+        }),
+      );
 
       for (const template of templateAlerts) {
         try {
@@ -648,7 +651,6 @@ export class ListProvisioningService {
         "LanguageGroup",
         "AvailableForAll",
         "TranslationStatus",
-        "TranslationStatus",
         "TargetUsers",
         "ContentStatus",
         "Reviewer",
@@ -665,6 +667,7 @@ export class ListProvisioningService {
         "Editor",
         "ID",
         "Attachments",
+        "Body",
       ]);
 
       const expectedSet = new Set(expectedColumns);
@@ -672,8 +675,9 @@ export class ListProvisioningService {
       progressCallback?.("Removing obsolete columns...", 30);
 
       const customColumns = currentColumns.filter(
-        (col: any) =>
+        (col: { readOnly?: boolean; name?: string; id?: string }) =>
           !col.readOnly &&
+          col.name &&
           !col.name.startsWith("_") &&
           !coreColumns.has(col.name),
       );
@@ -685,9 +689,10 @@ export class ListProvisioningService {
               .api(`${alertsListApi}/columns/${column.id}`)
               .delete();
             result.details.columnsRemoved.push(column.name);
-          } catch (e: any) {
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
             result.details.warnings.push(
-              `Failed to remove ${column.name}: ${e.message || e}`,
+              `Failed to remove ${column.name}: ${msg}`,
             );
           }
         }
@@ -696,7 +701,7 @@ export class ListProvisioningService {
       progressCallback?.("Adding missing columns...", 55);
 
       const existingNames = new Set<string>(
-        currentColumns.map((col: any) => col.name),
+        currentColumns.map((col: { name: string }) => col.name),
       );
       const missingColumns = expectedColumns.filter(
         (name) => !existingNames.has(name),
@@ -711,7 +716,7 @@ export class ListProvisioningService {
       progressCallback?.("Updating choice values...", 70);
 
       const getColumnByName = (name: string) =>
-        currentColumns.find((col: any) => col.name === name);
+        currentColumns.find((col: { name: string }) => col.name === name);
 
       const ensureChoices = async (
         columnName: string,
@@ -743,9 +748,10 @@ export class ListProvisioningService {
           result.details.columnsUpdated.push(
             `${columnName}: added ${missing.join(", ")}`,
           );
-        } catch (e: any) {
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
           result.details.warnings.push(
-            `Failed to update ${columnName} choices: ${e.message || e}`,
+            `Failed to update ${columnName} choices: ${msg}`,
           );
         }
       };
@@ -794,8 +800,8 @@ export class ListProvisioningService {
       result.message = "Alerts list repaired successfully.";
       progressCallback?.("Repair completed.", 100);
       return result;
-    } catch (e: any) {
-      result.message = e?.message || "Repair failed";
+    } catch (e: unknown) {
+      result.message = e instanceof Error ? e.message : "Repair failed";
       result.details.errors.push(result.message);
       return result;
     }
@@ -810,7 +816,9 @@ export class ListProvisioningService {
         .api(`${alertsListApi}/columns`)
         .select("id,name,indexed")
         .get();
-      const itemType = columns.value?.find((c: any) => c.name === "ItemType");
+      const itemType = columns.value?.find(
+        (c: { name: string }) => c.name === "ItemType",
+      );
 
       if (itemType && !itemType.indexed) {
         await this.graphClient
@@ -833,7 +841,8 @@ export class ListProvisioningService {
         .get();
 
       const targetLangColumn = (columnsResponse.value || []).find(
-        (col: any) => (col.name || "").toLowerCase() === "targetlanguage",
+        (col: { name?: string }) =>
+          (col.name || "").toLowerCase() === "targetlanguage",
       );
       const choices: string[] = targetLangColumn?.choice?.choices ||
         targetLangColumn?.choices || ["en-us"];
@@ -899,7 +908,8 @@ export class ListProvisioningService {
         .api(`${alertsListApi}/columns`)
         .get();
       column = (refreshed.value || []).find(
-        (c: any) => (c.name || "").toLowerCase() === "targetlanguage",
+        (c: { name?: string }) =>
+          (c.name || "").toLowerCase() === "targetlanguage",
       );
     }
 

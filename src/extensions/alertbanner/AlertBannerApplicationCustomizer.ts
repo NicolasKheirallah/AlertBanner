@@ -62,11 +62,12 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           "backgroundColor": "#389899",
           "textColor": "#ffffff",
           "additionalStyles": "",
+          "defaultPriority": "medium",
           "priorityStyles": {
-            "critical": "border: 2px solid #E81123;",
-            "high": "border: 1px solid #EA4300;",
-            "medium": "",
-            "low": ""
+            "critical": "border: 4px solid #E81123;",
+            "high": "border: 3px solid #EA4300;",
+            "medium": "border: 2px solid #0078d4;",
+            "low": "border: 1px solid #107c10;"
           }
         },
         {
@@ -75,11 +76,12 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           "backgroundColor": "#f1c40f",
           "textColor": "#000000",
           "additionalStyles": "",
+          "defaultPriority": "medium",
           "priorityStyles": {
-            "critical": "border: 2px solid #E81123;",
-            "high": "border: 1px solid #EA4300;",
-            "medium": "",
-            "low": ""
+            "critical": "border: 4px solid #E81123;",
+            "high": "border: 3px solid #EA4300;",
+            "medium": "border: 2px solid #f1c40f;",
+            "low": "border: 1px solid #107c10;"
           }
         },
         {
@@ -88,11 +90,12 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           "backgroundColor": "#afd6d6",
           "textColor": "#000000",
           "additionalStyles": "",
+          "defaultPriority": "low",
           "priorityStyles": {
-            "critical": "border: 2px solid #E81123;",
-            "high": "border: 1px solid #EA4300;",
-            "medium": "",
-            "low": ""
+            "critical": "border: 4px solid #E81123;",
+            "high": "border: 3px solid #EA4300;",
+            "medium": "border: 2px solid #0078d4;",
+            "low": "border: 1px solid #afd6d6;"
           }
         },
         {
@@ -101,11 +104,12 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           "backgroundColor": "#c54644",
           "textColor": "#ffffff",
           "additionalStyles": "",
+          "defaultPriority": "high",
           "priorityStyles": {
-            "critical": "border: 2px solid #E81123;",
-            "high": "border: 1px solid #EA4300;",
-            "medium": "",
-            "low": ""
+            "critical": "border: 4px solid #8B0000;",
+            "high": "border: 3px solid #c54644;",
+            "medium": "border: 2px solid #EA4300;",
+            "low": "border: 1px solid #f1c40f;"
           }
         }
       ];

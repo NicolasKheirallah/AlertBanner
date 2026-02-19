@@ -207,12 +207,19 @@ export class StorageService {
   }
 
   // Listen for storage changes from other tabs/windows
+  // Only triggers on dismissed/hidden alerts changes, not cache updates
   public initCrossTabSync(onAlertStorageChange: () => void): () => void {
     const handler = (event: StorageEvent): void => {
       if (!event.key) return;
 
-      const alertPrefix = "AlertsBanner_";
-      if (event.key.startsWith(alertPrefix)) {
+      // Only trigger on dismissed or hidden alerts changes
+      // Ignore cache updates (AllAlerts:* keys) to prevent refresh loops
+      const relevantKeys = ["DismissedAlerts", "HiddenAlerts"];
+      const isRelevantChange = relevantKeys.some((key) =>
+        event.key?.includes(key),
+      );
+
+      if (isRelevantChange) {
         logger.debug("StorageService", "Cross-tab storage change detected", {
           key: event.key,
         });
@@ -234,11 +241,13 @@ export class StorageService {
     return `${prefix}${userPrefix}${key}`;
   }
 
-  private isDataExpired(storageData: any): boolean {
-    if (!storageData.timestamp || !storageData.expiration) return false;
+  private isDataExpired(storageData: Record<string, unknown>): boolean {
+    const timestamp = storageData.timestamp as number;
+    const expiration = storageData.expiration as number;
+    if (!timestamp || !expiration) return false;
 
     const now = Date.now();
-    const expirationTime = storageData.timestamp + storageData.expiration;
+    const expirationTime = timestamp + expiration;
 
     return now > expirationTime;
   }

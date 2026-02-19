@@ -244,8 +244,11 @@ export class SharePointListLocator {
     }
 
     try {
+      const apiUrl = `${alertsListApi}/columns?$select=name`;
+      logger.debug("SharePointListLocator", "Fetching column metadata", { apiUrl });
+      
       const columnsResponse = await this.graphClient
-        .api(`${alertsListApi}/columns?$select=name`)
+        .api(apiUrl)
         .get();
 
       const availableColumns = new Set<string>(
@@ -254,17 +257,44 @@ export class SharePointListLocator {
           .filter(Boolean)
       );
 
+      logger.debug("SharePointListLocator", "Column metadata fetched successfully", { 
+        apiUrl, 
+        columnCount: availableColumns.size,
+        columns: Array.from(availableColumns).slice(0, 10) // Log first 10 columns
+      });
+
       this.enforceCacheLimit(this.listColumnsCache);
       this.listColumnsCache.set(alertsListApi, availableColumns);
       return availableColumns;
-    } catch (error) {
+    } catch (error: any) {
+      // Log detailed error information for diagnostics
+      const errorDetails = {
+        list: alertsListApi,
+        statusCode: error?.statusCode,
+        code: error?.code,
+        message: error?.message,
+        body: error?.body,
+      };
+      
       logger.warn(
         "SharePointListLocator",
         "Could not retrieve column metadata, falling back to minimal column set",
-        { list: alertsListApi, error }
+        errorDetails
       );
       const fallback = new Set<string>([
         "Title",
+        "Description",
+        "AlertType",
+        "Priority",
+        "IsPinned",
+        "NotificationType",
+        "LinkUrl",
+        "LinkDescription",
+        "TargetSites",
+        "Status",
+        "ItemType",
+        "TargetLanguage",
+        "LanguageGroup",
         "Created",
         "Modified",
         "Author",

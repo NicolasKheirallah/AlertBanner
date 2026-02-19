@@ -124,10 +124,10 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     textColor: "#ffffff",
     additionalStyles: "",
     priorityStyles: {
-      [AlertPriority.Critical]: "border: 2px solid #E81123;",
-      [AlertPriority.High]: "border: 1px solid #EA4300;",
-      [AlertPriority.Medium]: "",
-      [AlertPriority.Low]: "",
+      [AlertPriority.Critical]: "border: 4px solid #E81123;",
+      [AlertPriority.High]: "border: 3px solid #EA4300;",
+      [AlertPriority.Medium]: "border: 2px solid #0078d4;",
+      [AlertPriority.Low]: "border: 1px solid #107c10;",
     },
   });
   const [isCreatingType, setIsCreatingType] = React.useState(false);
@@ -415,6 +415,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
             : strings.AlertSettingsTitle
         }
         width={1200}
+        height="80vh"
       >
         <div className={styles.settingsContainer}>
           {/* Tab Navigation — hidden when editing an alert */}
@@ -482,12 +483,13 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
           )}
 
           {/* Tab Content */}
-          <div className={styles.tabContent}>
+          <div className={`${styles.tabContent} ${styles.tabContentContainer}`}>
             {activeTab === "create" && (
               <div
                 role="tabpanel"
                 id="tabpanel-create"
                 aria-labelledby="tab-create"
+                className={styles.tabPanelWrapper}
               >
                 <AlertFormProvider
                   config={alertFormConfig}
@@ -504,6 +506,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 role="tabpanel"
                 id="tabpanel-manage"
                 aria-labelledby="tab-manage"
+                className={styles.tabPanelWrapper}
               >
                 <ManageAlertsTab
                   existingAlerts={existingAlerts}
@@ -544,6 +547,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 role="tabpanel"
                 id="tabpanel-types"
                 aria-labelledby="tab-types"
+                className={styles.tabPanelWrapper}
               >
                 <AlertTypesTab
                   alertTypes={alertTypes}
@@ -563,6 +567,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
                 role="tabpanel"
                 id="tabpanel-settings"
                 aria-labelledby="tab-settings"
+                className={styles.tabPanelWrapper}
               >
                 <SettingsTab
                   settings={settings}

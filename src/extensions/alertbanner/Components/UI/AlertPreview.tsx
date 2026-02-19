@@ -11,8 +11,6 @@ const AlertPreview: React.FC<{
   alertType: IAlertType;
   priority: AlertPriority;
   isPinned?: boolean;
-  linkUrl?: string;
-  linkDescription?: string;
   className?: string;
 }> = ({
   title,
@@ -20,8 +18,6 @@ const AlertPreview: React.FC<{
   alertType,
   priority,
   isPinned = false,
-  linkUrl,
-  linkDescription,
   className
 }) => {
   const getPriorityClass = (priority: AlertPriority): string => {
@@ -90,14 +86,6 @@ const AlertPreview: React.FC<{
                     [description]
                   )
                 }} />
-              </div>
-            )}
-
-            {linkUrl && linkDescription && (
-              <div className={styles.alertLink}>
-                <a href={linkUrl} target="_blank" rel="noopener noreferrer">
-                  🔗 {linkDescription}
-                </a>
               </div>
             )}
           </div>

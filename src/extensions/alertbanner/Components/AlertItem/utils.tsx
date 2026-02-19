@@ -34,7 +34,7 @@ const FLUENT_REGULAR_ICON_MAP: Map<string, IconComponent> = (() => {
       return;
     }
 
-    const baseName = name.slice(0, -("24Regular".length));
+    const baseName = name.slice(0, -"24Regular".length);
     map.set(normalizeIconToken(baseName), icon as IconComponent);
   });
 
@@ -94,17 +94,21 @@ const getPriorityIconClassName = (priority: AlertPriority): string => {
   }
 };
 
-const getCommonIconProps = (priority: AlertPriority) => {
+const getCommonIconProps = (priority: AlertPriority, customColor?: string) => {
   return {
-    className: `${styles.priorityIcon} ${getPriorityIconClassName(priority)}`,
+    className: `${styles.priorityIcon} ${!customColor ? getPriorityIconClassName(priority) : ""}`,
     width: "20px",
     height: "20px",
     fill: "currentColor",
+    style: customColor ? { color: customColor } : undefined,
   };
 };
 
-export const getPriorityIcon = (priority: AlertPriority): React.ReactElement => {
-  const commonProps = getCommonIconProps(priority);
+export const getPriorityIcon = (
+  priority: AlertPriority,
+  customColor?: string,
+): React.ReactElement => {
+  const commonProps = getCommonIconProps(priority, customColor);
 
   switch (priority) {
     case "critical":
@@ -122,15 +126,16 @@ export const getPriorityIcon = (priority: AlertPriority): React.ReactElement => 
 export const getAlertTypeIcon = (
   iconName: string | undefined,
   priority: AlertPriority,
+  customColor?: string,
 ): React.ReactElement => {
-  const commonProps = getCommonIconProps(priority);
+  const commonProps = getCommonIconProps(priority, customColor);
   const iconComponent = resolveFluentIconComponent(iconName);
 
   if (iconComponent) {
     return React.createElement(iconComponent, commonProps);
   }
 
-  return getPriorityIcon(priority);
+  return getPriorityIcon(priority, customColor);
 };
 
 export const ALERT_TYPE_ICON_NAMES: string[] = [

@@ -29,6 +29,8 @@ import { LIST_NAMES, CACHE_CONFIG, API_CONFIG } from "../Utils/AppConstants";
 import { JsonUtils } from "../Utils/JsonUtils";
 import { SiteIdUtils } from "../Utils/SiteIdUtils";
 
+export type AlertSortMode = "manual" | "priority" | "date" | "alphabetical";
+
 interface AlertsState {
   alerts: IAlertItem[];
   alertTypes: { [key: string]: IAlertType };
@@ -40,6 +42,7 @@ interface AlertsState {
   carouselEnabled: boolean;
   carouselInterval: number;
   priorityBorderColors: Record<AlertPriority, IPriorityColorConfig>;
+  sortMode: AlertSortMode;
 }
 
 type AlertsAction =
@@ -59,6 +62,7 @@ type AlertsAction =
       type: "SET_PRIORITY_BORDER_COLORS";
       payload: Record<AlertPriority, IPriorityColorConfig>;
     }
+  | { type: "SET_SORT_MODE"; payload: AlertSortMode }
   | { type: "BATCH_UPDATE"; payload: Partial<AlertsState> };
 
 const initialState: AlertsState = {
@@ -77,6 +81,7 @@ const initialState: AlertsState = {
     [AlertPriority.Medium]: { borderColor: "#0078d4" },
     [AlertPriority.Low]: { borderColor: "#107c10" },
   },
+  sortMode: "priority",
 };
 
 const alertsReducer = (
@@ -137,6 +142,12 @@ const alertsReducer = (
         priorityBorderColors: action.payload,
       };
 
+    case "SET_SORT_MODE":
+      return {
+        ...state,
+        sortMode: action.payload,
+      };
+
     case "BATCH_UPDATE":
       return { ...state, ...action.payload };
 
@@ -145,9 +156,7 @@ const alertsReducer = (
   }
 };
 
-// Create the context
-interface AlertsContextProps {
-  state: AlertsState;
+export interface AlertsDispatchContextProps {
   dispatch: React.Dispatch<AlertsAction>;
   removeAlert: (id: string) => void;
   hideAlertForever: (id: string) => void;
@@ -157,10 +166,18 @@ interface AlertsContextProps {
     carouselEnabled?: boolean;
     carouselInterval?: number;
   }) => void;
-  updatePriorityBorderColors: (colors: Record<AlertPriority, IPriorityColorConfig>) => void;
+  updatePriorityBorderColors: (
+    colors: Record<AlertPriority, IPriorityColorConfig>,
+  ) => void;
+  updateSortMode: (mode: AlertSortMode) => void;
 }
 
-const AlertsContext = createContext<AlertsContextProps | undefined>(undefined);
+export const AlertsStateContext = createContext<AlertsState | undefined>(
+  undefined,
+);
+export const AlertsDispatchContext = createContext<
+  AlertsDispatchContextProps | undefined
+>(undefined);
 
 export interface AlertsContextOptions {
   graphClient: MSGraphClientV3;
@@ -176,6 +193,12 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [state, dispatch] = useReducer(alertsReducer, initialState);
+
+  // Ref to access current state without causing re-renders
+  const stateRef = React.useRef(state);
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const storageService = React.useMemo(() => StorageService.getInstance(), []);
 
@@ -212,7 +235,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Use sanitized/validated JSON data
-      const alertTypesData: IAlertType[] = validation.sanitizedValue;
+      const alertTypesData: IAlertType[] =
+        validation.sanitizedValue as IAlertType[];
       const alertTypesMap: { [key: string]: IAlertType } = {};
 
       alertTypesData.forEach((type) => {
@@ -423,9 +447,12 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [mapSharePointItemToAlert],
   );
 
-  // Sort alerts by priority
-  const sortAlertsByPriority = useCallback(
-    (alertsToSort: IAlertItem[]): IAlertItem[] => {
+  // Sort alerts based on current sort mode
+  const sortAlerts = useCallback(
+    (
+      alertsToSort: IAlertItem[],
+      mode: AlertSortMode = stateRef.current.sortMode,
+    ): IAlertItem[] => {
       const priorityOrder: { [key in AlertPriority]: number } = {
         [AlertPriority.Critical]: 0,
         [AlertPriority.High]: 1,
@@ -434,16 +461,50 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       return [...alertsToSort].sort((a, b) => {
-        // First sort by pinned status
+        // Always put pinned alerts first regardless of sort mode
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
 
-        // Then sort by priority
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
+        switch (mode) {
+          case "manual":
+            // Sort by manual sortOrder, then by priority as tiebreaker
+            const orderA =
+              typeof a.sortOrder === "number"
+                ? a.sortOrder
+                : Number.MAX_SAFE_INTEGER;
+            const orderB =
+              typeof b.sortOrder === "number"
+                ? b.sortOrder
+                : Number.MAX_SAFE_INTEGER;
+            if (orderA !== orderB) {
+              return orderA - orderB;
+            }
+            // Fall through to priority as tiebreaker
+            return priorityOrder[a.priority] - priorityOrder[b.priority];
+
+          case "date":
+            // Sort by created date (newest first)
+            return (
+              new Date(b.createdDate).getTime() -
+              new Date(a.createdDate).getTime()
+            );
+
+          case "alphabetical":
+            // Sort alphabetically by title
+            return a.title.localeCompare(b.title);
+
+          case "priority":
+          default:
+            // Sort by priority (Critical > High > Medium > Low)
+            return priorityOrder[a.priority] - priorityOrder[b.priority];
+        }
       });
     },
     [],
   );
+
+  // Legacy function name for backward compatibility
+  const sortAlertsByPriority = sortAlerts;
 
   // Remove duplicates using AlertFilters utility
   const removeDuplicateAlerts = useCallback(
@@ -525,7 +586,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           await servicesRef.current.languageAwarenessService.getUserPreferredLanguageWithSource();
         const userPreferences =
           servicesRef.current.languageAwarenessService.getUserLanguagePreferences();
-        
+
         const filteredAlerts =
           servicesRef.current.languageAwarenessService.filterAlertsForUser(
             alertsToFilter,
@@ -585,9 +646,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  // Initialize alerts
+  // Initialize alerts - smooth loading without flicker
   const initializeAlerts = useCallback(
     async (initOptions: AlertsContextOptions): Promise<void> => {
+      const initStartTime = performance.now();
+
       try {
         servicesRef.current.options = initOptions;
         servicesRef.current.graphClient = initOptions.graphClient;
@@ -609,44 +672,99 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           servicesRef.current.graphClient,
           initOptions.context,
         );
-        servicesRef.current.languagePolicy =
-          await servicesRef.current.sharePointAlertService
-            .getLanguagePolicy()
-            .catch(() => DEFAULT_LANGUAGE_POLICY);
 
         alertCacheRef.current.clear();
 
-        dispatch({ type: "SET_LOADING", payload: true });
+        // Build cache key for checking cached data
+        const siteIds = initOptions.siteIds || [];
+        const dedupMap = new Map<string, string>();
+        siteIds.forEach((siteId) => {
+          const dedupKey = createSiteDedupKey(siteId);
+          if (dedupKey && !dedupMap.has(dedupKey)) {
+            dedupMap.set(dedupKey, siteId);
+          }
+        });
+        const uniqueSiteIds = Array.from(dedupMap.values());
+        const alertsCacheKey = buildAlertsCacheKey(uniqueSiteIds);
 
-        // Initialize user targeting service first
-        if (servicesRef.current.options.userTargetingEnabled) {
-          await servicesRef.current.userTargetingService.initialize();
+        const cachedAlerts =
+          storageService.getFromLocalStorage<IAlertItem[]>(alertsCacheKey);
+        const hasCachedAlerts = cachedAlerts && cachedAlerts.length > 0;
+
+        // If we have cached alerts, start with them but keep loading state
+        // This prevents the "no alerts" flash while still allowing smooth updates
+        if (hasCachedAlerts) {
+          let alertsToShow = filterAlertsByTargetSites(cachedAlerts);
+          alertsToShow = filterAlerts(alertsToShow);
+          alertsToShow = sortAlertsByPriority(alertsToShow);
+
+          dispatch({ type: "SET_ALERTS", payload: alertsToShow });
+          // Stay in loading state - we'll transition smoothly when fresh data arrives
+          dispatch({ type: "SET_LOADING", payload: true });
+
+          logger.info("AlertsContext", "Using cached alerts as placeholder", {
+            cachedCount: cachedAlerts.length,
+            renderTimeMs: Math.round(performance.now() - initStartTime),
+          });
+        } else {
+          // No cache - show loading state
+          dispatch({ type: "SET_LOADING", payload: true });
         }
 
-        // Load alert types from SharePoint list first, fall back to JSON if needed
-        const loadedFromList = await loadAlertTypesFromList();
-        if (!loadedFromList) {
+        // PHASE 1: Parallel initialization of independent services
+        const [languagePolicy, alertTypesLoaded, dismissedHiddenAlerts] =
+          await Promise.all([
+            // Load language policy
+            servicesRef.current.sharePointAlertService
+              .getLanguagePolicy()
+              .catch(() => DEFAULT_LANGUAGE_POLICY),
+
+            // Load alert types (uses cache internally)
+            loadAlertTypesFromList(),
+
+            // Initialize user targeting and get dismissed/hidden alerts
+            (async () => {
+              if (
+                !servicesRef.current.options?.userTargetingEnabled ||
+                !servicesRef.current.userTargetingService
+              ) {
+                return { dismissed: [], hidden: [] };
+              }
+              const initPromise =
+                servicesRef.current.userTargetingService.initialize();
+              await initPromise;
+              return {
+                dismissed:
+                  servicesRef.current.userTargetingService.getUserDismissedAlerts(),
+                hidden:
+                  servicesRef.current.userTargetingService.getUserHiddenAlerts(),
+              };
+            })(),
+          ]);
+
+        servicesRef.current.languagePolicy = languagePolicy;
+
+        // Load alert types from JSON fallback if needed
+        if (!alertTypesLoaded && servicesRef.current.options) {
           loadAlertTypes(servicesRef.current.options.alertTypesJson);
         }
 
-        // Get user's dismissed and hidden alerts - batch update to reduce re-renders
-        if (servicesRef.current.options.userTargetingEnabled) {
-          const dismissedAlerts =
-            servicesRef.current.userTargetingService.getUserDismissedAlerts();
-          const hiddenAlerts =
-            servicesRef.current.userTargetingService.getUserHiddenAlerts();
+        // Update dismissed/hidden alerts
+        dispatch({
+          type: "BATCH_UPDATE",
+          payload: {
+            userDismissedAlerts: dismissedHiddenAlerts.dismissed,
+            userHiddenAlerts: dismissedHiddenAlerts.hidden,
+          },
+        });
 
-          dispatch({
-            type: "BATCH_UPDATE",
-            payload: {
-              userDismissedAlerts: dismissedAlerts,
-              userHiddenAlerts: hiddenAlerts,
-            },
-          });
-        }
-
-        // Fetch and process alerts
+        // PHASE 2: Fetch fresh alerts
         await refreshAlerts();
+
+        logger.info("AlertsContext", "Initialization complete", {
+          totalTimeMs: Math.round(performance.now() - initStartTime),
+          hadCachedData: hasCachedAlerts,
+        });
       } catch (error) {
         logger.error("AlertsContext", "Error initializing alerts", error, {
           options: servicesRef.current.options,
@@ -661,19 +779,28 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         dispatch({ type: "SET_LOADING", payload: false });
       }
     },
-    [loadAlertTypes],
+    [
+      loadAlertTypes,
+      filterAlerts,
+      filterAlertsByTargetSites,
+      sortAlertsByPriority,
+      buildAlertsCacheKey,
+      createSiteDedupKey,
+    ],
   );
 
-  // Refresh alerts
+  // Refresh alerts - optimized with larger batches and parallel processing
   const refreshAlerts = useCallback(async (): Promise<void> => {
     if (!servicesRef.current.options || !servicesRef.current.graphClient)
       return;
 
+    const refreshStartTime = performance.now();
+
     try {
       const allAlerts: IAlertItem[] = [];
 
-      // Process only 3 sites at a time to avoid performance issues
-      const batchSize = 3;
+      // Increased batch size for better parallelization (5 instead of 3)
+      const batchSize = 5;
       const siteIds = servicesRef.current.options.siteIds || [];
 
       // Normalize site IDs and remove duplicates
@@ -693,6 +820,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         uniqueSiteIds: uniqueSiteIds.length,
       });
 
+      // Fetch all alerts in parallel batches
       for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
         const batch = uniqueSiteIds.slice(i, i + batchSize);
         const batchPromises = batch.map((siteId) => fetchAlerts(siteId));
@@ -737,24 +865,46 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       // Get alerts to display
       let alertsToShow = alertsAreDifferent ? uniqueAlerts : cachedAlerts || [];
 
+      // Apply filters in sequence (these are fast, no API calls)
       alertsToShow = filterAlertsByTargetSites(alertsToShow);
+      alertsToShow = filterAlerts(alertsToShow);
 
-      // Apply user targeting if enabled
+      // Apply user targeting with timeout (don't block if slow)
       if (
         servicesRef.current.options.userTargetingEnabled &&
         servicesRef.current.userTargetingService
       ) {
-        alertsToShow =
-          await servicesRef.current.userTargetingService.filterAlertsForCurrentUser(
-            alertsToShow,
+        try {
+          // Apply user targeting with a 2-second timeout
+          const targetingPromise =
+            servicesRef.current.userTargetingService.filterAlertsForCurrentUser(
+              alertsToShow,
+            );
+
+          // Race against timeout
+          alertsToShow = await Promise.race([
+            targetingPromise,
+            new Promise<IAlertItem[]>((resolve) =>
+              setTimeout(() => {
+                logger.warn(
+                  "AlertsContext",
+                  "User targeting timed out, showing all alerts",
+                );
+                resolve(alertsToShow);
+              }, 2000),
+            ),
+          ]);
+        } catch (targetingError) {
+          logger.warn(
+            "AlertsContext",
+            "User targeting failed, showing all alerts",
+            targetingError,
           );
+        }
       }
 
-      // Apply language-aware filtering to show appropriate language variants
+      // Apply language-aware filtering
       alertsToShow = await applyLanguageAwareFiltering(alertsToShow);
-
-      // Filter out hidden/dismissed alerts
-      alertsToShow = filterAlerts(alertsToShow);
 
       // Limit the number of alerts to prevent performance issues
       if (alertsToShow.length > 20) {
@@ -783,9 +933,34 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      // Update state
-      dispatch({ type: "SET_ALERTS", payload: alertsToShow });
-      dispatch({ type: "SET_LOADING", payload: false });
+      // Smooth transition: Compare with current state before updating
+      const currentAlerts = stateRef.current.alerts;
+      const alertsActuallyChanged = areAlertsDifferent(
+        alertsToShow,
+        currentAlerts,
+      );
+
+      if (alertsActuallyChanged || stateRef.current.isLoading) {
+        // Update state - use single batch to prevent flicker
+        dispatch({
+          type: "BATCH_UPDATE",
+          payload: { alerts: alertsToShow, isLoading: false },
+        });
+
+        logger.info("AlertsContext", "Alert refresh complete - updated", {
+          refreshTimeMs: Math.round(performance.now() - refreshStartTime),
+          alertsCount: alertsToShow.length,
+          changed: alertsActuallyChanged,
+        });
+      } else {
+        // Data is same as current, just clear loading state
+        dispatch({ type: "SET_LOADING", payload: false });
+
+        logger.info("AlertsContext", "Alert refresh complete - no change", {
+          refreshTimeMs: Math.round(performance.now() - refreshStartTime),
+          alertsCount: alertsToShow.length,
+        });
+      }
     } catch (error) {
       logger.error("AlertsContext", "Error refreshing alerts", error);
       dispatch({
@@ -851,6 +1026,45 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
+  // Update sort mode
+  const updateSortMode = useCallback(
+    (mode: AlertSortMode) => {
+      dispatch({ type: "SET_SORT_MODE", payload: mode });
+
+      // Re-sort current alerts with new mode
+      const currentAlerts = stateRef.current.alerts;
+      if (currentAlerts.length > 0) {
+        const reSortedAlerts = sortAlerts(currentAlerts, mode);
+        dispatch({ type: "SET_ALERTS", payload: reSortedAlerts });
+      }
+
+      // Persist preference to localStorage
+      try {
+        localStorage.setItem("AlertBanner_SortMode", mode);
+      } catch {
+        // Ignore storage errors
+      }
+    },
+    [sortAlerts],
+  );
+
+  // Load saved sort mode on init
+  React.useEffect(() => {
+    try {
+      const savedMode = localStorage.getItem(
+        "AlertBanner_SortMode",
+      ) as AlertSortMode | null;
+      if (
+        savedMode &&
+        ["manual", "priority", "date", "alphabetical"].includes(savedMode)
+      ) {
+        dispatch({ type: "SET_SORT_MODE", payload: savedMode });
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
   // The value we'll provide to consumers
   const value = React.useMemo(
     () => ({
@@ -862,6 +1076,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       refreshAlerts,
       updateCarouselSettings,
       updatePriorityBorderColors,
+      updateSortMode,
     }),
     [
       state,
@@ -871,6 +1086,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       refreshAlerts,
       updateCarouselSettings,
       updatePriorityBorderColors,
+      updateSortMode,
     ],
   );
 
@@ -901,18 +1117,52 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [cleanupExpiredCache]);
 
   // Cross-tab sync: re-read dismissed/hidden state when another tab changes localStorage
+  // Debounced to prevent infinite loops when multiple tabs are updating simultaneously
+  const lastCrossTabRefreshRef = React.useRef<number>(0);
+  const crossTabDebounceRef = React.useRef<number | null>(null);
+
   React.useEffect(() => {
     const storage = StorageService.getInstance();
+    const CROSS_TAB_DEBOUNCE_MS = 2000; // Minimum time between cross-tab refreshes
 
     const cleanup = storage.initCrossTabSync(() => {
+      const now = Date.now();
+      const timeSinceLastRefresh = now - lastCrossTabRefreshRef.current;
+
+      // Clear any pending debounced refresh
+      if (crossTabDebounceRef.current) {
+        window.clearTimeout(crossTabDebounceRef.current);
+        crossTabDebounceRef.current = null;
+      }
+
+      // If we just refreshed recently, debounce this request
+      if (timeSinceLastRefresh < CROSS_TAB_DEBOUNCE_MS) {
+        const delay = CROSS_TAB_DEBOUNCE_MS - timeSinceLastRefresh;
+        logger.debug(
+          "AlertsContext",
+          `Cross-tab change detected, debouncing refresh for ${delay}ms`,
+        );
+        crossTabDebounceRef.current = window.setTimeout(() => {
+          lastCrossTabRefreshRef.current = Date.now();
+          refreshAlerts();
+        }, delay);
+        return;
+      }
+
       logger.info(
         "AlertsContext",
         "Cross-tab storage change detected, refreshing state",
       );
+      lastCrossTabRefreshRef.current = now;
       refreshAlerts();
     });
 
-    return cleanup;
+    return () => {
+      if (crossTabDebounceRef.current) {
+        window.clearTimeout(crossTabDebounceRef.current);
+      }
+      cleanup();
+    };
   }, [refreshAlerts]);
 
   const cleanup = useCallback(() => {
@@ -936,15 +1186,50 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     return cleanup;
   }, [cleanup]);
 
+  const dispatchValue = React.useMemo(
+    () => ({
+      dispatch,
+      removeAlert,
+      hideAlertForever,
+      initializeAlerts,
+      refreshAlerts,
+      updateCarouselSettings,
+      updatePriorityBorderColors,
+      updateSortMode,
+    }),
+    [
+      dispatch,
+      removeAlert,
+      hideAlertForever,
+      initializeAlerts,
+      refreshAlerts,
+      updateCarouselSettings,
+      updatePriorityBorderColors,
+      updateSortMode,
+    ],
+  );
+
   return (
-    <AlertsContext.Provider value={value}>{children}</AlertsContext.Provider>
+    <AlertsDispatchContext.Provider value={dispatchValue}>
+      <AlertsStateContext.Provider value={state}>
+        {children}
+      </AlertsStateContext.Provider>
+    </AlertsDispatchContext.Provider>
   );
 };
 
-export const useAlerts = () => {
-  const context = useContext(AlertsContext);
+export const useAlertsState = () => {
+  const context = useContext(AlertsStateContext);
   if (context === undefined) {
-    throw new Error("useAlerts must be used within an AlertsProvider");
+    throw new Error("useAlertsState must be used within an AlertsProvider");
+  }
+  return context;
+};
+
+export const useAlertsDispatch = () => {
+  const context = useContext(AlertsDispatchContext);
+  if (context === undefined) {
+    throw new Error("useAlertsDispatch must be used within an AlertsProvider");
   }
   return context;
 };

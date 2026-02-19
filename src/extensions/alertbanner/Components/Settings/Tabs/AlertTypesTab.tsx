@@ -44,10 +44,10 @@ const createDefaultAlertType = (): IAlertType => ({
   textColor: "#ffffff",
   additionalStyles: "",
   priorityStyles: {
-    [AlertPriority.Critical]: "border: 2px solid #E81123;",
-    [AlertPriority.High]: "border: 1px solid #EA4300;",
-    [AlertPriority.Medium]: "",
-    [AlertPriority.Low]: "",
+    [AlertPriority.Critical]: "border: 4px solid #E81123;",
+    [AlertPriority.High]: "border: 3px solid #EA4300;",
+    [AlertPriority.Medium]: "border: 2px solid #0078d4;",
+    [AlertPriority.Low]: "border: 1px solid #107c10;",
   },
 });
 
@@ -368,6 +368,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
         </SharePointButton>
       </div>
 
+      <div className={styles.alertTypesContent}>
       <SharePointSection title="Existing Alert Types">
         <div className={styles.dragDropInstructions}>
           <p>
@@ -394,7 +395,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
               <div className={styles.alertCardContent}>
                 <div className={styles.typeTitleRow}>
                   <span className={styles.typeCardIcon}>
-                    {getAlertTypeIcon(type.iconName, AlertPriority.Medium)}
+                    {getAlertTypeIcon(type.iconName, type.defaultPriority || AlertPriority.Medium)}
                   </span>
                   <h4>{type.name}</h4>
                 </div>
@@ -405,7 +406,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
                   title={`Sample ${type.name} Alert`}
                   description="This is a preview of how this alert type appears."
                   alertType={type}
-                  priority={AlertPriority.Medium}
+                  priority={type.defaultPriority || AlertPriority.Medium}
                   isPinned={false}
                 />
               </div>
@@ -447,6 +448,7 @@ const AlertTypesTab: React.FC<IAlertTypesTabProps> = ({
           )}
         </div>
       </SharePointSection>
+      </div>
 
       <SharePointDialog
         isOpen={isCreatingType}
