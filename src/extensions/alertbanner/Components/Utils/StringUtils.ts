@@ -96,7 +96,6 @@ export class StringUtils {
     }
   }
 
-  // Resolve a server-relative URL to an absolute URL
   public static resolveUrl(serverRelativeUrl?: string): string {
     if (!serverRelativeUrl) {
       return '#';
@@ -113,7 +112,6 @@ export class StringUtils {
     return `${window.location.origin}${serverRelativeUrl}`;
   }
 
-  // Sanitize a string for use as an ID (used by CreateAlertTab)
   public static sanitizeForId(value: string | null | undefined): string {
     if (!value || typeof value !== 'string') {
       return '';

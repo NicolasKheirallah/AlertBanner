@@ -64,7 +64,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     "create" | "manage" | "types" | "settings"
   >("create");
 
-  // Shared services - using lazy initialization to prevent eager creation
   const siteDetector = React.useRef<SiteContextDetector | null>(null);
   const alertService = React.useRef<SharePointAlertService | null>(null);
   const languageService = React.useRef<LanguageAwarenessService | null>(null);
@@ -92,7 +91,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
 
   const [languageUpdateTrigger, setLanguageUpdateTrigger] = React.useState(0);
 
-  // Settings state
   const [settings, setSettings] = React.useState<
     ISettingsData & { enableTargetSite: boolean }
   >({
@@ -104,10 +102,8 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     copilotEnabled: !!copilotEnabled,
   });
 
-  // Alert types state
   const [alertTypes, setAlertTypes] = React.useState<IAlertType[]>([]);
 
-  // Manage alerts state
   const [existingAlerts, setExistingAlerts] = React.useState<IAlertItem[]>([]);
   const [isLoadingAlerts, setIsLoadingAlerts] = React.useState(false);
   const [selectedAlerts, setSelectedAlerts] = React.useState<string[]>([]);
@@ -116,7 +112,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   );
   const [isEditingAlert, setIsEditingAlert] = React.useState(false);
 
-  // Alert types state
   const [newAlertType, setNewAlertType] = React.useState<IAlertType>({
     name: "",
     iconName: "Info",
@@ -132,7 +127,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   });
   const [isCreatingType, setIsCreatingType] = React.useState(false);
 
-  // SharePoint list state
   const [alertsListExists, setAlertsListExists] = React.useState<
     boolean | null
   >(null);
@@ -144,7 +138,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   const alertTypesLoadInFlightRef = React.useRef<Promise<void> | null>(null);
   const { confirm, dialogs } = useFluentDialogs();
 
-  // Create alert tab - dirty state tracking
   const [hasUnsavedCreateChanges, setHasUnsavedCreateChanges] =
     React.useState(false);
   const [hasUnsavedManageChanges, setHasUnsavedManageChanges] =
@@ -154,7 +147,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
 
 
 
-  // AlertForm configuration and services
   const alertFormConfig = React.useMemo<IAlertFormProviderConfig>(
     () => ({
       alertTypes,
@@ -185,7 +177,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     [getSiteDetector, getAlertService, getLanguageService, graphClient, context]
   );
 
-  // Reset create tab state when switching away
   const resetCreateTabState = React.useCallback(() => {
     setHasUnsavedCreateChanges(false);
   }, []);
@@ -350,7 +341,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     loadAlertTypes();
   }, [isOpen, loadAlertTypes]);
 
-  // Update settings when props change
   React.useEffect(() => {
     setSettings({
       alertTypesJson,
@@ -384,7 +374,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     setLanguageUpdateTrigger((prev) => prev + 1);
   }, []);
 
-  // Only show settings button when page is in edit mode
   if (!isInEditMode) {
     return null;
   }

@@ -61,7 +61,6 @@ const SiteSelector: React.FC<{
     followedSites: ISiteOption[];
   } | null>(null);
 
-  // Load sites using useAsyncOperation
   const { loading, execute: loadSites } = useAsyncOperation(
     async () => {
       const [sites, suggestions] = await Promise.all([
@@ -84,7 +83,6 @@ const SiteSelector: React.FC<{
     }
   );
 
-  // Load sites on component mount
   React.useEffect(() => {
     loadSites();
   }, []);
@@ -92,7 +90,6 @@ const SiteSelector: React.FC<{
   const filteredSites = React.useMemo(() => {
     let filtered = [...availableSites];
 
-    // Apply search filter
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(site =>
@@ -101,17 +98,14 @@ const SiteSelector: React.FC<{
       );
     }
 
-    // Apply permission filter
     if (filters.showOnlyWritable) {
       filtered = filtered.filter(site => site.userPermissions.canCreateAlerts);
     }
 
-    // Apply site type filter
     if (filters.siteType !== 'all') {
       filtered = filtered.filter(site => site.type === filters.siteType);
     }
 
-    // Sort by relevance: selected first, then by permission level, then alphabetically
     filtered.sort((a, b) => {
       const aSelected = selectedSites.includes(a.id);
       const bSelected = selectedSites.includes(b.id);
@@ -144,7 +138,6 @@ const SiteSelector: React.FC<{
       newSelection = selectedSites.filter(id => id !== siteId);
     } else {
       if (maxSelection && selectedSites.length >= maxSelection) {
-        // Remove first selected and add new one
         newSelection = [...selectedSites.slice(1), siteId];
       } else {
         newSelection = [...selectedSites, siteId];

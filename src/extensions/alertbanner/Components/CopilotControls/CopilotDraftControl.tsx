@@ -176,7 +176,6 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
     setIsOpen(true);
   };
 
-  // Keyboard shortcut: Ctrl+Enter to generate
   const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -186,14 +185,12 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
     }
   };
 
-  // Typing effect for generated text
   const [displayedText, setDisplayedText] = React.useState("");
   const [showCursor, setShowCursor] = React.useState(true);
   const typingRef = React.useRef<number | null>(null);
   const isTypingRef = React.useRef(false);
   
   React.useEffect(() => {
-    // Cleanup function
     return () => {
       if (typingRef.current) {
         cancelAnimationFrame(typingRef.current);
@@ -204,7 +201,6 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
   
   React.useEffect(() => {
     if (stage === "preview" && generatedDraft) {
-      // Cancel any existing animation
       if (typingRef.current) {
         cancelAnimationFrame(typingRef.current);
       }
@@ -231,7 +227,6 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
         if (index <= generatedDraft.length) {
           typingRef.current = requestAnimationFrame(typeChar);
         } else {
-          // Typing complete - hide cursor after a delay
           setTimeout(() => {
             if (isTypingRef.current) {
               setShowCursor(false);
@@ -251,7 +246,6 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
     }
   }, [stage, generatedDraft]);
 
-  // Handle keyboard navigation for examples
   const handleExampleKeyDown = (e: React.KeyboardEvent, example: string, index: number): void => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();

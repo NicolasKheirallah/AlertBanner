@@ -76,7 +76,6 @@ export class ListProvisioningService {
       );
     }
 
-    // Check current site
     let needsAlerts = false;
     let needsTypes = false;
 
@@ -118,14 +117,12 @@ export class ListProvisioningService {
   public async initializeLists(siteId?: string): Promise<void> {
     const targetSiteId = siteId || this.context.pageContext.site.id.toString();
 
-    // Re-implement isHomeSite logic or optimize
     let isHomeSite = false;
     try {
       const homeSiteResponse = await this.graphClient
         .api("/sites/root")
         .select("id")
         .get();
-      // Compare with normalized IDs
       const normalizedTarget = (
         await this.locator.ensureGraphSiteIdentifier(targetSiteId)
       ).toLowerCase();
@@ -195,7 +192,6 @@ export class ListProvisioningService {
     const graphSiteIdentifier =
       await this.locator.ensureGraphSiteIdentifier(siteId);
 
-    // Permission check
     try {
       await this.graphClient
         .api(`/sites/${graphSiteIdentifier}/lists`)
@@ -513,7 +509,6 @@ export class ListProvisioningService {
       const defaults = DEFAULT_ALERT_TYPES;
       let sortOrder = 0;
       for (const type of defaults) {
-        // Include defaultPriority in PriorityStyles JSON
         const priorityStylesPayload = {
           ...(type.priorityStyles || {}),
           __defaultPriority: type.defaultPriority || undefined,
@@ -894,7 +889,6 @@ export class ListProvisioningService {
       (c: any) => (c.name || "").toLowerCase() === "targetlanguage",
     );
 
-    // Create if missing (Provisioning logic!)
     if (!column) {
       await this.graphClient.api(`${alertsListApi}/columns`).post({
         name: "TargetLanguage",

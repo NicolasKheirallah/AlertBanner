@@ -13,7 +13,6 @@ export const ALERT_ITEM_TYPES = {
 } as const;
 
 export const FIELD_NAMES = {
-  // Core fields
   TITLE: 'Title',
   DESCRIPTION: 'Description',
   ALERT_TYPE: 'AlertType',
@@ -21,20 +20,16 @@ export const FIELD_NAMES = {
   IS_PINNED: 'IsPinned',
   STATUS: 'Status',
 
-  // Scheduling fields
   SCHEDULED_START: 'ScheduledStart',
   SCHEDULED_END: 'ScheduledEnd',
 
-  // Targeting fields
   TARGET_SITES: 'TargetSites',
   TARGET_USERS: 'TargetUsers',
   NOTIFICATION_TYPE: 'NotificationType',
 
-  // Link fields
   LINK_URL: 'LinkUrl',
   LINK_DESCRIPTION: 'LinkDescription',
 
-  // Language fields
   ITEM_TYPE: 'ItemType',
   TARGET_LANGUAGE: 'TargetLanguage',
   LANGUAGE_GROUP: 'LanguageGroup',
@@ -42,7 +37,6 @@ export const FIELD_NAMES = {
 
   // Note: We use Row-Based Localization, so we do NOT use Title_EN, Title_FR columns.
 
-  // Metadata fields
   METADATA: 'Metadata',
   CREATED: 'Created',
   CREATED_BY: 'CreatedBy',
@@ -54,23 +48,18 @@ export const FIELD_NAMES = {
 } as const;
 
 export const VALIDATION_LIMITS = {
-  // Text length limits
   TITLE_MIN_LENGTH: 1,
   TITLE_MAX_LENGTH: 255,
   DESCRIPTION_MAX_LENGTH: 10000,
   LINK_URL_MAX_LENGTH: 2048,
   LINK_DESCRIPTION_MAX_LENGTH: 255,
 
-  // Email validation
   EMAIL_MAX_LENGTH: 320,
 
-  // URL validation
   URL_MAX_LENGTH: 2048,
 
-  // JSON validation
   JSON_MAX_DEPTH: 10,
 
-  // File size limits
   MAX_FILE_SIZE_MB: 10,
   MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024
 } as const;
@@ -78,7 +67,6 @@ export const VALIDATION_LIMITS = {
 export const CACHE_CONFIG = {
   ALERTS_CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
 
-  // Storage keys
   STORAGE_PREFIX: 'alertbanner_',
   DISMISSED_ALERTS_KEY: 'alertbanner_dismissed_alerts',
   HIDDEN_ALERTS_KEY: 'alertbanner_hidden_alerts'
@@ -96,7 +84,6 @@ export const API_CONFIG = {
   DEFAULT_TIMEOUT_MS: 30000 // 30 seconds
 } as const;
 
-// Window open configuration for link actions
 export const WINDOW_OPEN_CONFIG = {
   TARGET: '_blank',
   FEATURES: 'noopener,noreferrer'
@@ -107,7 +94,6 @@ export const SHADOW_CONFIG = {
   CRITICAL_PRIORITY: '0 4px 12px rgba(232, 17, 35, 0.4)'
 } as const;
 
-// Carousel configuration
 export const CAROUSEL_CONFIG = {
   AUTOPLAY_INTERVAL_MS: 5000,
   MIN_INTERVAL: 1000,
@@ -180,7 +166,6 @@ export const ALERT_TYPE_DEFAULTS = {
   DEFAULT_TEXT_COLOR: '#ffffff'
 } as const;
 
-// Default Alert Type Name when none is specified
 export const DEFAULT_ALERT_TYPE_NAME = "Info";
 
 export const DEFAULT_ALERT_TYPES: IAlertType[] = [

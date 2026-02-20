@@ -1,26 +1,30 @@
-import * as React from 'react';
+import * as React from "react";
 import { IconButton, TooltipHost } from "@fluentui/react";
-import { ImageAdd24Regular } from '@fluentui/react-icons';
-import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
-import { ImageStorageService } from '../Services/ImageStorageService';
-import { logger } from '../Services/LoggerService';
-import { NotificationService } from '../Services/NotificationService';
-import { useAsyncOperation } from '../Hooks/useAsyncOperation';
-import styles from './ImageUpload.module.scss';
-import * as strings from 'AlertBannerApplicationCustomizerStrings';
+import { ImageAdd24Regular } from "@fluentui/react-icons";
+import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
+import { ImageStorageService } from "../Services/ImageStorageService";
+import { logger } from "../Services/LoggerService";
+import { NotificationService } from "../Services/NotificationService";
+import { useAsyncOperation } from "../Hooks/useAsyncOperation";
+import styles from "./ImageUpload.module.scss";
+import * as strings from "AlertBannerApplicationCustomizerStrings";
+import {
+  FilePicker,
+  IFilePickerResult,
+} from "@pnp/spfx-controls-react/lib/FilePicker";
 
 const ImageUpload: React.FC<{
+  id?: string;
   context: ApplicationCustomizerContext;
-  onImageUploaded: (imageUrl: string, file: File, widthPercent?: number) => void;
+  onImageUploaded: (
+    imageUrl: string,
+    file: File,
+    widthPercent?: number,
+  ) => void;
   folderName?: string;
   disabled?: boolean;
-}> = ({
-  context,
-  onImageUploaded,
-  folderName,
-  disabled = false
-}) => {
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+}> = ({ id, context, onImageUploaded, folderName, disabled = false }) => {
+  const [isFilePickerOpen, setIsFilePickerOpen] = React.useState(false);
   const storageServiceRef = React.useRef<ImageStorageService>();
 
   if (!storageServiceRef.current) {
@@ -31,16 +35,20 @@ const ImageUpload: React.FC<{
     [context],
   );
 
-  // Upload image using useAsyncOperation
   const { loading: isUploading, execute: uploadImage } = useAsyncOperation(
     async (file: File) => {
-      logger.info('ImageUpload', 'Uploading image', {
+      logger.info("ImageUpload", "Uploading local image", {
         name: file.name,
         size: file.size,
-        type: file.type
+        type: file.type,
       });
-      const imageUrl = await storageServiceRef.current!.uploadImage(file, folderName);
-      logger.info('ImageUpload', 'Image upload completed', { url: imageUrl });
+      const imageUrl = await storageServiceRef.current!.uploadImage(
+        file,
+        folderName,
+      );
+      logger.info("ImageUpload", "Local image upload completed", {
+        url: imageUrl,
+      });
       return { imageUrl, file };
     },
     {
@@ -50,59 +58,86 @@ const ImageUpload: React.FC<{
         }
       },
       onError: (error) => {
-        logger.error('ImageUpload', 'Image upload failed', error);
-        const errorMessage = error instanceof Error ? error.message : strings.ImageUploadFailure;
+        logger.error("ImageUpload", "Local image upload failed", error);
+        const errorMessage =
+          error instanceof Error ? error.message : strings.ImageUploadFailure;
         notificationService.showError(errorMessage, strings.ImageUploadFailure);
       },
-      logErrors: true
-    }
+      logErrors: true,
+    },
   );
 
   const handleButtonClick = React.useCallback(() => {
     if (disabled || isUploading) {
       return;
     }
-    fileInputRef.current?.click();
+    setIsFilePickerOpen(true);
   }, [disabled, isUploading]);
 
-  const resetFileInput = (): void => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  const handleFileSelected = React.useCallback(
+    async (filePickerResult: IFilePickerResult[]) => {
+      setIsFilePickerOpen(false);
 
-  const handleFileSelected = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    resetFileInput();
+      if (!filePickerResult || filePickerResult.length === 0) {
+        return;
+      }
 
-    if (!file) {
-      return;
-    }
+      const selectedFile = filePickerResult[0];
 
-    if (!file.type?.startsWith('image/')) {
-      notificationService.showWarning(strings.ImageUploadInvalidFile, strings.ImageUploadFailure);
-      return;
-    }
+      // Case 1: The user selected a file from SharePoint/OneDrive/Web Search
+      if (selectedFile.fileAbsoluteUrl) {
+        // We create a mock 'File' object just to satisfy the onImageUploaded signature, which Jodit uses for alt-text
+        const mockFileName =
+          selectedFile.fileName ||
+          selectedFile.fileAbsoluteUrl.split("/").pop() ||
+          "sharepoint-image";
+        const mockFile = new File([], mockFileName, { type: "image/png" });
+        onImageUploaded(selectedFile.fileAbsoluteUrl, mockFile, 100);
+        return;
+      }
 
-    await uploadImage(file);
-  }, [uploadImage, notificationService]);
+      // Case 2: The user selected a local file using the "Upload" tab in the FilePicker
+      if (selectedFile.downloadFileContent) {
+        try {
+          const fileBlob = await selectedFile.downloadFileContent();
+          if (!fileBlob.type?.startsWith("image/")) {
+            notificationService.showWarning(
+              strings.ImageUploadInvalidFile,
+              strings.ImageUploadFailure,
+            );
+            return;
+          }
+
+          // Convert Blob to File
+          const file = new File(
+            [fileBlob],
+            selectedFile.fileName || "uploaded-image",
+            { type: fileBlob.type },
+          );
+          await uploadImage(file);
+        } catch (error) {
+          logger.error(
+            "ImageUpload",
+            "Failed to process local file from FilePicker",
+            error,
+          );
+          notificationService.showError(
+            strings.ImageUploadFailure,
+            strings.ImageUploadFailure,
+          );
+        }
+      }
+    },
+    [uploadImage, notificationService, onImageUploaded],
+  );
 
   const label = strings.UploadImage;
 
   return (
     <div className={styles.imageUploadContainer}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className={styles.fileInput}
-        onChange={handleFileSelected}
-        tabIndex={-1}
-        aria-hidden={true}
-      />
-
       <TooltipHost content={label}>
         <IconButton
+          id={id}
           onRenderIcon={() => <ImageAdd24Regular />}
           onClick={handleButtonClick}
           disabled={disabled || isUploading}
@@ -111,6 +146,41 @@ const ImageUpload: React.FC<{
           ariaLabel={label}
         />
       </TooltipHost>
+
+      {isFilePickerOpen && (
+        <FilePicker
+          bingAPIKey="<BING API KEY>"
+          accepts={[
+            ".gif",
+            ".jpg",
+            ".jpeg",
+            ".bmp",
+            ".dib",
+            ".tif",
+            ".tiff",
+            ".ico",
+            ".png",
+            ".jxr",
+            ".svg",
+          ]}
+          buttonClassName={styles.hiddenFilePickerBtn} // We hide the actual PnP button since we trigger it via state
+          onSave={handleFileSelected}
+          onChange={(filePickerResult: IFilePickerResult[]) => {
+            // If the user selects a local file, we trigger the save immediately rather than waiting for another click
+            if (
+              filePickerResult &&
+              filePickerResult.length > 0 &&
+              typeof filePickerResult[0].downloadFileContent === "function"
+            ) {
+              handleFileSelected(filePickerResult);
+            }
+          }}
+          onCancel={() => setIsFilePickerOpen(false)}
+          context={context as any}
+          hideWebSearchTab={true} // BING API key needed for Web Search
+          hideLinkUploadTab={false}
+        />
+      )}
     </div>
   );
 };

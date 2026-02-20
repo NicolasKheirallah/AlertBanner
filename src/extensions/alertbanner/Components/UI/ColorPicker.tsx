@@ -80,7 +80,6 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
     };
 
     if (isOpen) {
-      // Use click instead of mousedown to avoid conflicts with color inputs
       document.addEventListener('click', handleClickOutside);
     }
 
@@ -149,7 +148,6 @@ const ColorPicker: React.FC<IColorPickerProps> = ({
                     isSelected={color === value}
                     onSelect={() => {
                       handleColorSelect(color);
-                      // Close after selecting a preset color
                       setIsOpen(false);
                     }}
                   />

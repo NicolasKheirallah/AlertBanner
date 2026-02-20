@@ -280,7 +280,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     setDraftSettings(settings);
   }, [settings]);
 
-  // Load carousel settings from StorageService on mount
   React.useEffect(() => {
     const savedCarouselEnabled =
       storageService.current.getFromLocalStorage<boolean>("carouselEnabled");
@@ -304,7 +303,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       setSavedCarouselSettings((prev) => ({ ...prev, interval: seconds }));
     }
 
-    // Load priority border colors
     const savedPriorityColors = storageService.current.getFromLocalStorage<
       Record<AlertPriority, IPriorityColorConfig>
     >("priorityBorderColors");
@@ -766,7 +764,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const checkListsExistence = React.useCallback(async () => {
     setIsCheckingLists(true);
     try {
-      // Use the new detailed check method
       const listStatus = await alertService.checkListsNeeded();
       const currentSite = listStatus[0]; // Should be current site
 
@@ -774,7 +771,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         setAlertsListExists(currentSite.needsAlerts ? false : true);
         setAlertTypesListExists(currentSite.needsTypes ? false : true);
       } else {
-        // Fallback to old method
         const [alertsTest, typesTest] = await Promise.allSettled([
           alertService.getAlerts(),
           alertService.getAlertTypes(),
@@ -785,7 +781,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       }
     } catch (error) {
       logger.error("SettingsTab", "Error checking lists", error);
-      // Fallback: assume lists don't exist if there's an error
       setAlertsListExists(false);
       setAlertTypesListExists(false);
     } finally {
@@ -801,7 +796,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const handleCreateLists = React.useCallback(async () => {
     setIsCreatingLists(true);
 
-    // Initialize progress steps
     const steps: IProgressStep[] = [
       {
         id: "check-lists",
@@ -817,7 +811,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
       },
     ];
 
-    // Add language steps if multiple languages selected
     if (preCreationLanguages.length > 1) {
       preCreationLanguages.forEach((lang) => {
         if (lang !== "en-us") {
@@ -847,11 +840,9 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     setCreationSteps(steps);
 
     try {
-      // First check what's needed
       const listStatus = await alertService.checkListsNeeded();
       const currentSite = listStatus[0];
 
-      // Update first step as completed
       setCreationSteps((prev) =>
         prev.map((step) =>
           step.id === "check-lists"
@@ -875,7 +866,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         return;
       }
 
-      // Start creating lists step
       setCreationSteps((prev) =>
         prev.map((step) =>
           step.id === "create-lists"
@@ -884,10 +874,8 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         ),
       );
 
-      // Initialize lists using the existing service method
       await alertService.initializeLists();
 
-      // Complete create lists step
       setCreationSteps((prev) =>
         prev.map((step) =>
           step.id === "create-lists"
@@ -896,15 +884,12 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         ),
       );
 
-      // Add selected language columns to the newly created lists
       if (
         preCreationLanguages.length > 1 ||
         !preCreationLanguages.includes("en-us")
       ) {
         for (const languageCode of preCreationLanguages) {
           if (languageCode !== "en-us") {
-            // English is already included by default
-            // Start language step
             setCreationSteps((prev) =>
               prev.map((step) =>
                 step.id === `add-language-${languageCode}`
@@ -920,7 +905,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                 `Added ${languageCode} language columns during list creation`,
               );
 
-              // Complete language step
               setCreationSteps((prev) =>
                 prev.map((step) =>
                   step.id === `add-language-${languageCode}`
@@ -935,7 +919,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                 error,
               );
 
-              // Mark language step as failed
               setCreationSteps((prev) =>
                 prev.map((step) =>
                   step.id === `add-language-${languageCode}`
@@ -952,7 +935,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         }
       }
 
-      // Start finalize step
       setCreationSteps((prev) =>
         prev.map((step) =>
           step.id === "finalize"
@@ -961,10 +943,8 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         ),
       );
 
-      // Re-check lists after creation
       await checkListsExistence();
 
-      // Complete finalize step
       setCreationSteps((prev) =>
         prev.map((step) =>
           step.id === "finalize"
@@ -973,7 +953,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         ),
       );
 
-      // Success message
       const createdLists = [];
       if (currentSite.needsAlerts) createdLists.push("Alerts");
       if (currentSite.needsTypes && currentSite.isHomeSite)
@@ -996,12 +975,10 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         }
       }
 
-      // Trigger language change callback to refresh other components
       if (onLanguageChange) {
         onLanguageChange(preCreationLanguages);
       }
 
-      // Show informational message about AlertBannerTypes if not on home site
       if (!currentSite.isHomeSite && currentSite.needsAlerts) {
         const infoMessage =
           "Alerts list created successfully. Note: AlertBannerTypes list is only created on the SharePoint home site to maintain consistency across the tenant.";
@@ -1066,7 +1043,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
 
   const handleRepairComplete = React.useCallback(
     async (result: IRepairResult) => {
-      // Show appropriate notification based on result
       if (notificationService) {
         if (result.success) {
           if (result.details.warnings.length > 0) {
@@ -1088,7 +1064,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
         }
       }
 
-      // Re-check lists after repair to refresh the UI
       try {
         await checkListsExistence();
       } catch (error) {
@@ -1102,7 +1077,6 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     [checkListsExistence, notificationService],
   );
 
-  // Check lists on mount
   React.useEffect(() => {
     checkListsExistence();
   }, [checkListsExistence]);

@@ -19,7 +19,6 @@ export const useLanguageOptions = (
       lang.code === TargetLanguage.EnglishUS
     );
 
-    // Add each enabled language with flag, native name, and English name
     enabledLanguages.forEach(lang => {
       options.push({
         value: lang.code,

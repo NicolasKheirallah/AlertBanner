@@ -120,7 +120,6 @@ export class PermissionService {
           await graphClient.api("/sites/root").select("id").get();
           break;
         case GraphPermission.MailSend:
-          // Mail.Send can only be tested by attempting to send
           break;
         case GraphPermission.UserRead:
           await graphClient.api("/me").select("id").get();

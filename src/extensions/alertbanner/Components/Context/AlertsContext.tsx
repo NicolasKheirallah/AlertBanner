@@ -194,7 +194,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [state, dispatch] = useReducer(alertsReducer, initialState);
 
-  // Ref to access current state without causing re-renders
   const stateRef = React.useRef(state);
   React.useEffect(() => {
     stateRef.current = state;
@@ -212,13 +211,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     options?: AlertsContextOptions;
   }>({});
 
-  // Load alert types from JSON (fallback)
   const loadAlertTypes = useCallback((alertTypesJson: string) => {
     const endPerformanceTracking =
       logger.startPerformanceTracking("loadAlertTypes");
 
     try {
-      // Validate JSON with security checks before parsing
       const validation = validationService.validateJson(alertTypesJson, 10);
 
       if (!validation.isValid) {
@@ -234,7 +231,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      // Use sanitized/validated JSON data
       const alertTypesData: IAlertType[] =
         validation.sanitizedValue as IAlertType[];
       const alertTypesMap: { [key: string]: IAlertType } = {};
@@ -261,7 +257,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Load alert types from SharePoint list (primary source)
   const loadAlertTypesFromList = useCallback(async (): Promise<boolean> => {
     const endPerformanceTracking = logger.startPerformanceTracking(
       "loadAlertTypesFromList",
@@ -303,7 +298,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Map SharePoint item to alert using consolidated transformer
   const mapSharePointItemToAlert = useCallback(
     (item: IGraphListItem, siteId: string): IAlertItem => {
       return AlertTransformers.mapSharePointItemToAlert(item, siteId, false);
@@ -319,7 +313,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const CACHE_DURATION = CACHE_CONFIG.ALERTS_CACHE_DURATION;
 
-  // Normalize site ID to extract the site GUID for consistent deduplication
   const createSiteDedupKey = useCallback((siteId: string): string => {
     return SiteIdUtils.createDedupKey(siteId);
   }, []);
@@ -374,7 +367,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchAlerts = useCallback(
     async (siteId: string): Promise<IAlertItem[]> => {
-      // Check for pending request first (request deduplication)
       const pendingRequest = pendingRequestsRef.current.get(siteId);
       if (pendingRequest) {
         logger.debug(
@@ -384,7 +376,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         return pendingRequest;
       }
 
-      // Check cache
       const cached = alertCacheRef.current.get(siteId);
       const now = Date.now();
       if (cached && now - cached.timestamp < CACHE_DURATION) {
@@ -401,11 +392,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const dateTimeNow = new Date().toISOString();
 
-      // Create new request and store it in pending map
       const requestPromise = (async () => {
         try {
-          // Use the centralized service to fetch active alerts
-          // This handles date filtering, custom field fallback, and ensures consistent logic
           if (!servicesRef.current.sharePointAlertService) {
             throw new Error("SharePointAlertService not initialized");
           }
@@ -416,9 +404,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
             );
 
           // Filter out templates, drafts, and auto-saved items is already handled by SharePointAlertService.getActiveAlerts
-          // alerts = AlertFilters.excludeNonPublicAlerts(alerts);
 
-          // Cache the results
           alertCacheRef.current.set(siteId, { alerts, timestamp: now });
           logger.info(
             "AlertsContext",
@@ -435,19 +421,16 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           return [];
         } finally {
-          // Remove from pending requests map when done
           pendingRequestsRef.current.delete(siteId);
         }
       })();
 
-      // Store the promise in pending requests
       pendingRequestsRef.current.set(siteId, requestPromise);
       return requestPromise;
     },
     [mapSharePointItemToAlert],
   );
 
-  // Sort alerts based on current sort mode
   const sortAlerts = useCallback(
     (
       alertsToSort: IAlertItem[],
@@ -461,13 +444,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       return [...alertsToSort].sort((a, b) => {
-        // Always put pinned alerts first regardless of sort mode
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
 
         switch (mode) {
           case "manual":
-            // Sort by manual sortOrder, then by priority as tiebreaker
             const orderA =
               typeof a.sortOrder === "number"
                 ? a.sortOrder
@@ -479,18 +460,15 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
             if (orderA !== orderB) {
               return orderA - orderB;
             }
-            // Fall through to priority as tiebreaker
             return priorityOrder[a.priority] - priorityOrder[b.priority];
 
           case "date":
-            // Sort by created date (newest first)
             return (
               new Date(b.createdDate).getTime() -
               new Date(a.createdDate).getTime()
             );
 
           case "alphabetical":
-            // Sort alphabetically by title
             return a.title.localeCompare(b.title);
 
           case "priority":
@@ -503,10 +481,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  // Legacy function name for backward compatibility
   const sortAlertsByPriority = sortAlerts;
 
-  // Remove duplicates using AlertFilters utility
   const removeDuplicateAlerts = useCallback(
     (alertsToFilter: IAlertItem[]): IAlertItem[] => {
       return AlertFilters.removeDuplicates(alertsToFilter);
@@ -514,13 +490,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  // Check if alerts have changed
   const areAlertsDifferent = useCallback(
     (newAlerts: IAlertItem[], cachedAlerts: IAlertItem[] | null): boolean => {
       if (!cachedAlerts) return true;
       if (newAlerts.length !== cachedAlerts.length) return true;
 
-      // Use Map for O(1) lookups
       const cachedMap = new Map(cachedAlerts.map((a) => [a.id, a]));
 
       for (const newAlert of newAlerts) {
@@ -529,8 +503,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           return true;
         }
 
-        // Fast comparison using modified timestamp if available
-        // This avoids expensive JSON serialization for most cases
         if (newAlert.modified && cachedAlert.modified) {
           if (newAlert.modified !== cachedAlert.modified) {
             return true;
@@ -538,7 +510,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           continue;
         }
 
-        // Fallback to deep signature comparison if timestamp is missing
         const cachedSignature = createAlertSignature(cachedAlert);
         const currentSignature = createAlertSignature(newAlert);
 
@@ -552,7 +523,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [createAlertSignature],
   );
 
-  // Filter alerts based on user preferences using AlertFilters utility
   const filterAlerts = useCallback(
     (alertsToFilter: IAlertItem[]): IAlertItem[] => {
       return AlertFilters.filterDismissedAndHidden(
@@ -564,7 +534,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [state.userDismissedAlerts, state.userHiddenAlerts],
   );
 
-  // Filter alerts by target sites using AlertFilters utility
   const filterAlertsByTargetSites = useCallback(
     (alertsToFilter: IAlertItem[]): IAlertItem[] => {
       const scopedSiteIds = servicesRef.current.options?.siteIds || [];
@@ -573,7 +542,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  // Apply language-aware filtering to show appropriate language variants
   const applyLanguageAwareFiltering = useCallback(
     async (alertsToFilter: IAlertItem[]): Promise<IAlertItem[]> => {
       if (!servicesRef.current.languageAwarenessService) {
@@ -581,7 +549,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        // Get language with source for better debugging
         const detectionResult =
           await servicesRef.current.languageAwarenessService.getUserPreferredLanguageWithSource();
         const userPreferences =
@@ -619,7 +586,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  // Send notifications
   const sendNotifications = useCallback(
     async (alertsToNotify: IAlertItem[]): Promise<void> => {
       if (
@@ -646,7 +612,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  // Initialize alerts - smooth loading without flicker
   const initializeAlerts = useCallback(
     async (initOptions: AlertsContextOptions): Promise<void> => {
       const initStartTime = performance.now();
@@ -655,7 +620,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         servicesRef.current.options = initOptions;
         servicesRef.current.graphClient = initOptions.graphClient;
 
-        // Initialize services
         servicesRef.current.userTargetingService =
           UserTargetingService.getInstance(
             servicesRef.current.graphClient,
@@ -675,7 +639,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
         alertCacheRef.current.clear();
 
-        // Build cache key for checking cached data
         const siteIds = initOptions.siteIds || [];
         const dedupMap = new Map<string, string>();
         siteIds.forEach((siteId) => {
@@ -692,7 +655,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         const hasCachedAlerts = cachedAlerts && cachedAlerts.length > 0;
 
         // If we have cached alerts, start with them but keep loading state
-        // This prevents the "no alerts" flash while still allowing smooth updates
         if (hasCachedAlerts) {
           let alertsToShow = filterAlertsByTargetSites(cachedAlerts);
           alertsToShow = filterAlerts(alertsToShow);
@@ -707,22 +669,17 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
             renderTimeMs: Math.round(performance.now() - initStartTime),
           });
         } else {
-          // No cache - show loading state
           dispatch({ type: "SET_LOADING", payload: true });
         }
 
-        // PHASE 1: Parallel initialization of independent services
         const [languagePolicy, alertTypesLoaded, dismissedHiddenAlerts] =
           await Promise.all([
-            // Load language policy
             servicesRef.current.sharePointAlertService
               .getLanguagePolicy()
               .catch(() => DEFAULT_LANGUAGE_POLICY),
 
-            // Load alert types (uses cache internally)
             loadAlertTypesFromList(),
 
-            // Initialize user targeting and get dismissed/hidden alerts
             (async () => {
               if (
                 !servicesRef.current.options?.userTargetingEnabled ||
@@ -744,12 +701,10 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
         servicesRef.current.languagePolicy = languagePolicy;
 
-        // Load alert types from JSON fallback if needed
         if (!alertTypesLoaded && servicesRef.current.options) {
           loadAlertTypes(servicesRef.current.options.alertTypesJson);
         }
 
-        // Update dismissed/hidden alerts
         dispatch({
           type: "BATCH_UPDATE",
           payload: {
@@ -758,7 +713,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           },
         });
 
-        // PHASE 2: Fetch fresh alerts
         await refreshAlerts();
 
         logger.info("AlertsContext", "Initialization complete", {
@@ -789,7 +743,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     ],
   );
 
-  // Refresh alerts - optimized with larger batches and parallel processing
   const refreshAlerts = useCallback(async (): Promise<void> => {
     if (!servicesRef.current.options || !servicesRef.current.graphClient)
       return;
@@ -799,11 +752,9 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const allAlerts: IAlertItem[] = [];
 
-      // Increased batch size for better parallelization (5 instead of 3)
       const batchSize = 5;
       const siteIds = servicesRef.current.options.siteIds || [];
 
-      // Normalize site IDs and remove duplicates
       const dedupMap = new Map<string, string>();
       (siteIds || []).forEach((siteId) => {
         const dedupKey = createSiteDedupKey(siteId);
@@ -820,7 +771,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         uniqueSiteIds: uniqueSiteIds.length,
       });
 
-      // Fetch all alerts in parallel batches
       for (let i = 0; i < uniqueSiteIds.length; i += batchSize) {
         const batch = uniqueSiteIds.slice(i, i + batchSize);
         const batchPromises = batch.map((siteId) => fetchAlerts(siteId));
@@ -842,46 +792,37 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       }
 
-      // If no alerts were fetched, handle gracefully
       if (allAlerts.length === 0) {
         dispatch({ type: "SET_ALERTS", payload: [] });
         dispatch({ type: "SET_LOADING", payload: false });
         return;
       }
 
-      // Remove duplicates
       const uniqueAlerts = removeDuplicateAlerts(allAlerts);
 
-      // Compare with cached alerts
       const cachedAlerts =
         storageService.getFromLocalStorage<IAlertItem[]>(alertsCacheKey);
       const alertsAreDifferent = areAlertsDifferent(uniqueAlerts, cachedAlerts);
 
-      // Update cache if needed
       if (alertsAreDifferent) {
         storageService.saveToLocalStorage(alertsCacheKey, uniqueAlerts);
       }
 
-      // Get alerts to display
       let alertsToShow = alertsAreDifferent ? uniqueAlerts : cachedAlerts || [];
 
-      // Apply filters in sequence (these are fast, no API calls)
       alertsToShow = filterAlertsByTargetSites(alertsToShow);
       alertsToShow = filterAlerts(alertsToShow);
 
-      // Apply user targeting with timeout (don't block if slow)
       if (
         servicesRef.current.options.userTargetingEnabled &&
         servicesRef.current.userTargetingService
       ) {
         try {
-          // Apply user targeting with a 2-second timeout
           const targetingPromise =
             servicesRef.current.userTargetingService.filterAlertsForCurrentUser(
               alertsToShow,
             );
 
-          // Race against timeout
           alertsToShow = await Promise.race([
             targetingPromise,
             new Promise<IAlertItem[]>((resolve) =>
@@ -903,10 +844,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      // Apply language-aware filtering
       alertsToShow = await applyLanguageAwareFiltering(alertsToShow);
 
-      // Limit the number of alerts to prevent performance issues
       if (alertsToShow.length > 20) {
         logger.warn(
           "AlertsContext",
@@ -915,7 +854,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         alertsToShow = alertsToShow.slice(0, 20);
       }
 
-      // Sort alerts by priority
       alertsToShow = sortAlertsByPriority(alertsToShow);
 
       // Send notifications for critical/high priority alerts if they're new
@@ -933,7 +871,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      // Smooth transition: Compare with current state before updating
       const currentAlerts = stateRef.current.alerts;
       const alertsActuallyChanged = areAlertsDifferent(
         alertsToShow,
@@ -941,7 +878,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (alertsActuallyChanged || stateRef.current.isLoading) {
-        // Update state - use single batch to prevent flicker
         dispatch({
           type: "BATCH_UPDATE",
           payload: { alerts: alertsToShow, isLoading: false },
@@ -953,7 +889,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           changed: alertsActuallyChanged,
         });
       } else {
-        // Data is same as current, just clear loading state
         dispatch({ type: "SET_LOADING", payload: false });
 
         logger.info("AlertsContext", "Alert refresh complete - no change", {
@@ -985,11 +920,9 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     applyLanguageAwareFiltering,
   ]);
 
-  // Handle removing an alert
   const removeAlert = useCallback((id: string): void => {
     dispatch({ type: "DISMISS_ALERT", payload: id });
 
-    // Add to user's dismissed alerts if targeting is enabled
     if (
       servicesRef.current.options?.userTargetingEnabled &&
       servicesRef.current.userTargetingService
@@ -998,11 +931,9 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Handle hiding an alert forever
   const hideAlertForever = useCallback((id: string): void => {
     dispatch({ type: "HIDE_ALERT_FOREVER", payload: id });
 
-    // Add to user's hidden alerts if targeting is enabled
     if (
       servicesRef.current.options?.userTargetingEnabled &&
       servicesRef.current.userTargetingService
@@ -1011,7 +942,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Update carousel settings
   const updateCarouselSettings = useCallback(
     (settings: { carouselEnabled?: boolean; carouselInterval?: number }) => {
       dispatch({ type: "SET_CAROUSEL_SETTINGS", payload: settings });
@@ -1026,29 +956,24 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  // Update sort mode
   const updateSortMode = useCallback(
     (mode: AlertSortMode) => {
       dispatch({ type: "SET_SORT_MODE", payload: mode });
 
-      // Re-sort current alerts with new mode
       const currentAlerts = stateRef.current.alerts;
       if (currentAlerts.length > 0) {
         const reSortedAlerts = sortAlerts(currentAlerts, mode);
         dispatch({ type: "SET_ALERTS", payload: reSortedAlerts });
       }
 
-      // Persist preference to localStorage
       try {
         localStorage.setItem("AlertBanner_SortMode", mode);
       } catch {
-        // Ignore storage errors
       }
     },
     [sortAlerts],
   );
 
-  // Load saved sort mode on init
   React.useEffect(() => {
     try {
       const savedMode = localStorage.getItem(
@@ -1061,11 +986,9 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         dispatch({ type: "SET_SORT_MODE", payload: savedMode });
       }
     } catch {
-      // Ignore storage errors
     }
   }, []);
 
-  // The value we'll provide to consumers
   const value = React.useMemo(
     () => ({
       state,
@@ -1090,7 +1013,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     ],
   );
 
-  // Periodic cleanup of expired cache entries
   const cleanupExpiredCache = useCallback(() => {
     const now = Date.now();
     let cleanedCount = 0;
@@ -1110,14 +1032,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Set up periodic cache cleanup
   React.useEffect(() => {
     const cleanupInterval = setInterval(cleanupExpiredCache, CACHE_DURATION);
     return () => clearInterval(cleanupInterval);
   }, [cleanupExpiredCache]);
 
-  // Cross-tab sync: re-read dismissed/hidden state when another tab changes localStorage
-  // Debounced to prevent infinite loops when multiple tabs are updating simultaneously
   const lastCrossTabRefreshRef = React.useRef<number>(0);
   const crossTabDebounceRef = React.useRef<number | null>(null);
 
@@ -1129,13 +1048,11 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       const now = Date.now();
       const timeSinceLastRefresh = now - lastCrossTabRefreshRef.current;
 
-      // Clear any pending debounced refresh
       if (crossTabDebounceRef.current) {
         window.clearTimeout(crossTabDebounceRef.current);
         crossTabDebounceRef.current = null;
       }
 
-      // If we just refreshed recently, debounce this request
       if (timeSinceLastRefresh < CROSS_TAB_DEBOUNCE_MS) {
         const delay = CROSS_TAB_DEBOUNCE_MS - timeSinceLastRefresh;
         logger.debug(
@@ -1171,7 +1088,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
     pendingRequestsRef.current.clear();
     servicesRef.current = {};
 
-    // Dispatch final cleanup state
     dispatch({
       type: "BATCH_UPDATE",
       payload: {

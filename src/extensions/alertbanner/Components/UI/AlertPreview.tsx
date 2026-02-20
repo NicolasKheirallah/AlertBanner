@@ -30,7 +30,6 @@ const AlertPreview: React.FC<{
     }
   };
 
-  // Get priority-specific border color or fallback to alert type's background color
   const priorityColor = alertType.priorityColors?.[priority]?.borderColor || alertType.backgroundColor;
   const priorityTextColor = getContrastText(priorityColor);
   const normalizeColorToken = (color?: string): string =>

@@ -171,7 +171,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     "all" | ContentStatus
   >("all");
 
-  // Enhanced filter states
   const [priorityFilter, setPriorityFilter] = React.useState<
     "all" | AlertPriority
   >("all");
@@ -196,11 +195,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [busyAlertIds, setBusyAlertIds] = React.useState<string[]>([]);
   const advancedFiltersId = "manage-alerts-advanced-filters";
   
-  // Drag and drop state
   const [draggingAlertId, setDraggingAlertId] = React.useState<string | null>(null);
   const [dragOverAlertId, setDragOverAlertId] = React.useState<string | null>(null);
   
-  // Sort mode for Manage Alerts tab (default to priority)
   const [manageSortMode, setManageSortMode] = React.useState<"priority" | "manual">("priority");
   const [alertsListId, setAlertsListId] = React.useState<string>("");
   const [editingAlertSiteId, setEditingAlertSiteId] =
@@ -499,7 +496,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [editingAlert, hasUnsavedEditChanges]);
 
-  // Initialize services with useMemo to prevent recreation
   const languageService = React.useMemo(
     () => new LanguageAwarenessService(graphClient, context),
     [graphClient, context],
@@ -560,10 +556,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     };
   }, [copilotEnabled, copilotService]);
 
-  // Priority options - using shared hook with localization
   const priorityOptions = usePriorityOptions();
 
-  // Notification type options with detailed descriptions - memoized and localized
   const notificationOptions: ISharePointSelectOption[] = React.useMemo(
     () => [
       {
@@ -586,7 +580,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     [],
   );
 
-  // Alert type options (include legacy/custom values that might not exist locally)
   const alertTypeOptions: ISharePointSelectOption[] = React.useMemo(() => {
     const optionMap = new Map<string, ISharePointSelectOption>();
 
@@ -609,7 +602,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     return Array.from(optionMap.values());
   }, [alertTypes, supplementalAlertTypes, editingAlert?.AlertType]);
 
-  // Content type options - memoized and localized (matching CreateAlerts)
   const contentTypeOptions: ISharePointSelectOption[] = React.useMemo(
     () => [
       {
@@ -628,7 +620,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     [],
   );
 
-  // Ensure we always have a persisted alert type selected
   React.useEffect(() => {
     if (
       editingAlert &&
@@ -641,10 +632,8 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     }
   }, [editingAlert, alertTypeOptions, setEditingAlert]);
 
-  // Language options - using shared hook
   const languageOptions = useLanguageOptions(supportedLanguages);
 
-  // Load supported languages and tenant default on component mount
   React.useEffect(() => {
     const loadLanguageSettings = async () => {
       try {
@@ -687,7 +676,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     loadLanguageSettings();
   }, [languageService, alertService]);
 
-  // Initialize language content when switching to multi-language mode in edit
   React.useEffect(() => {
     if (
       editingAlert &&
@@ -695,7 +683,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       (!editingAlert.languageContent ||
         editingAlert.languageContent.length === 0)
     ) {
-      // User toggled multi-language mode - initialize with current alert content
       const initialContent: ILanguageContent = {
         language: editingAlert.targetLanguage || tenantDefaultLanguage,
         title: editingAlert.title,
@@ -724,7 +711,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       editingAlert.languageContent &&
       editingAlert.languageContent.length > 0
     ) {
-      // User toggled back to single language - use first language content
       const firstLang = editingAlert.languageContent[0];
       if (firstLang) {
         setEditingAlert((prev) =>
@@ -784,7 +770,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     const previousAlerts = existingAlerts;
     setIsBulkActionInFlight(true);
 
-    // Optimistic remove for faster perceived response.
     setExistingAlerts((prev) =>
       prev.filter((item) => !selectedSet.has(item.id)),
     );
@@ -859,11 +844,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             );
           });
 
-        // Check if this is a multi-language alert (has languageGroup)
         const isMultiLang = !!alert.languageGroup;
 
         if (isMultiLang && alert.languageGroup) {
-          // Load all language variants for this group
           const languageVariants = existingAlerts.filter(
             (a) => a.languageGroup === alert.languageGroup,
           );
@@ -906,9 +889,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           initialEditSnapshotRef.current = captureEditSnapshot(editingData);
           setUseMultiLanguage(true);
 
-          // Duplicate language check removed
         } else {
-          // Single language alert
           const editingData: IEditingAlert = {
             ...alert,
             scheduledStart: alert.scheduledStart
@@ -1261,7 +1242,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     ],
   );
 
-  // Drag and Drop Handlers
   const handleDragStart = React.useCallback((alertId: string) => {
     setDraggingAlertId(alertId);
   }, []);
@@ -1282,27 +1262,22 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       return;
     }
 
-    // Find indices in existingAlerts (the source of truth)
     const draggedIndex = existingAlerts.findIndex(a => a.id === draggingAlertId);
     const targetIndex = existingAlerts.findIndex(a => a.id === targetAlertId);
     
     if (draggedIndex === -1 || targetIndex === -1) return;
 
-    // Reorder the alerts
     const newAlerts = [...existingAlerts];
     const [removed] = newAlerts.splice(draggedIndex, 1);
     newAlerts.splice(targetIndex, 0, removed);
 
-    // Update sort orders
     const updatedAlerts = newAlerts.map((alert, index) => ({
       ...alert,
       sortOrder: index,
     }));
 
-    // Update local state immediately for smooth UX
     setExistingAlerts(updatedAlerts);
 
-    // Persist to SharePoint (debounced - only update the changed alerts)
     try {
       // Only update the dragged alert and the alerts between dragged and target positions
       const minIndex = Math.min(draggedIndex, targetIndex);
@@ -1318,7 +1293,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     } catch (error) {
       logger.error("ManageAlertsTab", "Error updating sort order", error);
       notificationService.showError("Failed to save alert order", "Error");
-      // Reload to get correct state
       loadExistingAlerts();
     }
 
@@ -1326,21 +1300,17 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     setDragOverAlertId(null);
   }, [draggingAlertId, existingAlerts, alertService, notificationService, setExistingAlerts, loadExistingAlerts]);
 
-  // Sort Order Input Handler
   const handleSortOrderChange = React.useCallback(async (alertId: string, newOrder: number) => {
     const alertIndex = existingAlerts.findIndex(a => a.id === alertId);
     if (alertIndex === -1) return;
 
-    // Clamp newOrder to valid range
     const clampedOrder = Math.max(0, Math.min(newOrder, existingAlerts.length - 1));
     if (clampedOrder === alertIndex) return; // No change needed
 
-    // Create new array with reordered alerts
     const newAlerts = [...existingAlerts];
     const [movedAlert] = newAlerts.splice(alertIndex, 1);
     newAlerts.splice(clampedOrder, 0, movedAlert);
 
-    // Reindex all alerts
     const reindexedAlerts = newAlerts.map((alert, index) => ({
       ...alert,
       sortOrder: index,
@@ -1348,7 +1318,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
 
     setExistingAlerts(reindexedAlerts);
 
-    // Persist to SharePoint (only update affected range)
     try {
       const minIndex = Math.min(alertIndex, clampedOrder);
       const maxIndex = Math.max(alertIndex, clampedOrder);
@@ -1367,7 +1336,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     }
   }, [existingAlerts, alertService, notificationService, setExistingAlerts, loadExistingAlerts]);
 
-  // Move to Top/Bottom Handlers
   const handleMoveToTop = React.useCallback(async (alertId: string) => {
     await handleSortOrderChange(alertId, 0);
   }, [handleSortOrderChange]);
@@ -1376,7 +1344,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     await handleSortOrderChange(alertId, Number.MAX_SAFE_INTEGER); // Will be clamped to valid range
   }, [handleSortOrderChange]);
 
-  // Validation using shared utility with localization
   const validateEditForm = React.useCallback((): boolean => {
     if (!editingAlert) return false;
 
@@ -1524,7 +1491,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     return Number.isNaN(itemId) ? undefined : itemId;
   }, [editingAlert?.id, alertService]);
 
-  // Helper function to check if date matches filter
   const matchesDateFilter = React.useCallback(
     (alert: IAlertItem): boolean => {
       if (dateFilter === "all") return true;
@@ -1555,11 +1521,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     [dateFilter, customDateFrom, customDateTo],
   );
 
-  // Group alerts by language group with enhanced filtering and sorting
   const groupedAlerts = React.useMemo(() => {
     let filteredAlerts = [...existingAlerts];
 
-    // Apply sorting based on sort mode
     if (manageSortMode === "manual") {
       // Sort by sortOrder (nulls/undefined at the end), then by created date as tiebreaker
       filteredAlerts.sort((a, b) => {
@@ -1568,65 +1532,55 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         if (orderA !== orderB) {
           return orderA - orderB;
         }
-        // Tiebreaker: created date (newest first)
         return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
       });
     }
     // For "priority" mode, keep default order (which is by date from API)
 
-    // Apply content type filter
     if (contentTypeFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
         (a) => a.contentType === contentTypeFilter,
       );
     }
 
-    // Apply priority filter
     if (priorityFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
         (a) => a.priority === priorityFilter,
       );
     }
 
-    // Apply alert type filter
     if (alertTypeFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
         (a) => a.AlertType === alertTypeFilter,
       );
     }
 
-    // Apply status filter
     if (statusFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
         (a) => a.status.toLowerCase() === statusFilter.toLowerCase(),
       );
     }
 
-    // Apply content status filter
     if (contentStatusFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
         (a) => (a.contentStatus || ContentStatus.Draft) === contentStatusFilter,
       );
     }
 
-    // Apply language filter
     if (languageFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
         (a) => a.targetLanguage === languageFilter,
       );
     }
 
-    // Apply notification type filter
     if (notificationFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
         (a) => a.notificationType === notificationFilter,
       );
     }
 
-    // Apply date filter
     filteredAlerts = filteredAlerts.filter(matchesDateFilter);
 
-    // Apply search term
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase().trim();
       filteredAlerts = filteredAlerts.filter(
@@ -1659,7 +1613,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     // Create combined display items: one item per language group, plus all ungrouped items
     const displayItems: IDisplayAlertItem[] = [];
 
-    // Add language groups (show primary language variant as the main item)
     Object.entries(groups).forEach(([languageGroup, variants]) => {
       // Use the first variant as the primary display item, with variants attached
       const primaryVariant =
@@ -1672,7 +1625,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       });
     });
 
-    // Add ungrouped items
     displayItems.push(...ungrouped);
 
     return displayItems;
@@ -1805,7 +1757,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     statusFilter,
   ]);
 
-  // Load alerts on mount
   React.useEffect(() => {
     loadExistingAlerts();
   }, [loadExistingAlerts]);
@@ -2460,7 +2411,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   }
                   alertTypeStyle={alertTypeStyleMap.get(alert.AlertType)}
                   supportedLanguageMap={supportedLanguageMap}
-                  // Sort controls - only show when in manual sort mode
                   sortOrder={alert.sortOrder ?? index}
                   onSortOrderChange={manageSortMode === "manual" ? 
                     (newOrder) => handleSortOrderChange(alert.id, newOrder) : undefined}
@@ -2470,7 +2420,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                     () => handleMoveToBottom(alert.id) : undefined}
                   isFirst={index === 0}
                   isLast={index === groupedAlerts.length - 1}
-                  // Drag and drop - only in manual mode
                   isDragging={draggingAlertId === alert.id}
                   isDragOver={dragOverAlertId === alert.id}
                   onDragStart={manageSortMode === "manual" ? 

@@ -43,20 +43,17 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Track mount status
   useEffect(() => {
     isMountedRef.current = true;
 
     return () => {
       isMountedRef.current = false;
-      // Abort any pending operations on unmount
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
   }, []);
 
-  // Reset state on unmount if requested
   useEffect(() => {
     return () => {
       if (options.resetOnUnmount && isMountedRef.current) {
@@ -72,12 +69,10 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
 
   const execute = useCallback(
     async (...args: TArgs): Promise<T | null> => {
-      // Abort any previous operation
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
-      // Create new abort controller for this operation
       abortControllerRef.current = new AbortController();
 
       setState({
@@ -90,7 +85,6 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
       try {
         const result = await operation(...args);
 
-        // Only update state if component is still mounted
         if (isMountedRef.current) {
           setState({
             loading: false,
@@ -110,7 +104,6 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
       } catch (err: any) {
         const error = ErrorUtils.toError(err);
 
-        // Only update state if component is still mounted
         if (isMountedRef.current) {
           const errorMessage = options.errorMessage
             ? options.errorMessage

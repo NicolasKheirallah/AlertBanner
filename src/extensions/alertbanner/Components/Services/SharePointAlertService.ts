@@ -45,7 +45,6 @@ export class SharePointAlertService {
     );
   }
 
-  // Provisioning Delegates
   public async checkListsNeeded() {
     return this.provisioning.checkListsNeeded();
   }
@@ -71,7 +70,6 @@ export class SharePointAlertService {
     return this.provisioning.updateSupportedLanguages(siteId, langs);
   }
 
-  // Operations Delegates
   public async getActiveAlerts(siteId: string) {
     return this.operations.getActiveAlerts(siteId);
   }
@@ -134,7 +132,6 @@ export class SharePointAlertService {
     return this.operations.saveLanguagePolicy(policy, siteId);
   }
 
-  // Approval Workflow Delegates
   public async submitAlert(id: string, reviewerId?: string) {
     return this.operations.submitAlert(id, reviewerId);
   }
@@ -145,7 +142,6 @@ export class SharePointAlertService {
     return this.operations.rejectAlert(id, comments);
   }
 
-  // Helpers exposed
   public getCurrentSiteId() {
     return this.context.pageContext.site.id.toString();
   }
@@ -163,7 +159,6 @@ export class SharePointAlertService {
     return this.operations.parseAlertId(alertId).siteId;
   }
 
-  // Hierarchy Logic (Aggregators)
   public async getAlerts(siteIds?: string[]): Promise<IAlertItem[]> {
     const sites = await this.resolveSiteIds(siteIds);
     const allAlerts: IAlertItem[] = [];
@@ -235,7 +230,6 @@ export class SharePointAlertService {
       await siteContext.initialize();
       const hierarchy = siteContext.getAlertSourceSites();
 
-      // Deduplicate
       const unique = new Set<string>();
       hierarchy.forEach((s) =>
         unique.add(
@@ -244,10 +238,7 @@ export class SharePointAlertService {
             : s.replace(/[{}]/g, "").toLowerCase(),
         ),
       ); // Simplified logic
-      // Actually, Original uses complex dedup logic.
       // I will trust the input for now or use Array.from(unique) but mapping back to original strings?
-      // Original mapped normalized -> original.
-      // I'll return hierarchy as is, SiteContextService supposedly handles it well.
       return hierarchy;
     } catch (e) {
       return [this.context.pageContext.site.id.toString()];

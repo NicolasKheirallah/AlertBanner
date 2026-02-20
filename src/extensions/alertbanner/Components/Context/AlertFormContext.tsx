@@ -21,9 +21,6 @@ import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { IFormErrors } from "../Settings/Tabs/SharedTypes";
 
-// =============================================================================
-// TYPES
-// =============================================================================
 
 /**
  * New alert form data structure
@@ -57,40 +54,32 @@ export type CreateWizardStep = "content" | "audience" | "publish";
  * Complete state interface for the alert form
  */
 export interface IAlertFormState {
-  // Form data
   newAlert: INewAlert;
   errors: IFormErrors;
 
-  // UI state
   isCreatingAlert: boolean;
   showPreview: boolean;
   showTemplates: boolean;
   createStep: CreateWizardStep;
   currentEntryMode: "scratch" | "templates" | "drafts" | "previous";
 
-  // Progress and results
   creationProgress: ISiteValidationResult[];
   lastCreateAttemptFailed: boolean;
 
-  // Auto-save state
   autoSaveDraftId: string | null;
   lastAutoSave: Date | null;
   autoSaveStatus: "idle" | "pending" | "saving" | "saved" | "error";
   isAutoSaving: boolean;
 
-  // Multi-language support
   useMultiLanguage: boolean;
   supportedLanguages: ISupportedLanguage[];
   languagePolicy: ILanguagePolicy;
 
-  // Drafts and previous alerts
   drafts: IAlertItem[];
   previousAlerts: IAlertItem[];
 
-  // Copilot state
   copilotAvailability: "unknown" | "available" | "unavailable";
 
-  // Dependencies (injected via provider)
   alertTypes: IAlertType[];
   userTargetingEnabled: boolean;
   notificationsEnabled: boolean;
@@ -99,9 +88,6 @@ export interface IAlertFormState {
 
 }
 
-// =============================================================================
-// INITIAL STATE
-// =============================================================================
 
 export const createInitialNewAlert = (alertTypes: IAlertType[]): INewAlert => ({
   title: "",
@@ -152,9 +138,6 @@ const createInitialState = (
   copilotEnabled: config.copilotEnabled ?? false,
 });
 
-// =============================================================================
-// ACTIONS
-// =============================================================================
 
 export type AlertFormAction =
   | { type: "SET_FIELD"; field: keyof INewAlert; value: unknown }
@@ -184,9 +167,6 @@ export type AlertFormAction =
   | { type: "LOAD_PREVIOUS_ALERT"; alert: IAlertItem }
   | { type: "LOAD_TEMPLATE"; template: IAlertItem; useMultiLanguage: boolean };
 
-// =============================================================================
-// REDUCER
-// =============================================================================
 
 function alertFormReducer(state: IAlertFormState, action: AlertFormAction): IAlertFormState {
   switch (action.type) {
@@ -433,9 +413,6 @@ function alertFormReducer(state: IAlertFormState, action: AlertFormAction): IAle
   }
 }
 
-// =============================================================================
-// CONTEXT
-// =============================================================================
 
 interface IAlertFormContextValue {
   state: IAlertFormState;
@@ -445,9 +422,6 @@ interface IAlertFormContextValue {
 const AlertFormContext = React.createContext<IAlertFormContextValue | undefined>(undefined);
 const AlertFormServicesContext = React.createContext<IAlertFormServices | undefined>(undefined);
 
-// =============================================================================
-// PROVIDER CONFIG
-// =============================================================================
 
 export interface IAlertFormProviderConfig {
   alertTypes: IAlertType[];
@@ -473,9 +447,6 @@ export interface IAlertFormProviderProps {
   onDirtyStateChange?: (hasUnsavedChanges: boolean) => void;
 }
 
-// =============================================================================
-// PROVIDER COMPONENT
-// =============================================================================
 
 export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
   config,
@@ -488,12 +459,10 @@ export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
     createInitialState(config, services)
   );
 
-  // Update alert types when they change externally
   React.useEffect(() => {
     dispatch({ type: "UPDATE_ALERT_TYPES", alertTypes: config.alertTypes });
   }, [config.alertTypes]);
 
-  // Track dirty state
   React.useEffect(() => {
     if (!onDirtyStateChange) {
       return;
@@ -521,13 +490,11 @@ export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
     onDirtyStateChange,
   ]);
 
-  // Memoize context value to prevent unnecessary re-renders
   const contextValue = React.useMemo(
     () => ({ state, dispatch }),
     [state, dispatch]
   );
 
-  // Memoize services to prevent unnecessary re-renders
   const servicesValue = React.useMemo(
     () => services,
     [services.siteDetector, services.alertService, services.graphClient, services.context, services.languageService]
@@ -542,9 +509,6 @@ export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
   );
 };
 
-// =============================================================================
-// HOOKS
-// =============================================================================
 
 /**
  * Hook to access the alert form state and dispatch
@@ -616,7 +580,6 @@ export function useAlertFormComputed<T>(
   deps: React.DependencyList = []
 ): T {
   const { state } = useAlertForm();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   return React.useMemo(() => compute(state), [state, ...deps]);
 }
 

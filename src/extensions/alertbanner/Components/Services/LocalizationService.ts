@@ -33,7 +33,6 @@ export class LocalizationService {
   private _context: ApplicationCustomizerContext;
   private _fallbackStrings: ILocalizationStrings = {};
 
-  // Supported languages
   private readonly _supportedLanguages: ILanguageInfo[] = [
     {
       code: 'en-us',
@@ -147,7 +146,6 @@ export class LocalizationService {
       this._currentLanguage = supportedLanguage;
       await this.loadLanguageStrings(this._currentLanguage);
       
-      // Store user preference
       this.storeLanguagePreference(this._currentLanguage);
     }
   }
@@ -300,17 +298,14 @@ export class LocalizationService {
   }
 }
 
-// Export a convenience function for getting localized strings
 export function getString(key: string, ...args: any[]): string {
   return LocalizationService.getInstance().getString(key, ...args);
 }
 
-// Export a convenience function for formatting dates
 export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
   return LocalizationService.getInstance().formatDate(date, options);
 }
 
-// Export a convenience function for formatting relative time
 export function formatRelativeTime(date: Date | string): string {
   return LocalizationService.getInstance().formatRelativeTime(date);
 }

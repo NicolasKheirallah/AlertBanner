@@ -2,7 +2,6 @@ import { SiteIdUtils } from './SiteIdUtils';
 import { IAlertItem, ContentType, AlertPriority, TargetLanguage } from '../Alerts/IAlerts';
 import { logger } from '../Services/LoggerService';
 
-// Utility class for filtering alerts
 export class AlertFilters {
   public static removeDuplicates(alerts: IAlertItem[]): IAlertItem[] {
     const seenIds = new Set<string>();
@@ -66,14 +65,12 @@ export class AlertFilters {
       return alerts;
     }
 
-    // Build unique set of all scoped site variations
     const scopeSet = new Set<string>();
     scopedSiteIds.forEach(site => {
       SiteIdUtils.generateSiteVariations(site).forEach(v => scopeSet.add(v));
     });
 
     return alerts.filter(alert => {
-      // If no target sites specified, show to all sites
       if (!alert.targetSites || alert.targetSites.length === 0) {
         return true;
       }
@@ -114,8 +111,6 @@ export class AlertFilters {
     return alerts.filter(alert => !this.isAutoSaved(alert));
   }
 
-  // Filter out templates, drafts, and auto-saved items (common exclusion pattern)
-  // Alerts with empty/null ItemType are treated as valid alerts (backward compatibility)
   public static excludeNonPublicAlerts(alerts: IAlertItem[]): IAlertItem[] {
     return alerts.filter(alert => {
       // If contentType is not set, treat as a regular alert (backward compatibility)
@@ -171,14 +166,11 @@ export class AlertFilters {
     );
   }
 
-  // Check if alert is currently active based on schedule
   public static isActive(alert: IAlertItem, currentTime: Date = new Date()): boolean {
-    // If scheduledStart exists and is in the future, not yet active
     if (alert.scheduledStart && new Date(alert.scheduledStart) > currentTime) {
       return false;
     }
 
-    // If scheduledEnd exists and is in the past, already expired
     if (alert.scheduledEnd && new Date(alert.scheduledEnd) < currentTime) {
       return false;
     }
@@ -193,7 +185,6 @@ export class AlertFilters {
     return alerts.filter(alert => this.isActive(alert, currentTime));
   }
 
-  // Full-text search across alert fields
   public static searchAlerts(alerts: IAlertItem[], searchTerm: string): IAlertItem[] {
     if (!searchTerm || searchTerm.trim() === '') {
       return alerts;

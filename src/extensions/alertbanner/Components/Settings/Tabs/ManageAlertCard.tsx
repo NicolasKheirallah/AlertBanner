@@ -44,14 +44,12 @@ export interface IManageAlertCardProps {
     textColor?: string;
   };
   supportedLanguageMap: Map<string, ISupportedLanguage>;
-  // Sort order props
   sortOrder?: number;
   onSortOrderChange?: (newOrder: number) => void;
   onMoveToTop?: () => void;
   onMoveToBottom?: () => void;
   isFirst?: boolean;
   isLast?: boolean;
-  // Drag and drop props
   isDragging?: boolean;
   isDragOver?: boolean;
   onDragStart?: () => void;

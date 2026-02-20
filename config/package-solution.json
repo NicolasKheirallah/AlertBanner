@@ -3,7 +3,7 @@
   "solution": {
     "name": "alert-banner-client-side-solution",
     "id": "19ca3d2c-07f7-4a03-ac6e-609fa591ccd9",
-    "version": "5.0.0.1",
+    "version": "5.0.0.2",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,

@@ -29,7 +29,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInEditMode, setIsInEditMode] = React.useState(false);
 
-  // Carousel settings from context
   const { carouselEnabled, carouselInterval } = state;
   const carouselTimer = React.useRef<number | null>(null);
   const storageService = React.useRef<StorageService>(
@@ -54,7 +53,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     [],
   );
 
-  // Memoized siteIds normalization for stable dependency
   const normalizedSiteIds = React.useMemo(() => {
     return (props.siteIds ?? [])
       .map((id) => (id ?? "").toString().trim())
@@ -65,7 +63,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     return ArrayUtils.unique(normalizedSiteIds).sort();
   }, [normalizedSiteIds]);
 
-  // Store initial props to prevent unnecessary re-initialization
   const previousInitPropsRef = React.useRef<{
     siteIds: string[];
     alertTypesJson: string;
@@ -75,7 +72,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     context: typeof props.context;
   } | null>(null);
 
-  // Initialize alerts and edit mode detection on mount
   React.useEffect(() => {
     const nextInitProps = {
       siteIds: uniqueSortedSiteIds,
@@ -130,7 +126,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     initializeAlerts,
   ]);
 
-  // Monitor for edit mode changes using MutationObserver with debouncing
   React.useEffect(() => {
     let debounceTimer: number | null = null;
     let intervalTimer: number | null = null;
@@ -179,7 +174,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
 
     const retryTimer = window.setTimeout(observeCommandBar, 1000);
 
-    // Poll more frequently when in edit mode to catch exit faster
     intervalTimer = window.setInterval(checkEditMode, 500);
 
     checkEditMode();
@@ -198,7 +192,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   // Effect to reset index when alerts count changes (not on every array reference change)
   const prevAlertsLengthRef = React.useRef(alerts.length);
   React.useEffect(() => {
-    // Only reset index if the number of alerts actually changed
     if (alerts.length !== prevAlertsLengthRef.current) {
       prevAlertsLengthRef.current = alerts.length;
       if (alerts.length > 0 && currentIndex >= alerts.length) {
@@ -209,13 +202,11 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     }
   }, [alerts.length, currentIndex]);
 
-  // Ref to always get latest alerts.length in interval callbacks
   const alertsLengthRef = React.useRef(alerts.length);
   React.useEffect(() => {
     alertsLengthRef.current = alerts.length;
   }, [alerts.length]);
 
-  // Carousel timer effect
   React.useEffect(() => {
     if (carouselEnabled && alerts.length > 1) {
       carouselTimer.current = window.setInterval(() => {
@@ -228,7 +219,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
       carouselTimer.current = null;
     }
 
-    // Cleanup
     return () => {
       if (carouselTimer.current) {
         window.clearInterval(carouselTimer.current);
@@ -237,7 +227,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     };
   }, [carouselEnabled, carouselInterval, alerts.length]);
 
-  // Load initial carousel settings from storage into context on mount
   React.useEffect(() => {
     const savedCarouselEnabled =
       storageService.current.getFromLocalStorage<boolean>("carouselEnabled");
@@ -273,7 +262,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     [props.onSettingsChange],
   );
 
-  // Carousel navigation with useCallback optimization
   const goToNext = React.useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % alerts.length);
   }, [alerts.length]);
@@ -284,7 +272,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     );
   }, [alerts.length]);
 
-  // Carousel pause functionality with useCallback optimization
   const handleMouseEnter = React.useCallback(() => {
     if (carouselTimer.current) {
       window.clearInterval(carouselTimer.current);
@@ -303,11 +290,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
   }, [carouselEnabled, carouselInterval]);
 
   const hasAlerts = alerts.length > 0;
-
-  // Don't hide the banner during loading - show cached data or skeleton
-  // This prevents the flicker when refreshing data
-
-  // Only show settings button when page is in edit mode
 
   return (
     <div
@@ -368,7 +350,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
           </ErrorBoundary>
         </div>
       )}
-      {/* Settings button only visible in edit mode */}
       {isInEditMode && (
         <AlertSettingsTabs
           isInEditMode={isInEditMode}

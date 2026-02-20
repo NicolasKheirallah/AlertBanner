@@ -39,7 +39,6 @@ interface ICopilotLocationHint {
 
 // Service for interacting with the Microsoft 365 Copilot Chat API via Microsoft Graph.
 // Uses the /beta/copilot/conversations endpoint which is in preview and subject to change.
-// Each user must have a Microsoft 365 Copilot license.
 export class CopilotService {
   private graphClient: MSGraphClientV3;
   private readonly endpoint = "/copilot/conversations";
@@ -48,7 +47,6 @@ export class CopilotService {
   private copilotAvailability: "unknown" | "available" | "unavailable" =
     "unknown";
 
-  // Maximum conversation age (30 minutes) before forcing a new one
   private static readonly MAX_CONVERSATION_AGE_MS = 30 * 60 * 1000;
   private static readonly COPILOT_UNAVAILABLE_MESSAGE =
     "Copilot API is not available in this environment.";
@@ -57,14 +55,12 @@ export class CopilotService {
     this.graphClient = graphClient;
   }
 
-  // Builds a Copilot Graph request against the beta API version
   private copilotApi(pathSuffix: string = "") {
     return this.graphClient
       .api(`${this.endpoint}${pathSuffix}`)
       .version("beta");
   }
 
-  // Builds location data required by Copilot chat requests
   private buildLocationHint(): ICopilotLocationHint {
     let timeZone = "UTC";
     try {
@@ -73,7 +69,6 @@ export class CopilotService {
         timeZone = resolved.trim();
       }
     } catch {
-      // Keep UTC fallback when browser/environment cannot resolve time zone
     }
 
     let countryOrRegion: string | undefined;
@@ -94,7 +89,6 @@ export class CopilotService {
     };
   }
 
-  // Performs basic normalization/escaping before interpolating user input into prompt templates
   private sanitizeInput(input: string): string {
     return input
       .replace(/\\/g, "\\\\")
@@ -104,7 +98,6 @@ export class CopilotService {
       .trim();
   }
 
-  // Generates a draft alert based on the provided user prompt (keywords)
   public async generateDraft(
     keywords: string,
     tone: CopilotTone = "Professional",
@@ -112,7 +105,6 @@ export class CopilotService {
     return this.generateDraftWithContext(keywords, tone, false);
   }
 
-  // Generates a draft with optional context about alert type/priority
   public async generateDraftWithContext(
     promptText: string,
     tone: CopilotTone = "Professional",
@@ -128,7 +120,6 @@ export class CopilotService {
 
       let prompt: string;
       if (isRefinement) {
-        // For refinements, the promptText already contains the full instruction
         prompt = `You are an assistant for a SharePoint Administrator. 
 Refine this ${tone.toLowerCase()} alert banner message based on the following instruction:
 
@@ -167,7 +158,6 @@ Requirements:
     }
   }
 
-  // Analyzes the sentiment and tone of the provided text
   public async analyzeSentiment(text: string): Promise<ICopilotResponse> {
     const abortController = this.beginOperation();
     try {
@@ -204,7 +194,6 @@ Requirements:
     }
   }
 
-  // Translates text to the target language
   public async translateText(
     text: string,
     targetLanguage: string,
@@ -238,7 +227,6 @@ Requirements:
     }
   }
 
-  // Parses a raw sentiment analysis response into a structured result
   public parseSentimentResult(rawContent: string): ISentimentResult {
     const lines = rawContent.split("\n").map((l) => l.trim());
     const result: ISentimentResult = {
@@ -299,7 +287,6 @@ Requirements:
     return result;
   }
 
-  // Checks if the current user has access to Copilot APIs
   public async checkAccess(): Promise<boolean> {
     const abortController = this.beginOperation();
     try {
@@ -311,7 +298,6 @@ Requirements:
       return true;
     } catch (error) {
       if (this.isAbortError(error)) {
-        // Silently handle abort errors - these are expected when component unmounts
         return false;
       }
       const statusCode = this.getErrorStatusCode(error);
@@ -342,7 +328,6 @@ Requirements:
     this.cachedConversation = null;
   }
 
-  // Ensures a conversation exists, re-using a cached conversation when available
   private async ensureConversation(
     forceRefresh: boolean = false,
     signal?: AbortSignal,
@@ -408,7 +393,6 @@ Requirements:
     return age > CopilotService.MAX_CONVERSATION_AGE_MS;
   }
 
-  // Sends a message to a Copilot conversation via the /chat endpoint
   private async sendMessage(
     conversationId: string,
     content: string,
@@ -433,12 +417,10 @@ Requirements:
       }
       const res = await request.post(requestBody);
 
-      // Update turn count in cached metadata
       if (this.cachedConversation) {
         this.cachedConversation.turnCount++;
       }
 
-      // Parse response — the API returns a copilotConversationMessage
       const responseText = this.extractResponseText(res);
       const citations = this.extractCitations(res);
 
@@ -479,7 +461,6 @@ Requirements:
     }
   }
 
-  // Extracts the response text from the API response object
   private extractResponseText(response: Record<string, unknown>): string {
     // Shape 1: { messages: [{ text: "..." }, { text: "response" }] }
     // The Copilot API returns messages array where last item is the AI response
@@ -491,24 +472,20 @@ Requirements:
       }
     }
 
-    // Shape 2: { message: { text: "..." } }
     const message = response.message as Record<string, unknown> | undefined;
     if (message?.text) {
       return String(message.text);
     }
 
-    // Shape 3: { value: [{ content: "..." }] }
     const value = response.value as Array<Record<string, unknown>> | undefined;
     if (value && value.length > 0 && value[0].content) {
       return String(value[0].content);
     }
 
-    // Shape 4: { text: "..." }
     if (response.text) {
       return String(response.text);
     }
 
-    // Shape 5: { content: "..." }
     if (response.content) {
       return String(response.content);
     }
@@ -521,7 +498,6 @@ Requirements:
     return JSON.stringify(response);
   }
 
-  // Extracts citations from the API response, if present
   private extractCitations(
     response: Record<string, unknown>,
   ): ICopilotCitation[] {
@@ -539,7 +515,6 @@ Requirements:
     }));
   }
 
-  // Maps HTTP error codes to user-friendly messages
   private getFriendlyErrorMessage(error: unknown): string {
     if (this.isAbortError(error)) {
       return "Copilot request was canceled.";

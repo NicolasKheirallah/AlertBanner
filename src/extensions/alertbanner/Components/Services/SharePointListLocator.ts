@@ -237,7 +237,6 @@ export class SharePointListLocator {
 
   private listColumnsCache: Map<string, Set<string>> = new Map();
 
-  // Get available column names for a list (cached)
   public async getAvailableColumns(alertsListApi: string): Promise<Set<string>> {
     if (this.listColumnsCache.has(alertsListApi)) {
       return this.listColumnsCache.get(alertsListApi)!;
@@ -267,7 +266,6 @@ export class SharePointListLocator {
       this.listColumnsCache.set(alertsListApi, availableColumns);
       return availableColumns;
     } catch (error: any) {
-      // Log detailed error information for diagnostics
       const errorDetails = {
         list: alertsListApi,
         statusCode: error?.statusCode,

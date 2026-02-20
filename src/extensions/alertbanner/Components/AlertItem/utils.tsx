@@ -13,7 +13,6 @@ const isIconComponent = (value: unknown): value is IconComponent => {
     return true;
   }
 
-  // React.forwardRef components are objects with React type metadata.
   if (typeof value === "object" && value !== null) {
     const candidate = value as { $$typeof?: unknown; render?: unknown };
     return !!candidate.$$typeof || typeof candidate.render === "function";

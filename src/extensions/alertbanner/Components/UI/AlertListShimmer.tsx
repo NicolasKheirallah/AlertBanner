@@ -56,19 +56,14 @@ const AlertListShimmer: React.FC<{
    * Pattern: Circle (avatar) + gap + Line (title) + gap + Line (description)
    */
   const getShimmerElements = () => [
-    // Circle for avatar/icon area
     { type: ShimmerElementType.circle, height: 40, width: 40 },
-    // Gap between circle and content
     { type: ShimmerElementType.gap, height: 40, width: 16 },
-    // Group of lines for content
     {
       type: ShimmerElementType.line,
       height: 12,
       width: "40%",
     },
-    // Gap between lines
     { type: ShimmerElementType.gap, height: 8, width: "100%" },
-    // Second line (description)
     {
       type: ShimmerElementType.line,
       height: 10,
@@ -89,7 +84,6 @@ const AlertListShimmer: React.FC<{
           key={index}
           shimmerElements={getShimmerElements()}
           styles={shimmerStyles}
-          // Add slight delay for cascading effect
           style={{ animationDelay: `${index * 100}ms` }}
         />
       ))}

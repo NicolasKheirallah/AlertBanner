@@ -15,7 +15,6 @@ import {
   normalizeLanguagePolicy,
 } from "./LanguagePolicyService";
 
-// Re-export ILanguageContent for convenience
 export type { ILanguageContent } from "../Alerts/IAlerts";
 
 export interface ISupportedLanguage {
@@ -109,13 +108,11 @@ export class LanguageAwarenessService {
   public async getUserPreferredLanguageWithSource(): Promise<ILanguageDetectionResult> {
     const language = await this.getUserPreferredLanguage();
     
-    // Check if it was user override
     const stored = this.getStoredLanguagePreference();
     if (stored) {
       return { language, source: 'user-override' };
     }
     
-    // Re-detect to find source
     const result = await this.resolveUserPreferredLanguage();
     return result;
   }
@@ -145,7 +142,6 @@ export class LanguageAwarenessService {
         return stored as TargetLanguage;
       }
     } catch {
-      // localStorage not available
     }
     return null;
   }
@@ -154,7 +150,6 @@ export class LanguageAwarenessService {
     try {
       localStorage.setItem(LanguageAwarenessService.STORAGE_KEY, language);
     } catch {
-      // localStorage not available
     }
   }
 
@@ -162,41 +157,35 @@ export class LanguageAwarenessService {
     try {
       localStorage.removeItem(LanguageAwarenessService.STORAGE_KEY);
     } catch {
-      // localStorage not available
     }
   }
 
   private async resolveUserPreferredLanguage(): Promise<ILanguageDetectionResult> {
     try {
-      // 1. Check user override first (stored preference)
       const storedPreference = this.getStoredLanguagePreference();
       if (storedPreference) {
         logger.debug("LanguageAwarenessService", "Using stored user preference", storedPreference);
         return { language: storedPreference, source: 'user-override' };
       }
 
-      // 2. Check ALL browser languages (not just first)
       const browserLanguages = this.getAllBrowserLanguages();
       if (browserLanguages.length > 0) {
         logger.debug("LanguageAwarenessService", "Using browser language", browserLanguages[0]);
         return { language: browserLanguages[0], source: 'browser' };
       }
 
-      // 3. Fall back to Graph API user profile
       const userLanguage = await this.getGraphUserLanguage();
       if (userLanguage) {
         logger.debug("LanguageAwarenessService", "Using Graph API language", userLanguage);
         return { language: userLanguage, source: 'graph' };
       }
 
-      // 4. Fall back to SharePoint context
       const sharePointLanguage = this.getSharePointLanguage();
       if (sharePointLanguage) {
         logger.debug("LanguageAwarenessService", "Using SharePoint language", sharePointLanguage);
         return { language: sharePointLanguage, source: 'sharepoint' };
       }
 
-      // 5. Final fallback to tenant default
       const tenantDefault = this.getTenantDefaultLanguage();
       logger.debug("LanguageAwarenessService", "Using tenant default language", tenantDefault);
       return { language: tenantDefault, source: 'tenant-default' };
@@ -322,13 +311,11 @@ export class LanguageAwarenessService {
   public getUserLanguagePreferences(): TargetLanguage[] {
     const preferences: TargetLanguage[] = [];
     
-    // 1. Stored user override
     const stored = this.getStoredLanguagePreference();
     if (stored) {
       preferences.push(stored);
     }
     
-    // 2. All supported browser languages
     const browserLanguages = this.getAllBrowserLanguages();
     for (const lang of browserLanguages) {
       if (!preferences.includes(lang)) {
@@ -336,7 +323,6 @@ export class LanguageAwarenessService {
       }
     }
     
-    // 3. Tenant default (always add as final fallback)
     const tenantDefault = this.getTenantDefaultLanguage();
     if (!preferences.includes(tenantDefault)) {
       preferences.push(tenantDefault);
@@ -353,10 +339,8 @@ export class LanguageAwarenessService {
     const tenantDefault = this.getTenantDefaultLanguage();
     const effectivePolicy = normalizeLanguagePolicy(policy);
     
-    // Get full preference list for better matching
     const userPreferences = this.getUserLanguagePreferences();
 
-    // Group alerts by language group
     const alertGroups = new Map<string, IAlertItem[]>();
     const standaloneAlerts: IAlertItem[] = [];
 
@@ -383,7 +367,6 @@ export class LanguageAwarenessService {
       }
     });
 
-    // Process language groups with fallback logic
     const selectedAlerts: IAlertItem[] = [];
 
     alertGroups.forEach((groupAlerts) => {
@@ -402,7 +385,6 @@ export class LanguageAwarenessService {
         }
       }
 
-      // Try user's full preference list in order
       let selectedAlert: IAlertItem | undefined;
       
       for (const preferredLang of userPreferences) {
@@ -419,14 +401,12 @@ export class LanguageAwarenessService {
         }
       }
 
-      // Fall back to availableForAll
       if (!selectedAlert) {
         selectedAlert = candidateAlerts.find(
           (alert) => alert.availableForAll,
         );
       }
 
-      // Final fallback: first available
       if (!selectedAlert) {
         selectedAlert = candidateAlerts[0];
         logger.debug(

@@ -51,7 +51,6 @@ export class RetryUtils {
           throw ErrorUtils.toError(error);
         }
 
-        // Calculate delay with exponential backoff and jitter
         const delay = this.calculateDelay(attempt, baseDelay, maxDelay, useExponentialBackoff, useJitter);
 
         logger.warn(
@@ -60,17 +59,14 @@ export class RetryUtils {
           ErrorUtils.getErrorInfo(error)
         );
 
-        // Notify about retry if callback provided
         if (onRetry) {
           onRetry(error, attempt, delay);
         }
 
-        // Wait before next attempt
         await this.delay(delay);
       }
     }
 
-    // This should never be reached, but TypeScript needs it
     throw ErrorUtils.toError(lastError || new Error('Maximum retry attempts exceeded'));
   }
 
@@ -84,20 +80,16 @@ export class RetryUtils {
     let delay: number;
 
     if (useExponentialBackoff) {
-      // Exponential backoff: delay = baseDelay * 2^(attempt - 1)
       delay = baseDelay * Math.pow(2, attempt - 1);
     } else {
-      // Linear backoff: delay = baseDelay * attempt
       delay = baseDelay * attempt;
     }
 
-    // Add jitter (randomization) to prevent thundering herd
     if (useJitter) {
       const jitterAmount = delay * 0.3; // 30% jitter
       delay = delay + (Math.random() * jitterAmount * 2 - jitterAmount);
     }
 
-    // Cap at maximum delay
     return Math.min(delay, maxDelay);
   }
 

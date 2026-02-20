@@ -24,7 +24,6 @@ import {
 } from "@fluentui/react";
 import styles from "./EmptyState.module.scss";
 
-// Stack tokens for consistent spacing
 const stackTokens: IStackTokens = {
   childrenGap: 0,
 };

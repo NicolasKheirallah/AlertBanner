@@ -38,7 +38,6 @@ export class SiteContextService {
   private _isInitializing: boolean = false;
   private _initPromise: Promise<void> | null = null;
   
-  // Cache configuration
   private static readonly CACHE_KEY = 'AlertBanner_SiteContext';
   private static readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -49,7 +48,6 @@ export class SiteContextService {
     if (!SiteContextService._instance) {
       SiteContextService._instance = new SiteContextService(context, graphClient);
     } else {
-      // Update stale dependencies if provided
       if (context) {
         SiteContextService._instance._context = context;
       }
@@ -73,12 +71,10 @@ export class SiteContextService {
       throw new Error('SiteContextService requires context and graphClient');
     }
 
-    // Return existing promise if initialization is in progress
     if (this._isInitializing && this._initPromise) {
       return this._initPromise;
     }
 
-    // Check if we have valid cached data
     const cached = this._loadFromCache();
     if (cached && !this._isCacheExpired(cached)) {
       logger.debug('SiteContextService', 'Using cached site context');
@@ -103,10 +99,8 @@ export class SiteContextService {
     const initStartTime = performance.now();
     
     try {
-      // Get current site info immediately (no API call needed)
       this._initializeCurrentSite();
 
-      // Detect home and hub sites in parallel with aggressive timeouts
       const [homeSiteResult, hubSiteResult] = await Promise.all([
         this._detectHomeSiteWithTimeout(),
         this._detectHubSiteWithTimeout(),
@@ -115,10 +109,8 @@ export class SiteContextService {
       this._homeSiteInfo = homeSiteResult;
       this._hubSiteInfo = hubSiteResult;
 
-      // Check alert lists in parallel (fast operation)
       await this._checkAlertListsParallel();
 
-      // Save to cache
       this._saveToCache();
 
       logger.info('SiteContextService', 'Initialization complete', {
@@ -128,7 +120,6 @@ export class SiteContextService {
       });
     } catch (error) {
       logger.error('SiteContextService', 'Failed to detect site context', error);
-      // Ensure we at least have current site info
       if (!this._currentSiteInfo) {
         this._initializeCurrentSite();
       }
@@ -159,7 +150,6 @@ export class SiteContextService {
   }
 
   private async _detectHomeSiteFast(): Promise<ISiteInfo | null> {
-    // Try the fastest method first: /sites/root
     try {
       const homeSiteResponse = await this._graphClient
         .api('/sites/root')
@@ -175,10 +165,8 @@ export class SiteContextService {
         };
       }
     } catch (rootError) {
-      // Root site not accessible, try search
     }
 
-    // Fallback to search (faster than organization API)
     try {
       const searchResponse = await this._graphClient
         .api('/search/query')
@@ -203,7 +191,6 @@ export class SiteContextService {
         };
       }
     } catch (searchError) {
-      // Search failed, return null
     }
 
     return null;
@@ -249,7 +236,6 @@ export class SiteContextService {
     const sites = [this._currentSiteInfo, this._hubSiteInfo, this._homeSiteInfo]
       .filter((s): s is ISiteInfo => s !== null);
 
-    // Check all sites in parallel
     await Promise.all(
       sites.map(async (site) => {
         try {
@@ -285,7 +271,6 @@ export class SiteContextService {
         return JSON.parse(cached) as ICachedSiteContext;
       }
     } catch {
-      // Ignore cache errors
     }
     return null;
   }
@@ -300,7 +285,6 @@ export class SiteContextService {
       };
       localStorage.setItem(SiteContextService.CACHE_KEY, JSON.stringify(cacheData));
     } catch {
-      // Ignore cache errors
     }
   }
 
@@ -360,7 +344,6 @@ export class SiteContextService {
         targetSite.hasAlertsList = true;
       }
       
-      // Invalidate cache after creating list
       this._clearCache();
       
       return true;
@@ -481,7 +464,6 @@ export class SiteContextService {
     try {
       localStorage.removeItem(SiteContextService.CACHE_KEY);
     } catch {
-      // Ignore
     }
   }
 }

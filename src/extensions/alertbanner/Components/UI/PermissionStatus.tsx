@@ -68,7 +68,6 @@ export const PermissionStatus: React.FC<{
     );
   }
 
-  // All permissions granted
   if (missingPermissions.length === 0) {
     return (
       <MessageBar messageBarType={MessageBarType.success}>

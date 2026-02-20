@@ -5,7 +5,6 @@ import { SPPermission } from '@microsoft/sp-page-context';
 export class EditModeDetector {
   public static isPageInEditMode(context?: ApplicationCustomizerContext): boolean {
     try {
-      // First check if user has edit permissions (informational only)
       if (context) {
         const pageContext = context.pageContext;
         if (pageContext && pageContext.list && pageContext.list.permissions) {
@@ -40,7 +39,6 @@ export class EditModeDetector {
         }
       }
 
-      // Log current URL and body classes for debugging
       logger.debug('EditModeDetector', 'Checking edit mode', {
         url: window.location.href,
         bodyClasses: document.body.className

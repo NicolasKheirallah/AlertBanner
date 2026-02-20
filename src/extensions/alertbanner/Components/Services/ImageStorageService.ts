@@ -117,7 +117,6 @@ export class ImageStorageService {
       ? folderPath
       : `/${folderPath}`;
 
-    // Construct the server relative URL for the file
     const serverRelativeUrl = `${normalizedFolder}/${fileName}`;
     const escapedFileUrl = serverRelativeUrl.replace(/'/g, "''");
 

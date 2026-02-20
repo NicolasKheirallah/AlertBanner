@@ -305,7 +305,6 @@ export class ValidationService {
       .replace(/\s+/g, " ");
   }
 
-  // Sanitize HTML using DOMPurify-based HtmlSanitizer for XSS protection
   private sanitizeHtml(input: string): string {
     const sanitized = htmlSanitizer.sanitizeHtml(input);
 

@@ -400,7 +400,6 @@ const MultiLanguageContentEditor: React.FC<{
     const updatedContent = content.filter((c) => c.language !== language);
     onContentChange(updatedContent);
 
-    // Switch tab if we removed the current tab
     if (selectedTab === language && updatedContent.length > 0) {
       setSelectedTab(updatedContent[0].language);
     } else if (updatedContent.length === 0) {
@@ -429,12 +428,8 @@ const MultiLanguageContentEditor: React.FC<{
       targetLangName: string,
       overwriteExisting: boolean = true,
     ): Promise<void> => {
-      // Use ref to get latest content (avoid stale closure)
       const currentContent = contentRef.current;
       
-      // Find any language that has content to use as source
-      // 1. Prefer fallback language
-      // 2. Try any language except target language
       // 3. Fall back to any language with content (even if it's the target - for copy/paste scenarios)
       const sourceContent = 
         currentContent.find((c) => c.language === fallbackLanguage && (c.title || c.description)) ||
@@ -454,8 +449,6 @@ const MultiLanguageContentEditor: React.FC<{
         return;
       }
 
-      // Check if target already has content and we're not overwriting
-      // Consider content existing if title OR description has content
       if (
         targetContent &&
         !overwriteExisting &&
@@ -464,7 +457,6 @@ const MultiLanguageContentEditor: React.FC<{
         return;
       }
 
-      // Add target language to translating list
       setTranslatingLanguages((prev) => [...prev, targetLanguage]);
       setTranslationError(null);
 
@@ -479,7 +471,6 @@ const MultiLanguageContentEditor: React.FC<{
           language: targetLanguage as TargetLanguage,
         };
 
-        // Translate title if source has one
         if (sourceContent.title) {
           const titleResponse = await copilotService.translateText(
             sourceContent.title,
@@ -493,7 +484,6 @@ const MultiLanguageContentEditor: React.FC<{
           results.title = titleResponse.content.trim();
         }
 
-        // Translate description if source has one
         if (sourceContent.description) {
           const descResponse = await copilotService.translateText(
             sourceContent.description,
@@ -507,7 +497,6 @@ const MultiLanguageContentEditor: React.FC<{
           results.description = descResponse.content.trim();
         }
 
-        // Translate link description if source has one
         if (sourceContent.linkDescription) {
           const linkResponse = await copilotService.translateText(
             sourceContent.linkDescription,
@@ -521,7 +510,6 @@ const MultiLanguageContentEditor: React.FC<{
           results.linkDescription = linkResponse.content.trim();
         }
 
-        // Update content with translation using latest ref
         const updatedContent = currentContent.map((c) =>
           c.language === targetLanguage ? { ...c, ...results } : c,
         );
@@ -535,7 +523,6 @@ const MultiLanguageContentEditor: React.FC<{
         logger.error("MultiLanguageContentEditor", "Translation failed", error);
         setTranslationError(strings.CopilotTranslationFailed);
       } finally {
-        // Remove target language from translating list
         setTranslatingLanguages((prev) => prev.filter((l) => l !== targetLanguage));
       }
     },
@@ -543,7 +530,6 @@ const MultiLanguageContentEditor: React.FC<{
   );
 
   const handleTranslateAllMissing = React.useCallback(async (): Promise<void> => {
-    // Use ref to get latest content
     const currentContent = contentRef.current;
     
     logger.debug("MultiLanguageContentEditor", "Translate all missing clicked", {
@@ -551,7 +537,6 @@ const MultiLanguageContentEditor: React.FC<{
       languages: currentContent.map(c => ({ lang: c.language, hasTitle: !!c.title, hasDesc: !!c.description }))
     });
     
-    // Find source content (any language with content)
     const sourceContent = currentContent.find((c) => c.title || c.description);
     if (!sourceContent) {
       logger.debug("MultiLanguageContentEditor", "No source content found");
@@ -561,7 +546,6 @@ const MultiLanguageContentEditor: React.FC<{
       return;
     }
 
-    // Find all languages missing content (excluding the source language)
     const missingTranslations = currentContent.filter(
       (c) =>
         c.language !== sourceContent.language &&
@@ -797,13 +781,11 @@ const MultiLanguageContentEditor: React.FC<{
                           size="small"
                           title={strings.CopilotDraftButton}
                           onClick={() => {
-                            // Check if content exists that would be overwritten
                             if (contentItem.title || contentItem.description) {
                               setConfirmOverwriteLang(contentItem.language);
                               return;
                             }
 
-                            // No existing content, translate directly
                             handleTranslate(
                               contentItem.language,
                               langInfo?.nativeName || contentItem.language,

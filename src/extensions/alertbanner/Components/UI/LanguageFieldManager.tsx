@@ -172,13 +172,10 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
   const [message, setMessage] = React.useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
   const [isTogglingLanguage, setIsTogglingLanguage] = React.useState(false);
 
-  // Get site's default language
   const getSiteDefaultLanguage = React.useCallback((): string => {
-    // Try to get from SharePoint context, fallback to browser, then English
     const spLanguage = (window as any).SPClientContext?.web?.language;
     const browserLanguage = navigator.language?.toLowerCase();
     
-    // Map common language codes to our supported ones
     const languageMap: { [key: string]: string } = {
       '1033': 'en-us', // SharePoint LCID for English
       '1036': 'fr-fr', // French
@@ -200,19 +197,16 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       'no': 'nb-no'
     };
     
-    // Try SharePoint language first
     if (spLanguage && languageMap[spLanguage.toString()]) {
       return languageMap[spLanguage.toString()];
     }
     
-    // Try browser language
     if (browserLanguage) {
       const shortLang = browserLanguage.split('-')[0];
       if (languageMap[browserLanguage]) return languageMap[browserLanguage];
       if (languageMap[shortLang]) return languageMap[shortLang];
     }
     
-    // Default to English
     return 'en-us';
   }, []);
 
@@ -221,7 +215,6 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     setTimeout(() => setMessage(null), 5000);
   };
 
-  // Load supported languages using useAsyncOperation
   const { loading, execute: loadSupportedLanguages } = useAsyncOperation(
     async () => {
       const supported = await alertService.getSupportedLanguages();
@@ -230,7 +223,6 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       logger.debug('LanguageFieldManager', `Site default language detected: ${siteDefaultLanguage}`);
       logger.debug('LanguageFieldManager', `Supported languages from SharePoint: ${supported.join(', ')}`);
 
-      // Get standardized language definitions from LanguageAwarenessService
       const supportedLanguages = LanguageAwarenessService.getSupportedLanguages();
 
       // Map our internal language list to the standardized one and update with SharePoint status
@@ -267,7 +259,6 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       onError: () => {
         logger.warn('LanguageFieldManager', 'Could not load supported languages');
 
-        // Fallback: set only site default language as active
         const siteDefaultLanguage = getSiteDefaultLanguage();
         setLanguages(prev => prev.map(lang => ({
           ...lang,
@@ -280,14 +271,11 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     }
   );
 
-  // Load currently supported languages on component mount
   React.useEffect(() => {
     loadSupportedLanguages();
   }, []);
 
   const handleLanguageToggle = async (languageCode: string, checked: boolean) => {
-    // Allow English to be toggled even if it's the site default
-    // This gives users full control over language selection
     if (languageCode !== 'en-us') {
       const siteDefaultLanguage = getSiteDefaultLanguage();
       if (languageCode === siteDefaultLanguage && !checked) {
@@ -300,7 +288,6 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     const language = languages.find(l => l.code === languageCode);
     if (!language) return;
 
-    // Update UI immediately to show pending state
     setLanguages(prev => prev.map(lang => 
       lang.code === languageCode 
         ? { ...lang, isPending: true, isAdded: checked }
@@ -309,25 +296,21 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
 
     try {
       if (checked) {
-        // Add language columns
         setIsTogglingLanguage(true);
         await alertService.addLanguageSupport(languageCode);
         showMessage('success', CoreText.format(strings.LanguageManagerAddedSuccess, language.name));
       } else {
-        // Remove language columns from SharePoint
         setIsTogglingLanguage(true);
         await alertService.removeLanguageSupport(languageCode);
         showMessage('success', CoreText.format(strings.LanguageManagerRemovedSuccess, language.name));
       }
 
-      // Update final state
       setLanguages(prev => prev.map(lang =>
         lang.code === languageCode
           ? { ...lang, isPending: false, isAdded: checked }
           : lang
       ));
 
-      // Notify parent component
       const activeLanguages = languages
         .filter(l => (l.code === languageCode ? checked : l.isAdded) && !l.isPending)
         .map(l => l.code);
@@ -337,7 +320,6 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
       logger.error('LanguageFieldManager', `Failed to ${checked ? 'add' : 'remove'} language ${languageCode}`, error);
       showMessage('error', CoreText.format(strings.LanguageManagerUpdateFailed, language.name));
 
-      // Revert UI state on error
       setLanguages(prev => prev.map(lang =>
         lang.code === languageCode
           ? { ...lang, isPending: false, isAdded: !checked }

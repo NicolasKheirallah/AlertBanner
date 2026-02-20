@@ -21,7 +21,6 @@ const AlertContent: React.FC<IAlertContentProps> = React.memo(
   ({ item, expanded, stopPropagation, ariaControlsId }) => {
     const contentRef = React.useRef<HTMLDivElement>(null);
 
-    // Move focus to expanded content for screen reader accessibility
     React.useEffect(() => {
       if (expanded && contentRef.current) {
         contentRef.current.focus();

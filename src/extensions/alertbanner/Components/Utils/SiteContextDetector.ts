@@ -55,7 +55,6 @@ export class SiteContextDetector {
     this.context = context;
   }
 
-  // Get comprehensive context for the current site
   public async getCurrentSiteContext(): Promise<ISiteContext> {
     if (this.currentSiteContext) {
       return this.currentSiteContext;
@@ -68,28 +67,21 @@ export class SiteContextDetector {
       const siteName = this.context.pageContext.web.title;
       const tenantUrl = `https://${new URL(siteUrl).hostname}`;
 
-      // Get detailed site information
       const siteDetails = await this.graphClient
         .api(`/sites/${siteId}`)
         .expand('drive')
         .get();
 
-      // Check if this is a hub site
       const hubInfo = await this.checkIfHubSite(siteId);
 
-      // Check if this is the organization's home site
       const isHomesite = await this.checkIfHomesite(siteUrl, tenantUrl);
 
-      // Get associated sites if this is a hub
       const associatedSites = hubInfo.isHub ? await this.getAssociatedSites(siteId) : [];
 
-      // Detect site type
       const siteType = this.determineSiteType(siteDetails, hubInfo.isHub, isHomesite);
 
-      // Check user permissions
       const userPermissions = await this.getUserPermissions(siteId);
 
-      // Check if this is the root site
       const isRootSite = this.isRootSiteCollection(siteUrl);
 
       this.currentSiteContext = {
@@ -273,7 +265,6 @@ export class SiteContextDetector {
       result.hubSites = await this.getHubAssociatedSites(currentContext.siteId);
     }
 
-    // Add homesite if different from current
     if (!currentContext.isHomesite) {
       const homesite = await this.getHomesite();
       if (homesite) {
@@ -338,7 +329,6 @@ export class SiteContextDetector {
           return url.hostname === homeSiteUrl.hostname && url.pathname === homeSiteUrl.pathname;
         }
       } catch (apiError) {
-        // Could not query root site via Graph API, using fallback
       }
 
       return isRootSite;
@@ -374,7 +364,6 @@ export class SiteContextDetector {
     if (isHomesite) return 'homesite';
     if (isHub) return 'hub';
 
-    // Try to determine if it's a Teams site or Communication site
     if (siteDetails.webUrl?.includes('/teams/')) {
       return 'team';
     }
@@ -388,7 +377,6 @@ export class SiteContextDetector {
 
   private async getUserPermissions(siteId: string): Promise<ISitePermissions> {
     try {
-      // Try multiple approaches to determine permissions
       let hasWritePermission = false;
       let hasOwnerPermission = false;
       let permissionLevel: 'none' | 'read' | 'contribute' | 'design' | 'fullControl' | 'owner' = 'read';
@@ -400,7 +388,6 @@ export class SiteContextDetector {
           .select('id,displayName')
           .get();
 
-        // Try to access lists to determine write permissions
         try {
           await this.graphClient
             .api(`/sites/${siteId}/lists`)
@@ -423,11 +410,8 @@ export class SiteContextDetector {
             hasOwnerPermission = true;
             permissionLevel = 'fullControl';
           } catch (columnError) {
-            // Can't read site columns, stick with contribute level
-            // This is expected for non-admin users - don't log as error
           }
         } catch (listError) {
-          // Can only read basic site info
           permissionLevel = 'read';
         }
 
@@ -441,7 +425,6 @@ export class SiteContextDetector {
         // Check if it's a 403 or 404 error - these are expected when user doesn't have access
         const statusCode = siteError?.statusCode || siteError?.status;
         if (statusCode === 403 || statusCode === 404) {
-          // User doesn't have access to this site - return 'none' permissions
           return {
             canCreateAlerts: false,
             canManageAlerts: false,
@@ -464,7 +447,6 @@ export class SiteContextDetector {
           };
         }
 
-        // For other sites with unexpected errors, return no access
         return {
           canCreateAlerts: false,
           canManageAlerts: false,
@@ -587,12 +569,10 @@ export class SiteContextDetector {
         .top(20) // Get more items since we'll filter out files
         .get();
 
-      // Filter to only include site/web URLs (not files)
       const sitesWithUrls = recentSites.value.filter((item: any) => {
         const webUrl = item.resourceReference?.webUrl;
         if (!webUrl) return false;
 
-        // Check if it's a file URL
         try {
           const pathname = new URL(webUrl).pathname;
           const isFile = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|stl|exe|jpg|jpeg|png|gif|bmp|svg|webp|sppkg|aspx|html|css|js|json|xml|csv|mp4|avi|mov|wmv|flv|wav|mp3|wma)$/i.test(pathname);
@@ -662,7 +642,6 @@ export class SiteContextDetector {
     try {
       if (!url) return '';
 
-      // Check if URL points to a file (has file extension)
       const pathname = new URL(url).pathname;
       const isFileUrl = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|stl|exe|jpg|jpeg|png|gif|bmp|svg|webp|sppkg|aspx|html|css|js|json|xml|csv|mp4|avi|mov|wmv|flv|wav|mp3|wma)$/i.test(pathname);
 

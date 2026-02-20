@@ -38,12 +38,10 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(({ des
     return htmlSanitizer.sanitizeAlertContent(description);
   }, [containsHtml, description]);
 
-  // Enhanced HTML component that adds click handlers to images
   const HtmlContent: React.FC<{ html: string }> = React.memo(({ html }) => {
     const contentRef = React.useRef<HTMLDivElement>(null);
     const handleClickRef = React.useRef(handleImageClick);
     
-    // Keep ref current
     React.useEffect(() => {
       handleClickRef.current = handleImageClick;
     });

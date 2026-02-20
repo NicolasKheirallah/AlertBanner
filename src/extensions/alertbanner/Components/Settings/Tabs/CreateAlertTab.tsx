@@ -48,7 +48,6 @@ import {
 
 const AlertTemplates = React.lazy(() => import("../../UI/AlertTemplates"));
 
-// Re-export types for backward compatibility
 export type { INewAlert };
 export type { IFormErrors } from "./SharedTypes";
 
@@ -61,9 +60,6 @@ export interface ICreateAlertTabProps {
   onDirtyStateChange?: (hasUnsavedChanges: boolean) => void;
 }
 
-// =============================================================================
-// INTERNAL COMPONENTS
-// =============================================================================
 
 /**
  * Inner component that uses the context
@@ -75,7 +71,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
   const { state, dispatch } = useAlertForm();
   const services = useAlertFormServices();
 
-  // Extract state values for cleaner access
   const {
     newAlert,
     errors,
@@ -103,10 +98,8 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     copilotEnabled,
   } = state;
 
-  // Extract services from context
   const { siteDetector, alertService, graphClient, context, languageService } = services;
 
-  // Notification type options with detailed descriptions
   const notificationOptions: ISharePointSelectOption[] = React.useMemo(
     () => [
       {
@@ -129,7 +122,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     [],
   );
 
-  // Alert type options
   const alertTypeOptions: ISharePointSelectOption[] = alertTypes.map(
     (type) => ({
       value: type.name,
@@ -137,7 +129,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     }),
   );
 
-  // Content type options
   const contentTypeOptions: ISharePointSelectOption[] = React.useMemo(
     () => [
       {
@@ -158,16 +149,13 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
   );
   const { confirm, dialogs } = useFluentDialogs();
 
-  // Auto-save debounce ref
   const autoSaveStatusDebounceRef = React.useRef<number | null>(null);
 
-  // Copilot service
   const copilotService = React.useMemo(
     () => new CopilotService(graphClient),
     [graphClient],
   );
 
-  // Copilot availability check
   React.useEffect(() => {
     let isMounted = true;
 
@@ -215,10 +203,8 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     };
   }, [copilotEnabled, copilotService, dispatch]);
 
-  // Language targeting options - using shared hook
   const languageOptions = useLanguageOptions(supportedLanguages);
 
-  // Load supported languages from SharePoint
   const loadSupportedLanguages = React.useCallback(async () => {
     try {
       const baseLanguages = LanguageAwarenessService.getSupportedLanguages();
@@ -266,12 +252,10 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     }
   }, [alertService, dispatch]);
 
-  // Load supported languages on mount
   React.useEffect(() => {
     loadSupportedLanguages();
   }, [loadSupportedLanguages]);
 
-  // Load language policy
   React.useEffect(() => {
     let isMounted = true;
     alertService
@@ -289,7 +273,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     };
   }, [alertService, dispatch]);
 
-  // Load drafts
   const loadDrafts = React.useCallback(async () => {
     try {
       const siteId = alertService.getCurrentSiteId();
@@ -305,7 +288,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     loadDrafts();
   }, [loadDrafts]);
 
-  // Load previous alerts
   const loadPreviousAlerts = React.useCallback(async () => {
     try {
       const currentSiteId = alertService.getCurrentSiteId();
@@ -377,7 +359,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     loadPreviousAlerts();
   }, [loadPreviousAlerts]);
 
-  // Handle load draft
   const handleLoadDraft = React.useCallback(
     (draft: IAlertItem) => {
       dispatch({ type: "LOAD_DRAFT", draft });
@@ -385,7 +366,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     [dispatch],
   );
 
-  // Handle delete draft
   const handleDeleteDraft = React.useCallback(
     async (draft: IAlertItem) => {
       const shouldDelete = await confirm({
@@ -441,7 +421,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     ],
   );
 
-  // Handle load previous alert
   const handleLoadPreviousAlert = React.useCallback(
     (alert: IAlertItem) => {
       dispatch({ type: "LOAD_PREVIOUS_ALERT", alert });
@@ -449,7 +428,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     [dispatch],
   );
 
-  // Initialize language content when multi-language is enabled
   React.useEffect(() => {
     if (useMultiLanguage && newAlert.languageContent.length === 0) {
       dispatch({
@@ -490,7 +468,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     }
   }, [useMultiLanguage, newAlert.languageContent.length, dispatch]);
 
-  // Handle template select
   const handleTemplateSelect = React.useCallback(
     async (template: IAlertTemplate) => {
       try {
@@ -580,7 +557,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     [alertService, dispatch, useMultiLanguage],
   );
 
-  // Validation snapshot for step completion
   const validationSnapshot = React.useMemo(() => {
     const validationData = {
       ...newAlert,
@@ -606,7 +582,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     useMultiLanguage,
   ]);
 
-  // Step completion tracking
   const stepCompletion = React.useMemo<Record<CreateWizardStep, boolean>>(
     () => ({
       content:
@@ -662,7 +637,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     [createStep, getStepErrors, dispatch],
   );
 
-  // Validation
   const validateForm = React.useCallback((): boolean => {
     const validationData = {
       ...newAlert,
@@ -693,7 +667,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     dispatch,
   ]);
 
-  // Handle create alert
   const handleCreateAlert = React.useCallback(async () => {
     if (!validateForm()) return;
 
@@ -824,7 +797,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     dispatch,
   ]);
 
-  // Handle save as draft
   const handleSaveAsDraft = React.useCallback(async () => {
     if (!newAlert.title || newAlert.title.trim().length < 3) {
       dispatch({
@@ -903,7 +875,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     dispatch,
   ]);
 
-  // Auto-save functionality
   const autoSaveDraft = React.useCallback(async () => {
     if (
       !newAlert.title ||
@@ -949,7 +920,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     dispatch,
   ]);
 
-  // Debounced status updates
   React.useEffect(() => {
     const hasDraftableContent =
       newAlert.title.trim().length > 0 ||
@@ -980,18 +950,15 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     };
   }, [newAlert, isCreatingAlert, isAutoSaving, dispatch]);
 
-  // Auto-save interval
   React.useEffect(() => {
     const intervalId = setInterval(autoSaveDraft, 30000);
     return () => clearInterval(intervalId);
   }, [autoSaveDraft]);
 
-  // Reset form
   const resetForm = React.useCallback(() => {
     dispatch({ type: "RESET_FORM" });
   }, [dispatch]);
 
-  // Keyboard shortcuts
   React.useEffect(() => {
     if (currentEntryMode !== "scratch") {
       return;
@@ -1027,7 +994,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     isCreatingAlert,
   ]);
 
-  // Wizard navigation
   const stepOrder: CreateWizardStep[] = ["content", "audience", "publish"];
   const createStepIndex = stepOrder.indexOf(createStep);
   const canGoBack = createStepIndex > 0;
@@ -1047,13 +1013,11 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     handleCreateStepChange(stepOrder[createStepIndex + 1]);
   }, [canGoForward, createStepIndex, handleCreateStepChange, stepOrder]);
 
-  // Image folder name
   const imageFolderName =
     newAlert.languageGroup ||
     StringUtils.sanitizeForId(newAlert.title) ||
     "Untitled_Alert";
 
-  // Set entry mode
   const setEntryMode = React.useCallback(
     (mode: "scratch" | "templates" | "drafts" | "previous") => {
       dispatch({ type: "SET_ENTRY_MODE", mode });
@@ -1381,16 +1345,12 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
   );
 };
 
-// =============================================================================
-// MAIN COMPONENT
-// =============================================================================
 
 /**
  * Wrapper component that extracts props and provides them to the inner component
  * This maintains backward compatibility with existing code while using context internally
  */
 const CreateAlertTab: React.FC<ICreateAlertTabProps> = (props) => {
-  // Validate that we're inside a provider
   useAlertFormState();
 
   return <CreateAlertTabInner {...props} />;

@@ -1,80 +1,91 @@
-.imagePreviewModal {
-  :global(.ms-Overlay) {
-    background-color: rgba(24, 36, 49, 0.56);
-  }
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.lightboxOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.85); /* Semi-transparent dark blur */
+  backdrop-filter: blur(4px);
+  z-index: 100000; /* Ensure it's above all SharePoint chrome */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.2s ease-out;
 }
 
-.imagePreviewContainer {
+.closeButton {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+  padding: 8px;
+  z-index: 100001;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  opacity: 0.8;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
 
-  :global(.ms-Dialog-main) {
-    width: min(96vw, 1080px);
-    max-height: 92vh;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
-  }
-
-  :global(.ms-Dialog-content) {
-    padding: 0;
-  }
-
-  :global(.ms-Dialog-title) {
-    padding: 16px 20px 12px;
-    margin: 0;
-    font-size: 16px;
-    line-height: 22px;
-    font-weight: 600;
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.1);
   }
 }
 
-.dialogContent {
+.imageContent {
+  position: relative;
+  max-width: 90vw;
+  max-height: 85vh;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  padding: 0 20px 20px;
-  overflow: auto;
-  max-height: calc(92vh - 74px);
-  background: #0f1720;
+  animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .fullSizeImage {
   max-width: 100%;
-  max-height: calc(92vh - 120px);
-  width: auto;
-  height: auto;
+  max-height: 85vh;
   object-fit: contain;
-  cursor: default;
-  display: block;
-  border-radius: 6px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  background-color: transparent;
+  user-select: none;
+  border-radius: 4px;
 }
 
-@media (max-width: 640px) {
-  .imagePreviewContainer {
-    padding: 10px;
+.imageCaption {
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 16px;
+  font-size: 16px;
+  font-family: 'Segoe UI', 'Segoe UI Web (West European)', sans-serif;
+  text-align: center;
+  max-width: 100%;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  word-wrap: break-word;
+}
 
-    :global(.ms-Dialog-main) {
-      width: 100%;
-      max-height: 96vh;
-      border-radius: 6px;
-    }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
-    :global(.ms-Dialog-title) {
-      padding: 12px 14px 10px;
-      font-size: 14px;
-      line-height: 20px;
-    }
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
   }
-
-  .dialogContent {
-    padding: 0 12px 12px;
-    max-height: calc(96vh - 62px);
-  }
-
-  .fullSizeImage {
-    max-height: calc(96vh - 102px);
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

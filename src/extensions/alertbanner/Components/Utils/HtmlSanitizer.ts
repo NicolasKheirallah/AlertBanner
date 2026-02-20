@@ -53,7 +53,6 @@ const isTrustedHost = (hostname: string): boolean => {
     return true;
   }
 
-  // Use centralized configuration from AppConstants
   return SANITIZATION_CONFIG.TRUSTED_DOMAINS.some((pattern) =>
     pattern.test(normalizedHost),
   );
@@ -160,7 +159,6 @@ export class HtmlSanitizer {
       if (typeof sanitized === "string") {
         return sanitized;
       }
-      // Handle Node/DocumentFragment return types
       if (
         sanitized &&
         typeof sanitized === "object" &&
@@ -256,7 +254,6 @@ export class HtmlSanitizer {
   public sanitizePreviewContent(content: string): string {
     if (!content) return "";
 
-    // Strip images from preview content - only show text
     return this.sanitizeHtml(content, {
       ALLOWED_TAGS: ["strong", "b", "em", "i", "br", "p"],
       ALLOWED_ATTR: [],
@@ -270,12 +267,10 @@ export class HtmlSanitizer {
     try {
       const urlObj = new URL(url);
 
-      // Allow same origin
       if (urlObj.origin === window.location.origin) {
         return true;
       }
 
-      // Allow https URLs from trusted domains
       if (urlObj.protocol === "https:") {
         return isTrustedHost(urlObj.hostname);
       }

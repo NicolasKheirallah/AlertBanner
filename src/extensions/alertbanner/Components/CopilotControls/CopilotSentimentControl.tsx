@@ -50,7 +50,6 @@ interface IDetectedTone {
   color: string;
 }
 
-// Calculate reading stats
 const calculateReadingStats = (text: string): IReadingStats => {
   const words = text.trim().split(/\s+/).filter(w => w.length > 0);
   const wordCount = words.length;
@@ -60,7 +59,6 @@ const calculateReadingStats = (text: string): IReadingStats => {
   return { wordCount, readingTimeSeconds };
 };
 
-// Detect tone from text
 const detectTone = (text: string): IDetectedTone => {
   const lowerText = text.toLowerCase();
   
@@ -99,7 +97,6 @@ const detectTone = (text: string): IDetectedTone => {
   };
 };
 
-// Calculate actual score based on issues
 const calculateScore = (
   result: ISentimentResult, 
   stats: IReadingStats,
@@ -108,15 +105,12 @@ const calculateScore = (
 ): number => {
   let score = 100;
   
-  // Deduct for word count
   if (stats.wordCount > 100) score -= 15;
   else if (stats.wordCount > 50) score -= 5;
   
-  // Deduct for reading time
   if (stats.readingTimeSeconds > 20) score -= 10;
   else if (stats.readingTimeSeconds > 15) score -= 5;
   
-  // Deduct for issues
   const criticalIssues = result.issues.filter(i => 
     i.toLowerCase().includes('missing') || 
     i.toLowerCase().includes('required')
@@ -130,19 +124,16 @@ const calculateScore = (
   score -= criticalIssues * 15;
   score -= recommendedIssues * 5;
   
-  // Add back for fixed issues
   if (totalIssues > 0) {
     score += Math.round((fixedCount / totalIssues) * 20);
   }
   
-  // Deduct for non-green status
   if (result.status === 'red') score -= 15;
   else if (result.status === 'yellow') score -= 5;
   
   return Math.max(0, Math.min(100, score));
 };
 
-// Generate fixable issues
 const generateFixableIssues = (
   result: ISentimentResult, 
   stats: IReadingStats,
@@ -189,7 +180,6 @@ const generateFixableIssues = (
   return issues;
 };
 
-// Parse analysis content
 const parseAnalysisContent = (rawContent: string) => {
   const lines = rawContent.split("\n").map((l) => l.trim());
   const sections: { 
@@ -291,7 +281,6 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
       onApplyFix(fixedText);
       setAppliedFixes(prev => new Set(prev).add(issue.id));
       
-      // Auto re-check after fix is applied
       setTimeout(() => {
         lastCheckedRef.current = ""; // Force re-check
         void performCheck(true);
@@ -311,12 +300,10 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
   const totalIssues = fixableIssues.length;
   const fixedCount = appliedFixes.size;
   
-  // Calculate actual score
   const score = result && readingStats 
     ? calculateScore(result, readingStats, fixedCount, totalIssues)
     : 0;
   
-  // Determine status based on score
   const getStatusFromScore = (s: number): 'green' | 'yellow' | 'red' => {
     if (s >= 80) return 'green';
     if (s >= 50) return 'yellow';
@@ -325,7 +312,6 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
   
   const status = getStatusFromScore(score);
   
-  // Status config based on calculated score
   const statusConfig = {
     green: {
       icon: <CheckmarkCircle24Filled />,
@@ -353,7 +339,6 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
   const config = statusConfig[status];
   const progressPercent = totalIssues > 0 ? Math.round((fixedCount / totalIssues) * 100) : 100;
 
-  // Compact pill view when minimized
   const showPill = result && !isExpanded;
 
   if (!textToAnalyze || textToAnalyze.trim().length < 10) {

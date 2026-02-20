@@ -15,7 +15,6 @@ import { JsonUtils } from "./JsonUtils";
 import { SiteIdUtils } from "./SiteIdUtils";
 import { DEFAULT_ALERT_TYPE_NAME } from "./AppConstants";
 
-// Utility class for transforming SharePoint items to alert objects
 export class AlertTransformers {
   // Parse target sites field from SharePoint - handles arrays, JSON strings, and CSV strings
   public static parseTargetSitesField(raw: any): string[] {
@@ -33,13 +32,11 @@ export class AlertTransformers {
         return [];
       }
 
-      // Try parsing as JSON first
       const parsed = JsonUtils.safeParse<string[]>(trimmed);
       if (parsed && Array.isArray(parsed)) {
         return parsed.map((entry) => String(entry)).filter(Boolean);
       }
 
-      // Fall back to CSV parsing
       return trimmed
         .split(",")
         .map((site) => site.trim())
@@ -49,12 +46,10 @@ export class AlertTransformers {
     return [];
   }
 
-  // Map Person field data from SharePoint to IPersonField
   public static mapPersonFieldData(
     personField: any,
     isGroup: boolean,
   ): IPersonField {
-    // Handle SharePoint lookup field format
     if (personField.LookupId && personField.LookupValue) {
       return {
         id: personField.LookupId.toString(),
@@ -63,7 +58,6 @@ export class AlertTransformers {
       };
     }
 
-    // Handle SharePoint user field format with ID
     if (personField.ID || personField.id) {
       return {
         id: (personField.ID || personField.id).toString(),
@@ -74,7 +68,6 @@ export class AlertTransformers {
       };
     }
 
-    // Handle Graph API format
     return {
       id: personField.id?.toString() || "",
       displayName: personField.displayName || personField.title || "",
@@ -96,7 +89,6 @@ export class AlertTransformers {
           this.mapPersonFieldData(user, user.isGroup || false),
         );
       } else {
-        // Handle single user case
         return [
           this.mapPersonFieldData(
             targetUsersField,
@@ -116,17 +108,14 @@ export class AlertTransformers {
     }
 
     try {
-      // Normalize to lowercase for case-insensitive matching
       const normalizedValue = String(priorityField).toLowerCase().trim();
 
-      // Try to match by enum value (lowercase string)
       if (normalizedValue === AlertPriority.Critical)
         return AlertPriority.Critical;
       if (normalizedValue === AlertPriority.High) return AlertPriority.High;
       if (normalizedValue === AlertPriority.Medium) return AlertPriority.Medium;
       if (normalizedValue === AlertPriority.Low) return AlertPriority.Low;
 
-      // Fallback: try to match by enum key (capitalized)
       const priority =
         AlertPriority[priorityField as keyof typeof AlertPriority];
       return priority || AlertPriority.Medium;
@@ -139,7 +128,6 @@ export class AlertTransformers {
   public static parseContentType(fields: any): ContentType {
     const status = (fields.Status || "").toLowerCase();
 
-    // Check ItemType field first (preferred)
     if (fields.ItemType) {
       const itemType = fields.ItemType.toLowerCase();
       if (itemType === "template") {
@@ -147,12 +135,10 @@ export class AlertTransformers {
       } else if (itemType === "draft") {
         return ContentType.Draft;
       } else if (itemType === "alert") {
-        // Backward-compat: older draft rows may have ItemType=alert with Status=Draft
         return status === "draft" ? ContentType.Draft : ContentType.Alert;
       }
     }
 
-    // Fall back to ContentType field
     if (fields.ContentType) {
       const contentType = fields.ContentType.toLowerCase();
       if (contentType === "template") {
@@ -162,12 +148,10 @@ export class AlertTransformers {
       }
     }
 
-    // Last fallback for legacy rows without draft ItemType markers
     if (status === "draft") {
       return ContentType.Draft;
     }
 
-    // Default to Alert
     return ContentType.Alert;
   }
 
@@ -209,7 +193,6 @@ export class AlertTransformers {
     return parsed || undefined;
   }
 
-  // Create original list item for multi-language support
   private static createOriginalListItem(
     item: any,
     fields: any,
@@ -235,7 +218,6 @@ export class AlertTransformers {
       ScheduledEnd: fields.ScheduledEnd || undefined,
       Metadata: fields.Metadata || undefined,
 
-      // Language and classification properties (Row-Based Localization)
       ItemType: fields.ItemType || "",
       TargetLanguage: fields.TargetLanguage || "",
       LanguageGroup: fields.LanguageGroup || "",
@@ -255,17 +237,14 @@ export class AlertTransformers {
       return "";
     }
 
-    // If composite format (e.g., "hostname,siteGuid,webGuid"), extract the site GUID (middle part)
     if (siteId.includes(",")) {
       const extracted = SiteIdUtils.extractGuidFromGraphId(siteId);
       if (extracted) return extracted;
     }
 
-    // Remove braces and lowercase for consistency
     return SiteIdUtils.normalizeGuid(siteId);
   }
 
-  // Map SharePoint item to IAlertItem
   public static mapSharePointItemToAlert(
     item: IGraphListItem,
     siteId: string,
@@ -273,7 +252,6 @@ export class AlertTransformers {
   ): IAlertItem {
     const fields = item.fields as any;
 
-    // Parse all the fields using helper methods
     const priority = this.parsePriority(fields.Priority);
     const targetUsers = this.mapTargetUsers(fields.TargetUsers);
     const contentType = this.parseContentType(fields);
@@ -281,7 +259,6 @@ export class AlertTransformers {
     const createdDate = this.extractCreatedDate(item, fields);
     const createdBy = this.extractCreatedBy(item, fields);
 
-    // Approval Workflow
     const reviewer = fields.Reviewer
       ? this.mapTargetUsers(fields.Reviewer)
       : undefined;
@@ -347,7 +324,6 @@ export class AlertTransformers {
         })) || [],
     };
 
-    // Add original list item if requested (for SharePointAlertService)
     if (includeOriginalItem) {
       alert._originalListItem = this.createOriginalListItem(item, fields);
     }

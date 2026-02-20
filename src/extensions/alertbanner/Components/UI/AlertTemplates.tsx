@@ -51,7 +51,6 @@ interface IAlertTemplatesProps {
   className?: string;
 }
 
-// Helper function to get icon for alert type
 const getIconForAlertType = (alertType: string): React.ReactElement => {
   const type = alertType.toLowerCase();
   switch (type) {
@@ -63,7 +62,6 @@ const getIconForAlertType = (alertType: string): React.ReactElement => {
   }
 };
 
-// Helper function to get category for alert type
 const getCategoryForAlertType = (alertType: string): "maintenance" | "announcement" | "emergency" | "update" | "celebration" | "info" | "interruption" | "training" => {
   const type = alertType.toLowerCase();
   switch (type) {
@@ -75,7 +73,6 @@ const getCategoryForAlertType = (alertType: string): "maintenance" | "announceme
   }
 };
 
-// Helper function to convert SharePoint alert to template
 const convertAlertToTemplate = (alert: IAlertItem): IAlertTemplate => {
   return {
     id: alert.id,
@@ -116,7 +113,6 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
     { id: "announcement", name: strings.AlertTemplatesCategoryAnnouncements, icon: <Megaphone24Regular /> }
   ];
 
-  // Load templates from SharePoint using useAsyncOperation
   const { loading, execute: loadTemplates } = useAsyncOperation(
     async () => {
       const currentSiteId = context.pageContext.site.id.toString();
@@ -134,7 +130,6 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
     }
   );
 
-  // Load templates on component mount
   React.useEffect(() => {
     loadTemplates();
   }, [alertService, context]);

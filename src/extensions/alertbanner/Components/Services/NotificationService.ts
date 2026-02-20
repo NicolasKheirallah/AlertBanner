@@ -88,7 +88,6 @@ export class NotificationService {
 
   private showNotification(options: INotificationOptions): void {
     try {
-      // Use custom notification system for better control
       this.showCustomNotification(options);
     } catch (error) {
       logger.error('NotificationService', 'Failed to show notification, falling back to console', error);
@@ -102,14 +101,12 @@ export class NotificationService {
     
     container.appendChild(notification);
 
-    // Auto-dismiss if duration is set
     if (options.duration && options.duration > 0) {
       setTimeout(() => {
         this.removeNotification(notification);
       }, options.duration);
     }
 
-    // Add click handlers for actions
     if (options.actions) {
       options.actions.forEach((action, index) => {
         const actionButton = notification.querySelector(`[data-action="${index}"]`);
@@ -122,7 +119,6 @@ export class NotificationService {
       });
     }
 
-    // Add dismiss handler
     if (options.dismissible) {
       const dismissButton = notification.querySelector('[data-dismiss]');
       if (dismissButton) {
@@ -257,7 +253,6 @@ export class NotificationService {
       });
     }
 
-    // Add animation styles to head if not already present
     this.addAnimationStyles();
 
     return notification;

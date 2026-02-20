@@ -426,7 +426,6 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
   const errorId = `${pickerId}-error`;
   const descId = `${pickerId}-desc`;
 
-  // Defensive check: ensure context is defined and has necessary properties
   const isContextValid =
     context &&
     context.pageContext &&
@@ -436,7 +435,6 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
   if (!isContextValid) {
     // If context is invalid, we can try to fall back or show a warning.
     // For PeoplePicker, we absolutely need the web URL to call the API.
-    // We can try to use window.location.origin + context.pageContext.web.serverRelativeUrl if available?
     let fallbackUrl = "";
     if (
       context &&
@@ -450,7 +448,6 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
       try {
         context.pageContext.web.absoluteUrl = fallbackUrl;
       } catch (e) {
-        // Immutable?
       }
     }
 

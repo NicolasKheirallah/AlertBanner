@@ -29,23 +29,19 @@ export const validateAlertData = (
   const { useMultiLanguage, getString } = options;
   const errors: IFormErrors = {};
 
-  // Helper function to get localized string or fallback
   const getLocalizedString = (key: string, ...args: any[]): string => {
     if (getString) {
       return getString(key, ...args);
     }
-    // Fallback messages if localization is not available
     const fallbackMessages: { [key: string]: string } = VALIDATION_MESSAGES;
 
     let message = fallbackMessages[key] || key;
-    // Simple placeholder replacement
     args.forEach((arg, index) => {
       message = message.replace(`{${index}}`, arg);
     });
     return message;
   };
 
-  // Multi-language validation
   if (useMultiLanguage) {
     const policy = normalizeLanguagePolicy(options.languagePolicy);
     const languageContent = alert.languageContent as
@@ -82,7 +78,6 @@ export const validateAlertData = (
         return !!fallbackValue && fallbackValue.trim().length > 0;
       };
 
-      // Duplicate language check removed
 
       let hasCompleteLanguage = false;
 
@@ -108,7 +103,6 @@ export const validateAlertData = (
         const linkOk =
           !linkRequired || resolveFieldSatisfied(content, "linkDescription");
 
-        // Validate title length
         const enforceThisLanguage =
           policy.completenessRule === "allSelectedComplete" ||
           (policy.completenessRule === "requireDefaultLanguageComplete" &&
@@ -172,13 +166,11 @@ export const validateAlertData = (
           }
         }
 
-        // Check if this language is complete
         if (titleOk && descriptionOk && (!linkRequired || linkOk)) {
           hasCompleteLanguage = true;
         }
       });
 
-      // Ensure at least one language has complete content
       if (
         policy.completenessRule === "atLeastOneComplete" &&
         !hasCompleteLanguage &&
@@ -212,7 +204,6 @@ export const validateAlertData = (
       }
     }
   } else {
-    // Single language validation
     if (!alert.title?.trim()) {
       errors.title = getLocalizedString("TitleRequired");
     } else if (alert.title.trim().length < 3) {
@@ -232,24 +223,19 @@ export const validateAlertData = (
     }
   }
 
-  // Common validations (apply regardless of multi-language mode)
 
-  // Alert type validation
   if (!alert.AlertType || !alert.AlertType.trim()) {
     errors.AlertType = getLocalizedString("AlertTypeRequired");
   }
 
-  // URL format validation using ValidationService for comprehensive security checks
   if (alert.linkUrl && alert.linkUrl.trim()) {
     const urlValidation = validationService.validateUrl(alert.linkUrl);
     if (!urlValidation.isValid) {
-      // Use the first error from the comprehensive validation
       errors.linkUrl =
         urlValidation.errors[0] || getLocalizedString("InvalidUrlFormat");
     }
   }
 
-  // Target sites validation
   if (
     options.validateTargetSites !== false &&
     (!alert.targetSites || alert.targetSites.length === 0)
@@ -257,7 +243,6 @@ export const validateAlertData = (
     errors.targetSites = getLocalizedString("AtLeastOneSiteRequired");
   }
 
-  // Date validation
   if (alert.scheduledStart && alert.scheduledEnd) {
     const startDate =
       typeof alert.scheduledStart === "string"

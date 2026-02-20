@@ -1,5 +1,4 @@
 export const getLuminance = (color: string): number => {
-  // Convert color to RGB values
   let r: number, g: number, b: number;
 
   const parseRgbValues = (value: string): [number, number, number] | null => {
@@ -27,7 +26,6 @@ export const getLuminance = (color: string): number => {
   };
 
   if (color.startsWith('#')) {
-    // Hex color
     const hex = color.replace('#', '');
     if (hex.length === 3) {
       r = parseInt(hex[0] + hex[0], 16);
@@ -57,14 +55,12 @@ export const getLuminance = (color: string): number => {
   } else {
     const resolved = resolveCssColor(color);
     if (!resolved) {
-      // Default to dark luminance to ensure high-contrast fallback text
       return 0;
     }
 
     [r, g, b] = resolved;
   }
 
-  // Calculate relative luminance using WCAG formula
   const toLinear = (val: number): number => {
     val = val / 255;
     return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);

@@ -13,7 +13,6 @@ export class StorageService {
   private defaultExpirationTime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
   private constructor() {
-    // Private constructor for singleton
   }
 
   public static getInstance(): StorageService {
@@ -27,7 +26,6 @@ export class StorageService {
     this.userId = userId;
   }
 
-  // Local Storage (Persistent)
   public saveToLocalStorage<T>(
     key: string,
     data: T,
@@ -67,7 +65,6 @@ export class StorageService {
       const parsedData = JsonUtils.safeParse(data);
       if (!parsedData) return null;
 
-      // Check if data has expired
       if (this.isDataExpired(parsedData)) {
         this.removeFromLocalStorage(key, options);
         return null;
@@ -97,7 +94,6 @@ export class StorageService {
     }
   }
 
-  // Session Storage (Session-based)
   public saveToSessionStorage<T>(
     key: string,
     data: T,
@@ -161,7 +157,6 @@ export class StorageService {
     }
   }
 
-  // Alert-specific methods
   public saveAlerts(alerts: IAlertItem[]): void {
     this.saveToLocalStorage<IAlertItem[]>("AllAlerts", alerts, {
       expirationTime: this.defaultExpirationTime,
@@ -206,14 +201,10 @@ export class StorageService {
     this.removeFromLocalStorage("HiddenAlerts", { userSpecific: true });
   }
 
-  // Listen for storage changes from other tabs/windows
-  // Only triggers on dismissed/hidden alerts changes, not cache updates
   public initCrossTabSync(onAlertStorageChange: () => void): () => void {
     const handler = (event: StorageEvent): void => {
       if (!event.key) return;
 
-      // Only trigger on dismissed or hidden alerts changes
-      // Ignore cache updates (AllAlerts:* keys) to prevent refresh loops
       const relevantKeys = ["DismissedAlerts", "HiddenAlerts"];
       const isRelevantChange = relevantKeys.some((key) =>
         event.key?.includes(key),
@@ -234,7 +225,6 @@ export class StorageService {
     };
   }
 
-  // Helper methods
   private getFullKey(key: string, userSpecific?: boolean): string {
     const prefix = "AlertsBanner_";
     const userPrefix = userSpecific && this.userId ? `${this.userId}_` : "";

@@ -13,11 +13,8 @@ export interface IGraphListItem {
       id?: string;
     };
   };
-  // Retained 'any' here as removing it triggers a massive codebase-wide refactor
-  // across all Services and Utils to cast dynamic SharePoint list responses.
   fields: { [key: string]: any };
 }
-// IAlertItem definition moved here to avoid circular dependencies
 export interface IAlertItem {
   id: string;
   title: string;
@@ -36,20 +33,17 @@ export interface IAlertItem {
   scheduledStart?: string;
   scheduledEnd?: string;
   metadata?: unknown;
-  // New language and classification properties
   contentType: ContentType;
   targetLanguage: TargetLanguage;
   languageGroup?: string;
   availableForAll?: boolean;
   translationStatus?: TranslationStatus;
   languageContent?: ILanguageContent[];
-  // Approval Workflow
   contentStatus?: ContentStatus;
   reviewer?: IPersonField[];
   reviewNotes?: string;
   submittedDate?: string;
   reviewedDate?: string;
-  // Attachments support
   attachments?: {
     fileName: string;
     serverRelativeUrl: string;
@@ -57,7 +51,6 @@ export interface IAlertItem {
   }[];
   modified?: string;
   sortOrder?: number;
-  // Store the original SharePoint list item for multi-language access
   _originalListItem?: IAlertListItem;
 }
 
@@ -112,7 +105,6 @@ export interface IAlertListItem {
   SubmittedDate?: string;
   ReviewedDate?: string;
 
-  // Targeting
   TargetUsers?: IPersonField[]; // SharePoint People/Groups field data
 }
 
@@ -161,7 +153,6 @@ export enum TargetLanguage {
   All = "all", // For items that should show to all languages
 }
 
-// Interface for SharePoint Person field data
 export interface IPersonField {
   id: string; // User/Group ID
   displayName: string; // Display name
@@ -170,16 +161,12 @@ export interface IPersonField {
   isGroup: boolean; // Whether this is a group or individual user
 }
 
-// Interface for targeting rules
 export interface ITargetingRule {
-  // Support for People fields
   targetUsers?: IPersonField[]; // Individual users from People field
   targetGroups?: IPersonField[]; // SharePoint groups from People field
 
-  // Legacy targeting with string arrays
   audiences?: string[];
 
-  // Operation to apply
   operation: "anyOf" | "allOf" | "noneOf";
 }
 
@@ -233,7 +220,6 @@ export interface IUser {
   userGroups?: string[];
 }
 
-// IAlertRichMedia removed - using description field for all content
 
 export interface IQuickAction {
   label: string;

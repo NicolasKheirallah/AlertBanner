@@ -58,7 +58,6 @@ export class UserTargetingService {
     if (this.isInitialized) return;
 
     try {
-      // Get current user information
       const userResponse = await this.graphClient
         .api("/me")
         .select("id,displayName,mail,jobTitle,department,userPrincipalName")
@@ -73,10 +72,8 @@ export class UserTargetingService {
         userGroups: [],
       };
 
-      // Set user ID in storage service for user-specific storage
       this.storageService.setUserId(this.currentUser.id);
 
-      // Get user group memberships
       const groups: IGraphGroup[] = [];
       let requestPath = "/me/memberOf?$select=id,displayName&$top=100";
 
@@ -104,7 +101,6 @@ export class UserTargetingService {
         this.currentUser.userGroups = this.userGroups;
       }
 
-      // Get SharePoint groups
       try {
         const spGroupsResponse: SPHttpClientResponse =
           await this.context.spHttpClient.get(
@@ -117,7 +113,6 @@ export class UserTargetingService {
           if (spGroups && spGroups.value) {
             const spGroupsList: ISharePointGroup[] = spGroups.value;
             this.spGroupIds = spGroupsList.map((g) => g.Id);
-            // Also add SP group names to userGroups for display/fallback
             const spGroupNames = spGroupsList.map((g) => g.Title);
             this.userGroups.push(...spGroupNames);
             this.currentUser.userGroups = this.userGroups;
@@ -138,7 +133,6 @@ export class UserTargetingService {
         "Error initializing user targeting service",
         error,
       );
-      // Initialize with minimal information to avoid blocking the application
       this.isInitialized = true;
     }
   }
@@ -156,12 +150,10 @@ export class UserTargetingService {
     }
 
     return alerts.filter((alert) => {
-      // If no target users defined, show to everyone
       if (!alert.targetUsers || alert.targetUsers.length === 0) {
         return true;
       }
 
-      // Check if current user is in target users list
       return this.isUserTargeted(alert.targetUsers);
     });
   }
@@ -176,7 +168,6 @@ export class UserTargetingService {
         // If it's a group, check if user is member of that group
         return this.isUserInGroup(person);
       } else {
-        // If it's a user, check if it's the current user
         return this.isCurrentUser(person);
       }
     });
@@ -185,24 +176,19 @@ export class UserTargetingService {
   private evaluateTargetingRule(rule: ITargetingRule): boolean {
     if (!this.currentUser) return false;
 
-    // Check if we have the new targeting structure with People fields
     if (rule.targetUsers || rule.targetGroups) {
       return this.evaluatePeopleFieldTargeting(rule);
     }
-    // Fallback to legacy targeting for backward compatibility
     else if (rule.audiences) {
       return this.evaluateLegacyTargeting(rule);
     }
 
-    // If no targeting criteria provided at all, return false
     return false;
   }
 
-  // New method to handle SharePoint People field targeting
   private evaluatePeopleFieldTargeting(rule: ITargetingRule): boolean {
     if (!this.currentUser) return false;
 
-    // User targeting: Check if current user is in target users
     const userMatch =
       rule.targetUsers?.some((person) => this.isCurrentUser(person)) || false;
 
@@ -210,10 +196,8 @@ export class UserTargetingService {
     const groupMatch =
       rule.targetGroups?.some((group) => this.isUserInGroup(group)) || false;
 
-    // Apply the operation logic
     switch (rule.operation) {
       case "anyOf":
-        // Show if user matches or is in any target group
         return userMatch || groupMatch;
 
       case "allOf":
@@ -221,7 +205,6 @@ export class UserTargetingService {
         if (rule.targetUsers && rule.targetGroups) {
           return userMatch && groupMatch;
         }
-        // If only one type of targeting is specified, return its result
         return rule.targetUsers ? userMatch : groupMatch;
 
       case "noneOf":
@@ -233,11 +216,9 @@ export class UserTargetingService {
     }
   }
 
-  // Legacy method for backward compatibility
   private evaluateLegacyTargeting(rule: ITargetingRule): boolean {
     if (!this.currentUser || !rule.audiences) return false;
 
-    // Filter out null/undefined values and ensure they're strings before calling toLowerCase
     const userProperties = [
       ...(this.userGroups || []),
       this.currentUser.department,
@@ -246,7 +227,6 @@ export class UserTargetingService {
       .filter((prop): prop is string => typeof prop === "string" && prop !== "")
       .map((prop) => prop.toLowerCase());
 
-    // Ensure rule.audiences is an array before mapping
     const targetAudiences = Array.isArray(rule.audiences)
       ? rule.audiences.map((audience) =>
           typeof audience === "string" ? audience.toLowerCase() : "",
@@ -274,25 +254,19 @@ export class UserTargetingService {
     }
   }
 
-  // Helper method to check if a Person field matches current user
   private isCurrentUser(person: IPersonField): boolean {
     if (!this.currentUser) return false;
 
-    // Match by different identifiers to be thorough
     return (
-      // Match by ID
       person.id === this.currentUser.id ||
-      // Match by email (ensure both exist before comparing)
       (person.email &&
         this.currentUser.email &&
         person.email.toLowerCase() === this.currentUser.email.toLowerCase()) ||
-      // Match by login name (ensure it exists before using includes)
       (typeof person.loginName === "string" &&
         person.loginName.includes(this.currentUser.id))
     );
   }
 
-  // Helper method to check if current user is in a group
   private isUserInGroup(group: IPersonField): boolean {
     if (group.isGroup !== true) {
       return false;
@@ -302,8 +276,6 @@ export class UserTargetingService {
       return false;
     }
 
-    // Check SharePoint Groups (by ID)
-    // PeoplePicker returns SP Group ID as string, e.g. "12"
     if (
       group.id &&
       !isNaN(Number(group.id)) &&
@@ -312,12 +284,10 @@ export class UserTargetingService {
       return true;
     }
 
-    // Check AD Groups (by ID)
     if (group.id && this.userGroupIds.includes(group.id)) {
       return true;
     }
 
-    // Fallback to match by display name
     return this.userGroups.some(
       (userGroup) =>
         typeof userGroup === "string" &&

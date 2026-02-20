@@ -112,7 +112,6 @@ export class AlertOperationsService {
     if (availableColumns.has("TranslationStatus")) {
       optionalFields.push("TranslationStatus");
     }
-    // Approval Workflow
     if (availableColumns.has("ContentStatus")) {
       optionalFields.push("ContentStatus");
       optionalFields.push("Reviewer");
@@ -149,7 +148,6 @@ export class AlertOperationsService {
         );
 
         if (availableColumns.has("ContentStatus")) {
-          // Only show Approved alerts in the main feed
           request = request.filter(
             filterQuery
               ? `${filterQuery} and fields/ContentStatus eq 'Approved'`
@@ -273,8 +271,6 @@ export class AlertOperationsService {
         }
       }
 
-      // Target sites filtering:
-      // - If targetSites is empty/not set, show on all sites
       // - If targetSites has values, only show if current site is in the list
       if (alert.targetSites && alert.targetSites.length > 0) {
         const currentSiteIdLower = currentSiteId.toLowerCase();
@@ -321,7 +317,6 @@ export class AlertOperationsService {
         if (missing.length > 0 && !availableColumns.has("Title")) {
         }
 
-        // Resolve AlertType lookup ID
         let alertTypeLookupId: string | undefined;
         const alertTypes = await this.getAlertTypes(siteId);
         const matchedType = alertTypes.find(
@@ -348,7 +343,6 @@ export class AlertOperationsService {
           IsPinned: Boolean(alert.isPinned),
           NotificationType: alert.notificationType,
         };
-        // Include AlertTypeLookupId for lookup fields, or AlertType as fallback
         if (alertTypeLookupId) {
           fields.AlertTypeLookupId = alertTypeLookupId;
         } else if (alert.AlertType) {
@@ -372,7 +366,6 @@ export class AlertOperationsService {
           fields.ScheduledEnd = new Date(alert.scheduledEnd).toISOString();
         if (alert.metadata)
           fields.Metadata = JsonUtils.safeStringify(alert.metadata);
-        // Format person fields correctly for SharePoint Graph API
         const formattedTargetUsers = this.formatPersonFieldForSharePoint(
           alert.targetUsers,
         );
@@ -391,7 +384,6 @@ export class AlertOperationsService {
           fields.TranslationStatus = alert.translationStatus;
         }
 
-        // Approval Workflow
         if (availableColumns.has("ContentStatus")) {
           fields.ContentStatus = alert.contentStatus || ContentStatus.Draft;
           const formattedReviewer = alert.reviewer
@@ -469,8 +461,15 @@ export class AlertOperationsService {
           allowEmptyString = false,
         ): void => {
           // Core fields that should always be set if provided (bypass column check)
-          // AlertTypeLookupId is used for lookup field updates
-          const coreFields = ["Title", "Description", "AlertType", "AlertTypeLookupId", "Priority", "IsPinned", "NotificationType"];
+          const coreFields = [
+            "Title",
+            "Description",
+            "AlertType",
+            "AlertTypeLookupId",
+            "Priority",
+            "IsPinned",
+            "NotificationType",
+          ];
           if (
             !coreFields.includes(columnName) &&
             !availableColumns.has(columnName)
@@ -478,7 +477,7 @@ export class AlertOperationsService {
             logger.debug(
               "AlertOperationsService",
               `Skipping field "${columnName}" - not in available columns`,
-              { available: Array.from(availableColumns).slice(0, 20) }
+              { available: Array.from(availableColumns).slice(0, 20) },
             );
             return;
           }
@@ -504,17 +503,13 @@ export class AlertOperationsService {
         setIfAvailable("Priority", updates.priority);
         setIfAvailable("IsPinned", updates.isPinned);
         setIfAvailable("NotificationType", updates.notificationType);
-        
-        logger.debug(
-          "AlertOperationsService",
-          "Prepared update fields",
-          {
-            itemId,
-            fields: Object.keys(fields),
-            priority: fields.Priority,
-            alertType: fields.AlertType || fields.AlertTypeLookupId,
-          },
-        );
+
+        logger.debug("AlertOperationsService", "Prepared update fields", {
+          itemId,
+          fields: Object.keys(fields),
+          priority: fields.Priority,
+          alertType: fields.AlertType || fields.AlertTypeLookupId,
+        });
         setIfAvailable("LinkUrl", updates.linkUrl, true);
         setIfAvailable("LinkDescription", updates.linkDescription, true);
         if (updates.targetSites !== undefined) {
@@ -526,7 +521,6 @@ export class AlertOperationsService {
         }
         setIfAvailable("ScheduledStart", updates.scheduledStart, true);
         setIfAvailable("ScheduledEnd", updates.scheduledEnd, true);
-        // Format person fields correctly for SharePoint Graph API
         const formattedTargetUsers = this.formatPersonFieldForSharePoint(
           updates.targetUsers,
         );
@@ -544,7 +538,6 @@ export class AlertOperationsService {
         setIfAvailable("TranslationStatus", updates.translationStatus);
         setIfAvailable("ContentStatus", updates.contentStatus);
 
-        // Format Reviewer person field correctly
         if (updates.reviewer) {
           const formattedReviewer = this.formatPersonFieldForSharePoint(
             updates.reviewer,
@@ -558,16 +551,12 @@ export class AlertOperationsService {
         setIfAvailable("ReviewedDate", updates.reviewedDate, true);
 
         if (Object.keys(fields).length > 0) {
-          logger.debug(
-            "AlertOperationsService",
-            "Updating alert fields",
-            {
-              siteId,
-              itemId,
-              fields: Object.keys(fields),
-              alertType: fields.AlertType,
-            },
-          );
+          logger.debug("AlertOperationsService", "Updating alert fields", {
+            siteId,
+            itemId,
+            fields: Object.keys(fields),
+            alertType: fields.AlertType,
+          });
           await this.graphClient
             .api(`${alertsListApi}/items/${itemId}/fields`)
             .patch(fields);
@@ -587,16 +576,15 @@ export class AlertOperationsService {
           .api(`${alertsListApi}/items/${itemId}`)
           .expand("fields")
           .get();
-        const mappedAlert = AlertTransformers.mapSharePointItemToAlert(updated, siteId);
-        logger.debug(
-          "AlertOperationsService",
-          "Alert updated successfully",
-          {
-            itemId,
-            alertType: mappedAlert.AlertType,
-            priority: mappedAlert.priority,
-          },
+        const mappedAlert = AlertTransformers.mapSharePointItemToAlert(
+          updated,
+          siteId,
         );
+        logger.debug("AlertOperationsService", "Alert updated successfully", {
+          itemId,
+          alertType: mappedAlert.AlertType,
+          priority: mappedAlert.priority,
+        });
         return mappedAlert;
       },
       {
@@ -643,7 +631,6 @@ export class AlertOperationsService {
   public async updateAlertsSortOrder(
     alertOrders: { alertId: string; sortOrder: number }[],
   ): Promise<void> {
-    // Group by site for batch processing
     const bySite = new Map<string, { itemId: string; sortOrder: number }[]>();
 
     for (const { alertId, sortOrder } of alertOrders) {
@@ -654,7 +641,6 @@ export class AlertOperationsService {
       bySite.get(siteId)!.push({ itemId, sortOrder });
     }
 
-    // Update each site in parallel
     await Promise.all(
       Array.from(bySite.entries()).map(async ([siteId, items]) => {
         return this.permissionService.executeWriteOperation(
@@ -664,7 +650,6 @@ export class AlertOperationsService {
               throw new Error(`Alerts list not found for site ${siteId}`);
             }
 
-            // Update each alert's sort order
             await Promise.all(
               items.map(({ itemId, sortOrder }) =>
                 this.graphClient
@@ -724,7 +709,6 @@ export class AlertOperationsService {
           return DEFAULT_ALERT_TYPES.map((t) => ({ ...t }));
         }
 
-        // Keep payload minimal and sort client-side to avoid costly server-side orderby.
         const request = this.graphClient
           .api(`${listApi}/items`)
           .expand(
@@ -761,7 +745,6 @@ export class AlertOperationsService {
           const name = String(item?.fields?.Title || "").trim();
           if (!name) return;
 
-          // Normalize for duplicate check (case-insensitive)
           const normalizedName = name.toLowerCase();
 
           // Skip duplicates - keep first occurrence (which respects SortOrder due to sorting)
@@ -783,11 +766,9 @@ export class AlertOperationsService {
             },
           );
 
-          // Parse priority colors if stored
           const parsedPriorityColors =
             JsonUtils.safeParse(item?.fields?.PriorityColors) || undefined;
 
-          // Use original name as key for proper lookup matching
           typesMap.set(name, {
             id: item.id, // Store SharePoint item ID for lookup field reference
             name,
@@ -809,7 +790,6 @@ export class AlertOperationsService {
           siteId,
           error: e,
         });
-        // Return stale cached value if available, otherwise defaults.
         const stale = this.alertTypesCache.get(cacheKey);
         if (stale) {
           return [...stale.types];
@@ -1185,14 +1165,14 @@ export class AlertOperationsService {
         ? await this.locator.getSiteUrlFromIdentifier(siteId)
         : this.context.pageContext.web.absoluteUrl;
       const uploadUrl = `${siteUrl}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/add(FileName='${encodeURIComponent(fileName)}')`;
-      
+
       logger.debug("AlertOperationsService", "Uploading attachment", {
         fileName,
         itemId,
         listId,
         contentLength: fileContent.byteLength,
       });
-      
+
       const response = await this.context.spHttpClient.post(
         uploadUrl,
         SPHttpClient.configurations.v1,
@@ -1200,26 +1180,29 @@ export class AlertOperationsService {
           headers: {
             Accept: "application/json;odata=verbose",
             "Content-Type": "application/octet-stream",
-            "X-RequestDigest": (document.getElementById("__REQUESTDIGEST") as HTMLInputElement)?.value || "",
+            "X-RequestDigest":
+              (document.getElementById("__REQUESTDIGEST") as HTMLInputElement)
+                ?.value || "",
           },
           body: fileContent,
         },
       );
-      
+
       if (!response.ok) {
         let errorMessage = `Upload failed with status ${response.status}`;
         try {
           const errorBody = await response.json();
-          errorMessage = errorBody.error?.message?.value || 
-                        errorBody.error?.message || 
-                        JSON.stringify(errorBody.error) ||
-                        errorMessage;
+          errorMessage =
+            errorBody.error?.message?.value ||
+            errorBody.error?.message ||
+            JSON.stringify(errorBody.error) ||
+            errorMessage;
         } catch {
           errorMessage = response.statusText || errorMessage;
         }
         throw new Error(errorMessage);
       }
-      
+
       const result = await response.json();
       return {
         fileName: result.d.FileName,
@@ -1543,27 +1526,14 @@ export class AlertOperationsService {
       const siteId = this.context.pageContext.site.id.toString();
       const alertTypesListApi = await this.locator.getAlertTypesListApi(siteId);
 
-      const existingItems = await this.graphClient
+      const existingItemsRequest = this.graphClient
         .api(`${alertTypesListApi}/items`)
-        .expand("fields")
-        .get();
-      for (const item of existingItems.value) {
-        try {
-          await this.graphClient
-            .api(`${alertTypesListApi}/items/${item.id}`)
-            .delete();
-        } catch (deleteError) {
-          // Ignore 404 errors - item may have been already deleted
-          const error = deleteError as { statusCode?: number };
-          if (error?.statusCode !== 404) {
-            throw deleteError;
-          }
-          logger.debug(
-            "AlertOperationsService",
-            `Item ${item.id} not found during deletion, skipping`,
-          );
-        }
-      }
+        .expand("fields($select=Title)")
+        .top(400);
+
+      const existingItemsList: IGraphListItem[] =
+        await this.fetchPagedItems(existingItemsRequest);
+      const updatedItemIds = new Set<string>();
 
       for (let i = 0; i < alertTypes.length; i++) {
         const alertType = alertTypes[i];
@@ -1571,16 +1541,8 @@ export class AlertOperationsService {
           ...(alertType.priorityStyles || {}),
           __defaultPriority: alertType.defaultPriority || undefined,
         };
-        logger.debug(
-          "AlertOperationsService",
-          "Saving alert type with PriorityStyles",
-          {
-            name: alertType.name,
-            defaultPriority: alertType.defaultPriority,
-            priorityStylesPayload,
-          },
-        );
-        await this.graphClient.api(`${alertTypesListApi}/items`).post({
+
+        const payload = {
           fields: {
             Title: alertType.name,
             IconName: alertType.iconName,
@@ -1594,10 +1556,63 @@ export class AlertOperationsService {
               : undefined,
             SortOrder: i,
           },
-        });
+        };
+
+        // Try to match by ID first, then fallback to normalized bounds (name)
+        const normalizedIncomingName = (alertType.name || "")
+          .toLowerCase()
+          .trim();
+        const existingMatch = existingItemsList.find(
+          (ex) =>
+            ex.id === alertType.id ||
+            (ex.fields?.Title || "").toLowerCase().trim() ===
+              normalizedIncomingName,
+        );
+
+        if (existingMatch) {
+          updatedItemIds.add(existingMatch.id);
+          logger.debug(
+            "AlertOperationsService",
+            `Updating existing alert type ${alertType.name} (${existingMatch.id})`,
+          );
+          await this.graphClient
+            .api(`${alertTypesListApi}/items/${existingMatch.id}/fields`)
+            .patch(payload.fields);
+        } else {
+          logger.debug(
+            "AlertOperationsService",
+            `Creating new alert type ${alertType.name}`,
+          );
+          await this.graphClient
+            .api(`${alertTypesListApi}/items`)
+            .post(payload);
+        }
       }
 
-      // Invalidate in-memory cache after write.
+      // Cleanup: Delete items from SharePoint that no longer exist in the incoming array
+      for (const item of existingItemsList) {
+        if (!updatedItemIds.has(item.id)) {
+          logger.debug(
+            "AlertOperationsService",
+            `Deleting removed alert type ${item.fields?.Title || item.id}`,
+          );
+          try {
+            await this.graphClient
+              .api(`${alertTypesListApi}/items/${item.id}`)
+              .delete();
+          } catch (deleteError) {
+            const error = deleteError as { statusCode?: number };
+            if (error?.statusCode !== 404) {
+              logger.warn(
+                "AlertOperationsService",
+                `Failed to delete type ${item.id}`,
+                deleteError,
+              );
+            }
+          }
+        }
+      }
+
       this.alertTypesCache.delete(`types:${siteId}`);
     } catch (error) {
       logger.error(
@@ -1718,7 +1733,6 @@ export class AlertOperationsService {
     }));
   }
 
-  // Approval Workflow Methods
   public async submitAlert(
     alertId: string,
     reviewerId?: string,
@@ -1757,8 +1771,6 @@ export class AlertOperationsService {
     return this.updateAlert(alertId, updates);
   }
 
-  // Formats person fields for SharePoint Graph API
-  // SharePoint expects person fields as an array of objects with LookupId
   private formatPersonFieldForSharePoint(
     persons: IPersonField[] | IPersonField | undefined,
   ): { LookupId: string }[] | undefined {

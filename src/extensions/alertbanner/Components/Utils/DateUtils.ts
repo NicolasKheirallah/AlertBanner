@@ -1,5 +1,4 @@
 export class DateUtils {
-  // Time duration constants in milliseconds
   public static readonly MILLISECONDS = {
     SECOND: 1000,
     MINUTE: 60 * 1000,
@@ -26,7 +25,6 @@ export class DateUtils {
 
     const dateObj = typeof date === 'string' ? new Date(date) : date;
 
-    // Check if date is valid
     if (isNaN(dateObj.getTime())) {
       return null;
     }
@@ -43,14 +41,12 @@ export class DateUtils {
     return parsed ? parsed.toISOString() : undefined;
   }
 
-  // Convert date for HTML datetime-local input (adjusts for timezone offset)
   public static toDateTimeLocalValue(date: Date | string | undefined | null): string {
     const parsed = this.parseDate(date);
     if (!parsed) {
       return '';
     }
 
-    // Adjust for timezone offset to get local time
     const localDate = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
     return localDate.toISOString().slice(0, 16);
   }
@@ -90,7 +86,6 @@ export class DateUtils {
     return this.addDuration(date, amount, unit).toISOString();
   }
 
-  // Format date for display (used by CreateAlertTab, ManageAlertCard, ImageManager)
   public static formatForDisplay(date: Date | string | undefined | null): string {
     const parsed = this.parseDate(date);
     if (!parsed) {
@@ -104,7 +99,6 @@ export class DateUtils {
     });
   }
 
-  // Format date and time for display (used by ManageAlertCard)
   public static formatDateTimeForDisplay(date: Date | string | undefined | null): string {
     const parsed = this.parseDate(date);
     if (!parsed) {

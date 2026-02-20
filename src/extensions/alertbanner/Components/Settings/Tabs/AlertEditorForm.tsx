@@ -169,22 +169,17 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     wasBusyRef.current = isBusy;
   }, [isBusy]);
 
-  // Track previous multi-language state to detect toggle
   const prevMultiLanguageRef = React.useRef(useMultiLanguage);
   
-  // Initialize language content when switching to multi-language mode
   React.useEffect(() => {
     const switchedToMultiLanguage = useMultiLanguage && !prevMultiLanguageRef.current;
     prevMultiLanguageRef.current = useMultiLanguage;
     
-    // Only run when switching FROM single-language TO multi-language
     if (
       switchedToMultiLanguage &&
       (!alert.languageContent || alert.languageContent.length === 0) &&
       (alert.title || alert.description)
     ) {
-      // User toggled multi-language mode - initialize with current alert content
-      // Use tenant default if targetLanguage is "all" or not set
       const sourceLanguage =
         alert.targetLanguage && alert.targetLanguage !== TargetLanguage.All
           ? alert.targetLanguage
@@ -217,7 +212,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
       alert.languageContent &&
       alert.languageContent.length > 0
     ) {
-      // User toggled back to single language - use first language content
       const firstLang = alert.languageContent[0];
       if (firstLang) {
         setAlert((prev) =>
@@ -242,7 +236,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     setAlert,
   ]);
 
-  // Priority is now always derived from the selected Alert Type's defaultPriority
 
   const handlePeoplePickerChange = React.useCallback(
     (items: any[]) => {
@@ -428,8 +421,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
         }
       }
 
-      // Always clear title error when title field is being validated
-      // This ensures errors from validateAlertData are properly cleared
       if (fields.includes("title")) {
         const plainTitle = (nextAlert.title || "").trim();
         if (!useMultiLanguage) {
@@ -441,13 +432,11 @@ const AlertEditorForm = <T extends IAlertEditorState>({
             delete nextErrors.title;
           }
         } else {
-          // In multi-language mode, just clear the single-language title error
           delete nextErrors.title;
         }
       }
 
       if (fields.includes("linkDescription") || fields.includes("linkUrl")) {
-        // Clear linkDescription error when URL is empty or description is provided
         if (!nextAlert.linkUrl?.trim()) {
           delete nextErrors.linkDescription;
         } else if (nextAlert.linkDescription?.trim()) {

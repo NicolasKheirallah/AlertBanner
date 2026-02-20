@@ -9,7 +9,6 @@ import AlertContent from "./AlertContent";
 import AlertActions from "./AlertActions";
 import { SHADOW_CONFIG } from "../Utils/AppConstants";
 
-// Whitelist of safe CSS properties for alert styling
 const ALLOWED_CSS_PROPERTIES = new Set([
   "color",
   "backgroundColor",
@@ -39,7 +38,6 @@ const ALLOWED_CSS_PROPERTIES = new Set([
   "letterSpacing",
 ]);
 
-// Dangerous patterns that could enable CSS injection attacks
 const DANGEROUS_CSS_PATTERNS = [
   /url\s*\(/i, // Block url() - potential data exfiltration
   /expression\s*\(/i, // Block expression() - IE XSS vector
@@ -70,13 +68,11 @@ const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
       group1.toUpperCase(),
     );
 
-    // Security: Only allow whitelisted CSS properties
     if (!ALLOWED_CSS_PROPERTIES.has(camelCaseKey)) {
       logger.warn("AlertItem", `Blocked non-whitelisted CSS property: ${key}`);
       return;
     }
 
-    // Security: Block dangerous CSS values
     for (const pattern of DANGEROUS_CSS_PATTERNS) {
       if (pattern.test(value)) {
         logger.warn(
@@ -131,7 +127,6 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     [remove, hideForever],
   );
 
-  // Memoized keyboard event handler for accessibility
   const handleHeaderKeyDown = React.useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " ") {
@@ -142,16 +137,13 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     [handlers.toggleExpanded],
   );
 
-  // Memoized header click handler
   const handleHeaderClick = React.useCallback(() => {
     handlers.toggleExpanded();
   }, [handlers.toggleExpanded]);
 
   const baseContainerStyle = React.useMemo<React.CSSProperties>(() => {
-    // Use white/neutral background instead of alert type color
-    // Only the left border and title will use the alert type color
     const backgroundColor = "#ffffff";
-    const textColor = "#323130"; // Neutral dark text color
+    const textColor = "#323130";
 
     return {
       backgroundColor,
@@ -170,18 +162,14 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     [alertType.priorityStyles, item.priority],
   );
 
-  // Get global priority border colors from context
   const alertsState = useAlertsState();
   const priorityBorderColors = alertsState.priorityBorderColors;
 
-  // Extract color from CSS border string (e.g., "2px solid #E81123;" -> "#E81123")
   const extractBorderColor = (borderStr?: string): string | null => {
     if (!borderStr) return null;
     const match = borderStr.match(/#[a-fA-F0-9]{6}|#[a-fA-F0-9]{3}/);
     return match ? match[0] : null;
   };
-
-  // Get border color from priorityStyle first, then fall back to other sources
   const borderColor = React.useMemo(() => {
     const priorityStyleColor = extractBorderColor(priorityStyle);
     return (
@@ -200,8 +188,6 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   const containerStyle = React.useMemo<React.CSSProperties>(() => {
     const parsedPriorityStyle = parseAdditionalStyles(priorityStyle);
 
-    // If priorityStyle has a border property, use it directly
-    // Otherwise fall back to borderLeft with the alert type color
     const hasPriorityBorder =
       parsedPriorityStyle.border ||
       parsedPriorityStyle.borderLeft ||
@@ -210,7 +196,6 @@ const AlertItem: React.FC<IAlertItemProps> = ({
     return {
       ...baseContainerStyle,
       ...parsedPriorityStyle,
-      // Only set borderLeft if priorityStyle doesn't already define a border
       ...(!hasPriorityBorder && {
         borderLeft: `4px solid ${borderColor}`,
       }),
@@ -280,13 +265,10 @@ const AlertItem: React.FC<IAlertItemProps> = ({
   );
 };
 
-// Custom comparison function for React.memo
-// Only re-render when alert data or relevant props actually change
 const arePropsEqual = (
   prevProps: IAlertItemProps,
   nextProps: IAlertItemProps,
 ): boolean => {
-  // Compare alert item data
   if (prevProps.item.id !== nextProps.item.id) return false;
   if (prevProps.item.title !== nextProps.item.title) return false;
   if (prevProps.item.description !== nextProps.item.description) return false;
@@ -295,19 +277,15 @@ const arePropsEqual = (
   if (prevProps.item.linkUrl !== nextProps.item.linkUrl) return false;
   if (prevProps.item.AlertType !== nextProps.item.AlertType) return false;
 
-  // Compare carousel-related props
   if (prevProps.isCarousel !== nextProps.isCarousel) return false;
   if (prevProps.currentIndex !== nextProps.currentIndex) return false;
   if (prevProps.totalAlerts !== nextProps.totalAlerts) return false;
 
-  // Compare alert type
   if (prevProps.alertType !== nextProps.alertType) return false;
 
-  // Compare user targeting
   if (prevProps.userTargetingEnabled !== nextProps.userTargetingEnabled)
     return false;
 
-  // Compare callbacks (reference equality)
   if (prevProps.remove !== nextProps.remove) return false;
   if (prevProps.hideForever !== nextProps.hideForever) return false;
   if (prevProps.onNext !== nextProps.onNext) return false;
