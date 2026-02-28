@@ -75,11 +75,15 @@ export class HtmlSanitizer {
   private configureDefaults(): void {
     if (DOMPurify && typeof DOMPurify.addHook === "function") {
       try {
-        DOMPurify.addHook("beforeSanitizeElements", (node: Element) => {
-          if (node.tagName === "SCRIPT") {
-            node.remove();
-          }
-        });
+        DOMPurify.addHook(
+          "beforeSanitizeElements" as Parameters<typeof DOMPurify.addHook>[0],
+          (node: Node) => {
+            if ((node as Element).tagName === "SCRIPT") {
+              (node as Element).remove();
+            }
+            return node;
+          },
+        );
       } catch (error) {
         logger.warn(
           "HtmlSanitizer",

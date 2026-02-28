@@ -1,5 +1,5 @@
-import { logger } from '../Services/LoggerService';
-import { ErrorUtils } from './ErrorUtils';
+import { logger } from "../Services/LoggerService";
+import { ErrorUtils } from "./ErrorUtils";
 
 export interface IRetryOptions {
   maxRetries?: number;
@@ -15,7 +15,7 @@ export interface IRetryOptions {
 export class RetryUtils {
   public static async executeWithRetry<T>(
     operation: () => Promise<T>,
-    options: IRetryOptions = {}
+    options: IRetryOptions = {},
   ): Promise<T> {
     const {
       maxRetries = 3,
@@ -25,7 +25,7 @@ export class RetryUtils {
       useJitter = true,
       shouldRetry = (error) => ErrorUtils.isRetryableError(error),
       onRetry,
-      suppressFailureLog
+      suppressFailureLog,
     } = options;
 
     let lastError: any;
@@ -40,23 +40,31 @@ export class RetryUtils {
         const isLastAttempt = attempt === maxRetries;
 
         if (!isRetryable || isLastAttempt) {
-          const shouldSuppress = suppressFailureLog ? suppressFailureLog(error, attempt) : false;
+          const shouldSuppress = suppressFailureLog
+            ? suppressFailureLog(error, attempt)
+            : false;
           if (!shouldSuppress) {
             logger.error(
-              'RetryUtils',
+              "RetryUtils",
               `Operation failed after ${attempt} attempt(s)`,
-              ErrorUtils.getErrorInfo(error)
+              ErrorUtils.getErrorInfo(error),
             );
           }
           throw ErrorUtils.toError(error);
         }
 
-        const delay = this.calculateDelay(attempt, baseDelay, maxDelay, useExponentialBackoff, useJitter);
+        const delay = this.calculateDelay(
+          attempt,
+          baseDelay,
+          maxDelay,
+          useExponentialBackoff,
+          useJitter,
+        );
 
         logger.warn(
-          'RetryUtils',
+          "RetryUtils",
           `Attempt ${attempt}/${maxRetries} failed, retrying in ${delay}ms`,
-          ErrorUtils.getErrorInfo(error)
+          ErrorUtils.getErrorInfo(error),
         );
 
         if (onRetry) {
@@ -67,7 +75,9 @@ export class RetryUtils {
       }
     }
 
-    throw ErrorUtils.toError(lastError || new Error('Maximum retry attempts exceeded'));
+    throw ErrorUtils.toError(
+      lastError || new Error("Maximum retry attempts exceeded"),
+    );
   }
 
   public static calculateDelay(
@@ -75,7 +85,7 @@ export class RetryUtils {
     baseDelay: number,
     maxDelay: number,
     useExponentialBackoff: boolean,
-    useJitter: boolean
+    useJitter: boolean,
   ): number {
     let delay: number;
 
@@ -86,14 +96,29 @@ export class RetryUtils {
     }
 
     if (useJitter) {
-      const jitterAmount = delay * 0.3; // 30% jitter
+      const jitterAmount = delay * 0.3;
       delay = delay + (Math.random() * jitterAmount * 2 - jitterAmount);
     }
 
     return Math.min(delay, maxDelay);
   }
 
-  public static delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  public static delay(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        return reject(new DOMException("Aborted", "AbortError"));
+      }
+      const timeoutId = setTimeout(resolve, ms);
+      if (signal) {
+        signal.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timeoutId);
+            reject(new DOMException("Aborted", "AbortError"));
+          },
+          { once: true },
+        );
+      }
+    });
   }
 }

@@ -1,31 +1,34 @@
-require('@rushstack/eslint-patch/modern-module-resolution');
+require("@rushstack/eslint-patch/modern-module-resolution");
 
 module.exports = {
   root: true, // This prevents looking up parent directories
   env: {
     browser: true,
     es6: true,
-    node: true
+    node: true,
   },
-  plugins: ['@typescript-eslint', 'react-hooks'],
+  plugins: ["@typescript-eslint", "react-hooks"],
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module'
+    sourceType: "module",
   },
   rules: {
     // Minimal rules to avoid any plugin conflicts
-    'no-unused-vars': 'off',
-    'no-undef': 'off'
+    "no-unused-vars": "off",
+    "no-undef": "off",
   },
   overrides: [
     {
-      files: ['*.ts', '*.tsx'],
-      parser: '@typescript-eslint/parser',
+      files: ["*.ts", "*.tsx"],
+      parser: "@typescript-eslint/parser",
       parserOptions: {
         tsconfigRootDir: __dirname,
-        project: './tsconfig.json'
+        project: "./tsconfig.json",
       },
-      rules: {}
-    }
-  ]
+      rules: {
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn",
+      },
+    },
+  ],
 };

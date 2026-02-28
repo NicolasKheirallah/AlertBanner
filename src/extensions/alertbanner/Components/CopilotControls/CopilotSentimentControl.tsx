@@ -1,5 +1,11 @@
 import * as React from "react";
-import { DefaultButton, IconButton, ActionButton, Spinner, SpinnerSize } from "@fluentui/react";
+import {
+  DefaultButton,
+  IconButton,
+  ActionButton,
+  Spinner,
+  SpinnerSize,
+} from "@fluentui/react";
 import {
   AppsListDetail24Regular,
   CheckmarkCircle24Filled,
@@ -44,113 +50,150 @@ interface IFixableIssue {
 }
 
 interface IDetectedTone {
-  tone: 'professional' | 'urgent' | 'casual';
+  tone: "professional" | "urgent" | "casual";
   label: string;
   icon: React.ReactNode;
   color: string;
 }
 
 const calculateReadingStats = (text: string): IReadingStats => {
-  const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
   const wordCount = words.length;
   const avgReadingSpeed = 200;
   const readingTimeSeconds = Math.ceil((wordCount / avgReadingSpeed) * 60);
-  
+
   return { wordCount, readingTimeSeconds };
 };
 
 const detectTone = (text: string): IDetectedTone => {
   const lowerText = text.toLowerCase();
-  
-  const urgentWords = ['urgent', 'immediately', 'asap', 'critical', 'emergency', 'alert', 'warning', 'important', 'attention'];
-  const hasUrgentWords = urgentWords.some(word => lowerText.includes(word));
-  
-  const casualWords = ['hey', 'hi', 'hello', 'thanks', 'cheers', 'btw', 'just', 'maybe', 'probably'];
-  const hasCasualWords = casualWords.some(word => lowerText.includes(word));
-  
-  const formalWords = ['please', 'regards', 'sincerely', 'respectfully', 'announcement', 'policy', 'procedure'];
-  const hasFormalWords = formalWords.some(word => lowerText.includes(word));
-  
+
+  const urgentWords = [
+    "urgent",
+    "immediately",
+    "asap",
+    "critical",
+    "emergency",
+    "alert",
+    "warning",
+    "important",
+    "attention",
+  ];
+  const hasUrgentWords = urgentWords.some((word) => lowerText.includes(word));
+
+  const casualWords = [
+    "hey",
+    "hi",
+    "hello",
+    "thanks",
+    "cheers",
+    "btw",
+    "just",
+    "maybe",
+    "probably",
+  ];
+  const hasCasualWords = casualWords.some((word) => lowerText.includes(word));
+
+  const formalWords = [
+    "please",
+    "regards",
+    "sincerely",
+    "respectfully",
+    "announcement",
+    "policy",
+    "procedure",
+  ];
+  const hasFormalWords = formalWords.some((word) => lowerText.includes(word));
+
   if (hasUrgentWords) {
-    return { 
-      tone: 'urgent', 
-      label: 'Urgent',
+    return {
+      tone: "urgent",
+      label: "Urgent",
       icon: <Alert24Regular />,
-      color: '#d13438'
+      color: "#d13438",
     };
   }
-  
+
   if (hasCasualWords && !hasFormalWords) {
-    return { 
-      tone: 'casual', 
-      label: 'Casual',
+    return {
+      tone: "casual",
+      label: "Casual",
       icon: <Chat24Regular />,
-      color: '#107c10'
+      color: "#107c10",
     };
   }
-  
-  return { 
-    tone: 'professional', 
-    label: 'Professional',
+
+  return {
+    tone: "professional",
+    label: "Professional",
     icon: <Building24Regular />,
-    color: '#0078d4'
+    color: "#0078d4",
   };
 };
 
 const calculateScore = (
-  result: ISentimentResult, 
+  result: ISentimentResult,
   stats: IReadingStats,
   fixedCount: number,
-  totalIssues: number
+  totalIssues: number,
 ): number => {
   let score = 100;
-  
+
   if (stats.wordCount > 100) score -= 15;
   else if (stats.wordCount > 50) score -= 5;
-  
+
   if (stats.readingTimeSeconds > 20) score -= 10;
   else if (stats.readingTimeSeconds > 15) score -= 5;
-  
-  const criticalIssues = result.issues.filter(i => 
-    i.toLowerCase().includes('missing') || 
-    i.toLowerCase().includes('required')
+
+  const criticalIssues = result.issues.filter(
+    (i) =>
+      i.toLowerCase().includes("missing") ||
+      i.toLowerCase().includes("required"),
   ).length;
-  
-  const recommendedIssues = result.issues.filter(i => 
-    !i.toLowerCase().includes('missing') && 
-    !i.toLowerCase().includes('required')
+
+  const recommendedIssues = result.issues.filter(
+    (i) =>
+      !i.toLowerCase().includes("missing") &&
+      !i.toLowerCase().includes("required"),
   ).length;
-  
+
   score -= criticalIssues * 15;
   score -= recommendedIssues * 5;
-  
+
   if (totalIssues > 0) {
     score += Math.round((fixedCount / totalIssues) * 20);
   }
-  
-  if (result.status === 'red') score -= 15;
-  else if (result.status === 'yellow') score -= 5;
-  
+
+  if (result.status === "red") score -= 15;
+  else if (result.status === "yellow") score -= 5;
+
   return Math.max(0, Math.min(100, score));
 };
 
 const generateFixableIssues = (
-  result: ISentimentResult, 
+  result: ISentimentResult,
   stats: IReadingStats,
-  text: string
+  text: string,
 ): IFixableIssue[] => {
   const issues: IFixableIssue[] = [];
-  
+
   if (stats.wordCount > 100) {
     issues.push({
       id: "too-long",
       type: "critical",
       message: `Too long for banner (${stats.wordCount} words). Aim for under 50.`,
       fixAction: strings.CopilotSentimentFixTrim,
-      fixHandler: () => text.split(/[.!?]+/).slice(0, 2).join(". ") + ".",
+      fixHandler: () =>
+        text
+          .split(/[.!?]+/)
+          .slice(0, 2)
+          .join(". ") + ".",
     });
   }
-  
+
   if (stats.readingTimeSeconds > 20) {
     issues.push({
       id: "too-slow",
@@ -159,37 +202,45 @@ const generateFixableIssues = (
       fixAction: strings.CopilotSentimentFixConcise,
     });
   }
-  
+
   result.issues.forEach((issue, idx) => {
     const lowerIssue = issue.toLowerCase();
     let type: "critical" | "recommended" | "optional" = "recommended";
-    
-    if (lowerIssue.includes("missing") || lowerIssue.includes("required") || lowerIssue.includes("no ")) {
+
+    if (
+      lowerIssue.includes("missing") ||
+      lowerIssue.includes("required") ||
+      lowerIssue.includes("no ")
+    ) {
       type = "critical";
-    } else if (lowerIssue.includes("consider") || lowerIssue.includes("could") || lowerIssue.includes("might")) {
+    } else if (
+      lowerIssue.includes("consider") ||
+      lowerIssue.includes("could") ||
+      lowerIssue.includes("might")
+    ) {
       type = "optional";
     }
-    
+
     issues.push({
       id: `analysis-${idx}`,
       type,
       message: issue,
     });
   });
-  
+
   return issues;
 };
 
 const parseAnalysisContent = (rawContent: string) => {
   const lines = rawContent.split("\n").map((l) => l.trim());
-  const sections: { 
-    professional?: string; 
-    tone?: string; 
-    issues?: string; 
-    status?: string; 
+  const sections: {
+    professional?: string;
+    tone?: string;
+    issues?: string;
+    status?: string;
     summary?: string;
   } = {};
-  
+
   for (const line of lines) {
     const lower = line.toLowerCase();
     if (lower.startsWith("professional:")) {
@@ -204,21 +255,19 @@ const parseAnalysisContent = (rawContent: string) => {
       sections.summary = line.substring("summary:".length).trim();
     }
   }
-  
+
   return sections;
 };
 
-export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = ({ 
-  copilotService, 
-  textToAnalyze, 
-  onError, 
-  disabled,
-  onApplyFix,
-}) => {
+export const CopilotSentimentControl: React.FC<
+  ICopilotSentimentControlProps
+> = ({ copilotService, textToAnalyze, onError, disabled, onApplyFix }) => {
   const [isChecking, setIsChecking] = React.useState(false);
   const [result, setResult] = React.useState<ISentimentResult | null>(null);
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const [appliedFixes, setAppliedFixes] = React.useState<Set<string>>(new Set());
+  const [appliedFixes, setAppliedFixes] = React.useState<Set<string>>(
+    new Set(),
+  );
   const [calculatedScore, setCalculatedScore] = React.useState<number>(0);
   const lastCheckedRef = React.useRef<string>("");
 
@@ -226,45 +275,52 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
     if (!textToAnalyze) return null;
     return calculateReadingStats(textToAnalyze);
   }, [textToAnalyze]);
-  
+
   const detectedTone = React.useMemo(() => {
     if (!textToAnalyze) return null;
     return detectTone(textToAnalyze);
   }, [textToAnalyze]);
 
-  const performCheck = React.useCallback(async (force: boolean = false): Promise<void> => {
-    if (!textToAnalyze || textToAnalyze.trim().length < 10) {
-      setResult(null);
-      return;
-    }
-
-    if (!force && textToAnalyze === lastCheckedRef.current) return;
-    lastCheckedRef.current = textToAnalyze;
-
-    setIsChecking(true);
-    try {
-      const response = await copilotService.analyzeSentiment(textToAnalyze);
-
-      if (response.isError) {
-        if (!response.isCancelled) {
-          onError(response.errorMessage || strings.CopilotAnalyzeFailed);
-        }
-        lastCheckedRef.current = "";
+  const performCheck = React.useCallback(
+    async (force: boolean = false): Promise<void> => {
+      if (!textToAnalyze || textToAnalyze.trim().length < 10) {
         setResult(null);
-      } else {
-        const parsed = copilotService.parseSentimentResult(response.content);
-        setResult(parsed);
-        setAppliedFixes(new Set());
-        setIsExpanded(parsed.status !== "green" || parsed.issues.length > 0);
+        return;
       }
-    } catch (error) {
-      logger.error("CopilotSentimentControl", "Sentiment check failed", error);
-      onError(strings.CopilotUnexpectedError);
-      lastCheckedRef.current = "";
-    } finally {
-      setIsChecking(false);
-    }
-  }, [textToAnalyze, copilotService, onError]);
+
+      if (!force && textToAnalyze === lastCheckedRef.current) return;
+      lastCheckedRef.current = textToAnalyze;
+
+      setIsChecking(true);
+      try {
+        const response = await copilotService.analyzeSentiment(textToAnalyze);
+
+        if (response.isError) {
+          if (!response.isCancelled) {
+            onError(response.errorMessage || strings.CopilotAnalyzeFailed);
+          }
+          lastCheckedRef.current = "";
+          setResult(null);
+        } else {
+          const parsed = copilotService.parseSentimentResult(response.content);
+          setResult(parsed);
+          setAppliedFixes(new Set());
+          setIsExpanded(parsed.status !== "green" || parsed.issues.length > 0);
+        }
+      } catch (error) {
+        logger.error(
+          "CopilotSentimentControl",
+          "Sentiment check failed",
+          error,
+        );
+        onError(strings.CopilotUnexpectedError);
+        lastCheckedRef.current = "";
+      } finally {
+        setIsChecking(false);
+      }
+    },
+    [textToAnalyze, copilotService, onError],
+  );
 
   const handleCheck = (): void => {
     void performCheck(true);
@@ -279,65 +335,76 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
     if (issue.fixHandler && onApplyFix) {
       const fixedText = issue.fixHandler();
       onApplyFix(fixedText);
-      setAppliedFixes(prev => new Set(prev).add(issue.id));
-      
+      setAppliedFixes((prev) => new Set(prev).add(issue.id));
+
       setTimeout(() => {
-        lastCheckedRef.current = ""; // Force re-check
+        lastCheckedRef.current = "";
         void performCheck(true);
       }, 500);
     }
   };
 
-  const analysisSections = result ? parseAnalysisContent(result.rawContent) : null;
-  const fixableIssues = result && readingStats 
-    ? generateFixableIssues(result, readingStats, textToAnalyze)
-    : [];
-  
-  const criticalIssues = fixableIssues.filter(i => i.type === "critical" && !appliedFixes.has(i.id));
-  const recommendedIssues = fixableIssues.filter(i => i.type === "recommended" && !appliedFixes.has(i.id));
-  const optionalIssues = fixableIssues.filter(i => i.type === "optional" && !appliedFixes.has(i.id));
-  
+  const analysisSections = result
+    ? parseAnalysisContent(result.rawContent)
+    : null;
+  const fixableIssues =
+    result && readingStats
+      ? generateFixableIssues(result, readingStats, textToAnalyze)
+      : [];
+
+  const criticalIssues = fixableIssues.filter(
+    (i) => i.type === "critical" && !appliedFixes.has(i.id),
+  );
+  const recommendedIssues = fixableIssues.filter(
+    (i) => i.type === "recommended" && !appliedFixes.has(i.id),
+  );
+  const optionalIssues = fixableIssues.filter(
+    (i) => i.type === "optional" && !appliedFixes.has(i.id),
+  );
+
   const totalIssues = fixableIssues.length;
   const fixedCount = appliedFixes.size;
-  
-  const score = result && readingStats 
-    ? calculateScore(result, readingStats, fixedCount, totalIssues)
-    : 0;
-  
-  const getStatusFromScore = (s: number): 'green' | 'yellow' | 'red' => {
-    if (s >= 80) return 'green';
-    if (s >= 50) return 'yellow';
-    return 'red';
+
+  const score =
+    result && readingStats
+      ? calculateScore(result, readingStats, fixedCount, totalIssues)
+      : 0;
+
+  const getStatusFromScore = (s: number): "green" | "yellow" | "red" => {
+    if (s >= 80) return "green";
+    if (s >= 50) return "yellow";
+    return "red";
   };
-  
+
   const status = getStatusFromScore(score);
-  
+
   const statusConfig = {
     green: {
       icon: <CheckmarkCircle24Filled />,
       className: styles.statusGreen,
       barClassName: styles.barGreen,
-      label: 'Looks Good',
-      color: '#107c10',
+      label: "Looks Good",
+      color: "#107c10",
     },
     yellow: {
       icon: <Warning24Filled />,
       className: styles.statusYellow,
       barClassName: styles.barYellow,
-      label: 'Review Suggested',
-      color: '#f9a825',
+      label: "Review Suggested",
+      color: "#f9a825",
     },
     red: {
       icon: <ErrorCircle24Filled />,
       className: styles.statusRed,
       barClassName: styles.barRed,
-      label: 'Issues Found',
-      color: '#d13438',
+      label: "Issues Found",
+      color: "#d13438",
     },
   };
-  
+
   const config = statusConfig[status];
-  const progressPercent = totalIssues > 0 ? Math.round((fixedCount / totalIssues) * 100) : 100;
+  const progressPercent =
+    totalIssues > 0 ? Math.round((fixedCount / totalIssues) * 100) : 100;
 
   const showPill = result && !isExpanded;
 
@@ -361,16 +428,22 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
     <div className={styles.container}>
       <div className={styles.buttonRow}>
         <DefaultButton
-          onRenderIcon={() => isChecking ? <Spinner size={SpinnerSize.xSmall} /> : <AppsListDetail24Regular />}
+          onRenderIcon={() =>
+            isChecking ? (
+              <Spinner size={SpinnerSize.xSmall} />
+            ) : (
+              <AppsListDetail24Regular />
+            )
+          }
           onClick={handleCheck}
           disabled={disabled || isChecking}
           className={styles.sentimentButton}
         >
-          {isChecking ? 'Checking...' : strings.CopilotSentimentButton}
+          {isChecking ? "Checking..." : strings.CopilotSentimentButton}
         </DefaultButton>
-        
+
         {showPill && (
-          <button 
+          <button
             className={`${styles.scorePill} ${config.className}`}
             onClick={() => setIsExpanded(true)}
             title={strings.CopilotSentimentTooltipExpand}
@@ -379,7 +452,10 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
             <span className={styles.pillIcon}>{config.icon}</span>
             <span className={styles.pillScore}>{score}%</span>
             {fixedCount > 0 && (
-              <span className={styles.pillProgress}> ({fixedCount}/{totalIssues} fixed)</span>
+              <span className={styles.pillProgress}>
+                {" "}
+                ({fixedCount}/{totalIssues} fixed)
+              </span>
             )}
             <ChevronDown24Regular className={styles.pillChevron} />
           </button>
@@ -388,7 +464,6 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
 
       {result && config && analysisSections && isExpanded && (
         <div className={`${styles.resultCard} ${config.className}`}>
-          {/* Header */}
           <div className={styles.resultHeader}>
             <div className={styles.statusBadge}>
               <span className={styles.statusIcon}>{config.icon}</span>
@@ -397,7 +472,7 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
                   {config.label} • {score}/100
                 </span>
                 <div className={styles.scoreBar}>
-                  <div 
+                  <div
                     className={`${styles.scoreBarFill} ${config.barClassName}`}
                     style={{ width: `${score}%` }}
                   />
@@ -424,40 +499,59 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
             </div>
           </div>
 
-          {/* Reading Stats */}
           {readingStats && detectedTone && (
             <div className={styles.statsBar}>
               <div className={styles.statItem}>
                 <TextWordCount24Regular className={styles.statIcon} />
-                <span className={styles.statValue}>{readingStats.wordCount}</span>
-                <span className={styles.statLabel}>{strings.CopilotSentimentReadingStatsWords}</span>
+                <span className={styles.statValue}>
+                  {readingStats.wordCount}
+                </span>
+                <span className={styles.statLabel}>
+                  {strings.CopilotSentimentReadingStatsWords}
+                </span>
               </div>
               <div className={styles.statDivider} />
               <div className={styles.statItem}>
                 <Clock24Regular className={styles.statIcon} />
-                <span className={styles.statValue}>{readingStats.readingTimeSeconds}s</span>
-                <span className={styles.statLabel}>{strings.CopilotSentimentReadingStatsTime}</span>
+                <span className={styles.statValue}>
+                  {readingStats.readingTimeSeconds}s
+                </span>
+                <span className={styles.statLabel}>
+                  {strings.CopilotSentimentReadingStatsTime}
+                </span>
               </div>
               <div className={styles.statDivider} />
               <div className={styles.statItem}>
-                <span className={styles.toneIcon} style={{ color: detectedTone.color }}>
+                <span
+                  className={styles.toneIcon}
+                  style={{ color: detectedTone.color }}
+                >
                   {detectedTone.icon}
                 </span>
                 <span className={styles.statValue}>{detectedTone.label}</span>
-                <span className={styles.statLabel}>{strings.CopilotSentimentToneLabel}</span>
+                <span className={styles.statLabel}>
+                  {strings.CopilotSentimentToneLabel}
+                </span>
               </div>
             </div>
           )}
 
-          {/* Progress Checklist */}
           {totalIssues > 0 && (
             <div className={styles.progressSection}>
               <div className={styles.progressHeader}>
-                <span className={styles.progressLabel}>{strings.CopilotSentimentIssuesFixedLabel}</span>
-                <span className={styles.progressValue}>{Text.format(strings.CopilotSentimentIssuesFixedCount, fixedCount, totalIssues)}</span>
+                <span className={styles.progressLabel}>
+                  {strings.CopilotSentimentIssuesFixedLabel}
+                </span>
+                <span className={styles.progressValue}>
+                  {Text.format(
+                    strings.CopilotSentimentIssuesFixedCount,
+                    fixedCount,
+                    totalIssues,
+                  )}
+                </span>
               </div>
               <div className={styles.progressBar}>
-                <div 
+                <div
                   className={styles.progressFill}
                   style={{ width: `${progressPercent}%` }}
                 />
@@ -465,12 +559,12 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
             </div>
           )}
 
-          {/* Critical Issues */}
           {criticalIssues.length > 0 && (
             <div className={styles.issuesSectionCritical}>
               <h4 className={styles.sectionTitleCritical}>
                 <ErrorCircle24Filled className={styles.sectionIcon} />
-                {strings.CopilotSentimentCriticalSection} ({criticalIssues.length})
+                {strings.CopilotSentimentCriticalSection} (
+                {criticalIssues.length})
               </h4>
               <ul className={styles.issueList}>
                 {criticalIssues.map((issue) => (
@@ -482,7 +576,9 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
                           className={styles.fixButton}
                           onClick={() => handleApplyFix(issue)}
                           iconProps={{ iconName: undefined }}
-                          onRenderIcon={() => <Wand24Regular className={styles.fixIcon} />}
+                          onRenderIcon={() => (
+                            <Wand24Regular className={styles.fixIcon} />
+                          )}
                         >
                           {issue.fixAction}
                         </ActionButton>
@@ -494,12 +590,12 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
             </div>
           )}
 
-          {/* Recommended Issues */}
           {recommendedIssues.length > 0 && (
             <div className={styles.issuesSectionRecommended}>
               <h4 className={styles.sectionTitleRecommended}>
                 <Warning24Filled className={styles.sectionIcon} />
-                {strings.CopilotSentimentRecommendedSection} ({recommendedIssues.length})
+                {strings.CopilotSentimentRecommendedSection} (
+                {recommendedIssues.length})
               </h4>
               <ul className={styles.issueList}>
                 {recommendedIssues.map((issue) => (
@@ -511,7 +607,9 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
                           className={styles.fixButton}
                           onClick={() => handleApplyFix(issue)}
                           iconProps={{ iconName: undefined }}
-                          onRenderIcon={() => <Wand24Regular className={styles.fixIcon} />}
+                          onRenderIcon={() => (
+                            <Wand24Regular className={styles.fixIcon} />
+                          )}
                         >
                           {issue.fixAction}
                         </ActionButton>
@@ -523,12 +621,12 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
             </div>
           )}
 
-          {/* Optional Issues */}
           {optionalIssues.length > 0 && (
             <div className={styles.issuesSectionOptional}>
               <h4 className={styles.sectionTitleOptional}>
                 <Lightbulb24Regular className={styles.sectionIcon} />
-                {strings.CopilotSentimentOptionalSection} ({optionalIssues.length})
+                {strings.CopilotSentimentOptionalSection} (
+                {optionalIssues.length})
               </h4>
               <ul className={styles.issueList}>
                 {optionalIssues.map((issue) => (
@@ -540,35 +638,43 @@ export const CopilotSentimentControl: React.FC<ICopilotSentimentControlProps> = 
             </div>
           )}
 
-          {/* Analysis Summary */}
           <div className={styles.analysisGrid}>
             {analysisSections.professional && (
               <div className={styles.analysisItem}>
-                <span className={styles.analysisLabel}>{strings.CopilotSentimentAnalysisProfessional}</span>
-                <span className={`${styles.analysisValue} ${
-                  analysisSections.professional.toLowerCase().startsWith("yes") 
-                    ? styles.valuePositive 
-                    : styles.valueNegative
-                }`}>
+                <span className={styles.analysisLabel}>
+                  {strings.CopilotSentimentAnalysisProfessional}
+                </span>
+                <span
+                  className={`${styles.analysisValue} ${
+                    analysisSections.professional
+                      .toLowerCase()
+                      .startsWith("yes")
+                      ? styles.valuePositive
+                      : styles.valueNegative
+                  }`}
+                >
                   {analysisSections.professional}
                 </span>
               </div>
             )}
             {analysisSections.tone && (
               <div className={styles.analysisItem}>
-                <span className={styles.analysisLabel}>{strings.CopilotSentimentAnalysisTone}</span>
-                <span className={`${styles.analysisValue} ${
-                  analysisSections.tone.toLowerCase().startsWith("yes") 
-                    ? styles.valuePositive 
-                    : styles.valueNegative
-                }`}>
+                <span className={styles.analysisLabel}>
+                  {strings.CopilotSentimentAnalysisTone}
+                </span>
+                <span
+                  className={`${styles.analysisValue} ${
+                    analysisSections.tone.toLowerCase().startsWith("yes")
+                      ? styles.valuePositive
+                      : styles.valueNegative
+                  }`}
+                >
                   {analysisSections.tone}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Summary */}
           {analysisSections.summary && (
             <div className={styles.summarySection}>
               <p>{analysisSections.summary}</p>

@@ -32,6 +32,35 @@ import {
   normalizeLanguagePolicy,
 } from "./LanguagePolicyService";
 
+export interface IAlertFields {
+  Title?: string;
+  Description?: string;
+  Priority?: string;
+  IsPinned?: boolean;
+  NotificationType?: string;
+  AlertTypeLookupId?: string | number;
+  AlertType?: string;
+  LinkUrl?: string;
+  LinkDescription?: string;
+  TargetSites?: string | null;
+  Status?: string;
+  ScheduledStart?: string;
+  ScheduledEnd?: string;
+  ItemType?: string;
+  TargetLanguage?: string;
+  LanguageGroup?: string;
+  TranslationStatus?: string;
+  ContentStatus?: string;
+  Reviewer?: unknown;
+  TargetUsers?: unknown;
+  ReviewNotes?: string;
+  SubmittedDate?: string;
+  ReviewedDate?: string;
+  AvailableForAll?: boolean;
+  Metadata?: string | null;
+  [key: string]: unknown;
+}
+
 export class AlertOperationsService {
   private graphClient: MSGraphClientV3;
   private context: ApplicationCustomizerContext;
@@ -271,7 +300,6 @@ export class AlertOperationsService {
         }
       }
 
-      // - If targetSites has values, only show if current site is in the list
       if (alert.targetSites && alert.targetSites.length > 0) {
         const currentSiteIdLower = currentSiteId.toLowerCase();
         const isTargeted = alert.targetSites.some(
@@ -315,6 +343,11 @@ export class AlertOperationsService {
         ];
         const missing = required.filter((c) => !availableColumns.has(c));
         if (missing.length > 0 && !availableColumns.has("Title")) {
+          logger.debug(
+            "AlertOperationsService",
+            "Some required columns missing from schema",
+            { missing },
+          );
         }
 
         let alertTypeLookupId: string | undefined;
@@ -336,7 +369,7 @@ export class AlertOperationsService {
           );
         }
 
-        const fields: any = {
+        const fields: IAlertFields = {
           Title: alert.title.trim(),
           Description: alert.description.trim(),
           Priority: alert.priority,
@@ -431,7 +464,6 @@ export class AlertOperationsService {
         const availableColumns =
           await this.locator.getAvailableColumns(alertsListApi);
 
-        // Handle AlertType lookup field - need to convert name to LookupId format
         let alertTypeLookupId: string | undefined;
         if (updates.AlertType !== undefined) {
           const alertTypes = await this.getAlertTypes(siteId);
@@ -454,13 +486,12 @@ export class AlertOperationsService {
           }
         }
 
-        const fields: any = {};
+        const fields: IAlertFields = {};
         const setIfAvailable = (
           columnName: string,
           value: unknown,
           allowEmptyString = false,
         ): void => {
-          // Core fields that should always be set if provided (bypass column check)
           const coreFields = [
             "Title",
             "Description",
@@ -492,12 +523,9 @@ export class AlertOperationsService {
 
         setIfAvailable("Title", updates.title);
         setIfAvailable("Description", updates.description);
-        // AlertType is a lookup field - use FieldNameLookupId format for Graph API
         if (alertTypeLookupId) {
           setIfAvailable("AlertTypeLookupId", alertTypeLookupId);
         } else if (updates.AlertType !== undefined) {
-          // Fallback: if we can't find the ID, try setting the name directly
-          // (this might fail for lookup fields, but logs will show the issue)
           setIfAvailable("AlertType", updates.AlertType);
         }
         setIfAvailable("Priority", updates.priority);
@@ -624,10 +652,6 @@ export class AlertOperationsService {
     await Promise.allSettled(alertIds.map((id) => this.deleteAlert(id)));
   }
 
-  /**
-   * Update the sort order for multiple alerts
-   * @param alertOrders Array of {alertId, sortOrder} objects
-   */
   public async updateAlertsSortOrder(
     alertOrders: { alertId: string; sortOrder: number }[],
   ): Promise<void> {
@@ -740,14 +764,13 @@ export class AlertOperationsService {
         );
 
         const typesMap = new Map<string, IAlertType>();
-        const seenNames = new Set<string>(); // For case-insensitive duplicate detection
+        const seenNames = new Set<string>();
         sortedItems.forEach((item: IGraphListItem) => {
           const name = String(item?.fields?.Title || "").trim();
           if (!name) return;
 
           const normalizedName = name.toLowerCase();
 
-          // Skip duplicates - keep first occurrence (which respects SortOrder due to sorting)
           if (seenNames.has(normalizedName)) return;
           seenNames.add(normalizedName);
 
@@ -770,7 +793,7 @@ export class AlertOperationsService {
             JsonUtils.safeParse(item?.fields?.PriorityColors) || undefined;
 
           typesMap.set(name, {
-            id: item.id, // Store SharePoint item ID for lookup field reference
+            id: item.id,
             name,
             iconName: item?.fields?.IconName || "Info",
             backgroundColor: item?.fields?.BackgroundColor || "#0078d4",
@@ -1493,7 +1516,7 @@ export class AlertOperationsService {
               this.languagePolicyTitle.toLowerCase(),
           ) || items[0];
 
-        const fields: any = {
+        const fields: IAlertFields = {
           Title: this.languagePolicyTitle,
           Metadata: payloadMetadata,
           ItemType: ALERT_ITEM_TYPES.SETTINGS,
@@ -1558,7 +1581,6 @@ export class AlertOperationsService {
           },
         };
 
-        // Try to match by ID first, then fallback to normalized bounds (name)
         const normalizedIncomingName = (alertType.name || "")
           .toLowerCase()
           .trim();
@@ -1589,7 +1611,6 @@ export class AlertOperationsService {
         }
       }
 
-      // Cleanup: Delete items from SharePoint that no longer exist in the incoming array
       for (const item of existingItemsList) {
         if (!updatedItemIds.has(item.id)) {
           logger.debug(
@@ -1741,9 +1762,6 @@ export class AlertOperationsService {
       contentStatus: ContentStatus.PendingReview,
       submittedDate: new Date().toISOString(),
     };
-    // If reviewerId is provided, we would likely update the Reviewer field here
-    // But Reviewer is a Person field, passing just ID might require lookup or specific format
-    // For now, we'll assume the UI handles assignment or we just set status
     return this.updateAlert(alertId, updates);
   }
 
@@ -1779,8 +1797,6 @@ export class AlertOperationsService {
     const personArray = Array.isArray(persons) ? persons : [persons];
     if (personArray.length === 0) return undefined;
 
-    return personArray
-      .filter((p) => p?.id) // Only include persons with valid IDs
-      .map((p) => ({ LookupId: p.id }));
+    return personArray.filter((p) => p?.id).map((p) => ({ LookupId: p.id }));
   }
 }

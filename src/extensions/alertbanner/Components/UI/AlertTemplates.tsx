@@ -1,6 +1,6 @@
 import * as React from "react";
-import { logger } from '../Services/LoggerService';
-import { useAsyncOperation } from '../Hooks/useAsyncOperation';
+import { logger } from "../Services/LoggerService";
+import { useAsyncOperation } from "../Hooks/useAsyncOperation";
 import {
   Settings24Regular,
   Warning24Regular,
@@ -16,22 +16,30 @@ import {
   Search24Regular,
   Pin24Regular,
   Alert24Regular,
-  Info24Regular
+  Info24Regular,
 } from "@fluentui/react-icons";
 import { AlertPriority, NotificationType, IAlertItem } from "../Alerts/IAlerts";
 import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import styles from "./AlertTemplates.module.scss";
-import * as strings from 'AlertBannerApplicationCustomizerStrings';
-import { Text } from '@microsoft/sp-core-library';
+import * as strings from "AlertBannerApplicationCustomizerStrings";
+import { Text } from "@microsoft/sp-core-library";
 
 export interface IAlertTemplate {
   id: string;
   name: string;
   description: string;
   icon: React.ReactElement;
-  category: "maintenance" | "announcement" | "emergency" | "update" | "celebration" | "info" | "interruption" | "training";
+  category:
+    | "maintenance"
+    | "announcement"
+    | "emergency"
+    | "update"
+    | "celebration"
+    | "info"
+    | "interruption"
+    | "training";
   template: {
     title: string;
     description: string;
@@ -54,22 +62,42 @@ interface IAlertTemplatesProps {
 const getIconForAlertType = (alertType: string): React.ReactElement => {
   const type = alertType.toLowerCase();
   switch (type) {
-    case 'maintenance': return <Settings24Regular />;
-    case 'warning': return <Warning24Regular />;
-    case 'info': return <Info24Regular />;
-    case 'interruption': return <Warning24Regular />;
-    default: return <Alert24Regular />;
+    case "maintenance":
+      return <Settings24Regular />;
+    case "warning":
+      return <Warning24Regular />;
+    case "info":
+      return <Info24Regular />;
+    case "interruption":
+      return <Warning24Regular />;
+    default:
+      return <Alert24Regular />;
   }
 };
 
-const getCategoryForAlertType = (alertType: string): "maintenance" | "announcement" | "emergency" | "update" | "celebration" | "info" | "interruption" | "training" => {
+const getCategoryForAlertType = (
+  alertType: string,
+):
+  | "maintenance"
+  | "announcement"
+  | "emergency"
+  | "update"
+  | "celebration"
+  | "info"
+  | "interruption"
+  | "training" => {
   const type = alertType.toLowerCase();
   switch (type) {
-    case 'maintenance': return 'maintenance';
-    case 'warning': return 'emergency';
-    case 'info': return 'info';
-    case 'interruption': return 'interruption';
-    default: return 'announcement';
+    case "maintenance":
+      return "maintenance";
+    case "warning":
+      return "emergency";
+    case "info":
+      return "info";
+    case "interruption":
+      return "interruption";
+    default:
+      return "announcement";
   }
 };
 
@@ -77,7 +105,10 @@ const convertAlertToTemplate = (alert: IAlertItem): IAlertTemplate => {
   return {
     id: alert.id,
     name: alert.title,
-    description: Text.format(strings.AlertTemplatesTemplateDescription, alert.title),
+    description: Text.format(
+      strings.AlertTemplatesTemplateDescription,
+      alert.title,
+    ),
     icon: getIconForAlertType(alert.AlertType),
     category: getCategoryForAlertType(alert.AlertType),
     template: {
@@ -87,8 +118,9 @@ const convertAlertToTemplate = (alert: IAlertItem): IAlertTemplate => {
       notificationType: alert.notificationType as NotificationType,
       isPinned: alert.isPinned,
       linkUrl: alert.linkUrl || "",
-      linkDescription: alert.linkDescription || strings.AlertTemplatesDefaultLinkDescription
-    }
+      linkDescription:
+        alert.linkDescription || strings.AlertTemplatesDefaultLinkDescription,
+    },
   };
 };
 
@@ -97,46 +129,80 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
   graphClient,
   context,
   alertService,
-  className
+  className,
 }) => {
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [templates, setTemplates] = React.useState<IAlertTemplate[]>([]);
 
   const categories = [
-    { id: "all", name: strings.AlertTemplatesCategoryAll, icon: <Folder24Regular /> },
-    { id: "maintenance", name: strings.AlertTemplatesCategoryMaintenance, icon: <Settings24Regular /> },
-    { id: "info", name: strings.AlertTemplatesCategoryInformation, icon: <Info24Regular /> },
-    { id: "emergency", name: strings.AlertTemplatesCategoryEmergency, icon: <Warning24Regular /> },
-    { id: "interruption", name: strings.AlertTemplatesCategoryInterruption, icon: <Warning24Regular /> },
-    { id: "training", name: strings.AlertTemplatesCategoryTraining, icon: <Book24Regular /> },
-    { id: "announcement", name: strings.AlertTemplatesCategoryAnnouncements, icon: <Megaphone24Regular /> }
+    {
+      id: "all",
+      name: strings.AlertTemplatesCategoryAll,
+      icon: <Folder24Regular />,
+    },
+    {
+      id: "maintenance",
+      name: strings.AlertTemplatesCategoryMaintenance,
+      icon: <Settings24Regular />,
+    },
+    {
+      id: "info",
+      name: strings.AlertTemplatesCategoryInformation,
+      icon: <Info24Regular />,
+    },
+    {
+      id: "emergency",
+      name: strings.AlertTemplatesCategoryEmergency,
+      icon: <Warning24Regular />,
+    },
+    {
+      id: "interruption",
+      name: strings.AlertTemplatesCategoryInterruption,
+      icon: <Warning24Regular />,
+    },
+    {
+      id: "training",
+      name: strings.AlertTemplatesCategoryTraining,
+      icon: <Book24Regular />,
+    },
+    {
+      id: "announcement",
+      name: strings.AlertTemplatesCategoryAnnouncements,
+      icon: <Megaphone24Regular />,
+    },
   ];
 
   const { loading, execute: loadTemplates } = useAsyncOperation(
     async () => {
       const currentSiteId = context.pageContext.site.id.toString();
-      const templateAlerts = await alertService.getTemplateAlerts(currentSiteId);
+      const templateAlerts =
+        await alertService.getTemplateAlerts(currentSiteId);
       const convertedTemplates = templateAlerts.map(convertAlertToTemplate);
       return convertedTemplates;
     },
     {
       onSuccess: (convertedTemplates) => setTemplates(convertedTemplates || []),
       onError: () => {
-        logger.warn('AlertTemplates', 'Failed to load templates from SharePoint');
+        logger.warn(
+          "AlertTemplates",
+          "Failed to load templates from SharePoint",
+        );
         setTemplates([]);
       },
-      logErrors: true
-    }
+      logErrors: true,
+    },
   );
 
   React.useEffect(() => {
     loadTemplates();
-  }, [alertService, context]);
+  }, [alertService, context, loadTemplates]);
 
-  const filteredTemplates = templates.filter(template => {
-    const matchesCategory = selectedCategory === "all" || template.category === selectedCategory;
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredTemplates = templates.filter((template) => {
+    const matchesCategory =
+      selectedCategory === "all" || template.category === selectedCategory;
+    const matchesSearch =
+      template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.description.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
@@ -146,7 +212,7 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
   };
 
   return (
-    <div className={`${styles.templatesContainer} ${className || ''}`}>
+    <div className={`${styles.templatesContainer} ${className || ""}`}>
       <div className={styles.templatesHeader}>
         <h3>{strings.AlertTemplatesHeaderTitle}</h3>
         <p>{strings.AlertTemplatesHeaderDescription}</p>
@@ -161,14 +227,16 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
           />
-          <span className={styles.searchIcon}><Search24Regular /></span>
+          <span className={styles.searchIcon}>
+            <Search24Regular />
+          </span>
         </div>
 
         <div className={styles.categoryFilter}>
-          {categories.map(category => (
+          {categories.map((category) => (
             <button
               key={category.id}
-              className={`${styles.categoryButton} ${selectedCategory === category.id ? styles.active : ''}`}
+              className={`${styles.categoryButton} ${selectedCategory === category.id ? styles.active : ""}`}
               onClick={() => setSelectedCategory(category.id)}
             >
               <span className={styles.categoryIcon}>{category.icon}</span>
@@ -187,54 +255,65 @@ const AlertTemplates: React.FC<IAlertTemplatesProps> = ({
       ) : (
         <>
           <div className={styles.templatesGrid}>
-            {filteredTemplates.map(template => (
+            {filteredTemplates.map((template) => (
               <div
                 key={template.id}
                 className={styles.templateCard}
                 onClick={() => handleTemplateSelect(template)}
               >
-                <div className={styles.templateIcon}>
-                  {template.icon}
-                </div>
+                <div className={styles.templateIcon}>{template.icon}</div>
                 <div className={styles.templateContent}>
                   <h4 className={styles.templateName}>{template.name}</h4>
-                  <p className={styles.templateDescription}>{template.description}</p>
+                  <p className={styles.templateDescription}>
+                    {template.description}
+                  </p>
                   <div className={styles.templateMeta}>
-                  <span className={`${styles.priorityBadge} ${styles[template.template.priority]}`}>
-                    {template.template.priority.toUpperCase()}
-                  </span>
-                  {template.template.isPinned && (
-                    <span className={styles.pinnedBadge}><Pin24Regular /> {strings.AlertTemplatesPinnedBadge}</span>
-                  )}
-                  {template.template.notificationType !== NotificationType.None && (
-                    <span className={styles.notificationBadge}><Alert24Regular /> {strings.AlertTemplatesNotifyBadge}</span>
-                  )}
+                    <span
+                      className={`${styles.priorityBadge} ${styles[template.template.priority]}`}
+                    >
+                      {template.template.priority.toUpperCase()}
+                    </span>
+                    {template.template.isPinned && (
+                      <span className={styles.pinnedBadge}>
+                        <Pin24Regular /> {strings.AlertTemplatesPinnedBadge}
+                      </span>
+                    )}
+                    {template.template.notificationType !==
+                      NotificationType.None && (
+                      <span className={styles.notificationBadge}>
+                        <Alert24Regular /> {strings.AlertTemplatesNotifyBadge}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.templateAction}>
+                  <button className={styles.useTemplateButton}>
+                    {strings.AlertTemplatesUseTemplate}
+                  </button>
                 </div>
               </div>
-              <div className={styles.templateAction}>
-                <button className={styles.useTemplateButton}>
-                  {strings.AlertTemplatesUseTemplate}
-                </button>
+            ))}
+          </div>
+
+          {!loading &&
+            filteredTemplates.length === 0 &&
+            templates.length > 0 && (
+              <div className={styles.noResults}>
+                <div className={styles.noResultsIcon}>
+                  <Search24Regular />
+                </div>
+                <h4>{strings.AlertTemplatesNoResultsTitle}</h4>
+                <p>{strings.AlertTemplatesNoResultsDescription}</p>
               </div>
+            )}
+
+          {!loading && templates.length === 0 && (
+            <div className={styles.noResults}>
+              <div className={styles.noResultsIcon}>📋</div>
+              <h4>{strings.AlertTemplatesEmptyTitle}</h4>
+              <p>{strings.AlertTemplatesEmptyDescription}</p>
             </div>
-          ))}
-        </div>
-
-        {!loading && filteredTemplates.length === 0 && templates.length > 0 && (
-          <div className={styles.noResults}>
-            <div className={styles.noResultsIcon}><Search24Regular /></div>
-            <h4>{strings.AlertTemplatesNoResultsTitle}</h4>
-            <p>{strings.AlertTemplatesNoResultsDescription}</p>
-          </div>
-        )}
-
-        {!loading && templates.length === 0 && (
-          <div className={styles.noResults}>
-            <div className={styles.noResultsIcon}>📋</div>
-            <h4>{strings.AlertTemplatesEmptyTitle}</h4>
-            <p>{strings.AlertTemplatesEmptyDescription}</p>
-          </div>
-        )}
+          )}
         </>
       )}
     </div>

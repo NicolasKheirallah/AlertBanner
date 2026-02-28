@@ -14,17 +14,19 @@ import {
   ISupportedLanguage,
   LanguageAwarenessService,
 } from "../Services/LanguageAwarenessService";
-import { ILanguagePolicy, DEFAULT_LANGUAGE_POLICY } from "../Services/LanguagePolicyService";
-import { SiteContextDetector, ISiteValidationResult } from "../Utils/SiteContextDetector";
+import {
+  ILanguagePolicy,
+  DEFAULT_LANGUAGE_POLICY,
+} from "../Services/LanguagePolicyService";
+import {
+  SiteContextDetector,
+  ISiteValidationResult,
+} from "../Utils/SiteContextDetector";
 import { SharePointAlertService } from "../Services/SharePointAlertService";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { IFormErrors } from "../Settings/Tabs/SharedTypes";
 
-
-/**
- * New alert form data structure
- */
 export interface INewAlert {
   title: string;
   description: string;
@@ -45,14 +47,8 @@ export interface INewAlert {
   targetGroups?: IPersonField[];
 }
 
-/**
- * Wizard step for create mode
- */
 export type CreateWizardStep = "content" | "audience" | "publish";
 
-/**
- * Complete state interface for the alert form
- */
 export interface IAlertFormState {
   newAlert: INewAlert;
   errors: IFormErrors;
@@ -85,9 +81,7 @@ export interface IAlertFormState {
   notificationsEnabled: boolean;
   enableTargetSite: boolean;
   copilotEnabled: boolean;
-
 }
-
 
 export const createInitialNewAlert = (alertTypes: IAlertType[]): INewAlert => ({
   title: "",
@@ -110,7 +104,7 @@ export const createInitialNewAlert = (alertTypes: IAlertType[]): INewAlert => ({
 
 const createInitialState = (
   config: IAlertFormProviderConfig,
-  services: IAlertFormServices
+  services: IAlertFormServices,
 ): IAlertFormState => ({
   newAlert: createInitialNewAlert(config.alertTypes),
   errors: {},
@@ -138,7 +132,6 @@ const createInitialState = (
   copilotEnabled: config.copilotEnabled ?? false,
 });
 
-
 export type AlertFormAction =
   | { type: "SET_FIELD"; field: keyof INewAlert; value: unknown }
   | { type: "SET_ALERT"; payload: Partial<INewAlert> }
@@ -149,10 +142,16 @@ export type AlertFormAction =
   | { type: "SET_SHOW_PREVIEW"; show: boolean }
   | { type: "SET_SHOW_TEMPLATES"; show: boolean }
   | { type: "SET_CREATE_STEP"; step: CreateWizardStep }
-  | { type: "SET_ENTRY_MODE"; mode: "scratch" | "templates" | "drafts" | "previous" }
+  | {
+      type: "SET_ENTRY_MODE";
+      mode: "scratch" | "templates" | "drafts" | "previous";
+    }
   | { type: "SET_CREATION_PROGRESS"; progress: ISiteValidationResult[] }
   | { type: "SET_LAST_CREATE_FAILED"; failed: boolean }
-  | { type: "SET_AUTO_SAVE_STATUS"; status: "idle" | "pending" | "saving" | "saved" | "error" }
+  | {
+      type: "SET_AUTO_SAVE_STATUS";
+      status: "idle" | "pending" | "saving" | "saved" | "error";
+    }
   | { type: "SET_AUTO_SAVE_DRAFT_ID"; id: string | null }
   | { type: "SET_LAST_AUTO_SAVE"; date: Date | null }
   | { type: "SET_IS_AUTO_SAVING"; isSaving: boolean }
@@ -161,14 +160,19 @@ export type AlertFormAction =
   | { type: "SET_LANGUAGE_POLICY"; policy: ILanguagePolicy }
   | { type: "SET_DRAFTS"; drafts: IAlertItem[] }
   | { type: "SET_PREVIOUS_ALERTS"; alerts: IAlertItem[] }
-  | { type: "SET_COPILOT_AVAILABILITY"; availability: "unknown" | "available" | "unavailable" }
+  | {
+      type: "SET_COPILOT_AVAILABILITY";
+      availability: "unknown" | "available" | "unavailable";
+    }
   | { type: "UPDATE_ALERT_TYPES"; alertTypes: IAlertType[] }
   | { type: "LOAD_DRAFT"; draft: IAlertItem }
   | { type: "LOAD_PREVIOUS_ALERT"; alert: IAlertItem }
   | { type: "LOAD_TEMPLATE"; template: IAlertItem; useMultiLanguage: boolean };
 
-
-function alertFormReducer(state: IAlertFormState, action: AlertFormAction): IAlertFormState {
+function alertFormReducer(
+  state: IAlertFormState,
+  action: AlertFormAction,
+): IAlertFormState {
   switch (action.type) {
     case "SET_FIELD": {
       return {
@@ -331,8 +335,12 @@ function alertFormReducer(state: IAlertFormState, action: AlertFormAction): IAle
           linkUrl: draft.linkUrl || "",
           linkDescription: draft.linkDescription || "",
           targetSites: draft.targetSites || [],
-          scheduledStart: draft.scheduledStart ? new Date(draft.scheduledStart) : undefined,
-          scheduledEnd: draft.scheduledEnd ? new Date(draft.scheduledEnd) : undefined,
+          scheduledStart: draft.scheduledStart
+            ? new Date(draft.scheduledStart)
+            : undefined,
+          scheduledEnd: draft.scheduledEnd
+            ? new Date(draft.scheduledEnd)
+            : undefined,
           contentType: ContentType.Alert,
           targetLanguage: draft.targetLanguage,
           languageContent: [],
@@ -369,7 +377,8 @@ function alertFormReducer(state: IAlertFormState, action: AlertFormAction): IAle
             ? new Date(sourceAlert.scheduledEnd)
             : undefined,
           contentType: ContentType.Alert,
-          targetLanguage: sourceAlert.targetLanguage || state.newAlert.targetLanguage,
+          targetLanguage:
+            sourceAlert.targetLanguage || state.newAlert.targetLanguage,
           languageContent: [],
           languageGroup: undefined,
           targetUsers: [],
@@ -397,10 +406,12 @@ function alertFormReducer(state: IAlertFormState, action: AlertFormAction): IAle
           linkUrl: template.linkUrl || "",
           linkDescription: template.linkDescription || "",
           contentType: ContentType.Alert,
-          languageContent: templateMultiLanguage && template.languageGroup ? [] : [],
-          languageGroup: templateMultiLanguage && template.languageGroup
-            ? template.languageGroup
-            : undefined,
+          languageContent:
+            templateMultiLanguage && template.languageGroup ? [] : [],
+          languageGroup:
+            templateMultiLanguage && template.languageGroup
+              ? template.languageGroup
+              : undefined,
         },
         currentEntryMode: "scratch",
         createStep: "content",
@@ -413,15 +424,17 @@ function alertFormReducer(state: IAlertFormState, action: AlertFormAction): IAle
   }
 }
 
-
 interface IAlertFormContextValue {
   state: IAlertFormState;
   dispatch: React.Dispatch<AlertFormAction>;
 }
 
-const AlertFormContext = React.createContext<IAlertFormContextValue | undefined>(undefined);
-const AlertFormServicesContext = React.createContext<IAlertFormServices | undefined>(undefined);
-
+const AlertFormContext = React.createContext<
+  IAlertFormContextValue | undefined
+>(undefined);
+const AlertFormServicesContext = React.createContext<
+  IAlertFormServices | undefined
+>(undefined);
 
 export interface IAlertFormProviderConfig {
   alertTypes: IAlertType[];
@@ -447,7 +460,6 @@ export interface IAlertFormProviderProps {
   onDirtyStateChange?: (hasUnsavedChanges: boolean) => void;
 }
 
-
 export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
   config,
   services,
@@ -456,7 +468,7 @@ export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
 }) => {
   const [state, dispatch] = React.useReducer(
     alertFormReducer,
-    createInitialState(config, services)
+    createInitialState(config, services),
   );
 
   React.useEffect(() => {
@@ -471,33 +483,42 @@ export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
     const hasLanguageContent = state.newAlert.languageContent.some(
       (item) =>
         item.title.trim().length > 0 ||
-        item.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().length > 0 ||
-        (item.linkDescription || "").trim().length > 0
+        item.description
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim().length > 0 ||
+        (item.linkDescription || "").trim().length > 0,
     );
 
     const hasUnsavedChanges =
       state.currentEntryMode === "scratch" &&
       (state.newAlert.title.trim().length > 0 ||
-        state.newAlert.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().length > 0 ||
+        state.newAlert.description
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim().length > 0 ||
         state.newAlert.linkUrl.trim().length > 0 ||
         state.newAlert.linkDescription.trim().length > 0 ||
         hasLanguageContent);
 
     onDirtyStateChange(hasUnsavedChanges);
-  }, [
-    state.newAlert,
-    state.currentEntryMode,
-    onDirtyStateChange,
-  ]);
+  }, [state.newAlert, state.currentEntryMode, onDirtyStateChange]);
 
   const contextValue = React.useMemo(
     () => ({ state, dispatch }),
-    [state, dispatch]
+    [state, dispatch],
   );
 
   const servicesValue = React.useMemo(
     () => services,
-    [services.siteDetector, services.alertService, services.graphClient, services.context, services.languageService]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      services.siteDetector,
+      services.alertService,
+      services.graphClient,
+      services.context,
+      services.languageService,
+    ],
   );
 
   return (
@@ -509,11 +530,6 @@ export const AlertFormProvider: React.FC<IAlertFormProviderProps> = ({
   );
 };
 
-
-/**
- * Hook to access the alert form state and dispatch
- * @throws Error if used outside of AlertFormProvider
- */
 export function useAlertForm(): IAlertFormContextValue {
   const context = React.useContext(AlertFormContext);
   if (context === undefined) {
@@ -522,30 +538,18 @@ export function useAlertForm(): IAlertFormContextValue {
   return context;
 }
 
-/**
- * Hook to access only the alert form state
- * Useful when you only need to read values
- */
 export function useAlertFormState(): IAlertFormState {
   const { state } = useAlertForm();
   return state;
 }
 
-/**
- * Hook to access only the alert form dispatch
- * Useful when you only need to dispatch actions
- */
 export function useAlertFormDispatch(): React.Dispatch<AlertFormAction> {
   const { dispatch } = useAlertForm();
   return dispatch;
 }
 
-/**
- * Hook for field-level state access and updates
- * Returns [value, setValue] tuple similar to useState
- */
 export function useAlertFormField<K extends keyof INewAlert>(
-  field: K
+  field: K,
 ): [INewAlert[K], (value: INewAlert[K]) => void] {
   const { state, dispatch } = useAlertForm();
 
@@ -553,33 +557,28 @@ export function useAlertFormField<K extends keyof INewAlert>(
     (value: INewAlert[K]) => {
       dispatch({ type: "SET_FIELD", field, value });
     },
-    [dispatch, field]
+    [dispatch, field],
   );
 
   return [state.newAlert[field], setValue];
 }
 
-/**
- * Hook to access the alert form services
- * @throws Error if used outside of AlertFormProvider
- */
 export function useAlertFormServices(): IAlertFormServices {
   const context = React.useContext(AlertFormServicesContext);
   if (context === undefined) {
-    throw new Error("useAlertFormServices must be used within an AlertFormProvider");
+    throw new Error(
+      "useAlertFormServices must be used within an AlertFormProvider",
+    );
   }
   return context;
 }
 
-/**
- * Hook for computed/derived state values
- * Memoizes expensive computations
- */
 export function useAlertFormComputed<T>(
   compute: (state: IAlertFormState) => T,
-  deps: React.DependencyList = []
+  deps: React.DependencyList = [],
 ): T {
   const { state } = useAlertForm();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- compute is a caller-supplied function; spread deps are intentional for this generic hook pattern
   return React.useMemo(() => compute(state), [state, ...deps]);
 }
 

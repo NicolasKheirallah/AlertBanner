@@ -37,6 +37,11 @@ export class LoggerService {
   private buildVersion: string = "2.0.0";
   private isDevelopment: boolean;
   private performanceMetrics: IPerformanceMetric[] = [];
+  private _cleanupIntervalId: number | null = null;
+  private _unhandledRejectionHandler:
+    | ((e: PromiseRejectionEvent) => void)
+    | null = null;
+  private _errorHandler: ((e: ErrorEvent) => void) | null = null;
 
   private constructor() {
     this.sessionId = this.generateSessionId();
@@ -88,21 +93,20 @@ export class LoggerService {
   }
 
   private setupGlobalErrorHandling(): void {
-    window.addEventListener("unhandledrejection", (event) => {
-      const stack = event.reason?.stack || "";
+    this._unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
+      const stack = (event.reason as { stack?: string })?.stack || "";
       const isOurCode =
         stack.includes("alert-banner") || stack.includes("AlertBanner");
 
       if (isOurCode) {
         this.error("GlobalError", "Unhandled promise rejection", {
-          reason: event.reason,
-          promise: event.promise?.toString(),
+          reason: String(event.reason),
         });
         event.preventDefault();
       }
-    });
+    };
 
-    window.addEventListener("error", (event) => {
+    this._errorHandler = (event: ErrorEvent) => {
       const filename = event.filename || "";
       const isOurCode =
         filename.includes("alert-banner") || filename.includes("AlertBanner");
@@ -113,21 +117,49 @@ export class LoggerService {
           filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,
-          error: event.error,
         });
       }
-    });
+    };
+
+    window.addEventListener(
+      "unhandledrejection",
+      this._unhandledRejectionHandler,
+    );
+    window.addEventListener("error", this._errorHandler);
   }
 
   private setupLogCleanup(): void {
-    setInterval(
+    this._cleanupIntervalId = window.setInterval(
       () => {
         if (this.logEntries.length > this.maxLogEntries) {
           this.logEntries = this.logEntries.slice(-this.maxLogEntries);
         }
+        if (this.performanceMetrics.length > 100) {
+          this.performanceMetrics = this.performanceMetrics.slice(-100);
+        }
       },
       5 * 60 * 1000,
     );
+  }
+
+  public dispose(): void {
+    if (this._cleanupIntervalId !== null) {
+      window.clearInterval(this._cleanupIntervalId);
+      this._cleanupIntervalId = null;
+    }
+    if (this._unhandledRejectionHandler) {
+      window.removeEventListener(
+        "unhandledrejection",
+        this._unhandledRejectionHandler,
+      );
+      this._unhandledRejectionHandler = null;
+    }
+    if (this._errorHandler) {
+      window.removeEventListener("error", this._errorHandler);
+      this._errorHandler = null;
+    }
+    this.logEntries = [];
+    this.performanceMetrics = [];
   }
 
   private createLogEntry(

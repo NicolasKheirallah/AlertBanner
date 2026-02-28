@@ -1,12 +1,3 @@
-/**
- * AlertListShimmer Component
- * 
- * A loading state component for the alert list using Fluent UI Shimmer.
- * Displays 3 shimmer rows that match the approximate height of alert items.
- * 
- * @example
- * {isLoadingAlerts && <AlertListShimmer />}
- */
 
 import * as React from "react";
 import {
@@ -16,9 +7,6 @@ import {
   IShimmerStyles,
 } from "@fluentui/react";
 
-/**
- * Shimmer styles override for consistent appearance
- */
 const shimmerStyles = (props: IShimmerStyleProps): IShimmerStyles => ({
   root: {
     padding: "12px 0",
@@ -36,12 +24,6 @@ const shimmerStyles = (props: IShimmerStyleProps): IShimmerStyles => ({
   },
 });
 
-/**
- * AlertListShimmer Component
- * 
- * Renders shimmer placeholder rows while alerts are loading.
- * Each row uses a circle + gap + line pattern to simulate alert items.
- */
 const AlertListShimmer: React.FC<{
   rowCount?: number;
   className?: string;
@@ -51,11 +33,7 @@ const AlertListShimmer: React.FC<{
   className,
   dataTestId,
 }) => {
-  /**
-   * Creates shimmer elements for a single row
-   * Pattern: Circle (avatar) + gap + Line (title) + gap + Line (description)
-   */
-  const getShimmerElements = () => [
+    const getShimmerElements = () => [
     { type: ShimmerElementType.circle, height: 40, width: 40 },
     { type: ShimmerElementType.gap, height: 40, width: 16 },
     {

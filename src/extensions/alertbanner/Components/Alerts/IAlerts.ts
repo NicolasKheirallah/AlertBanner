@@ -22,7 +22,7 @@ export interface IAlertItem {
   AlertType: string;
   priority: AlertPriority;
   isPinned: boolean;
-  targetUsers?: IPersonField[]; // People/Groups who can see this alert. If empty, everyone sees it
+  targetUsers?: IPersonField[];
   notificationType: NotificationType;
   linkUrl?: string;
   linkDescription?: string;
@@ -63,7 +63,7 @@ export interface ILanguageContent {
   title: string;
   description: string;
   linkDescription?: string;
-  availableForAll?: boolean; // If true, this version can be shown to users of other languages
+  availableForAll?: boolean;
   translationStatus?: TranslationStatus;
 }
 
@@ -105,7 +105,7 @@ export interface IAlertListItem {
   SubmittedDate?: string;
   ReviewedDate?: string;
 
-  TargetUsers?: IPersonField[]; // SharePoint People/Groups field data
+  TargetUsers?: IPersonField[];
 }
 
 export enum AlertPriority {
@@ -150,20 +150,20 @@ export enum TargetLanguage {
   FinnishFI = "fi-fi",
   DanishDK = "da-dk",
   NorwegianNO = "nb-no",
-  All = "all", // For items that should show to all languages
+  All = "all",
 }
 
 export interface IPersonField {
-  id: string; // User/Group ID
-  displayName: string; // Display name
-  email?: string; // Email address (for users)
-  loginName?: string; // Login name
-  isGroup: boolean; // Whether this is a group or individual user
+  id: string;
+  displayName: string;
+  email?: string;
+  loginName?: string;
+  isGroup: boolean;
 }
 
 export interface ITargetingRule {
-  targetUsers?: IPersonField[]; // Individual users from People field
-  targetGroups?: IPersonField[]; // SharePoint groups from People field
+  targetUsers?: IPersonField[];
+  targetGroups?: IPersonField[];
 
   audiences?: string[];
 
@@ -171,24 +171,24 @@ export interface ITargetingRule {
 }
 
 export interface IAlertsBannerApplicationCustomizerProperties {
-  alertTypesJson: string; // Property to hold the alert types JSON
-  userTargetingEnabled: boolean; // Enable user targeting feature
-  notificationsEnabled: boolean; // Enable notifications feature
-  enableTargetSite: boolean; // Enable targeting specific sites (default: false)
-  emailServiceAccount?: string; // Service account email for Graph API sendMail
-  copilotEnabled?: boolean; // Enable Copilot features
+  alertTypesJson: string;
+  userTargetingEnabled: boolean;
+  notificationsEnabled: boolean;
+  enableTargetSite: boolean;
+  emailServiceAccount?: string;
+  copilotEnabled?: boolean;
 }
 
 export interface IAlertsProps {
   siteIds?: string[];
   graphClient: MSGraphClientV3;
   context: ApplicationCustomizerContext;
-  alertTypesJson: string; // Property to receive the alert types JSON
+  alertTypesJson: string;
   userTargetingEnabled?: boolean;
   notificationsEnabled?: boolean;
-  enableTargetSite?: boolean; // Control visibility of target site selector
-  emailServiceAccount?: string; // Service account email for email notifications
-  copilotEnabled?: boolean; // Enable Copilot features
+  enableTargetSite?: boolean;
+  emailServiceAccount?: string;
+  copilotEnabled?: boolean;
   onSettingsChange?: (settings: {
     alertTypesJson: string;
     userTargetingEnabled: boolean;
@@ -220,27 +220,26 @@ export interface IUser {
   userGroups?: string[];
 }
 
-
 export interface IQuickAction {
   label: string;
   actionType: "link" | "dismiss" | "acknowledge" | "custom";
-  url?: string; // For link type actions
-  callback?: string; // Function name to execute for custom actions
-  icon?: string; // Icon name for the action button
+  url?: string;
+  callback?: string;
+  icon?: string;
 }
 
 export interface IPriorityColorConfig {
-  borderColor?: string; // Color for the left border
+  borderColor?: string;
 }
 
 export interface IAlertType {
-  id?: string; // SharePoint item ID (for lookup field reference)
+  id?: string;
   name: string;
   iconName: string;
   backgroundColor: string;
   textColor: string;
   additionalStyles?: string;
-  defaultPriority?: AlertPriority; // Optional default priority to be selected when this type is chosen
-  priorityStyles?: { [key in AlertPriority]?: string }; // Different styles based on priority (CSS)
-  priorityColors?: { [key in AlertPriority]?: IPriorityColorConfig }; // Structured color config per priority
+  defaultPriority?: AlertPriority;
+  priorityStyles?: { [key in AlertPriority]?: string };
+  priorityColors?: { [key in AlertPriority]?: IPriorityColorConfig };
 }

@@ -389,7 +389,7 @@ export interface ISharePointPeoplePickerProps {
   context: any;
   titleText: string;
   personSelectionLimit?: number;
-  groupName?: string; // Filter by SharePoint group
+  groupName?: string;
   showtooltip?: boolean;
   required?: boolean;
   disabled?: boolean;
@@ -433,8 +433,6 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
     context.pageContext.web.absoluteUrl;
 
   if (!isContextValid) {
-    // If context is invalid, we can try to fall back or show a warning.
-    // For PeoplePicker, we absolutely need the web URL to call the API.
     let fallbackUrl = "";
     if (
       context &&
@@ -444,7 +442,6 @@ export const SharePointPeoplePicker: React.FC<ISharePointPeoplePickerProps> = ({
     ) {
       fallbackUrl =
         window.location.origin + context.pageContext.web.serverRelativeUrl;
-      // Hack: patch the context object if we can
       try {
         context.pageContext.web.absoluteUrl = fallbackUrl;
       } catch (e) {

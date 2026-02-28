@@ -161,7 +161,6 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
       }}
     >
       <div className={styles.alertCardHeader}>
-        {/* Drag Handle */}
         {onDragStart && (
           <div 
             className={(styles as any).dragHandle}
@@ -183,7 +182,6 @@ const ManageAlertCard: React.FC<IManageAlertCardProps> = ({
           className={styles.alertCheckbox}
         />
         
-        {/* Sort Order Controls */}
         {(onSortOrderChange || onMoveToTop || onMoveToBottom) && (
           <div className={(styles as any).sortControls}>
             {onMoveToTop && (

@@ -1,6 +1,6 @@
 {
   "name": "alert-banner",
-  "version": "5.0.1",
+  "version": "6.0.0",
   "private": true,
   "engines": {
     "node": ">=22.14.0 < 22.18.0"
@@ -37,8 +37,8 @@
     "@pnp/spfx-controls-react": "^3.23.0",
     "dompurify": "^3.3.1",
     "emoji-picker-react": "^4.18.0",
-    "jodit": "^4.9.0",
-    "jodit-react": "^5.3.0",
+    "jodit": "^4.9.14",
+    "jodit-react": "^5.3.21",
     "marked": "^17.0.1",
     "react": "17.0.0",
     "react-dom": "17.0.0",

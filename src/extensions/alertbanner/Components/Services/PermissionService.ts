@@ -34,7 +34,7 @@ export class PermissionService {
   private graphClient: MSGraphClientV3 | undefined;
   private permissionCache: Map<GraphPermission, IPermissionStatus> = new Map();
   private lastPermissionCheck: number = 0;
-  private readonly PERMISSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly PERMISSION_CACHE_TTL = 5 * 60 * 1000;
 
   private constructor(context: ApplicationCustomizerContext) {
     this.context = context;
@@ -179,7 +179,6 @@ export class PermissionService {
     return status.granted;
   }
 
-  // Log auditable operation for security compliance - all write operations must be logged
   public logAuditableOperation(operation: {
     operation: string;
     targetSite?: string;
@@ -194,7 +193,9 @@ export class PermissionService {
       timestamp: new Date().toISOString(),
       userId: this.context.pageContext.user.loginName,
       userDisplayName: this.context.pageContext.user.displayName,
-      userEmail: this.context.pageContext.user.email,
+      userEmail: this.context.pageContext.user.email
+        ? btoa(this.context.pageContext.user.email)
+        : undefined,
       correlationId: this.getCorrelationId(),
       currentSite: this.context.pageContext.web.absoluteUrl,
       ...operation,

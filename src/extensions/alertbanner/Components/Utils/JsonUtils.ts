@@ -89,7 +89,6 @@ export class JsonUtils {
     return Math.max(...keys.map(key => this.getObjectDepth(obj[key], currentDepth + 1)));
   }
 
-  // Deep clone using JSON parse/stringify - note: won't clone functions, undefined, or circular refs
   public static deepClone<T>(obj: T): T | null {
     const stringified = this.safeStringify(obj);
     if (!stringified) {

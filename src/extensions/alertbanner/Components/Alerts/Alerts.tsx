@@ -189,7 +189,6 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     };
   }, [props.context]);
 
-  // Effect to reset index when alerts count changes (not on every array reference change)
   const prevAlertsLengthRef = React.useRef(alerts.length);
   React.useEffect(() => {
     if (alerts.length !== prevAlertsLengthRef.current) {
@@ -252,14 +251,14 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     }
   }, [updateCarouselSettings]);
 
+  const { onSettingsChange } = props;
   const handleSettingsChange = React.useCallback(
     (settings: ISettingsData & { enableTargetSite?: boolean }) => {
-      if (props.onSettingsChange) {
-        props.onSettingsChange(settings);
+      if (onSettingsChange) {
+        onSettingsChange(settings);
       }
-      // The context will handle reloading alert types if they changed via its own logic
     },
-    [props.onSettingsChange],
+    [onSettingsChange],
   );
 
   const goToNext = React.useCallback(() => {

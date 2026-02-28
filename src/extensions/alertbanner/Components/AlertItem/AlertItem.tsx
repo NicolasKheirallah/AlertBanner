@@ -39,14 +39,14 @@ const ALLOWED_CSS_PROPERTIES = new Set([
 ]);
 
 const DANGEROUS_CSS_PATTERNS = [
-  /url\s*\(/i, // Block url() - potential data exfiltration
-  /expression\s*\(/i, // Block expression() - IE XSS vector
-  /javascript\s*:/i, // Block javascript: protocol
-  /data\s*:/i, // Block data: URIs
-  /behavior\s*:/i, // Block behavior: - IE XSS vector
-  /@import/i, // Block @import
-  /binding\s*:/i, // Block -moz-binding
-  /\\[0-9a-f]/i, // Block unicode escape sequences
+  /url\s*\(/i,
+  /expression\s*\(/i,
+  /javascript\s*:/i,
+  /data\s*:/i,
+  /behavior\s*:/i,
+  /@import/i,
+  /binding\s*:/i,
+  /\\[0-9a-f]/i,
 ];
 
 const parseAdditionalStyles = (stylesString?: string): React.CSSProperties => {
@@ -134,12 +134,12 @@ const AlertItem: React.FC<IAlertItemProps> = ({
         handlers.toggleExpanded();
       }
     },
-    [handlers.toggleExpanded],
+    [handlers],
   );
 
   const handleHeaderClick = React.useCallback(() => {
     handlers.toggleExpanded();
-  }, [handlers.toggleExpanded]);
+  }, [handlers]);
 
   const baseContainerStyle = React.useMemo<React.CSSProperties>(() => {
     const backgroundColor = "#ffffff";
@@ -159,7 +159,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
             item.priority as keyof typeof alertType.priorityStyles
           ]
         : "",
-    [alertType.priorityStyles, item.priority],
+    [alertType, item.priority],
   );
 
   const alertsState = useAlertsState();
@@ -178,12 +178,7 @@ const AlertItem: React.FC<IAlertItemProps> = ({
       priorityBorderColors[item.priority as AlertPriority]?.borderColor ||
       "#389899"
     );
-  }, [
-    priorityBorderColors,
-    item.priority,
-    alertType.backgroundColor,
-    priorityStyle,
-  ]);
+  }, [priorityBorderColors, item.priority, alertType, priorityStyle]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(() => {
     const parsedPriorityStyle = parseAdditionalStyles(priorityStyle);

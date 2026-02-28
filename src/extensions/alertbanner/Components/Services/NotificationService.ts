@@ -18,7 +18,7 @@ export interface INotificationOptions {
   title?: string;
   message: string;
   type: NotificationType;
-  duration?: number; // in milliseconds, 0 for persistent
+  duration?: number;
   actions?: INotificationAction[];
   dismissible?: boolean;
 }
@@ -69,7 +69,7 @@ export class NotificationService {
       type: NotificationType.Error,
       title: title || 'Error',
       message,
-      duration: 0, // Persistent
+      duration: 0,
       actions,
       dismissible: true
     });

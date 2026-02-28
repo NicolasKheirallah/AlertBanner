@@ -390,20 +390,16 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         return cached.alerts;
       }
 
-      const dateTimeNow = new Date().toISOString();
-
       const requestPromise = (async () => {
         try {
           if (!servicesRef.current.sharePointAlertService) {
             throw new Error("SharePointAlertService not initialized");
           }
 
-          let alerts =
+          const alerts =
             await servicesRef.current.sharePointAlertService.getActiveAlerts(
               siteId,
             );
-
-          // Filter out templates, drafts, and auto-saved items is already handled by SharePointAlertService.getActiveAlerts
 
           alertCacheRef.current.set(siteId, { alerts, timestamp: now });
           logger.info(
@@ -428,7 +424,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingRequestsRef.current.set(siteId, requestPromise);
       return requestPromise;
     },
-    [mapSharePointItemToAlert],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
 
   const sortAlerts = useCallback(
@@ -473,7 +470,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
           case "priority":
           default:
-            // Sort by priority (Critical > High > Medium > Low)
             return priorityOrder[a.priority] - priorityOrder[b.priority];
         }
       });
@@ -545,7 +541,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
   const applyLanguageAwareFiltering = useCallback(
     async (alertsToFilter: IAlertItem[]): Promise<IAlertItem[]> => {
       if (!servicesRef.current.languageAwarenessService) {
-        return alertsToFilter; // No language service, return as-is
+        return alertsToFilter;
       }
 
       try {
@@ -654,14 +650,12 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           storageService.getFromLocalStorage<IAlertItem[]>(alertsCacheKey);
         const hasCachedAlerts = cachedAlerts && cachedAlerts.length > 0;
 
-        // If we have cached alerts, start with them but keep loading state
         if (hasCachedAlerts) {
           let alertsToShow = filterAlertsByTargetSites(cachedAlerts);
           alertsToShow = filterAlerts(alertsToShow);
           alertsToShow = sortAlertsByPriority(alertsToShow);
 
           dispatch({ type: "SET_ALERTS", payload: alertsToShow });
-          // Stay in loading state - we'll transition smoothly when fresh data arrives
           dispatch({ type: "SET_LOADING", payload: true });
 
           logger.info("AlertsContext", "Using cached alerts as placeholder", {
@@ -733,6 +727,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         dispatch({ type: "SET_LOADING", payload: false });
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       loadAlertTypes,
       filterAlerts,
@@ -856,7 +851,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
       alertsToShow = sortAlertsByPriority(alertsToShow);
 
-      // Send notifications for critical/high priority alerts if they're new
       if (
         servicesRef.current.options.notificationsEnabled &&
         alertsAreDifferent
@@ -865,7 +859,6 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
           [AlertPriority.Critical, AlertPriority.High].includes(alert.priority),
         );
 
-        // Only send notifications for the first 5 high priority alerts to avoid spamming
         if (highPriorityAlerts.length > 0) {
           sendNotifications(highPriorityAlerts.slice(0, 5));
         }
@@ -907,6 +900,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       dispatch({ type: "SET_LOADING", payload: false });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filterAlerts,
     filterAlertsByTargetSites,
@@ -968,8 +962,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         localStorage.setItem("AlertBanner_SortMode", mode);
-      } catch {
-      }
+      } catch {}
     },
     [sortAlerts],
   );
@@ -985,8 +978,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         dispatch({ type: "SET_SORT_MODE", payload: savedMode });
       }
-    } catch {
-    }
+    } catch {}
   }, []);
 
   const value = React.useMemo(
@@ -1030,11 +1022,13 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
         `Cleaned up ${cleanedCount} expired cache entries`,
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
     const cleanupInterval = setInterval(cleanupExpiredCache, CACHE_DURATION);
     return () => clearInterval(cleanupInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanupExpiredCache]);
 
   const lastCrossTabRefreshRef = React.useRef<number>(0);
@@ -1042,7 +1036,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   React.useEffect(() => {
     const storage = StorageService.getInstance();
-    const CROSS_TAB_DEBOUNCE_MS = 2000; // Minimum time between cross-tab refreshes
+    const CROSS_TAB_DEBOUNCE_MS = 2000;
 
     const cleanup = storage.initCrossTabSync(() => {
       const now = Date.now();

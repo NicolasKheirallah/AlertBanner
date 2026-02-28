@@ -78,7 +78,6 @@ export const PermissionStatus: React.FC<{
     );
   }
 
-  // Missing critical permissions
   const adminConsentUrl = permissionService.getAdminConsentUrl();
   const isAdmin = context.pageContext.legacyPageContext.isSiteAdmin;
 

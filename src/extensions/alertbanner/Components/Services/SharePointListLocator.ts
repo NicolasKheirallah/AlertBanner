@@ -134,7 +134,6 @@ export class SharePointListLocator {
     }
 
     try {
-      // Use OData filter to find the list directly instead of enumerating all lists
       const response = await this.graphClient
         .api(`/sites/${graphSiteIdentifier}/lists`)
         .filter(`displayName eq '${listTitle}'`)
@@ -201,7 +200,6 @@ export class SharePointListLocator {
       return `/sites/${graphSiteIdentifier}/lists/${listId}`;
     } catch (error: any) {
       if (error.name === 'LIST_NOT_FOUND' || error.message?.includes('LIST_NOT_FOUND')) {
-        // Fallback: if we were given a composite Graph ID, try the site collection root
         if (siteId?.includes(',')) {
           const siteGuid = SiteIdUtils.extractGuidFromGraphId(siteId);
           if (siteGuid) {
@@ -259,7 +257,7 @@ export class SharePointListLocator {
       logger.debug("SharePointListLocator", "Column metadata fetched successfully", { 
         apiUrl, 
         columnCount: availableColumns.size,
-        columns: Array.from(availableColumns).slice(0, 10) // Log first 10 columns
+        columns: Array.from(availableColumns).slice(0, 10)
       });
 
       this.enforceCacheLimit(this.listColumnsCache);

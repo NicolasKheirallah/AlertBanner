@@ -84,9 +84,7 @@ const ImageUpload: React.FC<{
 
       const selectedFile = filePickerResult[0];
 
-      // Case 1: The user selected a file from SharePoint/OneDrive/Web Search
       if (selectedFile.fileAbsoluteUrl) {
-        // We create a mock 'File' object just to satisfy the onImageUploaded signature, which Jodit uses for alt-text
         const mockFileName =
           selectedFile.fileName ||
           selectedFile.fileAbsoluteUrl.split("/").pop() ||
@@ -96,7 +94,6 @@ const ImageUpload: React.FC<{
         return;
       }
 
-      // Case 2: The user selected a local file using the "Upload" tab in the FilePicker
       if (selectedFile.downloadFileContent) {
         try {
           const fileBlob = await selectedFile.downloadFileContent();
@@ -108,7 +105,6 @@ const ImageUpload: React.FC<{
             return;
           }
 
-          // Convert Blob to File
           const file = new File(
             [fileBlob],
             selectedFile.fileName || "uploaded-image",
@@ -163,10 +159,9 @@ const ImageUpload: React.FC<{
             ".jxr",
             ".svg",
           ]}
-          buttonClassName={styles.hiddenFilePickerBtn} // We hide the actual PnP button since we trigger it via state
+          buttonClassName={styles.hiddenFilePickerBtn}
           onSave={handleFileSelected}
           onChange={(filePickerResult: IFilePickerResult[]) => {
-            // If the user selects a local file, we trigger the save immediately rather than waiting for another click
             if (
               filePickerResult &&
               filePickerResult.length > 0 &&
@@ -177,7 +172,7 @@ const ImageUpload: React.FC<{
           }}
           onCancel={() => setIsFilePickerOpen(false)}
           context={context as any}
-          hideWebSearchTab={true} // BING API key needed for Web Search
+          hideWebSearchTab={true}
           hideLinkUploadTab={false}
         />
       )}

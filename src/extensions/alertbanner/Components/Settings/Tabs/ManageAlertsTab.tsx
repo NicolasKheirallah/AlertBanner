@@ -194,11 +194,17 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const [isBulkActionInFlight, setIsBulkActionInFlight] = React.useState(false);
   const [busyAlertIds, setBusyAlertIds] = React.useState<string[]>([]);
   const advancedFiltersId = "manage-alerts-advanced-filters";
-  
-  const [draggingAlertId, setDraggingAlertId] = React.useState<string | null>(null);
-  const [dragOverAlertId, setDragOverAlertId] = React.useState<string | null>(null);
-  
-  const [manageSortMode, setManageSortMode] = React.useState<"priority" | "manual">("priority");
+
+  const [draggingAlertId, setDraggingAlertId] = React.useState<string | null>(
+    null,
+  );
+  const [dragOverAlertId, setDragOverAlertId] = React.useState<string | null>(
+    null,
+  );
+
+  const [manageSortMode, setManageSortMode] = React.useState<
+    "priority" | "manual"
+  >("priority");
   const [alertsListId, setAlertsListId] = React.useState<string>("");
   const [editingAlertSiteId, setEditingAlertSiteId] =
     React.useState<string>("");
@@ -379,6 +385,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     };
 
     fetchEditingListId();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingAlert?.id, alertService]);
 
   React.useEffect(() => {
@@ -727,12 +734,13 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         );
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     useMultiLanguage,
     editingAlert?.id,
     tenantDefaultLanguage,
     languagePolicy,
-  ]); // Only run when useMultiLanguage changes or alert ID changes
+  ]);
 
   const loadExistingAlerts = React.useCallback(async () => {
     setIsLoadingAlerts(true);
@@ -749,6 +757,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     } finally {
       setIsLoadingAlerts(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alertService]);
 
   const handleBulkDelete = React.useCallback(async () => {
@@ -888,7 +897,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           setEditingAlert(editingData);
           initialEditSnapshotRef.current = captureEditSnapshot(editingData);
           setUseMultiLanguage(true);
-
         } else {
           const editingData: IEditingAlert = {
             ...alert,
@@ -915,7 +923,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
           setUseMultiLanguage(false);
         }
 
-        setShowPreview(true); // Ensure preview is visible when opening edit
+        setShowPreview(true);
       } catch (error) {
         logger.error("ManageAlertsTab", "Error opening edit dialog", error);
         notificationService.showError(
@@ -1251,98 +1259,132 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     setDragOverAlertId(null);
   }, []);
 
-  const handleDragOver = React.useCallback((alertId: string) => {
-    if (draggingAlertId && draggingAlertId !== alertId) {
-      setDragOverAlertId(alertId);
-    }
-  }, [draggingAlertId]);
+  const handleDragOver = React.useCallback(
+    (alertId: string) => {
+      if (draggingAlertId && draggingAlertId !== alertId) {
+        setDragOverAlertId(alertId);
+      }
+    },
+    [draggingAlertId],
+  );
 
-  const handleDrop = React.useCallback(async (targetAlertId: string) => {
-    if (!draggingAlertId || draggingAlertId === targetAlertId) {
-      return;
-    }
+  const handleDrop = React.useCallback(
+    async (targetAlertId: string) => {
+      if (!draggingAlertId || draggingAlertId === targetAlertId) {
+        return;
+      }
 
-    const draggedIndex = existingAlerts.findIndex(a => a.id === draggingAlertId);
-    const targetIndex = existingAlerts.findIndex(a => a.id === targetAlertId);
-    
-    if (draggedIndex === -1 || targetIndex === -1) return;
+      const draggedIndex = existingAlerts.findIndex(
+        (a) => a.id === draggingAlertId,
+      );
+      const targetIndex = existingAlerts.findIndex(
+        (a) => a.id === targetAlertId,
+      );
 
-    const newAlerts = [...existingAlerts];
-    const [removed] = newAlerts.splice(draggedIndex, 1);
-    newAlerts.splice(targetIndex, 0, removed);
+      if (draggedIndex === -1 || targetIndex === -1) return;
 
-    const updatedAlerts = newAlerts.map((alert, index) => ({
-      ...alert,
-      sortOrder: index,
-    }));
+      const newAlerts = [...existingAlerts];
+      const [removed] = newAlerts.splice(draggedIndex, 1);
+      newAlerts.splice(targetIndex, 0, removed);
 
-    setExistingAlerts(updatedAlerts);
+      const updatedAlerts = newAlerts.map((alert, index) => ({
+        ...alert,
+        sortOrder: index,
+      }));
 
-    try {
-      // Only update the dragged alert and the alerts between dragged and target positions
-      const minIndex = Math.min(draggedIndex, targetIndex);
-      const maxIndex = Math.max(draggedIndex, targetIndex);
-      const alertOrders = updatedAlerts
-        .slice(minIndex, maxIndex + 1)
-        .map((alert) => ({
-          alertId: alert.id,
-          sortOrder: alert.sortOrder ?? 0,
-        }));
-      await alertService.updateAlertsSortOrder(alertOrders);
-      notificationService.showSuccess("Alert order updated", "Success");
-    } catch (error) {
-      logger.error("ManageAlertsTab", "Error updating sort order", error);
-      notificationService.showError("Failed to save alert order", "Error");
-      loadExistingAlerts();
-    }
+      setExistingAlerts(updatedAlerts);
 
-    setDraggingAlertId(null);
-    setDragOverAlertId(null);
-  }, [draggingAlertId, existingAlerts, alertService, notificationService, setExistingAlerts, loadExistingAlerts]);
+      try {
+        const minIndex = Math.min(draggedIndex, targetIndex);
+        const maxIndex = Math.max(draggedIndex, targetIndex);
+        const alertOrders = updatedAlerts
+          .slice(minIndex, maxIndex + 1)
+          .map((alert) => ({
+            alertId: alert.id,
+            sortOrder: alert.sortOrder ?? 0,
+          }));
+        await alertService.updateAlertsSortOrder(alertOrders);
+        notificationService.showSuccess("Alert order updated", "Success");
+      } catch (error) {
+        logger.error("ManageAlertsTab", "Error updating sort order", error);
+        notificationService.showError("Failed to save alert order", "Error");
+        loadExistingAlerts();
+      }
 
-  const handleSortOrderChange = React.useCallback(async (alertId: string, newOrder: number) => {
-    const alertIndex = existingAlerts.findIndex(a => a.id === alertId);
-    if (alertIndex === -1) return;
+      setDraggingAlertId(null);
+      setDragOverAlertId(null);
+    },
+    [
+      draggingAlertId,
+      existingAlerts,
+      alertService,
+      notificationService,
+      setExistingAlerts,
+      loadExistingAlerts,
+    ],
+  );
 
-    const clampedOrder = Math.max(0, Math.min(newOrder, existingAlerts.length - 1));
-    if (clampedOrder === alertIndex) return; // No change needed
+  const handleSortOrderChange = React.useCallback(
+    async (alertId: string, newOrder: number) => {
+      const alertIndex = existingAlerts.findIndex((a) => a.id === alertId);
+      if (alertIndex === -1) return;
 
-    const newAlerts = [...existingAlerts];
-    const [movedAlert] = newAlerts.splice(alertIndex, 1);
-    newAlerts.splice(clampedOrder, 0, movedAlert);
+      const clampedOrder = Math.max(
+        0,
+        Math.min(newOrder, existingAlerts.length - 1),
+      );
+      if (clampedOrder === alertIndex) return;
 
-    const reindexedAlerts = newAlerts.map((alert, index) => ({
-      ...alert,
-      sortOrder: index,
-    }));
+      const newAlerts = [...existingAlerts];
+      const [movedAlert] = newAlerts.splice(alertIndex, 1);
+      newAlerts.splice(clampedOrder, 0, movedAlert);
 
-    setExistingAlerts(reindexedAlerts);
+      const reindexedAlerts = newAlerts.map((alert, index) => ({
+        ...alert,
+        sortOrder: index,
+      }));
 
-    try {
-      const minIndex = Math.min(alertIndex, clampedOrder);
-      const maxIndex = Math.max(alertIndex, clampedOrder);
-      const alertOrders = reindexedAlerts
-        .slice(minIndex, maxIndex + 1)
-        .map((alert) => ({
-          alertId: alert.id,
-          sortOrder: alert.sortOrder ?? 0,
-        }));
-      await alertService.updateAlertsSortOrder(alertOrders);
-      notificationService.showSuccess("Alert order updated", "Success");
-    } catch (error) {
-      logger.error("ManageAlertsTab", "Error updating sort order", error);
-      notificationService.showError("Failed to save sort order", "Error");
-      loadExistingAlerts();
-    }
-  }, [existingAlerts, alertService, notificationService, setExistingAlerts, loadExistingAlerts]);
+      setExistingAlerts(reindexedAlerts);
 
-  const handleMoveToTop = React.useCallback(async (alertId: string) => {
-    await handleSortOrderChange(alertId, 0);
-  }, [handleSortOrderChange]);
+      try {
+        const minIndex = Math.min(alertIndex, clampedOrder);
+        const maxIndex = Math.max(alertIndex, clampedOrder);
+        const alertOrders = reindexedAlerts
+          .slice(minIndex, maxIndex + 1)
+          .map((alert) => ({
+            alertId: alert.id,
+            sortOrder: alert.sortOrder ?? 0,
+          }));
+        await alertService.updateAlertsSortOrder(alertOrders);
+        notificationService.showSuccess("Alert order updated", "Success");
+      } catch (error) {
+        logger.error("ManageAlertsTab", "Error updating sort order", error);
+        notificationService.showError("Failed to save sort order", "Error");
+        loadExistingAlerts();
+      }
+    },
+    [
+      existingAlerts,
+      alertService,
+      notificationService,
+      setExistingAlerts,
+      loadExistingAlerts,
+    ],
+  );
 
-  const handleMoveToBottom = React.useCallback(async (alertId: string) => {
-    await handleSortOrderChange(alertId, Number.MAX_SAFE_INTEGER); // Will be clamped to valid range
-  }, [handleSortOrderChange]);
+  const handleMoveToTop = React.useCallback(
+    async (alertId: string) => {
+      await handleSortOrderChange(alertId, 0);
+    },
+    [handleSortOrderChange],
+  );
+
+  const handleMoveToBottom = React.useCallback(
+    async (alertId: string) => {
+      await handleSortOrderChange(alertId, Number.MAX_SAFE_INTEGER);
+    },
+    [handleSortOrderChange],
+  );
 
   const validateEditForm = React.useCallback((): boolean => {
     if (!editingAlert) return false;
@@ -1489,6 +1531,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     const parsed = alertService.parseAlertId(editingAlert.id);
     const itemId = parseInt(parsed.itemId, 10);
     return Number.isNaN(itemId) ? undefined : itemId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingAlert?.id, alertService]);
 
   const matchesDateFilter = React.useCallback(
@@ -1525,17 +1568,23 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     let filteredAlerts = [...existingAlerts];
 
     if (manageSortMode === "manual") {
-      // Sort by sortOrder (nulls/undefined at the end), then by created date as tiebreaker
       filteredAlerts.sort((a, b) => {
-        const orderA = typeof a.sortOrder === "number" ? a.sortOrder : Number.MAX_SAFE_INTEGER;
-        const orderB = typeof b.sortOrder === "number" ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+        const orderA =
+          typeof a.sortOrder === "number"
+            ? a.sortOrder
+            : Number.MAX_SAFE_INTEGER;
+        const orderB =
+          typeof b.sortOrder === "number"
+            ? b.sortOrder
+            : Number.MAX_SAFE_INTEGER;
         if (orderA !== orderB) {
           return orderA - orderB;
         }
-        return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        return (
+          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+        );
       });
     }
-    // For "priority" mode, keep default order (which is by date from API)
 
     if (contentTypeFilter !== "all") {
       filteredAlerts = filteredAlerts.filter(
@@ -1610,11 +1659,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
       }
     });
 
-    // Create combined display items: one item per language group, plus all ungrouped items
     const displayItems: IDisplayAlertItem[] = [];
 
     Object.entries(groups).forEach(([languageGroup, variants]) => {
-      // Use the first variant as the primary display item, with variants attached
       const primaryVariant =
         variants.find((v) => v.targetLanguage === TargetLanguage.EnglishUS) ||
         variants[0];
@@ -1636,9 +1683,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     statusFilter,
     languageFilter,
     notificationFilter,
-    dateFilter,
-    customDateFrom,
-    customDateTo,
     searchTerm,
     matchesDateFilter,
     contentStatusFilter,
@@ -1880,7 +1924,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             </div>
           </div>
 
-          {/* Sort Mode Toggle */}
           {!isLoadingAlerts && existingAlerts.length > 0 && (
             <div className={(styles as any).sortModeBar}>
               <span className={(styles as any).sortModeLabel}>Sort by:</span>
@@ -1966,7 +2009,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 </div>
               )}
 
-              {/* Enhanced Filter Section */}
               <div className={styles.filterSection}>
                 <div className={styles.filterHeader}>
                   <div className={styles.filterSummary}>
@@ -1986,7 +2028,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   </div>
                 </div>
 
-                {/* Quick Content Type Tabs */}
                 <div
                   className={`${styles.templateActions} ${styles.templateActionsSpacingBottom}`}
                 >
@@ -2050,7 +2091,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   </SharePointButton>
                 </div>
 
-                {/* Search Bar - Always Visible */}
                 <div className={styles.searchBar} ref={searchInputContainerRef}>
                   <SharePointInput
                     label={strings.ManageAlertsSearchLabel}
@@ -2063,14 +2103,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   />
                 </div>
 
-                {/* Collapsible Advanced Filters */}
                 {showFilters && (
                   <div
                     id={advancedFiltersId}
                     className={styles.advancedFilters}
                   >
                     <div className={styles.filterGrid}>
-                      {/* Priority Filter */}
                       <SharePointSelect
                         label={strings.CreateAlertPriorityLabel}
                         value={priorityFilter}
@@ -2103,7 +2141,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         ]}
                       />
 
-                      {/* Alert Type Filter */}
                       <SharePointSelect
                         label={strings.AlertType}
                         value={alertTypeFilter}
@@ -2122,7 +2159,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         ]}
                       />
 
-                      {/* Status Filter */}
                       <SharePointSelect
                         label={strings.Status}
                         value={statusFilter}
@@ -2149,7 +2185,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         ]}
                       />
 
-                      {/* Content Status Filter */}
                       <SharePointSelect
                         label={strings.ManageAlertsApprovalStatusLabel}
                         value={contentStatusFilter}
@@ -2190,7 +2225,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         ]}
                       />
 
-                      {/* Language Filter */}
                       <SharePointSelect
                         label={strings.Language}
                         value={languageFilter}
@@ -2217,7 +2251,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         ]}
                       />
 
-                      {/* Notification Type Filter */}
                       <SharePointSelect
                         label={strings.NotificationType}
                         value={notificationFilter}
@@ -2260,7 +2293,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                         ]}
                       />
 
-                      {/* Date Filter */}
                       <SharePointSelect
                         label={strings.ManageAlertsCreatedDateFilterLabel}
                         value={dateFilter}
@@ -2309,7 +2341,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                       />
                     </div>
 
-                    {/* Custom Date Range */}
                     {dateFilter === "custom" && (
                       <div className={styles.dateRangeFilters}>
                         <SharePointInput
@@ -2327,7 +2358,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                       </div>
                     )}
 
-                    {/* Clear Filters Button */}
                     <div className={styles.filterActions}>
                       <SharePointButton
                         variant="secondary"
@@ -2341,7 +2371,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                 )}
               </div>
 
-              {/* Empty state for filtered drafts view */}
               {contentTypeFilter === ContentType.Draft &&
                 groupedAlerts.length === 0 && (
                   <EmptyState
@@ -2353,7 +2382,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   />
                 )}
 
-              {/* Empty state for filtered templates view */}
               {contentTypeFilter === ContentType.Template &&
                 groupedAlerts.length === 0 && (
                   <EmptyState
@@ -2365,7 +2393,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   />
                 )}
 
-              {/* Empty state when filters return no results */}
               {contentTypeFilter !== ContentType.Draft &&
                 contentTypeFilter !== ContentType.Template &&
                 groupedAlerts.length === 0 && (
@@ -2412,23 +2439,41 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   alertTypeStyle={alertTypeStyleMap.get(alert.AlertType)}
                   supportedLanguageMap={supportedLanguageMap}
                   sortOrder={alert.sortOrder ?? index}
-                  onSortOrderChange={manageSortMode === "manual" ? 
-                    (newOrder) => handleSortOrderChange(alert.id, newOrder) : undefined}
-                  onMoveToTop={manageSortMode === "manual" ? 
-                    () => handleMoveToTop(alert.id) : undefined}
-                  onMoveToBottom={manageSortMode === "manual" ? 
-                    () => handleMoveToBottom(alert.id) : undefined}
+                  onSortOrderChange={
+                    manageSortMode === "manual"
+                      ? (newOrder) => handleSortOrderChange(alert.id, newOrder)
+                      : undefined
+                  }
+                  onMoveToTop={
+                    manageSortMode === "manual"
+                      ? () => handleMoveToTop(alert.id)
+                      : undefined
+                  }
+                  onMoveToBottom={
+                    manageSortMode === "manual"
+                      ? () => handleMoveToBottom(alert.id)
+                      : undefined
+                  }
                   isFirst={index === 0}
                   isLast={index === groupedAlerts.length - 1}
                   isDragging={draggingAlertId === alert.id}
                   isDragOver={dragOverAlertId === alert.id}
-                  onDragStart={manageSortMode === "manual" ? 
-                    () => handleDragStart(alert.id) : undefined}
+                  onDragStart={
+                    manageSortMode === "manual"
+                      ? () => handleDragStart(alert.id)
+                      : undefined
+                  }
                   onDragEnd={handleDragEnd}
-                  onDragOver={manageSortMode === "manual" ? 
-                    () => handleDragOver(alert.id) : undefined}
-                  onDrop={manageSortMode === "manual" ? 
-                    () => handleDrop(alert.id) : undefined}
+                  onDragOver={
+                    manageSortMode === "manual"
+                      ? () => handleDragOver(alert.id)
+                      : undefined
+                  }
+                  onDrop={
+                    manageSortMode === "manual"
+                      ? () => handleDrop(alert.id)
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -2436,7 +2481,6 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
         </div>
       )}
 
-      {/* Edit Alert Form — rendered inline, replaces the parent dialog content */}
       {editingAlert && (
         <div className={styles.editAlertForm}>
           <AlertEditorForm

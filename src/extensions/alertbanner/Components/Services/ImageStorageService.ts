@@ -179,7 +179,6 @@ export class ImageStorageService {
         siteId,
       });
     } catch (error) {
-      // Folder deletion is optional - log warning if it fails
       logger.warn(
         "ImageStorageService",
         "Could not delete image folder (may not exist)",

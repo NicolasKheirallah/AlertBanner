@@ -244,7 +244,6 @@ export class ValidationService {
     };
   }
 
-  // Validate JSON data with security checks using JsonUtils - prevents prototype pollution
   public validateJson(
     jsonString: string,
     maxDepth: number = VALIDATION_LIMITS.JSON_MAX_DEPTH,

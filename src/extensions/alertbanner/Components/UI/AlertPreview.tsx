@@ -18,25 +18,48 @@ const AlertPreview: React.FC<{
   alertType,
   priority,
   isPinned = false,
-  className
+  className,
 }) => {
   const getPriorityClass = (priority: AlertPriority): string => {
     switch (priority) {
-      case AlertPriority.Critical: return styles.critical;
-      case AlertPriority.High: return styles.high;
-      case AlertPriority.Medium: return styles.medium;
-      case AlertPriority.Low: return styles.low;
-      default: return styles.medium;
+      case AlertPriority.Critical:
+        return styles.critical;
+      case AlertPriority.High:
+        return styles.high;
+      case AlertPriority.Medium:
+        return styles.medium;
+      case AlertPriority.Low:
+        return styles.low;
+      default:
+        return styles.medium;
     }
   };
 
-  const priorityColor = alertType.priorityColors?.[priority]?.borderColor || alertType.backgroundColor;
+  const priorityColor =
+    alertType.priorityColors?.[priority]?.borderColor ||
+    alertType.backgroundColor;
   const priorityTextColor = getContrastText(priorityColor);
+
+  const sanitizedDescription = React.useMemo(
+    () =>
+      htmlSanitizer.sanitizePreviewContent(
+        description || "Alert description will appear here...",
+      ),
+    [description],
+  );
+
   const normalizeColorToken = (color?: string): string =>
-    (color || "").toLowerCase().replace("#", "").replace(/[^a-f0-9]/g, "");
+    (color || "")
+      .toLowerCase()
+      .replace("#", "")
+      .replace(/[^a-f0-9]/g, "");
 
   const colorClassMap = styles as unknown as Record<string, string>;
-  const getTokenClass = (prefix: string, color: string, fallback: string): string => {
+  const getTokenClass = (
+    prefix: string,
+    color: string,
+    fallback: string,
+  ): string => {
     const token = normalizeColorToken(color);
     const className =
       colorClassMap[`${prefix}${token}`] ||
@@ -44,23 +67,45 @@ const AlertPreview: React.FC<{
     return className || "";
   };
 
-  const headerBgClass = getTokenClass("previewHeaderBg", priorityColor, "0078d4");
-  const headerFgClass = getTokenClass("previewHeaderFg", priorityTextColor, "ffffff");
-  const backgroundSwatchClass = getTokenClass("colorSwatchBg", alertType.backgroundColor, "0078d4");
-  const textSwatchClass = getTokenClass("colorSwatchText", alertType.textColor, "323130");
+  const headerBgClass = getTokenClass(
+    "previewHeaderBg",
+    priorityColor,
+    "0078d4",
+  );
+  const headerFgClass = getTokenClass(
+    "previewHeaderFg",
+    priorityTextColor,
+    "ffffff",
+  );
+  const backgroundSwatchClass = getTokenClass(
+    "colorSwatchBg",
+    alertType.backgroundColor,
+    "0078d4",
+  );
+  const textSwatchClass = getTokenClass(
+    "colorSwatchText",
+    alertType.textColor,
+    "323130",
+  );
 
   return (
-    <div className={`${styles.previewContainer} ${className || ''}`}>
-      <div className={`${styles.previewHeader} ${styles.previewHeaderDynamic} ${headerBgClass} ${headerFgClass}`}>
+    <div className={`${styles.previewContainer} ${className || ""}`}>
+      <div
+        className={`${styles.previewHeader} ${styles.previewHeaderDynamic} ${headerBgClass} ${headerFgClass}`}
+      >
         <h4 className={styles.headerTitle}>Live Preview</h4>
-        <span className={styles.previewNote}>This is how your alert will appear</span>
+        <span className={styles.previewNote}>
+          This is how your alert will appear
+        </span>
       </div>
 
       <div
-        className={`${styles.alertPreview} ${getPriorityClass(priority)} ${isPinned ? styles.pinned : ''}`}
-        style={{
-          borderLeftColor: priorityColor,
-        } as React.CSSProperties}
+        className={`${styles.alertPreview} ${getPriorityClass(priority)} ${isPinned ? styles.pinned : ""}`}
+        style={
+          {
+            borderLeftColor: priorityColor,
+          } as React.CSSProperties
+        }
       >
         <div className={styles.headerRow}>
           <div className={styles.iconSection}>
@@ -72,19 +117,18 @@ const AlertPreview: React.FC<{
           <div className={styles.textSection}>
             {title && (
               <div className={styles.alertTitle}>
-                {title || 'Alert Title'}
-                {isPinned && <span className={styles.pinnedBadge}>📌 PINNED</span>}
+                {title || "Alert Title"}
+                {isPinned && (
+                  <span className={styles.pinnedBadge}>📌 PINNED</span>
+                )}
               </div>
             )}
 
             {description && (
               <div className={styles.alertDescription}>
-                <div dangerouslySetInnerHTML={{ 
-                  __html: React.useMemo(() => 
-                    htmlSanitizer.sanitizePreviewContent(description || 'Alert description will appear here...'), 
-                    [description]
-                  )
-                }} />
+                <div
+                  dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+                />
               </div>
             )}
           </div>
@@ -108,21 +152,27 @@ const AlertPreview: React.FC<{
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Priority:</span>
-            <span className={`${styles.infoValue} ${styles.priorityBadge} ${getPriorityClass(priority)}`}>
+            <span
+              className={`${styles.infoValue} ${styles.priorityBadge} ${getPriorityClass(priority)}`}
+            >
               {priority.toUpperCase()}
             </span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Background:</span>
             <span className={styles.infoValue}>
-              <span className={`${styles.colorSwatch} ${styles.colorSwatchBackground} ${backgroundSwatchClass}`} />
+              <span
+                className={`${styles.colorSwatch} ${styles.colorSwatchBackground} ${backgroundSwatchClass}`}
+              />
               {alertType.backgroundColor}
             </span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Text Color:</span>
             <span className={styles.infoValue}>
-              <span className={`${styles.colorSwatch} ${styles.colorSwatchText} ${textSwatchClass}`} />
+              <span
+                className={`${styles.colorSwatch} ${styles.colorSwatchText} ${textSwatchClass}`}
+              />
               {alertType.textColor}
             </span>
           </div>

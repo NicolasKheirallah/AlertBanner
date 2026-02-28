@@ -16,7 +16,6 @@ import { SiteIdUtils } from "./SiteIdUtils";
 import { DEFAULT_ALERT_TYPE_NAME } from "./AppConstants";
 
 export class AlertTransformers {
-  // Parse target sites field from SharePoint - handles arrays, JSON strings, and CSV strings
   public static parseTargetSitesField(raw: any): string[] {
     if (!raw) {
       return [];
@@ -77,7 +76,6 @@ export class AlertTransformers {
     };
   }
 
-  // Map target users from SharePoint field - handles both single user and array of users
   public static mapTargetUsers(targetUsersField: any): IPersonField[] {
     if (!targetUsersField) {
       return [];
@@ -124,7 +122,6 @@ export class AlertTransformers {
     }
   }
 
-  // Determine content type from SharePoint fields - checks both ItemType and ContentType fields
   public static parseContentType(fields: any): ContentType {
     const status = (fields.Status || "").toLowerCase();
 
@@ -231,7 +228,6 @@ export class AlertTransformers {
     };
   }
 
-  // Normalize site ID to extract the site GUID for consistent alert ID generation
   private static normalizeSiteIdForAlertId(siteId: string): string {
     if (!siteId) {
       return "";
@@ -263,7 +259,6 @@ export class AlertTransformers {
       ? this.mapTargetUsers(fields.Reviewer)
       : undefined;
 
-    // Normalize site ID to ensure consistent alert IDs regardless of input format
     const normalizedSiteId = this.normalizeSiteIdForAlertId(siteId);
 
     const alert: IAlertItem = {

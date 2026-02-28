@@ -28,7 +28,13 @@ export interface ISupportedLanguage {
 
 export interface ILanguageDetectionResult {
   language: TargetLanguage;
-  source: 'user-override' | 'browser' | 'graph' | 'sharepoint' | 'tenant-default' | 'fallback';
+  source:
+    | "user-override"
+    | "browser"
+    | "graph"
+    | "sharepoint"
+    | "tenant-default"
+    | "fallback";
 }
 
 export class LanguageAwarenessService {
@@ -36,7 +42,7 @@ export class LanguageAwarenessService {
   private context: ApplicationCustomizerContext;
   private cachedPreferredLanguage: TargetLanguage | null = null;
   private preferredLanguagePromise: Promise<TargetLanguage> | null = null;
-  private static readonly STORAGE_KEY = 'AlertBanner_UserPreferredLanguage';
+  private static readonly STORAGE_KEY = "AlertBanner_UserPreferredLanguage";
 
   constructor(
     graphClient: MSGraphClientV3,
@@ -76,7 +82,7 @@ export class LanguageAwarenessService {
       name: lang.name,
       nativeName: lang.nativeName,
       flag: lang.flag,
-      isSupported: lang.code === "en-us", // Only English supported by default
+      isSupported: lang.code === "en-us",
       columnExists: false,
     }));
   }
@@ -102,114 +108,125 @@ export class LanguageAwarenessService {
     return this.preferredLanguagePromise;
   }
 
-  /**
-   * Get detailed language detection info including source
-   */
   public async getUserPreferredLanguageWithSource(): Promise<ILanguageDetectionResult> {
     const language = await this.getUserPreferredLanguage();
-    
+
     const stored = this.getStoredLanguagePreference();
     if (stored) {
-      return { language, source: 'user-override' };
+      return { language, source: "user-override" };
     }
-    
+
     const result = await this.resolveUserPreferredLanguage();
     return result;
   }
 
-  /**
-   * Allow user to manually set their preferred language
-   */
   public setUserPreferredLanguage(language: TargetLanguage): void {
     this.cachedPreferredLanguage = language;
     this.storeLanguagePreference(language);
-    logger.info("LanguageAwarenessService", `User manually set language to ${language}`);
+    logger.info(
+      "LanguageAwarenessService",
+      `User manually set language to ${language}`,
+    );
   }
 
-  /**
-   * Clear stored language preference and re-detect
-   */
   public clearUserLanguagePreference(): void {
     this.cachedPreferredLanguage = null;
     this.clearStoredLanguagePreference();
-    logger.info("LanguageAwarenessService", "Cleared user language preference, will re-detect");
+    logger.info(
+      "LanguageAwarenessService",
+      "Cleared user language preference, will re-detect",
+    );
   }
 
   private getStoredLanguagePreference(): TargetLanguage | null {
     try {
       const stored = localStorage.getItem(LanguageAwarenessService.STORAGE_KEY);
-      if (stored && Object.values(TargetLanguage).includes(stored as TargetLanguage)) {
+      if (
+        stored &&
+        Object.values(TargetLanguage).includes(stored as TargetLanguage)
+      ) {
         return stored as TargetLanguage;
       }
-    } catch {
-    }
+    } catch {}
     return null;
   }
 
   private storeLanguagePreference(language: TargetLanguage): void {
     try {
       localStorage.setItem(LanguageAwarenessService.STORAGE_KEY, language);
-    } catch {
-    }
+    } catch {}
   }
 
   private clearStoredLanguagePreference(): void {
     try {
       localStorage.removeItem(LanguageAwarenessService.STORAGE_KEY);
-    } catch {
-    }
+    } catch {}
   }
 
   private async resolveUserPreferredLanguage(): Promise<ILanguageDetectionResult> {
     try {
       const storedPreference = this.getStoredLanguagePreference();
       if (storedPreference) {
-        logger.debug("LanguageAwarenessService", "Using stored user preference", storedPreference);
-        return { language: storedPreference, source: 'user-override' };
+        logger.debug(
+          "LanguageAwarenessService",
+          "Using stored user preference",
+          storedPreference,
+        );
+        return { language: storedPreference, source: "user-override" };
       }
 
       const browserLanguages = this.getAllBrowserLanguages();
       if (browserLanguages.length > 0) {
-        logger.debug("LanguageAwarenessService", "Using browser language", browserLanguages[0]);
-        return { language: browserLanguages[0], source: 'browser' };
+        logger.debug(
+          "LanguageAwarenessService",
+          "Using browser language",
+          browserLanguages[0],
+        );
+        return { language: browserLanguages[0], source: "browser" };
       }
 
       const userLanguage = await this.getGraphUserLanguage();
       if (userLanguage) {
-        logger.debug("LanguageAwarenessService", "Using Graph API language", userLanguage);
-        return { language: userLanguage, source: 'graph' };
+        logger.debug(
+          "LanguageAwarenessService",
+          "Using Graph API language",
+          userLanguage,
+        );
+        return { language: userLanguage, source: "graph" };
       }
 
       const sharePointLanguage = this.getSharePointLanguage();
       if (sharePointLanguage) {
-        logger.debug("LanguageAwarenessService", "Using SharePoint language", sharePointLanguage);
-        return { language: sharePointLanguage, source: 'sharepoint' };
+        logger.debug(
+          "LanguageAwarenessService",
+          "Using SharePoint language",
+          sharePointLanguage,
+        );
+        return { language: sharePointLanguage, source: "sharepoint" };
       }
 
       const tenantDefault = this.getTenantDefaultLanguage();
-      logger.debug("LanguageAwarenessService", "Using tenant default language", tenantDefault);
-      return { language: tenantDefault, source: 'tenant-default' };
+      logger.debug(
+        "LanguageAwarenessService",
+        "Using tenant default language",
+        tenantDefault,
+      );
+      return { language: tenantDefault, source: "tenant-default" };
     } catch (error) {
       logger.error(
         "LanguageAwarenessService",
         "Error detecting user preferred language",
         error,
       );
-      return { language: TargetLanguage.EnglishUS, source: 'fallback' };
+      return { language: TargetLanguage.EnglishUS, source: "fallback" };
     }
   }
 
-  /**
-   * Get the first matching browser language
-   */
   private getBrowserLanguage(): TargetLanguage | null {
     const languages = this.getAllBrowserLanguages();
     return languages.length > 0 ? languages[0] : null;
   }
 
-  /**
-   * Get ALL supported browser languages in order of preference
-   */
   private getAllBrowserLanguages(): TargetLanguage[] {
     const languages = navigator.languages || [navigator.language];
     const supportedLanguages: TargetLanguage[] = [];
@@ -268,10 +285,10 @@ export class LanguageAwarenessService {
     const languageMap: { [key: string]: TargetLanguage } = {
       en: TargetLanguage.EnglishUS,
       "en-us": TargetLanguage.EnglishUS,
-      "en-gb": TargetLanguage.EnglishUS, // Map UK English to US English for now
+      "en-gb": TargetLanguage.EnglishUS,
       fr: TargetLanguage.FrenchFR,
       "fr-fr": TargetLanguage.FrenchFR,
-      "fr-ca": TargetLanguage.FrenchFR, // Map Canadian French to France French
+      "fr-ca": TargetLanguage.FrenchFR,
       de: TargetLanguage.GermanDE,
       "de-de": TargetLanguage.GermanDE,
       es: TargetLanguage.SpanishES,
@@ -305,29 +322,26 @@ export class LanguageAwarenessService {
     return lcidMap[lcid] || null;
   }
 
-  /**
-   * Get user's full language preference list in priority order
-   */
   public getUserLanguagePreferences(): TargetLanguage[] {
     const preferences: TargetLanguage[] = [];
-    
+
     const stored = this.getStoredLanguagePreference();
     if (stored) {
       preferences.push(stored);
     }
-    
+
     const browserLanguages = this.getAllBrowserLanguages();
     for (const lang of browserLanguages) {
       if (!preferences.includes(lang)) {
         preferences.push(lang);
       }
     }
-    
+
     const tenantDefault = this.getTenantDefaultLanguage();
     if (!preferences.includes(tenantDefault)) {
       preferences.push(tenantDefault);
     }
-    
+
     return preferences;
   }
 
@@ -338,7 +352,7 @@ export class LanguageAwarenessService {
   ): IAlertItem[] {
     const tenantDefault = this.getTenantDefaultLanguage();
     const effectivePolicy = normalizeLanguagePolicy(policy);
-    
+
     const userPreferences = this.getUserLanguagePreferences();
 
     const alertGroups = new Map<string, IAlertItem[]>();
@@ -386,7 +400,7 @@ export class LanguageAwarenessService {
       }
 
       let selectedAlert: IAlertItem | undefined;
-      
+
       for (const preferredLang of userPreferences) {
         selectedAlert = candidateAlerts.find(
           (alert) => alert.targetLanguage === preferredLang,
@@ -395,16 +409,14 @@ export class LanguageAwarenessService {
           logger.debug(
             "LanguageAwarenessService",
             `Matched alert to user's ${preferredLang} preference`,
-            { languageGroup: groupAlerts[0]?.languageGroup }
+            { languageGroup: groupAlerts[0]?.languageGroup },
           );
           break;
         }
       }
 
       if (!selectedAlert) {
-        selectedAlert = candidateAlerts.find(
-          (alert) => alert.availableForAll,
-        );
+        selectedAlert = candidateAlerts.find((alert) => alert.availableForAll);
       }
 
       if (!selectedAlert) {
@@ -412,10 +424,10 @@ export class LanguageAwarenessService {
         logger.debug(
           "LanguageAwarenessService",
           `No preferred language match, using first available`,
-          { 
+          {
             languageGroup: groupAlerts[0]?.languageGroup,
-            selectedLanguage: selectedAlert?.targetLanguage 
-          }
+            selectedLanguage: selectedAlert?.targetLanguage,
+          },
         );
       }
 
@@ -503,7 +515,7 @@ export class LanguageAwarenessService {
       languageGroup: multiLangAlert.languageGroup,
       translationStatus:
         content.translationStatus || TranslationStatus.Approved,
-      id: "0", // Will be set by SharePoint when created
+      id: "0",
     }));
   }
 

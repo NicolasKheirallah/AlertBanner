@@ -59,7 +59,6 @@ export class AlertFilters {
     );
   }
 
-  // Filter alerts by target sites - if alert has no targetSites, it's available to all sites
   public static filterByTargetSites(alerts: IAlertItem[], scopedSiteIds: string[]): IAlertItem[] {
     if (scopedSiteIds.length === 0) {
       return alerts;
@@ -75,7 +74,6 @@ export class AlertFilters {
         return true;
       }
 
-      // Check if any of the alert's target sites match the scoped sites
       return alert.targetSites.some(targetSiteId => {
         const variations = SiteIdUtils.generateSiteVariations(String(targetSiteId));
         return variations.some(v => scopeSet.has(v));
@@ -113,7 +111,6 @@ export class AlertFilters {
 
   public static excludeNonPublicAlerts(alerts: IAlertItem[]): IAlertItem[] {
     return alerts.filter(alert => {
-      // If contentType is not set, treat as a regular alert (backward compatibility)
       const isTemplate = alert.contentType === ContentType.Template;
       const isDraft = alert.contentType === ContentType.Draft ||
                       alert.status?.toLowerCase() === 'draft';
@@ -155,7 +152,6 @@ export class AlertFilters {
     return alerts.filter(alert => alert.AlertType === alertType);
   }
 
-  // Filter alerts by target language - includes alerts that match the language OR have targetLanguage set to 'all'
   public static filterByLanguage(alerts: IAlertItem[], language: TargetLanguage | 'all'): IAlertItem[] {
     if (language === 'all') {
       return alerts;
@@ -175,7 +171,6 @@ export class AlertFilters {
       return false;
     }
 
-    // Alert is active if status is 'Active' or 'Scheduled' with passed start time
     return alert.status === 'Active' ||
       (alert.status === 'Scheduled' &&
         (!alert.scheduledStart || new Date(alert.scheduledStart) <= currentTime));

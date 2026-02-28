@@ -43,7 +43,7 @@ export interface IAlertSettingsTabsProps {
   graphClient: MSGraphClientV3;
   context: ApplicationCustomizerContext;
   onSettingsChange: (
-    settings: ISettingsData & { enableTargetSite: boolean }
+    settings: ISettingsData & { enableTargetSite: boolean },
   ) => void;
 }
 
@@ -84,7 +84,10 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
 
   const getLanguageService = React.useCallback((): LanguageAwarenessService => {
     if (!languageService.current) {
-      languageService.current = new LanguageAwarenessService(graphClient, context);
+      languageService.current = new LanguageAwarenessService(
+        graphClient,
+        context,
+      );
     }
     return languageService.current;
   }, [graphClient, context]);
@@ -108,7 +111,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   const [isLoadingAlerts, setIsLoadingAlerts] = React.useState(false);
   const [selectedAlerts, setSelectedAlerts] = React.useState<string[]>([]);
   const [editingAlert, setEditingAlert] = React.useState<IEditingAlert | null>(
-    null
+    null,
   );
   const [isEditingAlert, setIsEditingAlert] = React.useState(false);
 
@@ -145,8 +148,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
   const [hasUnsavedSettingsChanges, setHasUnsavedSettingsChanges] =
     React.useState(false);
 
-
-
   const alertFormConfig = React.useMemo<IAlertFormProviderConfig>(
     () => ({
       alertTypes,
@@ -163,7 +164,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       enableTargetSite,
       settings.copilotEnabled,
       languageUpdateTrigger,
-    ]
+    ],
   );
 
   const alertFormServices = React.useMemo<IAlertFormServices>(
@@ -174,7 +175,13 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       context,
       languageService: getLanguageService(),
     }),
-    [getSiteDetector, getAlertService, getLanguageService, graphClient, context]
+    [
+      getSiteDetector,
+      getAlertService,
+      getLanguageService,
+      graphClient,
+      context,
+    ],
   );
 
   const resetCreateTabState = React.useCallback(() => {
@@ -189,21 +196,22 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     resetCreateTabState();
   }, [resetCreateTabState]);
 
-  const confirmDiscardCreateChanges = React.useCallback(async (): Promise<boolean> => {
-    if (!hasUnsavedCreateChanges || activeTab !== "create") {
-      return true;
-    }
+  const confirmDiscardCreateChanges =
+    React.useCallback(async (): Promise<boolean> => {
+      if (!hasUnsavedCreateChanges || activeTab !== "create") {
+        return true;
+      }
 
-    return confirm({
-      title: strings.CreateAlertUnsavedChangesTitle,
-      message: strings.CreateAlertUnsavedChangesMessage,
-      confirmText: strings.CreateAlertDiscardChangesButton,
-      cancelText: strings.CreateAlertKeepEditingButton,
-    });
-  }, [activeTab, confirm, hasUnsavedCreateChanges]);
+      return confirm({
+        title: strings.CreateAlertUnsavedChangesTitle,
+        message: strings.CreateAlertUnsavedChangesMessage,
+        confirmText: strings.CreateAlertDiscardChangesButton,
+        cancelText: strings.CreateAlertKeepEditingButton,
+      });
+    }, [activeTab, confirm, hasUnsavedCreateChanges]);
 
-  const confirmDiscardManageChanges = React.useCallback(
-    async (): Promise<boolean> => {
+  const confirmDiscardManageChanges =
+    React.useCallback(async (): Promise<boolean> => {
       if (!hasUnsavedManageChanges || activeTab !== "manage") {
         return true;
       }
@@ -214,12 +222,10 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         confirmText: strings.ManageAlertsDiscardChangesButton,
         cancelText: strings.ManageAlertsKeepEditingButton,
       });
-    },
-    [activeTab, confirm, hasUnsavedManageChanges]
-  );
+    }, [activeTab, confirm, hasUnsavedManageChanges]);
 
-  const confirmDiscardSettingsChanges = React.useCallback(
-    async (): Promise<boolean> => {
+  const confirmDiscardSettingsChanges =
+    React.useCallback(async (): Promise<boolean> => {
       if (!hasUnsavedSettingsChanges || activeTab !== "settings") {
         return true;
       }
@@ -230,9 +236,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         confirmText: strings.SettingsDiscardChanges,
         cancelText: strings.SettingsKeepEditing,
       });
-    },
-    [activeTab, confirm, hasUnsavedSettingsChanges]
-  );
+    }, [activeTab, confirm, hasUnsavedSettingsChanges]);
 
   const switchTab = React.useCallback(
     async (nextTab: "create" | "manage" | "types" | "settings") => {
@@ -272,7 +276,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       confirmDiscardManageChanges,
       confirmDiscardSettingsChanges,
       openNewCreateAlert,
-    ]
+    ],
   );
 
   const handleCloseDialog = React.useCallback(async () => {
@@ -322,7 +326,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         logger.error(
           "AlertSettingsTabs",
           "Error loading alert types from SharePoint",
-          error
+          error,
         );
         setAlertTypes([]);
       }
@@ -331,7 +335,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
     alertTypesLoadInFlightRef.current = task;
     await task;
     alertTypesLoadInFlightRef.current = null;
-  }, []);
+  }, [getAlertService]);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -364,7 +368,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
       setSettings(newSettings);
       onSettingsChange(newSettings);
     },
-    [onSettingsChange]
+    [onSettingsChange],
   );
 
   const handleLanguageChange = React.useCallback((languages: string[]) => {
@@ -407,7 +411,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         height="80vh"
       >
         <div className={styles.settingsContainer}>
-          {/* Tab Navigation — hidden when editing an alert */}
           {!editingAlert && (
             <div
               className={styles.tabs}
@@ -471,7 +474,6 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
             </div>
           )}
 
-          {/* Tab Content */}
           <div className={`${styles.tabContent} ${styles.tabContentContainer}`}>
             {activeTab === "create" && (
               <div

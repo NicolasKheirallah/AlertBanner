@@ -30,22 +30,22 @@ const PresetColorButton: React.FC<{
 };
 
 const DEFAULT_PRESET_COLORS = [
-  "#0078d4", // SharePoint Blue
-  "#107c10", // SharePoint Green  
-  "#ff8c00", // SharePoint Orange
-  "#d13438", // SharePoint Red
-  "#5c2d91", // SharePoint Purple
-  "#00bcf2", // SharePoint Cyan
-  "#ca5010", // SharePoint Dark Orange
-  "#8764b8", // SharePoint Light Purple
-  "#00b7c3", // SharePoint Teal
-  "#bad80a", // SharePoint Lime
-  "#ffaa44", // SharePoint Amber
-  "#e81123", // SharePoint Error Red
-  "#767676", // SharePoint Gray
-  "#323130", // SharePoint Dark Gray
-  "#000000", // Black
-  "#ffffff"  // White
+  "#0078d4",
+  "#107c10",
+  "#ff8c00",
+  "#d13438",
+  "#5c2d91",
+  "#00bcf2",
+  "#ca5010",
+  "#8764b8",
+  "#00b7c3",
+  "#bad80a",
+  "#ffaa44",
+  "#e81123",
+  "#767676",
+  "#323130",
+  "#000000",
+  "#ffffff"
 ];
 
 const normalizeColorToken = (color: string): string =>

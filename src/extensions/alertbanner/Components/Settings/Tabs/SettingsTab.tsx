@@ -198,7 +198,7 @@ export interface ISettingsTabProps {
   onLanguageChange?: (languages: string[]) => void;
   onDirtyStateChange?: (isDirty: boolean) => void;
   canEdit?: boolean;
-  context?: any; // ApplicationCustomizerContext for notifications
+  context?: any;
 }
 
 const SettingsTab: React.FC<ISettingsTabProps> = ({
@@ -236,7 +236,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
   const [isRepairDialogOpen, setIsRepairDialogOpen] = React.useState(false);
   const [preCreationLanguages, setPreCreationLanguages] = React.useState<
     string[]
-  >(["en-us"]); // English selected by default
+  >(["en-us"]);
   const [creationSteps, setCreationSteps] = React.useState<IProgressStep[]>([]);
   const [languagePolicy, setLanguagePolicy] = React.useState<ILanguagePolicy>(
     DEFAULT_LANGUAGE_POLICY,
@@ -649,9 +649,12 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     notificationService,
     onSettingsChange,
     preflightErrors.length,
+    priorityBorderColors,
+    priorityColorsDirty,
     setSettings,
     settingsDirty,
     syncCarouselToContext,
+    updatePriorityBorderColors,
   ]);
 
   const handleExportSettings = React.useCallback(() => {
@@ -698,6 +701,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     draftSettings,
     languagePolicy,
     notificationService,
+    priorityBorderColors,
   ]);
 
   const handleImportSettingsClick = React.useCallback(() => {
@@ -765,7 +769,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     setIsCheckingLists(true);
     try {
       const listStatus = await alertService.checkListsNeeded();
-      const currentSite = listStatus[0]; // Should be current site
+      const currentSite = listStatus[0];
 
       if (currentSite) {
         setAlertsListExists(currentSite.needsAlerts ? false : true);
@@ -1031,6 +1035,7 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
     } finally {
       setIsCreatingLists(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alertService, checkListsExistence, setIsCreatingLists]);
 
   const handleOpenRepairDialog = React.useCallback(() => {

@@ -1,15 +1,18 @@
-import * as React from 'react';
-import { logger } from '../Services/LoggerService';
+import * as React from "react";
+import { logger } from "../Services/LoggerService";
 import {
   DefaultButton,
   MessageBar,
   MessageBarType,
   PrimaryButton,
 } from "@fluentui/react";
-import { ErrorCircle24Regular, ArrowClockwise24Regular } from '@fluentui/react-icons';
-import styles from './ErrorBoundary.module.scss';
-import * as strings from 'AlertBannerApplicationCustomizerStrings';
-import { Text as CoreText } from '@microsoft/sp-core-library';
+import {
+  ErrorCircle24Regular,
+  ArrowClockwise24Regular,
+} from "@fluentui/react-icons";
+import styles from "./ErrorBoundary.module.scss";
+import * as strings from "AlertBannerApplicationCustomizerStrings";
+import { Text as CoreText } from "@microsoft/sp-core-library";
 
 interface IErrorBoundaryState {
   hasError: boolean;
@@ -25,14 +28,17 @@ interface IErrorBoundaryProps {
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
-export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  IErrorBoundaryProps,
+  IErrorBoundaryState
+> {
   private retryCount: number = 0;
   private maxRetries: number = 3;
 
   constructor(props: IErrorBoundaryProps) {
     super(props);
     this.state = {
-      hasError: false
+      hasError: false,
     };
   }
 
@@ -40,36 +46,45 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
     return {
       hasError: true,
       error,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    const componentName = this.props.componentName || 'Unknown Component';
+    const componentName = this.props.componentName || "Unknown Component";
 
-    logger.error(componentName, 'React component error boundary caught an error', error, {
-      errorInfo: {
-        componentStack: errorInfo.componentStack,
-        errorBoundary: componentName,
-        retryCount: this.retryCount,
-        timestamp: new Date().toISOString()
+    logger.error(
+      componentName,
+      "React component error boundary caught an error",
+      error,
+      {
+        errorInfo: {
+          componentStack: errorInfo.componentStack,
+          errorBoundary: componentName,
+          retryCount: this.retryCount,
+          timestamp: new Date().toISOString(),
+        },
+        props: this.sanitizeProps(this.props),
+        state: this.state,
       },
-      props: this.sanitizeProps(this.props),
-      state: this.state
-    });
+    );
 
     if (this.props.onError) {
       try {
         this.props.onError(error, errorInfo);
       } catch (handlerError) {
-        logger.error(componentName, 'Error in custom error handler', handlerError);
+        logger.error(
+          componentName,
+          "Error in custom error handler",
+          handlerError,
+        );
       }
     }
 
     this.setState({
       error,
       errorInfo,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
     });
   }
 
@@ -78,7 +93,7 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
     return {
       ...safeProps,
       hasChildren: !!children,
-      hasOnError: !!onError
+      hasOnError: !!onError,
     };
   }
 
@@ -87,16 +102,26 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       this.retryCount++;
 
       this.setState({
-        hasError: false
+        hasError: false,
       });
     } else {
-      logger.warn(this.props.componentName || 'Unknown Component', 'Maximum retry attempts reached');
+      logger.warn(
+        this.props.componentName || "Unknown Component",
+        "Maximum retry attempts reached",
+      );
     }
   };
 
   private resetRetryCount(): void {
-    if (this.retryCount > 0) {
-      this.retryCount = 0;
+    this.retryCount = 0;
+  }
+
+  componentDidUpdate(
+    _prevProps: IErrorBoundaryProps,
+    prevState: IErrorBoundaryState,
+  ): void {
+    if (prevState.hasError && !this.state.hasError) {
+      this.resetRetryCount();
     }
   }
 
@@ -105,17 +130,23 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       const errorDetails = {
         errorId: this.state.errorId,
         timestamp: new Date().toISOString(),
-        component: this.props.componentName || 'Unknown Component',
+        component: this.props.componentName || "Unknown Component",
         message: this.state.error?.message,
         stack: this.state.error?.stack,
         componentStack: this.state.errorInfo?.componentStack,
         userAgent: navigator.userAgent,
-        url: window.location.href
+        url: window.location.href,
       };
 
-      await navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2));
+      await navigator.clipboard.writeText(
+        JSON.stringify(errorDetails, null, 2),
+      );
     } catch (clipboardError) {
-      logger.warn('ErrorBoundary', 'Failed to copy error details to clipboard', clipboardError);
+      logger.warn(
+        "ErrorBoundary",
+        "Failed to copy error details to clipboard",
+        clipboardError,
+      );
     }
   };
 
@@ -124,15 +155,15 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
         return (
-          <FallbackComponent 
-            error={this.state.error!} 
-            reset={this.handleRetry} 
+          <FallbackComponent
+            error={this.state.error!}
+            reset={this.handleRetry}
           />
         );
       }
 
       const canRetry = this.retryCount < this.maxRetries;
-      const componentName = this.props.componentName || 'Component';
+      const componentName = this.props.componentName || "Component";
 
       return (
         <div className={styles.errorContainer}>
@@ -146,20 +177,26 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
           </MessageBar>
 
           <div className={styles.errorMessage}>
-            <span className={`${styles.errorMessageText} ${styles.errorMessageBodyText}`}>
-              {this.state.error?.message || strings.ErrorBoundaryFallbackMessage}
+            <span
+              className={`${styles.errorMessageText} ${styles.errorMessageBodyText}`}
+            >
+              {this.state.error?.message ||
+                strings.ErrorBoundaryFallbackMessage}
             </span>
           </div>
 
           <div className={styles.errorId}>
             <span className={`${styles.errorIdText} ${styles.errorIdBodyText}`}>
-              {CoreText.format(strings.ErrorBoundaryIdLabel, this.state.errorId ?? '')}
+              {CoreText.format(
+                strings.ErrorBoundaryIdLabel,
+                this.state.errorId ?? "",
+              )}
             </span>
           </div>
 
           <div className={styles.errorActions}>
             {canRetry && (
-              <PrimaryButton 
+              <PrimaryButton
                 onRenderIcon={() => <ArrowClockwise24Regular />}
                 onClick={this.handleRetry}
               >
@@ -167,20 +204,16 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
               </PrimaryButton>
             )}
 
-            <DefaultButton 
-              onClick={this.handleCopyErrorDetails}
-            >
+            <DefaultButton onClick={this.handleCopyErrorDetails}>
               {strings.ErrorBoundaryCopyButton}
             </DefaultButton>
 
-            <DefaultButton 
-              onClick={() => window.location.reload()}
-            >
+            <DefaultButton onClick={() => window.location.reload()}>
               {strings.ErrorBoundaryReloadButton}
             </DefaultButton>
           </div>
 
-          {process.env.NODE_ENV === 'development' && (
+          {process.env.NODE_ENV === "development" && (
             <details className={styles.errorDetails}>
               <summary className={styles.errorDetailsSummary}>
                 {strings.ErrorBoundaryDevDetailsTitle}
@@ -199,14 +232,13 @@ export class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBo
       );
     }
 
-    this.resetRetryCount();
     return this.props.children;
   }
 }
 
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<IErrorBoundaryProps, 'children'>
+  errorBoundaryProps?: Omit<IErrorBoundaryProps, "children">,
 ) {
   const ComponentWithErrorBoundary = (props: P) => (
     <ErrorBoundary {...errorBoundaryProps}>

@@ -3,17 +3,16 @@ import { JsonUtils } from "../Utils/JsonUtils";
 import { logger } from "./LoggerService";
 
 export interface IStorageOptions {
-  expirationTime?: number; // In milliseconds
-  userSpecific?: boolean; // Whether to prefix with user ID
+  expirationTime?: number;
+  userSpecific?: boolean;
 }
 
 export class StorageService {
   private static instance: StorageService;
   private userId: string | null = null;
-  private defaultExpirationTime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  private defaultExpirationTime = 24 * 60 * 60 * 1000;
 
-  private constructor() {
-  }
+  private constructor() {}
 
   public static getInstance(): StorageService {
     if (!StorageService.instance) {
@@ -158,6 +157,15 @@ export class StorageService {
   }
 
   public saveAlerts(alerts: IAlertItem[]): void {
+    const serializedLength = JSON.stringify(alerts).length;
+    if (serializedLength > 512000) {
+      logger.warn(
+        "StorageService",
+        "Alert payload exceeds 500KB - skipping cache to prevent QuotaExceededError",
+        { length: serializedLength },
+      );
+      return;
+    }
     this.saveToLocalStorage<IAlertItem[]>("AllAlerts", alerts, {
       expirationTime: this.defaultExpirationTime,
     });

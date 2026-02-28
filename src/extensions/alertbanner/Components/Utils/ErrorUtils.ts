@@ -1,4 +1,4 @@
-import { logger } from '../Services/LoggerService';
+import { logger } from "../Services/LoggerService";
 
 export interface IErrorInfo {
   message: string;
@@ -17,10 +17,10 @@ export class ErrorUtils {
     const status = this.getErrorStatus(error);
 
     return (
-      message.includes('access denied') ||
-      message.includes('permission') ||
-      message.includes('unauthorized') ||
-      message.includes('forbidden') ||
+      message.includes("access denied") ||
+      message.includes("permission") ||
+      message.includes("unauthorized") ||
+      message.includes("forbidden") ||
       status === 403
     );
   }
@@ -35,11 +35,11 @@ export class ErrorUtils {
     const code = (this.getErrorCode(error) || "").toLowerCase();
 
     return (
-      code === 'itemnotfound' ||
-      code === 'notfound' ||
-      message.includes('list_not_found') ||
-      message.includes('not found') ||
-      message.includes('does not exist') ||
+      code === "itemnotfound" ||
+      code === "notfound" ||
+      message.includes("list_not_found") ||
+      message.includes("not found") ||
+      message.includes("does not exist") ||
       status === 404
     );
   }
@@ -49,25 +49,18 @@ export class ErrorUtils {
       return false;
     }
 
-    const retryableStatusCodes = [
-      408, // Request Timeout
-      429, // Too Many Requests
-      500, // Internal Server Error
-      502, // Bad Gateway
-      503, // Service Unavailable
-      504  // Gateway Timeout
-    ];
+    const retryableStatusCodes = [408, 429, 500, 502, 503, 504];
 
     const retryableMessages = [
-      'timeout',
-      'network',
-      'throttled',
-      'temporarily unavailable',
-      'service unavailable',
-      'connection',
-      'econnreset',
-      'etimedout',
-      'socket hang up'
+      "timeout",
+      "network",
+      "throttled",
+      "temporarily unavailable",
+      "service unavailable",
+      "connection",
+      "econnreset",
+      "etimedout",
+      "socket hang up",
     ];
 
     const message = this.getErrorMessage(error).toLowerCase();
@@ -77,7 +70,7 @@ export class ErrorUtils {
       return true;
     }
 
-    return retryableMessages.some(msg => message.includes(msg));
+    return retryableMessages.some((msg) => message.includes(msg));
   }
 
   public static isNetworkError(error: any): boolean {
@@ -88,13 +81,13 @@ export class ErrorUtils {
     const message = this.getErrorMessage(error).toLowerCase();
 
     return (
-      message.includes('network') ||
-      message.includes('connection') ||
-      message.includes('offline') ||
-      message.includes('econnrefused') ||
-      message.includes('enotfound') ||
-      message.includes('etimedout') ||
-      message.includes('econnreset')
+      message.includes("network") ||
+      message.includes("connection") ||
+      message.includes("offline") ||
+      message.includes("econnrefused") ||
+      message.includes("enotfound") ||
+      message.includes("etimedout") ||
+      message.includes("econnreset")
     );
   }
 
@@ -107,9 +100,9 @@ export class ErrorUtils {
     const status = this.getErrorStatus(error);
 
     return (
-      message.includes('validation') ||
-      message.includes('invalid') ||
-      message.includes('required') ||
+      message.includes("validation") ||
+      message.includes("invalid") ||
+      message.includes("required") ||
       status === 400
     );
   }
@@ -123,19 +116,19 @@ export class ErrorUtils {
     const status = this.getErrorStatus(error);
 
     return (
-      message.includes('authentication') ||
-      message.includes('unauthorized') ||
-      message.includes('not authenticated') ||
+      message.includes("authentication") ||
+      message.includes("unauthorized") ||
+      message.includes("not authenticated") ||
       status === 401
     );
   }
 
   public static getErrorMessage(error: any): string {
     if (!error) {
-      return 'Unknown error';
+      return "Unknown error";
     }
 
-    if (typeof error === 'string') {
+    if (typeof error === "string") {
       return error;
     }
 
@@ -158,7 +151,7 @@ export class ErrorUtils {
     try {
       return String(error);
     } catch {
-      return 'Unknown error';
+      return "Unknown error";
     }
   }
 
@@ -167,15 +160,15 @@ export class ErrorUtils {
       return null;
     }
 
-    if (typeof error.status === 'number') {
+    if (typeof error.status === "number") {
       return error.status;
     }
 
-    if (typeof error.statusCode === 'number') {
+    if (typeof error.statusCode === "number") {
       return error.statusCode;
     }
 
-    if (error.response && typeof error.response.status === 'number') {
+    if (error.response && typeof error.response.status === "number") {
       return error.response.status;
     }
 
@@ -193,7 +186,7 @@ export class ErrorUtils {
       return null;
     }
 
-    if (error.code && typeof error.code === 'string') {
+    if (error.code && typeof error.code === "string") {
       return error.code;
     }
 
@@ -209,50 +202,57 @@ export class ErrorUtils {
       message: this.getErrorMessage(error),
       code: this.getErrorCode(error) || undefined,
       status: this.getErrorStatus(error) || undefined,
-      originalError: error
+      originalError: error,
     };
   }
 
-  public static logError(context: string, error: any, additionalData?: any): void {
+  public static logError(
+    context: string,
+    error: any,
+    additionalData?: any,
+  ): void {
     const errorInfo = this.getErrorInfo(error);
 
     if (this.isRetryableError(error) || this.isNetworkError(error)) {
       logger.warn(context, `Transient error: ${errorInfo.message}`, {
         ...errorInfo,
-        ...additionalData
+        ...additionalData,
       });
     } else {
       logger.error(context, errorInfo.message, {
         ...errorInfo,
-        ...additionalData
+        ...additionalData,
       });
     }
   }
 
-  public static getUserFriendlyMessage(error: any, defaultMessage: string = 'An unexpected error occurred'): string {
+  public static getUserFriendlyMessage(
+    error: any,
+    defaultMessage: string = "An unexpected error occurred",
+  ): string {
     if (!error) {
       return defaultMessage;
     }
 
     if (this.isNetworkError(error)) {
-      return 'Network connection issue. Please check your internet connection and try again.';
+      return "Network connection issue. Please check your internet connection and try again.";
     }
 
     if (this.isAccessDeniedError(error)) {
-      return 'You do not have permission to perform this action.';
+      return "You do not have permission to perform this action.";
     }
 
     if (this.isAuthenticationError(error)) {
-      return 'Authentication required. Please sign in and try again.';
+      return "Authentication required. Please sign in and try again.";
     }
 
     if (this.isListNotFoundError(error)) {
-      return 'The requested resource was not found.';
+      return "The requested resource was not found.";
     }
 
     if (this.isValidationError(error)) {
       const message = this.getErrorMessage(error);
-      return message || 'Invalid input. Please check your data and try again.';
+      return message || "Invalid input. Please check your data and try again.";
     }
 
     return defaultMessage;
@@ -265,7 +265,7 @@ export class ErrorUtils {
       onError?: (error: any) => void;
       defaultValue?: T;
       logError?: boolean;
-    } = {}
+    } = {},
   ): Promise<T | null> {
     try {
       return await operation();

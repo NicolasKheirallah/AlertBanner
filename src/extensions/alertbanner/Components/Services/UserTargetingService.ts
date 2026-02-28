@@ -144,7 +144,6 @@ export class UserTargetingService {
       await this.initialize();
     }
 
-    // If no user information is available or initialization failed, show all alerts
     if (!this.currentUser) {
       return alerts;
     }
@@ -165,7 +164,6 @@ export class UserTargetingService {
 
     return targetUsers.some((person) => {
       if (person.isGroup) {
-        // If it's a group, check if user is member of that group
         return this.isUserInGroup(person);
       } else {
         return this.isCurrentUser(person);
@@ -192,7 +190,6 @@ export class UserTargetingService {
     const userMatch =
       rule.targetUsers?.some((person) => this.isCurrentUser(person)) || false;
 
-    // Group targeting: Check if current user belongs to any of the target groups
     const groupMatch =
       rule.targetGroups?.some((group) => this.isUserInGroup(group)) || false;
 
@@ -201,14 +198,12 @@ export class UserTargetingService {
         return userMatch || groupMatch;
 
       case "allOf":
-        // For allOf with both user and group targeting, require both to match
         if (rule.targetUsers && rule.targetGroups) {
           return userMatch && groupMatch;
         }
         return rule.targetUsers ? userMatch : groupMatch;
 
       case "noneOf":
-        // Show if user doesn't match and is not in any target group
         return !userMatch && !groupMatch;
 
       default:

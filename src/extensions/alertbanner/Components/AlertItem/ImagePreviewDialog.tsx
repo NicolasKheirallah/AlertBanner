@@ -16,7 +16,6 @@ export const ImagePreviewDialog: React.FC<IImagePreviewDialogProps> = ({
   imageAlt,
   onClose,
 }) => {
-  // Handle escape key
   React.useEffect(() => {
     if (!isOpen) return;
 
@@ -30,7 +29,6 @@ export const ImagePreviewDialog: React.FC<IImagePreviewDialogProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Prevent background scroll
   React.useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -76,6 +74,5 @@ export const ImagePreviewDialog: React.FC<IImagePreviewDialogProps> = ({
     </div>
   );
 
-  // Render into a portal attached to document.body to ensure it floats above absolutely everything
   return ReactDOM.createPortal(lightboxContent, document.body);
 };

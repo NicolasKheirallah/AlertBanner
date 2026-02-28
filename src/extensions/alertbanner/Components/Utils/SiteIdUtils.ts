@@ -52,12 +52,11 @@ export class SiteIdUtils {
     if (normalized.includes(",")) {
       const parts = normalized.split(",");
       if (parts.length >= 2) {
-        variations.add(this.normalizeGuid(parts[1])); // Site GUID
-        if (parts[0]) variations.add(parts[0].trim()); // Hostname
+        variations.add(this.normalizeGuid(parts[1]));
+        if (parts[0]) variations.add(parts[0].trim());
       }
     }
 
-    // Check if it looks like a URL (contains /) or hostname (contains .)
     if (normalized.includes("/") || normalized.includes(".")) {
        try {
          const urlStr = normalized.startsWith("http") ? normalized : `https://${normalized}`;

@@ -1,7 +1,6 @@
 declare interface IAlertBannerApplicationCustomizerStrings {
   Title: string;
 
-  // General UI
   Save: string;
   Cancel: string;
   Close: string;
@@ -21,18 +20,15 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   Info: string;
   Refresh: string;
 
-  // Language
   Language: string;
   SelectLanguage: string;
   ChangeLanguage: string;
 
-  // Time-related
   JustNow: string;
   MinutesAgo: string;
   HoursAgo: string;
   DaysAgo: string;
 
-  // Alert Settings
   AlertSettings: string;
   AlertSettingsTitle: string;
   AlertSettingsDescription: string;
@@ -134,7 +130,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   SettingsContactAdministrator: string;
   FailedToSaveSettings: string;
 
-  // Create Alert Form
   CreateAlertSectionContentClassificationTitle: string;
   ContentTypeLabel: string;
   CreateAlertSectionContentClassificationDescription: string;
@@ -254,7 +249,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CreateAlertDiscardChangesButton: string;
   CreateAlertKeepEditingButton: string;
 
-  // Alert Management
   CreateAlert: string;
   EditAlert: string;
   DeleteAlert: string;
@@ -271,7 +265,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   IsPinned: string;
   NotificationType: string;
 
-  // Manage Alerts Tab
   ManageAlertsSubtitle: string;
   ManageAlertsUnsavedChangesTitle: string;
   ManageAlertsUnsavedChangesMessage: string;
@@ -428,7 +421,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ManageAlertsContentStatusRejected: string;
   ManageAlertsContentStatusDraft: string;
 
-  // List Management
   FailedToLoadSiteInformation: string;
   LanguagesUpdatedSuccessfully: string;
   FailedToUpdateLanguages: string;
@@ -462,25 +454,21 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   UpdateLanguages: string;
   AlertHierarchy: string;
   AlertHierarchyDescription: string;
-  // Priority Levels
   PriorityLow: string;
   PriorityMedium: string;
   PriorityHigh: string;
   PriorityCritical: string;
 
-  // Status Types
   StatusActive: string;
   StatusExpired: string;
   StatusScheduled: string;
   StatusInactive: string;
 
-  // Notification Types
   NotificationNone: string;
   NotificationBrowser: string;
   NotificationEmail: string;
   NotificationBoth: string;
 
-  // Alert Types
   AlertTypeInfo: string;
   AlertTypeWarning: string;
   AlertTypeIconLabel: string;
@@ -497,7 +485,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertTypeMaintenance: string;
   AlertTypeInterruption: string;
 
-  // User Interface
   ShowMore: string;
   ShowLess: string;
   ViewDetails: string;
@@ -507,7 +494,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   Templates: string;
   CustomizeColors: string;
 
-  // Site Selection
   SelectSites: string;
   CurrentSite: string;
   AllSites: string;
@@ -515,7 +501,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   RecentSites: string;
   FollowedSites: string;
 
-  // Permissions and Errors
   InsufficientPermissions: string;
   PermissionDeniedCreateLists: string;
   PermissionDeniedAccessLists: string;
@@ -525,7 +510,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   SaveError: string;
   LoadError: string;
 
-  // User Friendly Messages
   NoAlertsMessage: string;
   AlertsLoadingMessage: string;
   AlertCreatedSuccess: string;
@@ -533,7 +517,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertDeletedSuccess: string;
   SettingsSavedSuccess: string;
 
-  // Date and Time
   CreatedBy: string;
   CreatedOn: string;
   LastModified: string;
@@ -542,7 +525,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   Yesterday: string;
   Tomorrow: string;
 
-  // Validation Messages
   TitleRequired: string;
   DescriptionRequired: string;
   AlertTypeRequired: string;
@@ -560,14 +542,12 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   TitleTooLong: string;
   DescriptionTooLong: string;
 
-  // Rich Media
   UploadImage: string;
   RemoveImage: string;
   ImageAltText: string;
   VideoUrl: string;
   EmbedCode: string;
 
-  // Accessibility
   CloseDialog: string;
   OpenSettings: string;
   ExpandAlert: string;
@@ -577,7 +557,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   PinAlert: string;
   UnpinAlert: string;
 
-  // Alert UI
   AlertHeaderPriorityTooltip: string;
   AttachmentsHeader: string;
   FileSizeKilobytes: string;
@@ -592,7 +571,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertsLoadErrorTitle: string;
   AlertsLoadErrorFallback: string;
 
-  // Site Selector
   SiteSelectorPermissionOwner: string;
   SiteSelectorPermissionFullControl: string;
   SiteSelectorPermissionCanEdit: string;
@@ -621,7 +599,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   SiteSelectorSelected: string;
   SiteSelectorMaxSelection: string;
 
-  // Multi-Language Content Editor
   MultiLanguageEditorAddLanguagesLabel: string;
   MultiLanguageEditorAllLanguagesAdded: string;
   MultiLanguageEditorIncompleteBadge: string;
@@ -650,7 +627,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   TranslationStatusApproved: string;
   LanguagePolicyInheritanceHint: string;
 
-  // Language Policy
   LanguagePolicyTitle: string;
   LanguagePolicyDescription: string;
   LanguagePolicyFallbackLanguageLabel: string;
@@ -680,7 +656,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   LanguagePolicySavedSuccess: string;
   LanguagePolicySavedFailed: string;
 
-  // Language Manager
   LanguageManagerTitle: string;
   LanguageManagerDescription: string;
   LanguageManagerAvailableLanguages: string;
@@ -696,7 +671,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   LanguageManagerRemovedSuccess: string;
   LanguageManagerUpdateFailed: string;
 
-  // Alert Templates
   AlertTemplatesTemplateDescription: string;
   AlertTemplatesCategoryAll: string;
   AlertTemplatesCategoryMaintenance: string;
@@ -719,7 +693,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertTemplatesNotifyBadge: string;
   AlertTemplatesDefaultLinkDescription: string;
 
-  // Attachment Manager
   AttachmentManagerDeleteConfirm: string;
   AttachmentManagerTitle: string;
   AttachmentManagerUploadingLabel: string;
@@ -739,7 +712,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AttachmentManagerInvalidFormat: string;
   AttachmentManagerFileTooLarge: string;
 
-  // Image Manager
   ImageManagerDeleteConfirm: string;
   ImageManagerLoading: string;
   ImageManagerError: string;
@@ -754,7 +726,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ImageUploadInvalidFile: string;
   ImageManagerTitle: string;
 
-  // Repair Dialog
   RepairDialogWarningMessage: string;
   RepairDialogActionsIntro: string;
   RepairDialogRemoveColumns: string;
@@ -781,29 +752,24 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   RepairDialogTitle: string;
   RepairDialogPleaseWait: string;
 
-  // Color Picker
   ColorPickerSelectedColorAria: string;
   ColorPickerPresetColorsTitle: string;
   ColorPickerCustomColorTitle: string;
   ColorPickerApplyButton: string;
   ColorPickerSelectColorAria: string;
 
-  // Emoji Picker
   EmojiPickerButtonTitle: string;
   EmojiPickerButtonLabel: string;
   EmojiPickerSearchPlaceholder: string;
 
-  // Rich Text Editor
   RichTextEditorLoadError: string;
   RichTextEditorPlaceholder: string;
 
-  // Progress Indicator
   ProgressIndicatorTitle: string;
   ProgressIndicatorFailedSummary: string;
   ProgressIndicatorCompletedSummary: string;
   ProgressIndicatorError: string;
 
-  // Alert Preview
   AlertPreviewDefaultTitle: string;
   AlertPreviewDefaultDescription: string;
   AlertPreviewPinnedBadge: string;
@@ -814,7 +780,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   AlertPreviewIconLabel: string;
   AlertPreviewLinkPrefix: string;
 
-  // Error Boundary
   ErrorBoundaryHeader: string;
   ErrorBoundaryFallbackMessage: string;
   ErrorBoundaryIdLabel: string;
@@ -824,7 +789,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   ErrorBoundaryReloadButton: string;
   ErrorBoundaryDevDetailsTitle: string;
 
-  // Permission Status
   PermissionStatusChecking: string;
   PermissionStatusAllGranted: string;
   PermissionStatusMissingTitle: string;
@@ -839,10 +803,8 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   PermissionStatusGrantPermissions: string;
   PermissionStatusContactAdmin: string;
 
-  // Manage Alerts - Missing strings
   ManageAlertsCrossSiteImagesNotice: string;
 
-  // Copilot Features
   EnableCopilotLabel: string;
   EnableCopilotDescription: string;
   CopilotOverwriteConfirmation: string;
@@ -877,7 +839,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CopilotSentimentStatusRed: string;
   CopilotSentimentSummaryLabel: string;
 
-  // Copilot Draft - Tips and Examples
   CopilotTipsToggleLabel: string;
   CopilotTipsCloseAriaLabel: string;
   CopilotTipsItem1: string;
@@ -909,7 +870,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CopilotRefiningLabel: string;
   CopilotEditButton: string;
 
-  // Copilot Sentiment - Fix Actions
   CopilotSentimentFixTrim: string;
   CopilotSentimentFixConcise: string;
   CopilotSentimentTooltipDisabled: string;
@@ -928,7 +888,6 @@ declare interface IAlertBannerApplicationCustomizerStrings {
   CopilotSentimentAnalysisProfessional: string;
   CopilotSentimentAnalysisTone: string;
 
-  // About Section
   SettingsAboutTitle: string;
   SettingsAboutProductName: string;
   SettingsAboutVersion: string;

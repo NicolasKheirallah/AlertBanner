@@ -314,7 +314,7 @@ export class ListProvisioningService {
         this.alertTypesListName,
       );
     } catch (e) {
-      /* Ignore */
+     
     }
 
     const alertsListId = await this.locator.resolveListId(

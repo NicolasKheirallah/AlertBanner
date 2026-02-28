@@ -93,15 +93,15 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
     [id],
   );
 
-  React.useEffect(() => {
-    setInternalValue(value);
-    updateCharacterCount(value);
-  }, [value]);
-
   const updateCharacterCount = React.useCallback((text: string) => {
     const textContent = (text || "").replace(/<[^>]*>/g, "");
     setCharacterCount(textContent.length);
   }, []);
+
+  React.useEffect(() => {
+    setInternalValue(value);
+    updateCharacterCount(value);
+  }, [value, updateCharacterCount]);
 
   const validateContent = React.useCallback(
     (text: string): string => {
@@ -172,10 +172,8 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
 
       if (editorRef.current) {
         try {
-          // Jodit selection API
           editorRef.current.selection.insertHTML(imageMarkup);
         } catch (e) {
-          // Fallback
           handleEditorChange((internalValue || "") + imageMarkup);
         }
       } else {
@@ -205,7 +203,6 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
   const describedBy =
     ariaDescribedBy || (description ? `${uniqueId}-description` : undefined);
 
-  // Configure Jodit
   const joditConfig = React.useMemo(
     () => ({
       readonly: disabled,
@@ -257,7 +254,6 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
         "eraser",
         "fullsize",
       ],
-      // Disable built-in image upload since we use our custom uploader hook
       uploader: {
         insertImageAsBase64URI: false,
         url: "",
@@ -269,7 +265,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
       askBeforePasteFromWord: false,
       defaultActionOnPaste: "insert_as_html",
     }),
-    [disabled, placeholder, minHeight, maxHeight],
+    [disabled, placeholder, minHeight, maxHeight, uniqueId],
   );
 
   return (
@@ -346,7 +342,7 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
         </div>
       )}
 
-      {/* Hidden helper text for screen readers */}
+      
       <div className={styles.srOnly}>
         Rich text editor. Use toolbar buttons or keyboard shortcuts to format
         text.

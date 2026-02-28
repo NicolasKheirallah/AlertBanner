@@ -51,20 +51,10 @@ const AlertTemplates = React.lazy(() => import("../../UI/AlertTemplates"));
 export type { INewAlert };
 export type { IFormErrors } from "./SharedTypes";
 
-/**
- * Props for the CreateAlertTab component
- * Most state is now managed via AlertFormContext
- */
 export interface ICreateAlertTabProps {
-  /** Optional callback when dirty state changes */
-  onDirtyStateChange?: (hasUnsavedChanges: boolean) => void;
+    onDirtyStateChange?: (hasUnsavedChanges: boolean) => void;
 }
 
-
-/**
- * Inner component that uses the context
- * Separated to allow proper hook usage within provider
- */
 const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
   onDirtyStateChange,
 }) => {
@@ -98,7 +88,8 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     copilotEnabled,
   } = state;
 
-  const { siteDetector, alertService, graphClient, context, languageService } = services;
+  const { siteDetector, alertService, graphClient, context, languageService } =
+    services;
 
   const notificationOptions: ISharePointSelectOption[] = React.useMemo(
     () => [
@@ -466,6 +457,7 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
         });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useMultiLanguage, newAlert.languageContent.length, dispatch]);
 
   const handleTemplateSelect = React.useCallback(
@@ -866,6 +858,7 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     } finally {
       dispatch({ type: "SET_IS_CREATING", isCreating: false });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     newAlert,
     alertService,
@@ -994,7 +987,10 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
     isCreatingAlert,
   ]);
 
-  const stepOrder: CreateWizardStep[] = ["content", "audience", "publish"];
+  const stepOrder = React.useMemo<CreateWizardStep[]>(
+    () => ["content", "audience", "publish"],
+    [],
+  );
   const createStepIndex = stepOrder.indexOf(createStep);
   const canGoBack = createStepIndex > 0;
   const canGoForward = createStepIndex < stepOrder.length - 1;
@@ -1232,7 +1228,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
           onCreateStepChange={handleCreateStepChange}
           stepCompletion={stepCompletion}
           copilotAvailability={copilotAvailability}
-
           actionButtons={
             <>
               <SharePointButton
@@ -1345,11 +1340,6 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
   );
 };
 
-
-/**
- * Wrapper component that extracts props and provides them to the inner component
- * This maintains backward compatibility with existing code while using context internally
- */
 const CreateAlertTab: React.FC<ICreateAlertTabProps> = (props) => {
   useAlertFormState();
 

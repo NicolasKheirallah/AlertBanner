@@ -41,26 +41,26 @@ import { logger } from "../Services/LoggerService";
 const cx = (...classes: Array<string | undefined | false>): string =>
   classes.filter(Boolean).join(" ");
 
-const Card: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
-  <div className={styles.f2Card}>{children}</div>
+const Card: React.FC<{ children?: React.ReactNode }> = React.memo(
+  ({ children }) => <div className={styles.f2Card}>{children}</div>,
 );
 
 const CardHeader: React.FC<{
   header?: React.ReactNode;
   description?: React.ReactNode;
-}> = ({ header, description }) => (
+}> = React.memo(({ header, description }) => (
   <div className={styles.f2CardHeader}>
     {header}
     {description}
   </div>
-);
+));
 
 const Text: React.FC<{
   children?: React.ReactNode;
   size?: number;
   weight?: "regular" | "medium" | "semibold" | "bold";
   className?: string;
-}> = ({ children, size, weight, className }) => (
+}> = React.memo(({ children, size, weight, className }) => (
   <span
     className={cx(
       styles.f2Text,
@@ -78,7 +78,7 @@ const Text: React.FC<{
   >
     {children}
   </span>
-);
+));
 
 const Button: React.FC<{
   children?: React.ReactNode;
@@ -89,38 +89,40 @@ const Button: React.FC<{
   disabled?: boolean;
   title?: string;
   className?: string;
-}> = ({
-  children,
-  appearance = "secondary",
-  icon,
-  onClick,
-  disabled,
-  title,
-  className,
-  size,
-}) => {
-  const buttonClassName = cx(
-    styles.f2Button,
-    appearance === "primary" && styles.f2ButtonPrimary,
-    appearance === "subtle" && styles.f2ButtonSubtle,
-    size === "small" && styles.f2ButtonSmall,
-    className,
-  );
-
-  const commonProps = {
-    onRenderIcon: icon ? () => <>{icon}</> : undefined,
+}> = React.memo(
+  ({
+    children,
+    appearance = "secondary",
+    icon,
     onClick,
     disabled,
     title,
-    className: buttonClassName,
-  };
+    className,
+    size,
+  }) => {
+    const buttonClassName = cx(
+      styles.f2Button,
+      appearance === "primary" && styles.f2ButtonPrimary,
+      appearance === "subtle" && styles.f2ButtonSubtle,
+      size === "small" && styles.f2ButtonSmall,
+      className,
+    );
 
-  if (appearance === "primary") {
-    return <PrimaryButton {...commonProps}>{children}</PrimaryButton>;
-  }
+    const commonProps = {
+      onRenderIcon: icon ? () => <>{icon}</> : undefined,
+      onClick,
+      disabled,
+      title,
+      className: buttonClassName,
+    };
 
-  return <DefaultButton {...commonProps}>{children}</DefaultButton>;
-};
+    if (appearance === "primary") {
+      return <PrimaryButton {...commonProps}>{children}</PrimaryButton>;
+    }
+
+    return <DefaultButton {...commonProps}>{children}</DefaultButton>;
+  },
+);
 
 const Field: React.FC<{
   children?: React.ReactNode;
@@ -128,29 +130,31 @@ const Field: React.FC<{
   required?: boolean;
   validationMessage?: React.ReactNode;
   validationState?: "error" | "warning" | "success";
-}> = ({ children, label, required, validationMessage, validationState }) => (
-  <div className={styles.f2Field}>
-    {label ? (
-      <label className={styles.f2FieldLabel}>
-        {label}
-        {required && <span className={styles.f2FieldRequired}> *</span>}
-      </label>
-    ) : null}
-    {children}
-    {validationMessage && (
-      <div
-        className={cx(
-          styles.f2ValidationMessage,
-          validationState === "warning" && styles.f2ValidationWarning,
-          validationState === "success" && styles.f2ValidationSuccess,
-          (!validationState || validationState === "error") &&
-            styles.f2ValidationError,
-        )}
-      >
-        {validationMessage}
-      </div>
-    )}
-  </div>
+}> = React.memo(
+  ({ children, label, required, validationMessage, validationState }) => (
+    <div className={styles.f2Field}>
+      {label ? (
+        <label className={styles.f2FieldLabel}>
+          {label}
+          {required && <span className={styles.f2FieldRequired}> *</span>}
+        </label>
+      ) : null}
+      {children}
+      {validationMessage && (
+        <div
+          className={cx(
+            styles.f2ValidationMessage,
+            validationState === "warning" && styles.f2ValidationWarning,
+            validationState === "success" && styles.f2ValidationSuccess,
+            (!validationState || validationState === "error") &&
+              styles.f2ValidationError,
+          )}
+        >
+          {validationMessage}
+        </div>
+      )}
+    </div>
+  ),
 );
 
 const Badge: React.FC<{
@@ -158,7 +162,7 @@ const Badge: React.FC<{
   className?: string;
   size?: "small" | "large";
   color?: string;
-}> = ({ children, className, size }) => (
+}> = React.memo(({ children, className, size }) => (
   <span
     className={cx(
       styles.f2Badge,
@@ -168,7 +172,7 @@ const Badge: React.FC<{
   >
     {children}
   </span>
-);
+));
 
 const Checkbox: React.FC<{
   checked?: boolean;
@@ -177,7 +181,7 @@ const Checkbox: React.FC<{
     event: React.FormEvent<HTMLElement> | undefined,
     data: { checked?: boolean },
   ) => void;
-}> = ({ checked, label, onChange }) => (
+}> = React.memo(({ checked, label, onChange }) => (
   <FluentCheckbox
     checked={checked}
     label={typeof label === "string" ? label : undefined}
@@ -190,7 +194,7 @@ const Checkbox: React.FC<{
       onChange?.(event as React.FormEvent<HTMLElement>, { checked: isChecked })
     }
   />
-);
+));
 
 const MessageBar: React.FC<{
   intent?: "error" | "warning" | "success" | "info";
@@ -354,13 +358,12 @@ const MultiLanguageContentEditor: React.FC<{
   const [isTranslatingAll, setIsTranslatingAll] = React.useState(false);
   const [noDefaultContentError, setNoDefaultContentError] =
     React.useState(false);
-  
-  // Use ref to always access latest content (avoid stale closure in async callbacks)
+
   const contentRef = React.useRef(content);
   React.useEffect(() => {
     contentRef.current = content;
   }, [content]);
-  
+
   const effectivePolicy = React.useMemo(
     () => normalizeLanguagePolicy(languagePolicy),
     [languagePolicy],
@@ -418,9 +421,12 @@ const MultiLanguageContentEditor: React.FC<{
     onContentChange(updatedContent);
   };
 
-  const getLanguageInfo = (language: TargetLanguage) => {
-    return availableLanguages.find((l) => l.code === language);
-  };
+  const getLanguageInfo = React.useCallback(
+    (language: TargetLanguage) => {
+      return availableLanguages.find((l) => l.code === language);
+    },
+    [availableLanguages],
+  );
 
   const handleTranslate = React.useCallback(
     async (
@@ -429,13 +435,16 @@ const MultiLanguageContentEditor: React.FC<{
       overwriteExisting: boolean = true,
     ): Promise<void> => {
       const currentContent = contentRef.current;
-      
-      // 3. Fall back to any language with content (even if it's the target - for copy/paste scenarios)
-      const sourceContent = 
-        currentContent.find((c) => c.language === fallbackLanguage && (c.title || c.description)) ||
-        currentContent.find((c) => c.language !== targetLanguage && (c.title || c.description)) ||
+
+      const sourceContent =
+        currentContent.find(
+          (c) => c.language === fallbackLanguage && (c.title || c.description),
+        ) ||
+        currentContent.find(
+          (c) => c.language !== targetLanguage && (c.title || c.description),
+        ) ||
         currentContent.find((c) => c.title || c.description);
-      
+
       const targetContentIndex = currentContent.findIndex(
         (c) => c.language === targetLanguage,
       );
@@ -462,7 +471,9 @@ const MultiLanguageContentEditor: React.FC<{
 
       if (!copilotService) {
         setTranslationError("Copilot service not available");
-        setTranslatingLanguages((prev) => prev.filter((l) => l !== targetLanguage));
+        setTranslatingLanguages((prev) =>
+          prev.filter((l) => l !== targetLanguage),
+        );
         return;
       }
 
@@ -504,7 +515,8 @@ const MultiLanguageContentEditor: React.FC<{
           );
           if (linkResponse.isError) {
             throw new Error(
-              linkResponse.errorMessage || "Link description translation failed",
+              linkResponse.errorMessage ||
+                "Link description translation failed",
             );
           }
           results.linkDescription = linkResponse.content.trim();
@@ -523,63 +535,89 @@ const MultiLanguageContentEditor: React.FC<{
         logger.error("MultiLanguageContentEditor", "Translation failed", error);
         setTranslationError(strings.CopilotTranslationFailed);
       } finally {
-        setTranslatingLanguages((prev) => prev.filter((l) => l !== targetLanguage));
+        setTranslatingLanguages((prev) =>
+          prev.filter((l) => l !== targetLanguage),
+        );
       }
     },
-    [fallbackLanguage, copilotService, onContentChange, strings],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fallbackLanguage, copilotService, onContentChange],
   );
 
-  const handleTranslateAllMissing = React.useCallback(async (): Promise<void> => {
-    const currentContent = contentRef.current;
-    
-    logger.debug("MultiLanguageContentEditor", "Translate all missing clicked", {
-      contentCount: currentContent.length,
-      languages: currentContent.map(c => ({ lang: c.language, hasTitle: !!c.title, hasDesc: !!c.description }))
-    });
-    
-    const sourceContent = currentContent.find((c) => c.title || c.description);
-    if (!sourceContent) {
-      logger.debug("MultiLanguageContentEditor", "No source content found");
-      setTranslationError(
-        "No source content found. Please add content to at least one language first.",
+  const handleTranslateAllMissing =
+    React.useCallback(async (): Promise<void> => {
+      const currentContent = contentRef.current;
+
+      logger.debug(
+        "MultiLanguageContentEditor",
+        "Translate all missing clicked",
+        {
+          contentCount: currentContent.length,
+          languages: currentContent.map((c) => ({
+            lang: c.language,
+            hasTitle: !!c.title,
+            hasDesc: !!c.description,
+          })),
+        },
       );
-      return;
-    }
 
-    const missingTranslations = currentContent.filter(
-      (c) =>
-        c.language !== sourceContent.language &&
-        (!c.title || !c.description),
-    );
-
-    logger.debug("MultiLanguageContentEditor", "Missing translations found", {
-      sourceLanguage: sourceContent.language,
-      missingCount: missingTranslations.length,
-      missingLanguages: missingTranslations.map(c => c.language)
-    });
-
-    if (missingTranslations.length === 0) {
-      setTranslationInfo("All languages already have content. Nothing to translate.");
-      return;
-    }
-
-    setIsTranslatingAll(true);
-    setTranslationError(null);
-
-    try {
-      for (const targetContent of missingTranslations) {
-        const langInfo = getLanguageInfo(targetContent.language as TargetLanguage);
-        if (langInfo) {
-          await handleTranslate(targetContent.language, langInfo.nativeName, false);
-        }
+      const sourceContent = currentContent.find(
+        (c) => c.title || c.description,
+      );
+      if (!sourceContent) {
+        logger.debug("MultiLanguageContentEditor", "No source content found");
+        setTranslationError(
+          "No source content found. Please add content to at least one language first.",
+        );
+        return;
       }
-    } catch (error) {
-      logger.error("MultiLanguageContentEditor", "Batch translation failed", error);
-      setTranslationError(strings.CopilotTranslationFailed);
-    } finally {
-      setIsTranslatingAll(false);
-    }
-  }, [handleTranslate, strings]);
+
+      const missingTranslations = currentContent.filter(
+        (c) =>
+          c.language !== sourceContent.language && (!c.title || !c.description),
+      );
+
+      logger.debug("MultiLanguageContentEditor", "Missing translations found", {
+        sourceLanguage: sourceContent.language,
+        missingCount: missingTranslations.length,
+        missingLanguages: missingTranslations.map((c) => c.language),
+      });
+
+      if (missingTranslations.length === 0) {
+        setTranslationInfo(
+          "All languages already have content. Nothing to translate.",
+        );
+        return;
+      }
+
+      setIsTranslatingAll(true);
+      setTranslationError(null);
+
+      try {
+        for (const targetContent of missingTranslations) {
+          const langInfo = getLanguageInfo(
+            targetContent.language as TargetLanguage,
+          );
+          if (langInfo) {
+            await handleTranslate(
+              targetContent.language,
+              langInfo.nativeName,
+              false,
+            );
+          }
+        }
+      } catch (error) {
+        logger.error(
+          "MultiLanguageContentEditor",
+          "Batch translation failed",
+          error,
+        );
+        setTranslationError(strings.CopilotTranslationFailed);
+      } finally {
+        setIsTranslatingAll(false);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [handleTranslate, getLanguageInfo]);
 
   const getAvailableLanguagesToAdd = () => {
     const usedLanguages = content.map((c) => c.language);
@@ -612,7 +650,7 @@ const MultiLanguageContentEditor: React.FC<{
     }
     const info = getLanguageInfo(fallbackLanguage);
     return info ? `${info.flag} ${info.nativeName}` : fallbackLanguage;
-  }, [effectivePolicy.fallbackLanguage, fallbackLanguage, availableLanguages]);
+  }, [effectivePolicy.fallbackLanguage, fallbackLanguage, getLanguageInfo]);
 
   return (
     <div className={styles.container}>
@@ -634,7 +672,6 @@ const MultiLanguageContentEditor: React.FC<{
           }
         />
 
-        {/* Language Selector */}
         <div className={styles.languageSelector}>
           <Text size={300} weight="semibold">
             {strings.MultiLanguageEditorAddLanguagesLabel}
@@ -701,7 +738,6 @@ const MultiLanguageContentEditor: React.FC<{
           )}
         </div>
 
-        {/* Content Tabs */}
         {content.length > 0 ? (
           <div className={styles.tabsContainer}>
             <TabList
@@ -728,7 +764,6 @@ const MultiLanguageContentEditor: React.FC<{
               })}
             </TabList>
 
-            {/* Tab Content */}
             {content.map((contentItem) => {
               if (selectedTab !== contentItem.language) return null;
 
@@ -757,7 +792,6 @@ const MultiLanguageContentEditor: React.FC<{
                   </div>
 
                   {copilotService &&
-                    // Show translate button if there's content in another language to use as source
                     content.some(
                       (c) =>
                         c.language !== contentItem.language &&
@@ -812,7 +846,6 @@ const MultiLanguageContentEditor: React.FC<{
                         errors[`title_${contentItem.language}`]
                       }
                     >
-                      {/** Determine placeholder text using available language info */}
                       <SharePointInput
                         label=""
                         placeholder={CoreText.format(
@@ -947,7 +980,6 @@ const MultiLanguageContentEditor: React.FC<{
           </div>
         )}
 
-        {/* Summary */}
         {content.length > 0 && (
           <div className={styles.summary}>
             <Text size={300} weight="semibold">
@@ -981,7 +1013,6 @@ const MultiLanguageContentEditor: React.FC<{
         )}
       </Card>
 
-      {/* Overwrite Confirmation Dialog */}
       <Dialog
         open={!!confirmOverwriteLang}
         onOpenChange={(_, data) => {
@@ -1025,7 +1056,6 @@ const MultiLanguageContentEditor: React.FC<{
         </DialogSurface>
       </Dialog>
 
-      {/* No Default Content Error Dialog */}
       <Dialog
         open={noDefaultContentError}
         onOpenChange={(_, data) => {
@@ -1050,7 +1080,6 @@ const MultiLanguageContentEditor: React.FC<{
         </DialogSurface>
       </Dialog>
 
-      {/* Translation Error Dialog */}
       <Dialog
         open={!!translationError}
         onOpenChange={(_, data) => {

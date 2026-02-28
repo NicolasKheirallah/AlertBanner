@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { logger } from '../Services/LoggerService';
-import { ErrorUtils } from '../Utils/ErrorUtils';
+import { useState, useCallback, useRef, useEffect } from "react";
+import { logger } from "../Services/LoggerService";
+import { ErrorUtils } from "../Utils/ErrorUtils";
 
 export interface IAsyncOperationOptions<T> {
   onSuccess?: (data: T) => void;
@@ -15,29 +15,40 @@ export interface IAsyncOperationState<T> {
   loading: boolean;
   error: Error | null;
   data: T | null;
-  message: { type: 'success' | 'error' | 'info' | 'warning'; text: string } | null;
+  message: {
+    type: "success" | "error" | "info" | "warning";
+    text: string;
+  } | null;
 }
 
 export interface IAsyncOperationReturn<T, TArgs extends any[]> {
   loading: boolean;
   error: Error | null;
   data: T | null;
-  message: { type: 'success' | 'error' | 'info' | 'warning'; text: string } | null;
+  message: {
+    type: "success" | "error" | "info" | "warning";
+    text: string;
+  } | null;
   execute: (...args: TArgs) => Promise<T | null>;
   reset: () => void;
-  setMessage: (message: { type: 'success' | 'error' | 'info' | 'warning'; text: string } | null) => void;
+  setMessage: (
+    message: {
+      type: "success" | "error" | "info" | "warning";
+      text: string;
+    } | null,
+  ) => void;
   clearError: () => void;
 }
 
 export function useAsyncOperation<T, TArgs extends any[] = []>(
   operation: (...args: TArgs) => Promise<T>,
-  options: IAsyncOperationOptions<T> = {}
+  options: IAsyncOperationOptions<T> = {},
 ): IAsyncOperationReturn<T, TArgs> {
   const [state, setState] = useState<IAsyncOperationState<T>>({
     loading: false,
     error: null,
     data: null,
-    message: null
+    message: null,
   });
 
   const isMountedRef = useRef(true);
@@ -61,11 +72,16 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
           loading: false,
           error: null,
           data: null,
-          message: null
+          message: null,
         });
       }
     };
   }, [options.resetOnUnmount]);
+
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   const execute = useCallback(
     async (...args: TArgs): Promise<T | null> => {
@@ -79,8 +95,10 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
         loading: true,
         error: null,
         data: null,
-        message: null
+        message: null,
       });
+
+      const currentOptions = optionsRef.current;
 
       try {
         const result = await operation(...args);
@@ -90,48 +108,48 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
             loading: false,
             error: null,
             data: result,
-            message: options.successMessage
-              ? { type: 'success', text: options.successMessage }
-              : null
+            message: currentOptions.successMessage
+              ? { type: "success", text: currentOptions.successMessage }
+              : null,
           });
 
-          if (options.onSuccess) {
-            options.onSuccess(result);
+          if (currentOptions.onSuccess) {
+            currentOptions.onSuccess(result);
           }
         }
 
         return result;
-      } catch (err: any) {
+      } catch (err: unknown) {
         const error = ErrorUtils.toError(err);
 
         if (isMountedRef.current) {
-          const errorMessage = options.errorMessage
-            ? options.errorMessage
+          const errorMessage = currentOptions.errorMessage
+            ? currentOptions.errorMessage
             : ErrorUtils.getUserFriendlyMessage(error);
 
           setState({
             loading: false,
             error,
             data: null,
-            message: { type: 'error', text: errorMessage }
+            message: { type: "error", text: errorMessage },
           });
 
-          if (options.logErrors !== false) {
-            logger.error('useAsyncOperation', 'Async operation failed', {
+          if (currentOptions.logErrors !== false) {
+            logger.error("useAsyncOperation", "Async operation failed", {
               error,
-              errorMessage
+              errorMessage,
             });
           }
 
-          if (options.onError) {
-            options.onError(error);
+          if (currentOptions.onError) {
+            currentOptions.onError(error);
           }
         }
 
         return null;
       }
     },
-    [operation, options]
+    [operation],
   );
 
   const reset = useCallback(() => {
@@ -139,25 +157,30 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
       loading: false,
       error: null,
       data: null,
-      message: null
+      message: null,
     });
   }, []);
 
   const setMessage = useCallback(
-    (message: { type: 'success' | 'error' | 'info' | 'warning'; text: string } | null) => {
+    (
+      message: {
+        type: "success" | "error" | "info" | "warning";
+        text: string;
+      } | null,
+    ) => {
       setState((prev) => ({
         ...prev,
-        message
+        message,
       }));
     },
-    []
+    [],
   );
 
   const clearError = useCallback(() => {
     setState((prev) => ({
       ...prev,
       error: null,
-      message: prev.message?.type === 'error' ? null : prev.message
+      message: prev.message?.type === "error" ? null : prev.message,
     }));
   }, []);
 
@@ -169,6 +192,6 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
     execute,
     reset,
     setMessage,
-    clearError
+    clearError,
   };
 }

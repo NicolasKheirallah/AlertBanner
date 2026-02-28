@@ -1,6 +1,5 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-// Version 4.2.0 - Fixed AttachmentFiles Graph API errors and language filtering
 import { override } from "@microsoft/decorators";
 import {
   BaseApplicationCustomizer,
@@ -13,8 +12,9 @@ import { AlertsProvider } from "./Components/Context/AlertsContext";
 import { LocalizationService } from "./Components/Services/LocalizationService";
 import { LocalizationProvider } from "./Components/Hooks/useLocalization";
 import Alerts from "./Components/Alerts/Alerts";
-import { logger } from './Components/Services/LoggerService';
+import { logger } from "./Components/Services/LoggerService";
 import { SiteContextService } from "./Components/Services/SiteContextService";
+import { PermissionService } from "./Components/Services/PermissionService";
 import { setIconOptions } from "@fluentui/style-utilities";
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
@@ -23,122 +23,121 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
   private static readonly SETTINGS_SNAPSHOT_SCHEMA_VERSION = 2;
   private _topPlaceholderContent: PlaceholderContent | undefined;
   private _customProperties: IAlertsBannerApplicationCustomizerProperties;
-  private _siteIds: string[] | null = null; // Cache site IDs to prevent recalculation
-  private _isRendering: boolean = false; // Prevent concurrent renders
-  private _lastRenderedSiteId: string | null = null; // Track last site to detect SPA navigation
+  private _siteIds: string[] | null = null;
+  private _isRendering: boolean = false;
+  private _lastRenderedSiteId: string | null = null;
   private _settingsPersistDebounceId: number | null = null;
 
   @override
   public async onInit(): Promise<void> {
-    // Suppress duplicate icon registration warnings from Fluent UI v8 dependencies
     setIconOptions({ disableWarnings: true });
 
-    // Initialize localization service
     const localizationService = LocalizationService.getInstance(this.context);
     await localizationService.initialize(this.context);
 
-    // Initialize default configuration
     this._initializeDefaultProperties();
 
-    // Add listener for placeholder changes
     this.context.placeholderProvider.changedEvent.add(
       this,
-      this._renderTopPlaceholder
+      this._renderTopPlaceholder,
     );
 
     await this._renderTopPlaceholder();
   }
 
   private _initializeDefaultProperties(): void {
-    // Instead of modifying this.properties directly, create a local copy
     this._customProperties = { ...this.properties };
 
-    // Set default alert types if none are provided
-    if (!this._customProperties.alertTypesJson || this._customProperties.alertTypesJson === "[]") {
+    if (
+      !this._customProperties.alertTypesJson ||
+      this._customProperties.alertTypesJson === "[]"
+    ) {
       const defaultAlertTypes = [
         {
-          "name": "Info",
-          "iconName": "Info",
-          "backgroundColor": "#389899",
-          "textColor": "#ffffff",
-          "additionalStyles": "",
-          "defaultPriority": "medium",
-          "priorityStyles": {
-            "critical": "border: 4px solid #E81123;",
-            "high": "border: 3px solid #EA4300;",
-            "medium": "border: 2px solid #0078d4;",
-            "low": "border: 1px solid #107c10;"
-          }
+          name: "Info",
+          iconName: "Info",
+          backgroundColor: "#389899",
+          textColor: "#ffffff",
+          additionalStyles: "",
+          defaultPriority: "medium",
+          priorityStyles: {
+            critical: "border: 4px solid #E81123;",
+            high: "border: 3px solid #EA4300;",
+            medium: "border: 2px solid #0078d4;",
+            low: "border: 1px solid #107c10;",
+          },
         },
         {
-          "name": "Warning",
-          "iconName": "Warning",
-          "backgroundColor": "#f1c40f",
-          "textColor": "#000000",
-          "additionalStyles": "",
-          "defaultPriority": "medium",
-          "priorityStyles": {
-            "critical": "border: 4px solid #E81123;",
-            "high": "border: 3px solid #EA4300;",
-            "medium": "border: 2px solid #f1c40f;",
-            "low": "border: 1px solid #107c10;"
-          }
+          name: "Warning",
+          iconName: "Warning",
+          backgroundColor: "#f1c40f",
+          textColor: "#000000",
+          additionalStyles: "",
+          defaultPriority: "medium",
+          priorityStyles: {
+            critical: "border: 4px solid #E81123;",
+            high: "border: 3px solid #EA4300;",
+            medium: "border: 2px solid #f1c40f;",
+            low: "border: 1px solid #107c10;",
+          },
         },
         {
-          "name": "Maintenance",
-          "iconName": "ConstructionCone",
-          "backgroundColor": "#afd6d6",
-          "textColor": "#000000",
-          "additionalStyles": "",
-          "defaultPriority": "low",
-          "priorityStyles": {
-            "critical": "border: 4px solid #E81123;",
-            "high": "border: 3px solid #EA4300;",
-            "medium": "border: 2px solid #0078d4;",
-            "low": "border: 1px solid #afd6d6;"
-          }
+          name: "Maintenance",
+          iconName: "ConstructionCone",
+          backgroundColor: "#afd6d6",
+          textColor: "#000000",
+          additionalStyles: "",
+          defaultPriority: "low",
+          priorityStyles: {
+            critical: "border: 4px solid #E81123;",
+            high: "border: 3px solid #EA4300;",
+            medium: "border: 2px solid #0078d4;",
+            low: "border: 1px solid #afd6d6;",
+          },
         },
         {
-          "name": "Interruption",
-          "iconName": "Error",
-          "backgroundColor": "#c54644",
-          "textColor": "#ffffff",
-          "additionalStyles": "",
-          "defaultPriority": "high",
-          "priorityStyles": {
-            "critical": "border: 4px solid #8B0000;",
-            "high": "border: 3px solid #c54644;",
-            "medium": "border: 2px solid #EA4300;",
-            "low": "border: 1px solid #f1c40f;"
-          }
-        }
+          name: "Interruption",
+          iconName: "Error",
+          backgroundColor: "#c54644",
+          textColor: "#ffffff",
+          additionalStyles: "",
+          defaultPriority: "high",
+          priorityStyles: {
+            critical: "border: 4px solid #8B0000;",
+            high: "border: 3px solid #c54644;",
+            medium: "border: 2px solid #EA4300;",
+            low: "border: 1px solid #f1c40f;",
+          },
+        },
       ];
 
       this._customProperties.alertTypesJson = JSON.stringify(defaultAlertTypes);
     }
 
-    // Set defaults for any missing properties
     this._customProperties.userTargetingEnabled =
-      this._customProperties.userTargetingEnabled !== undefined ?
-      this._customProperties.userTargetingEnabled : true;
+      this._customProperties.userTargetingEnabled !== undefined
+        ? this._customProperties.userTargetingEnabled
+        : true;
 
-    // DISABLED BY DEFAULT - notifications can be enabled in settings
     this._customProperties.notificationsEnabled =
-      this._customProperties.notificationsEnabled !== undefined ?
-      this._customProperties.notificationsEnabled : false;
+      this._customProperties.notificationsEnabled !== undefined
+        ? this._customProperties.notificationsEnabled
+        : false;
 
-    // DISABLED BY DEFAULT - target site selection can be enabled in settings
     this._customProperties.enableTargetSite =
-      this._customProperties.enableTargetSite !== undefined ?
-      this._customProperties.enableTargetSite : false;
+      this._customProperties.enableTargetSite !== undefined
+        ? this._customProperties.enableTargetSite
+        : false;
 
     this._customProperties.emailServiceAccount =
-      this._customProperties.emailServiceAccount !== undefined ?
-      this._customProperties.emailServiceAccount : "";
+      this._customProperties.emailServiceAccount !== undefined
+        ? this._customProperties.emailServiceAccount
+        : "";
 
     this._customProperties.copilotEnabled =
-      this._customProperties.copilotEnabled !== undefined ?
-      this._customProperties.copilotEnabled : false;
+      this._customProperties.copilotEnabled !== undefined
+        ? this._customProperties.copilotEnabled
+        : false;
 
     this._loadSettingsSnapshot();
     this._persistCustomProperties();
@@ -147,10 +146,13 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
 
   private _persistCustomProperties(): void {
     this.properties.alertTypesJson = this._customProperties.alertTypesJson;
-    this.properties.userTargetingEnabled = this._customProperties.userTargetingEnabled;
-    this.properties.notificationsEnabled = this._customProperties.notificationsEnabled;
+    this.properties.userTargetingEnabled =
+      this._customProperties.userTargetingEnabled;
+    this.properties.notificationsEnabled =
+      this._customProperties.notificationsEnabled;
     this.properties.enableTargetSite = this._customProperties.enableTargetSite;
-    this.properties.emailServiceAccount = this._customProperties.emailServiceAccount;
+    this.properties.emailServiceAccount =
+      this._customProperties.emailServiceAccount;
     this.properties.copilotEnabled = this._customProperties.copilotEnabled;
   }
 
@@ -162,9 +164,18 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     }
     this.context.placeholderProvider.changedEvent.remove(
       this,
-      this._renderTopPlaceholder
+      this._renderTopPlaceholder,
     );
     this._disposeAlertsComponent();
+    logger.dispose();
+    try {
+      SiteContextService.getInstance().dispose();
+    } catch {
+    }
+    try {
+      PermissionService.getInstance(this.context).clearCache();
+    } catch {
+    }
     super.onDispose();
   }
 
@@ -172,17 +183,20 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     if (!this._topPlaceholderContent) {
       if (
         !this.context.placeholderProvider.placeholderNames.includes(
-          PlaceholderName.Top
+          PlaceholderName.Top,
         )
       ) {
-        logger.warn('ApplicationCustomizer', 'Top placeholder is not available');
+        logger.warn(
+          "ApplicationCustomizer",
+          "Top placeholder is not available",
+        );
         return;
       }
 
-      this._topPlaceholderContent = this.context.placeholderProvider.tryCreateContent(
-        PlaceholderName.Top,
-        { onDispose: this._disposeAlertsComponent }
-      );
+      this._topPlaceholderContent =
+        this.context.placeholderProvider.tryCreateContent(PlaceholderName.Top, {
+          onDispose: this._disposeAlertsComponent,
+        });
     }
 
     if (this._topPlaceholderContent) {
@@ -200,10 +214,13 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
   }): void => {
     const hasChanged =
       this._customProperties.alertTypesJson !== settings.alertTypesJson ||
-      this._customProperties.userTargetingEnabled !== settings.userTargetingEnabled ||
-      this._customProperties.notificationsEnabled !== settings.notificationsEnabled ||
+      this._customProperties.userTargetingEnabled !==
+        settings.userTargetingEnabled ||
+      this._customProperties.notificationsEnabled !==
+        settings.notificationsEnabled ||
       this._customProperties.enableTargetSite !== settings.enableTargetSite ||
-      this._customProperties.emailServiceAccount !== settings.emailServiceAccount ||
+      this._customProperties.emailServiceAccount !==
+        settings.emailServiceAccount ||
       this._customProperties.copilotEnabled !== settings.copilotEnabled;
 
     if (!hasChanged) {
@@ -359,8 +376,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         (action) =>
           (action.ClientSideComponentId || "")
             .replace(/[{}]/g, "")
-            .toLowerCase() ===
-          AlertsBannerApplicationCustomizer.COMPONENT_ID,
+            .toLowerCase() === AlertsBannerApplicationCustomizer.COMPONENT_ID,
       );
 
       if (!customAction?.Id) {
@@ -389,7 +405,8 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
               userTargetingEnabled: this._customProperties.userTargetingEnabled,
               notificationsEnabled: this._customProperties.notificationsEnabled,
               enableTargetSite: this._customProperties.enableTargetSite,
-              emailServiceAccount: this._customProperties.emailServiceAccount || "",
+              emailServiceAccount:
+                this._customProperties.emailServiceAccount || "",
               copilotEnabled: !!this._customProperties.copilotEnabled,
             }),
           }),
@@ -424,103 +441,100 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         this._topPlaceholderContent &&
         this._topPlaceholderContent.domElement
       ) {
-        // Try to get Graph client with version 3, with error handling
         let msGraphClient: MSGraphClientV3;
         try {
           const client = await this.context.msGraphClientFactory.getClient("3");
           if (!client) {
-            throw new Error('Failed to initialize Graph client');
+            throw new Error("Failed to initialize Graph client");
           }
           msGraphClient = client as MSGraphClientV3;
         } catch (graphError) {
-          logger.error('ApplicationCustomizer', 'Error getting Graph client v3', graphError);
-          throw graphError; // Re-throw to be caught by outer try/catch
+          logger.error(
+            "ApplicationCustomizer",
+            "Error getting Graph client v3",
+            graphError,
+          );
+          throw graphError;
         }
 
-        // Initialize SiteContextService
-        const siteContextService = SiteContextService.getInstance(this.context, msGraphClient);
+        const siteContextService = SiteContextService.getInstance(
+          this.context,
+          msGraphClient,
+        );
         await siteContextService.initialize();
 
         const currentSiteId = this.context.pageContext.site.id.toString();
 
-        if (this._lastRenderedSiteId && this._lastRenderedSiteId !== currentSiteId) {
+        if (
+          this._lastRenderedSiteId &&
+          this._lastRenderedSiteId !== currentSiteId
+        ) {
           this._siteIds = null;
         }
 
         this._lastRenderedSiteId = currentSiteId;
 
         if (!this._siteIds) {
-          // Use the robust site detection from SiteContextService
           this._siteIds = siteContextService.getAlertSourceSites();
-          
-          logger.info('ApplicationCustomizer', 'Resolved alert source sites', { 
+
+          logger.info("ApplicationCustomizer", "Resolved alert source sites", {
             sites: this._siteIds,
             homeSite: siteContextService.getHomeSite()?.url,
             hubSite: siteContextService.getHubSite()?.url,
-            currentSite: siteContextService.getCurrentSite()?.url
+            currentSite: siteContextService.getCurrentSite()?.url,
           });
         }
 
-        // Get alert types from our custom properties
-        const alertTypesJsonString = this._customProperties.alertTypesJson || "[]";
+        const alertTypesJsonString =
+          this._customProperties.alertTypesJson || "[]";
 
-        // Create the AlertsContext provider
-        const alertsComponent = React.createElement(
-          Alerts,
-          {
-            siteIds: this._siteIds, // Use cached site IDs
-            graphClient: msGraphClient,
-            context: this.context,
-            alertTypesJson: alertTypesJsonString,
-            userTargetingEnabled: this._customProperties.userTargetingEnabled,
-            notificationsEnabled: this._customProperties.notificationsEnabled,
-            enableTargetSite: this._customProperties.enableTargetSite,
-            emailServiceAccount: this._customProperties.emailServiceAccount,
-            copilotEnabled: this._customProperties.copilotEnabled,
-            onSettingsChange: this._handleSettingsChange
-          }
-        );
+        const alertsComponent = React.createElement(Alerts, {
+          siteIds: this._siteIds,
+          graphClient: msGraphClient,
+          context: this.context,
+          alertTypesJson: alertTypesJsonString,
+          userTargetingEnabled: this._customProperties.userTargetingEnabled,
+          notificationsEnabled: this._customProperties.notificationsEnabled,
+          enableTargetSite: this._customProperties.enableTargetSite,
+          emailServiceAccount: this._customProperties.emailServiceAccount,
+          copilotEnabled: this._customProperties.copilotEnabled,
+          onSettingsChange: this._handleSettingsChange,
+        });
 
-        // Wrap with the LocalizationProvider and AlertsProvider
-        const alertsApp = React.createElement(
-          LocalizationProvider,
-          { children: React.createElement(AlertsProvider, { children: alertsComponent }) }
-        );
+        const alertsApp = React.createElement(LocalizationProvider, {
+          children: React.createElement(AlertsProvider, {
+            children: alertsComponent,
+          }),
+        });
 
-        // Render with error handling
-        // NOTE: Using ReactDOM.render is required for SPFx compatibility (React 17)
-        ReactDOM.render(
-          alertsApp,
-          this._topPlaceholderContent.domElement
-        );
+        ReactDOM.render(alertsApp, this._topPlaceholderContent.domElement);
       }
     } catch (error) {
-      logger.error('ApplicationCustomizer', 'Error rendering Alerts component', error);
+      logger.error(
+        "ApplicationCustomizer",
+        "Error rendering Alerts component",
+        error,
+      );
 
-      // Render a minimal error message instead of failing completely
-      if (this._topPlaceholderContent && this._topPlaceholderContent.domElement) {
+      if (
+        this._topPlaceholderContent &&
+        this._topPlaceholderContent.domElement
+      ) {
         const errorElement = React.createElement(
-          'div',
-          { style: { padding: '10px', color: '#666', fontSize: '13px' } },
-          'Unable to load alerts at this time. Please try refreshing the page.'
+          "div",
+          { style: { padding: "10px", color: "#666", fontSize: "13px" } },
+          "Unable to load alerts at this time. Please try refreshing the page.",
         );
 
-        ReactDOM.render(
-          errorElement,
-          this._topPlaceholderContent.domElement
-        );
+        ReactDOM.render(errorElement, this._topPlaceholderContent.domElement);
       }
     } finally {
       this._isRendering = false;
     }
   }
 
-  // Dispose the React component when the customizer is disposed
   private _disposeAlertsComponent = (): void => {
-    if (
-      this._topPlaceholderContent &&
-      this._topPlaceholderContent.domElement
-    ) {
+    if (this._topPlaceholderContent && this._topPlaceholderContent.domElement) {
       ReactDOM.unmountComponentAtNode(this._topPlaceholderContent.domElement);
     }
   };

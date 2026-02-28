@@ -13,7 +13,6 @@ export const useLanguageOptions = (
       { value: TargetLanguage.All, label: `🌐 ${strings.CreateAlertTargetLanguageAll}` }
     ];
 
-    // Filter to only show enabled languages (those with column support or English default)
     const enabledLanguages = supportedLanguages.filter(lang =>
       (lang.isSupported && lang.columnExists) ||
       lang.code === TargetLanguage.EnglishUS

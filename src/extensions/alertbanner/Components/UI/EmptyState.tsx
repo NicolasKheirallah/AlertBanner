@@ -1,18 +1,3 @@
-/**
- * EmptyState Component
- * 
- * A reusable empty state component following Microsoft 365 first-party design patterns.
- * Uses Fluent UI v8 components for consistent styling and accessibility.
- * 
- * @example
- * <EmptyState
- *   icon="AlertSolid"
- *   title="No alerts found"
- *   description="Get started by creating your first alert"
- *   actionText="Create Alert"
- *   onAction={() => setActiveTab('create')}
- * />
- */
 
 import * as React from "react";
 import {
@@ -36,12 +21,6 @@ const iconStyles = {
   },
 };
 
-/**
- * EmptyState Component
- * 
- * Renders a centered empty state with icon, title, description, and optional action button.
- * Follows Microsoft 365 first-party design guidelines.
- */
 const EmptyState: React.FC<{
   icon?: string;
   title: string;
@@ -67,14 +46,12 @@ const EmptyState: React.FC<{
       tokens={stackTokens}
       data-testid={dataTestId}
     >
-      {/* Icon - 48px in neutral gray */}
       {icon && (
         <div className={styles.emptyStateIcon} aria-hidden="true">
           <Icon iconName={icon} styles={{ root: iconStyles }} />
         </div>
       )}
 
-      {/* Title - large variant, semibold */}
       <Text
         variant="large"
         styles={{
@@ -88,7 +65,6 @@ const EmptyState: React.FC<{
         {title}
       </Text>
 
-      {/* Description - regular, maxWidth 400px, neutral color */}
       <Text
         styles={{
           root: {
@@ -102,7 +78,6 @@ const EmptyState: React.FC<{
         {description}
       </Text>
 
-      {/* Action Button - only render if actionText is provided */}
       {actionText && onAction && (
         <div className={styles.emptyStateAction}>
           <PrimaryButton onClick={onAction}>{actionText}</PrimaryButton>

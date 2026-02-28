@@ -17,7 +17,7 @@ import {
 import { ILanguagePolicy } from "./LanguagePolicyService";
 import { LIST_NAMES } from "../Utils/AppConstants";
 
-export type { IRepairResult }; // Re-export for consumers
+export type { IRepairResult };
 
 export class SharePointAlertService {
   private graphClient: MSGraphClientV3;
@@ -237,8 +237,7 @@ export class SharePointAlertService {
             ? s.split(",")[1]
             : s.replace(/[{}]/g, "").toLowerCase(),
         ),
-      ); // Simplified logic
-      // I will trust the input for now or use Array.from(unique) but mapping back to original strings?
+      );
       return hierarchy;
     } catch (e) {
       return [this.context.pageContext.site.id.toString()];

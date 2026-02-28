@@ -37,8 +37,6 @@ interface ICopilotLocationHint {
   countryOrRegion?: string;
 }
 
-// Service for interacting with the Microsoft 365 Copilot Chat API via Microsoft Graph.
-// Uses the /beta/copilot/conversations endpoint which is in preview and subject to change.
 export class CopilotService {
   private graphClient: MSGraphClientV3;
   private readonly endpoint = "/copilot/conversations";
@@ -293,7 +291,6 @@ Requirements:
       if (this.copilotAvailability === "unavailable") {
         return false;
       }
-      // Force a fresh API call to avoid stale true from cached conversation
       await this.ensureConversation(true, abortController.signal);
       return true;
     } catch (error) {
@@ -434,7 +431,6 @@ Requirements:
         throw error;
       }
 
-      // If the conversation expired or was invalid, reset cache and retry once
       if (this.isConversationNotFound(error)) {
         logger.warn("CopilotService", "Conversation expired, creating new one");
         this.cachedConversation = null;
@@ -462,8 +458,6 @@ Requirements:
   }
 
   private extractResponseText(response: Record<string, unknown>): string {
-    // Shape 1: { messages: [{ text: "..." }, { text: "response" }] }
-    // The Copilot API returns messages array where last item is the AI response
     const messages = response.messages as Array<Record<string, unknown>> | undefined;
     if (messages && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];

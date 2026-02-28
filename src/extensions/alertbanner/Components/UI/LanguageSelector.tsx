@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { logger } from '../Services/LoggerService';
+import * as React from "react";
+import { logger } from "../Services/LoggerService";
 import {
   Dropdown,
   DefaultButton,
@@ -7,25 +7,18 @@ import {
   IDropdownOption,
   IContextualMenuItem,
 } from "@fluentui/react";
-import { LocalLanguage24Regular } from '@fluentui/react-icons';
-import { useLocalization } from '../Hooks/useLocalization';
-import * as strings from 'AlertBannerApplicationCustomizerStrings';
-import styles from './LanguageSelector.module.scss';
+import { LocalLanguage24Regular } from "@fluentui/react-icons";
+import { useLocalization } from "../Hooks/useLocalization";
+import * as strings from "AlertBannerApplicationCustomizerStrings";
+import styles from "./LanguageSelector.module.scss";
 
 const LanguageSelector: React.FC<{
   compact?: boolean;
   className?: string;
   onLanguageChange?: (languageCode: string) => void;
-}> = ({
-  compact = false,
-  className,
-  onLanguageChange
-}) => {
-  const { 
-    currentLanguage, 
-    supportedLanguages, 
-    setLanguage 
-  } = useLocalization();
+}> = ({ compact = false, className, onLanguageChange }) => {
+  const { currentLanguage, supportedLanguages, setLanguage } =
+    useLocalization();
 
   const dropdownOptions = React.useMemo<IDropdownOption[]>(
     () =>
@@ -34,6 +27,18 @@ const LanguageSelector: React.FC<{
         text: `${language.nativeName} (${language.name})`,
       })),
     [supportedLanguages],
+  );
+
+  const handleLanguageChange = React.useCallback(
+    async (languageCode: string) => {
+      try {
+        await setLanguage(languageCode);
+        onLanguageChange?.(languageCode);
+      } catch (error) {
+        logger.error("LanguageSelector", "Failed to change language", error);
+      }
+    },
+    [setLanguage, onLanguageChange],
   );
 
   const compactMenuItems = React.useMemo<IContextualMenuItem[]>(
@@ -46,17 +51,8 @@ const LanguageSelector: React.FC<{
           void handleLanguageChange(language.code);
         },
       })),
-    [supportedLanguages, currentLanguage.code],
+    [supportedLanguages, currentLanguage.code, handleLanguageChange],
   );
-
-  const handleLanguageChange = async (languageCode: string) => {
-    try {
-      await setLanguage(languageCode);
-      onLanguageChange?.(languageCode);
-    } catch (error) {
-      logger.error('LanguageSelector', 'Failed to change language', error);
-    }
-  };
 
   if (compact) {
     return (
@@ -71,7 +67,7 @@ const LanguageSelector: React.FC<{
   }
 
   return (
-    <div className={`${styles.languageSelector} ${className || ''}`}>
+    <div className={`${styles.languageSelector} ${className || ""}`}>
       <Dropdown
         aria-label={strings.SelectLanguage}
         placeholder={strings.SelectLanguage}

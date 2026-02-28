@@ -63,7 +63,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
   const [isOpen, setIsOpen] = React.useState(false);
   const [stage, setStage] = React.useState<DraftStage>("input");
   const [keywords, setKeywords] = React.useState("");
-  const [selectedExample, setSelectedExample] = React.useState<number | null>(null);
+  const [selectedExample, setSelectedExample] = React.useState<number | null>(
+    null,
+  );
   const [tone, setTone] = React.useState<CopilotTone>("Professional");
   const [generatedDraft, setGeneratedDraft] = React.useState("");
   const [showTips, setShowTips] = React.useState(false);
@@ -72,7 +74,10 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
   const charCount = keywords.length;
   const isOverLimit = charCount > 500;
   const draftCharCount = generatedDraft.length;
-  const draftWordCount = generatedDraft.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const draftWordCount = generatedDraft
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0).length;
 
   const buildContextPrompt = (): string => {
     const contextParts: string[] = [];
@@ -94,26 +99,28 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
     } else {
       setStage("generating");
     }
-    
+
     try {
       const context = buildContextPrompt();
-      
+
       let fullPrompt: string;
       if (refinement) {
         fullPrompt = `Instruction: ${promptText}\n\nCurrent draft to improve: "${generatedDraft}"`;
       } else {
         fullPrompt = `${context}\n\n${promptText}`;
       }
-      
+
       const response = await copilotService.generateDraftWithContext(
         fullPrompt,
         tone,
-        !!refinement
+        !!refinement,
       );
 
       if (response.isError) {
         if (!response.isCancelled) {
-          onError(response.errorMessage || strings.CopilotDraftGenerationFailed);
+          onError(
+            response.errorMessage || strings.CopilotDraftGenerationFailed,
+          );
         }
         if (!refinement) {
           setStage("input");
@@ -189,7 +196,7 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
   const [showCursor, setShowCursor] = React.useState(true);
   const typingRef = React.useRef<number | null>(null);
   const isTypingRef = React.useRef(false);
-  
+
   React.useEffect(() => {
     return () => {
       if (typingRef.current) {
@@ -198,24 +205,24 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
       isTypingRef.current = false;
     };
   }, []);
-  
+
   React.useEffect(() => {
     if (stage === "preview" && generatedDraft) {
       if (typingRef.current) {
         cancelAnimationFrame(typingRef.current);
       }
-      
+
       let index = 0;
       let lastTime = 0;
       const charDelay = 12;
-      
+
       setDisplayedText("");
       setShowCursor(true);
       isTypingRef.current = true;
-      
-      const typeChar = (currentTime: number) => {
+
+      const typeChar = (currentTime: number): void => {
         if (!isTypingRef.current) return;
-        
+
         if (currentTime - lastTime >= charDelay) {
           if (index <= generatedDraft.length) {
             setDisplayedText(generatedDraft.slice(0, index));
@@ -223,7 +230,7 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
             lastTime = currentTime;
           }
         }
-        
+
         if (index <= generatedDraft.length) {
           typingRef.current = requestAnimationFrame(typeChar);
         } else {
@@ -234,9 +241,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
           }, 500);
         }
       };
-      
+
       typingRef.current = requestAnimationFrame(typeChar);
-      
+
       return () => {
         isTypingRef.current = false;
         if (typingRef.current) {
@@ -244,9 +251,15 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
         }
       };
     }
+
+    return;
   }, [stage, generatedDraft]);
 
-  const handleExampleKeyDown = (e: React.KeyboardEvent, example: string, index: number): void => {
+  const handleExampleKeyDown = (
+    e: React.KeyboardEvent,
+    example: string,
+    index: number,
+  ): void => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       handleExampleClick(example, index);
@@ -286,8 +299,7 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
         <div className={styles.dialogContent}>
           {stage === "input" && (
             <>
-              {/* Tips Toggle */}
-              <button 
+              <button
                 className={styles.tipsToggle}
                 onClick={() => setShowTips(!showTips)}
                 type="button"
@@ -296,7 +308,7 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                 <Info24Regular className={styles.tipsIcon} />
                 <span>{strings.CopilotTipsToggleLabel}</span>
                 {showTips && (
-                  <button 
+                  <button
                     className={styles.tipsClose}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -309,7 +321,7 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                   </button>
                 )}
               </button>
-              
+
               {showTips && (
                 <div className={styles.tipsPanel}>
                   <ul>
@@ -321,10 +333,15 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                 </div>
               )}
 
-              {/* Example Prompts */}
               <div className={styles.examplesSection}>
-                <Label className={styles.sectionLabel}>{strings.CopilotExamplesLabel}</Label>
-                <div className={styles.exampleChips} role="listbox" aria-label="Example prompts">
+                <Label className={styles.sectionLabel}>
+                  {strings.CopilotExamplesLabel}
+                </Label>
+                <div
+                  className={styles.exampleChips}
+                  role="listbox"
+                  aria-label="Example prompts"
+                >
                   {EXAMPLE_PROMPTS.map((example, idx) => (
                     <button
                       key={idx}
@@ -337,7 +354,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                       tabIndex={0}
                     >
                       {selectedExample === idx && (
-                        <CheckmarkCircle24Filled className={styles.chipCheckmark} />
+                        <CheckmarkCircle24Filled
+                          className={styles.chipCheckmark}
+                        />
                       )}
                       <Lightbulb24Regular className={styles.chipIcon} />
                       {example}
@@ -346,13 +365,17 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                 </div>
               </div>
 
-              {/* Input Area */}
               <div className={styles.fieldGroup}>
                 <div className={styles.labelRow}>
-                  <Label htmlFor="copilot-keywords" className={styles.inputLabel}>
+                  <Label
+                    htmlFor="copilot-keywords"
+                    className={styles.inputLabel}
+                  >
                     {strings.CopilotInputLabel}
                   </Label>
-                  <span className={`${styles.charCount} ${isOverLimit ? styles.charCountOver : ""}`}>
+                  <span
+                    className={`${styles.charCount} ${isOverLimit ? styles.charCountOver : ""}`}
+                  >
                     {charCount}/500
                   </span>
                 </div>
@@ -368,7 +391,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                   }}
                   onKeyDown={handleKeyDown}
                   className={styles.fullWidth}
-                  errorMessage={isOverLimit ? strings.CopilotCharLimitError : undefined}
+                  errorMessage={
+                    isOverLimit ? strings.CopilotCharLimitError : undefined
+                  }
                 />
                 <div className={styles.keyboardHint}>
                   <Keyboard24Regular className={styles.keyboardIcon} />
@@ -376,10 +401,15 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                 </div>
               </div>
 
-              {/* Tone Selector */}
               <div className={styles.toneSection}>
-                <Label className={styles.sectionLabel}>{strings.CopilotToneSelectorLabel}</Label>
-                <div className={styles.tonePills} role="radiogroup" aria-label="Select tone">
+                <Label className={styles.sectionLabel}>
+                  {strings.CopilotToneSelectorLabel}
+                </Label>
+                <div
+                  className={styles.tonePills}
+                  role="radiogroup"
+                  aria-label="Select tone"
+                >
                   <button
                     type="button"
                     className={`${styles.tonePill} ${tone === "Professional" ? styles.tonePillActive : ""}`}
@@ -388,7 +418,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                     aria-checked={tone === "Professional"}
                   >
                     <Building24Regular className={styles.toneIcon} />
-                    <span className={styles.toneLabel}>{strings.CopilotToneProfessionalShort}</span>
+                    <span className={styles.toneLabel}>
+                      {strings.CopilotToneProfessionalShort}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -398,7 +430,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                     aria-checked={tone === "Urgent"}
                   >
                     <Alert24Regular className={styles.toneIcon} />
-                    <span className={styles.toneLabel}>{strings.CopilotToneUrgentShort}</span>
+                    <span className={styles.toneLabel}>
+                      {strings.CopilotToneUrgentShort}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -408,7 +442,9 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                     aria-checked={tone === "Casual"}
                   >
                     <Chat24Regular className={styles.toneIcon} />
-                    <span className={styles.toneLabel}>{strings.CopilotToneCasualShort}</span>
+                    <span className={styles.toneLabel}>
+                      {strings.CopilotToneCasualShort}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -426,7 +462,10 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                 {strings.CopilotGeneratingLabel}
               </p>
               <p className={styles.generatingSubtext}>
-                {Text.format(strings.CopilotGeneratingSubtext, tone.toLowerCase())}
+                {Text.format(
+                  strings.CopilotGeneratingSubtext,
+                  tone.toLowerCase(),
+                )}
               </p>
             </div>
           )}
@@ -435,16 +474,21 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
             <>
               <div className={styles.previewHeader}>
                 <div className={styles.previewTitleGroup}>
-                  <h3 className={styles.previewTitle}>{strings.CopilotPreviewTitle}</h3>
-                  <span className={`${styles.previewBadge} ${styles[`previewBadge${tone}`]}`}>
+                  <h3 className={styles.previewTitle}>
+                    {strings.CopilotPreviewTitle}
+                  </h3>
+                  <span
+                    className={`${styles.previewBadge} ${styles[`previewBadge${tone}`]}`}
+                  >
                     {Text.format(strings.CopilotPreviewBadge, tone)}
                   </span>
                 </div>
               </div>
 
-              {/* Alert-style Preview */}
               <div className={styles.previewContainer}>
-                <div className={`${styles.alertPreview} ${styles[`alertPreview${tone}`]}`}>
+                <div
+                  className={`${styles.alertPreview} ${styles[`alertPreview${tone}`]}`}
+                >
                   <div className={styles.alertIcon}>
                     {tone === "Professional" && <Building24Regular />}
                     {tone === "Urgent" && <Alert24Regular />}
@@ -459,52 +503,104 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                 </div>
               </div>
 
-              {/* Draft Stats */}
               <div className={styles.draftStats}>
-                <span className={styles.draftStat}>{Text.format(strings.CopilotDraftStatsWords, draftWordCount)}</span>
+                <span className={styles.draftStat}>
+                  {Text.format(strings.CopilotDraftStatsWords, draftWordCount)}
+                </span>
                 <span className={styles.draftStatDivider}>|</span>
-                <span className={styles.draftStat}>{Text.format(strings.CopilotDraftStatsChars, draftCharCount)}</span>
+                <span className={styles.draftStat}>
+                  {Text.format(strings.CopilotDraftStatsChars, draftCharCount)}
+                </span>
               </div>
 
-              {/* Refine Actions */}
               <div className={styles.refineSection}>
-                <Label className={styles.sectionLabel}>{strings.CopilotRefineSectionLabel}</Label>
+                <Label className={styles.sectionLabel}>
+                  {strings.CopilotRefineSectionLabel}
+                </Label>
                 <div className={styles.refineActions}>
                   <ActionButton
                     iconProps={{ iconName: undefined }}
-                    onRenderIcon={() => isRefining ? <Spinner size={SpinnerSize.xSmall} /> : <TextCollapse24Regular />}
-                    onClick={() => handleRefine("Make this shorter and more concise. Keep only the essential information.")}
+                    onRenderIcon={() =>
+                      isRefining ? (
+                        <Spinner size={SpinnerSize.xSmall} />
+                      ) : (
+                        <TextCollapse24Regular />
+                      )
+                    }
+                    onClick={() =>
+                      handleRefine(
+                        "Make this shorter and more concise. Keep only the essential information.",
+                      )
+                    }
                     className={styles.refineButton}
                     disabled={isRefining}
                   >
-                    {isRefining ? strings.CopilotRefiningLabel : strings.CopilotRefineShorter}
+                    {isRefining
+                      ? strings.CopilotRefiningLabel
+                      : strings.CopilotRefineShorter}
                   </ActionButton>
                   <ActionButton
                     iconProps={{ iconName: undefined }}
-                    onRenderIcon={() => isRefining ? <Spinner size={SpinnerSize.xSmall} /> : <TextExpand24Regular />}
-                    onClick={() => handleRefine("Make this longer with more details and context.")}
+                    onRenderIcon={() =>
+                      isRefining ? (
+                        <Spinner size={SpinnerSize.xSmall} />
+                      ) : (
+                        <TextExpand24Regular />
+                      )
+                    }
+                    onClick={() =>
+                      handleRefine(
+                        "Make this longer with more details and context.",
+                      )
+                    }
                     className={styles.refineButton}
                     disabled={isRefining}
                   >
-                    {isRefining ? strings.CopilotRefiningLabel : strings.CopilotRefineLonger}
+                    {isRefining
+                      ? strings.CopilotRefiningLabel
+                      : strings.CopilotRefineLonger}
                   </ActionButton>
                   <ActionButton
                     iconProps={{ iconName: undefined }}
-                    onRenderIcon={() => isRefining ? <Spinner size={SpinnerSize.xSmall} /> : <TextBulletListSquare24Regular />}
-                    onClick={() => handleRefine("Rephrase this to be more engaging and impactful.")}
+                    onRenderIcon={() =>
+                      isRefining ? (
+                        <Spinner size={SpinnerSize.xSmall} />
+                      ) : (
+                        <TextBulletListSquare24Regular />
+                      )
+                    }
+                    onClick={() =>
+                      handleRefine(
+                        "Rephrase this to be more engaging and impactful.",
+                      )
+                    }
                     className={styles.refineButton}
                     disabled={isRefining}
                   >
-                    {isRefining ? strings.CopilotRefiningLabel : strings.CopilotRefineRephrase}
+                    {isRefining
+                      ? strings.CopilotRefiningLabel
+                      : strings.CopilotRefineRephrase}
                   </ActionButton>
                   <ActionButton
                     iconProps={{ iconName: undefined }}
-                    onRenderIcon={() => isRefining ? <Spinner size={SpinnerSize.xSmall} /> : <ArrowSync24Regular />}
-                    onClick={() => handleRefine("Generate a different variation on the same topic. Keep the same key message but use different wording.")}
+                    onRenderIcon={() =>
+                      isRefining ? (
+                        <Spinner size={SpinnerSize.xSmall} />
+                      ) : (
+                        <ArrowSync24Regular />
+                      )
+                    }
+                    onClick={() =>
+                      handleRefine(
+                        "Generate a different variation on the same topic. Keep the same key message but use different wording.",
+                      )
+                    }
                     className={styles.refineButton}
                     disabled={isRefining}
                   >
-                    {isRefining ? strings.CopilotRefiningLabel : strings.CopilotRefineTryAgain}
+                    {isRefining
+                      ? strings.CopilotRefiningLabel
+                      : strings.CopilotRefineTryAgain}
                   </ActionButton>
                 </div>
               </div>
@@ -520,13 +616,15 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
                 onClick={() => void handleGenerate()}
                 disabled={!keywords.trim() || isOverLimit}
                 iconProps={{ iconName: undefined }}
-                onRenderIcon={() => <SparkleRegular className={styles.buttonSparkle} />}
+                onRenderIcon={() => (
+                  <SparkleRegular className={styles.buttonSparkle} />
+                )}
               >
                 {strings.CopilotGenerateButton}
               </PrimaryButton>
             </>
           )}
-          
+
           {stage === "preview" && (
             <>
               <DefaultButton

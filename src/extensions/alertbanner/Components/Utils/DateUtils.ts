@@ -17,7 +17,6 @@ export class DateUtils {
     return Date.now();
   }
 
-  // Parse date string or Date object to Date, returns null if invalid
   public static parseDate(date: Date | string | undefined | null): Date | null {
     if (!date) {
       return null;
@@ -77,7 +76,6 @@ export class DateUtils {
     }
   }
 
-  // Add duration to a date and return ISO string (used by ListProvisioningService)
   public static addDurationISO(
     date: Date | string,
     amount: number,

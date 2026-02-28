@@ -170,11 +170,12 @@ const AlertEditorForm = <T extends IAlertEditorState>({
   }, [isBusy]);
 
   const prevMultiLanguageRef = React.useRef(useMultiLanguage);
-  
+
   React.useEffect(() => {
-    const switchedToMultiLanguage = useMultiLanguage && !prevMultiLanguageRef.current;
+    const switchedToMultiLanguage =
+      useMultiLanguage && !prevMultiLanguageRef.current;
     prevMultiLanguageRef.current = useMultiLanguage;
-    
+
     if (
       switchedToMultiLanguage &&
       (!alert.languageContent || alert.languageContent.length === 0) &&
@@ -228,6 +229,7 @@ const AlertEditorForm = <T extends IAlertEditorState>({
         );
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     useMultiLanguage,
     alert.languageContent,
@@ -235,7 +237,6 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     languagePolicy.workflow?.enabled,
     setAlert,
   ]);
-
 
   const handlePeoplePickerChange = React.useCallback(
     (items: any[]) => {
@@ -726,20 +727,20 @@ const AlertEditorForm = <T extends IAlertEditorState>({
                 value={alert.AlertType}
                 onChange={(value) => {
                   const selectedType = alertTypes.find((t) => t.name === value);
-                  logger.debug(
-                    "AlertEditorForm",
-                    "Alert type selected",
-                    {
-                      selectedTypeName: value,
-                      foundType: selectedType,
-                      defaultPriority: selectedType?.defaultPriority,
-                      allAlertTypes: alertTypes.map((t) => ({ name: t.name, defaultPriority: t.defaultPriority })),
-                    },
-                  );
+                  logger.debug("AlertEditorForm", "Alert type selected", {
+                    selectedTypeName: value,
+                    foundType: selectedType,
+                    defaultPriority: selectedType?.defaultPriority,
+                    allAlertTypes: alertTypes.map((t) => ({
+                      name: t.name,
+                      defaultPriority: t.defaultPriority,
+                    })),
+                  });
                   updateAlertFields(
                     {
                       AlertType: value,
-                      priority: selectedType?.defaultPriority || AlertPriority.Medium,
+                      priority:
+                        selectedType?.defaultPriority || AlertPriority.Medium,
                     } as Partial<T>,
                     ["AlertType"],
                   );

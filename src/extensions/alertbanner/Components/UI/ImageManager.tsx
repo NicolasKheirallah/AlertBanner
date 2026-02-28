@@ -15,7 +15,7 @@ import { Text } from '@microsoft/sp-core-library';
 export interface IImageManagerProps {
   context: ApplicationCustomizerContext;
   imageStorageService: ImageStorageService;
-  folderName: string; // Alert-specific folder name (e.g., languageGroup or title)
+  folderName: string;
   onImageDeleted?: () => void;
 }
 
