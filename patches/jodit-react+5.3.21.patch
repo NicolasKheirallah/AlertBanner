@@ -1,0 +1,13 @@
+diff --git a/node_modules/jodit-react/build/esm/chunk-VZXEDNZT.mjs b/node_modules/jodit-react/build/esm/chunk-VZXEDNZT.mjs
+index 535c30c..1eedd14 100644
+--- a/node_modules/jodit-react/build/esm/chunk-VZXEDNZT.mjs
++++ b/node_modules/jodit-react/build/esm/chunk-VZXEDNZT.mjs
+@@ -8,7 +8,7 @@ import "jodit/esm/plugins/all.js";
+ var Jodit = JoditES5;
+ 
+ // src/JoditEditor.tsx
+-import { jsx } from "react/jsx-runtime";
++import { jsx } from "react/jsx-runtime.js";
+ function usePrevious(value) {
+   const ref = useRef("");
+   useEffect(() => {
