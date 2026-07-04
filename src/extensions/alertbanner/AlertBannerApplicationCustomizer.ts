@@ -149,6 +149,11 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
         ? this._customProperties.copilotEnabled
         : false;
 
+    this._customProperties.layout =
+      this._customProperties.layout !== undefined
+        ? this._customProperties.layout
+        : "carousel";
+
     this._loadSettingsSnapshot();
     this._persistCustomProperties();
     this._persistSettingsSnapshot();
@@ -164,6 +169,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     this.properties.emailServiceAccount =
       this._customProperties.emailServiceAccount;
     this.properties.copilotEnabled = this._customProperties.copilotEnabled;
+    this.properties.layout = this._customProperties.layout;
   }
 
   @override
@@ -241,6 +247,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     enableTargetSite: boolean;
     emailServiceAccount?: string;
     copilotEnabled?: boolean;
+    layout?: "carousel" | "stacked";
   }): void => {
     const hasChanged =
       this._customProperties.alertTypesJson !== settings.alertTypesJson ||
@@ -251,7 +258,8 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       this._customProperties.enableTargetSite !== settings.enableTargetSite ||
       this._customProperties.emailServiceAccount !==
         settings.emailServiceAccount ||
-      this._customProperties.copilotEnabled !== settings.copilotEnabled;
+      this._customProperties.copilotEnabled !== settings.copilotEnabled ||
+      this._customProperties.layout !== settings.layout;
 
     if (!hasChanged) {
       return;
@@ -265,6 +273,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       enableTargetSite: settings.enableTargetSite,
       emailServiceAccount: settings.emailServiceAccount,
       copilotEnabled: settings.copilotEnabled,
+      layout: settings.layout,
     };
 
     this._persistCustomProperties();
@@ -319,6 +328,9 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
       if (typeof snapshot?.copilotEnabled === "boolean") {
         this._customProperties.copilotEnabled = snapshot.copilotEnabled;
       }
+      if (typeof snapshot?.layout === "string") {
+        this._customProperties.layout = snapshot.layout as any;
+      }
     } catch (error) {
       logger.warn(
         "ApplicationCustomizer",
@@ -346,6 +358,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
             enableTargetSite: this._customProperties.enableTargetSite,
             emailServiceAccount: this._customProperties.emailServiceAccount,
             copilotEnabled: this._customProperties.copilotEnabled,
+            layout: this._customProperties.layout,
           },
         }),
       );
@@ -528,11 +541,14 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
           enableTargetSite: this._customProperties.enableTargetSite,
           emailServiceAccount: this._customProperties.emailServiceAccount,
           copilotEnabled: this._customProperties.copilotEnabled,
+          layout: this._customProperties.layout,
           onSettingsChange: this._handleSettingsChange,
         });
 
         const alertsApp = React.createElement(LocalizationProvider, {
           children: React.createElement(AlertsProvider, {
+            siteIds: this._siteIds || [],
+            context: this.context,
             children: alertsComponent,
           }),
         });

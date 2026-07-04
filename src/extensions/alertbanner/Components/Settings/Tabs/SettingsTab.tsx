@@ -180,6 +180,7 @@ export interface ISettingsData {
   enableTargetSite: boolean;
   emailServiceAccount?: string;
   copilotEnabled?: boolean;
+  layout?: "carousel" | "stacked";
 }
 
 export interface ISettingsTabProps {
@@ -1356,6 +1357,18 @@ const SettingsTab: React.FC<ISettingsTabProps> = ({
                 { value: "manual", label: "Manual (Custom Order)" },
               ]}
               description="Choose how alerts are ordered in the banner"
+            />
+
+            <SharePointSelect
+              label="Alert Banner Layout"
+              value={draftSettings.layout || "carousel"}
+              onChange={(value) => handleSettingsChange({ layout: value as any })}
+              options={[
+                { value: "carousel", label: "Carousel (Paginated Slider)" },
+                { value: "stacked", label: "Stacked (Vertical List)" },
+              ]}
+              description="Choose how multiple alerts are arranged in the banner"
+              disabled={!canPersistSettings}
             />
           </div>
         </SharePointSection>

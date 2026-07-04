@@ -32,6 +32,7 @@ export interface IAlertMutationModel {
   targetUsers?: IPersonField[];
   targetGroups?: IPersonField[];
   languageContent?: ILanguageContent[];
+  metadata?: any;
 }
 
 export interface IEditableAlertMutationModel extends IAlertMutationModel {
@@ -338,6 +339,7 @@ export class AlertMutationService {
       scheduledEnd: alert.scheduledEnd?.toISOString(),
       targetSites: alert.targetSites || [],
       targetUsers: this.getCombinedTargets(alert),
+      metadata: alert.metadata,
     };
   }
 

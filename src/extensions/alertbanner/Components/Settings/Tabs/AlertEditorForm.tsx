@@ -60,6 +60,7 @@ export interface IAlertEditorState {
   languageGroup?: string;
   targetUsers?: IPersonField[];
   targetGroups?: IPersonField[];
+  metadata?: any;
 }
 
 export type CreateWizardStep = "content" | "audience" | "publish";
@@ -560,35 +561,139 @@ const AlertEditorForm = <T extends IAlertEditorState>({
           )}
 
           {userTargetingEnabled && shouldRenderStep("audience") && (
-            <SharePointSection
-              title={strings.CreateAlertSectionUserTargetingTitle}
-            >
-              <SharePointPeoplePicker
-                context={context}
-                titleText={strings.CreateAlertPeoplePickerLabel}
-                personSelectionLimit={50}
-                groupName={""}
-                showtooltip={true}
-                required={false}
-                disabled={isBusy}
-                onChange={handlePeoplePickerChange}
-                defaultSelectedUsers={[
-                  ...(alert.targetUsers?.map(
-                    (u) => u.email || u.loginName || u.displayName,
-                  ) || []),
-                  ...(alert.targetGroups?.map(
-                    (g) => g.loginName || g.displayName,
-                  ) || []),
-                ]}
-                principalTypes={[
-                  PrincipalType.User,
-                  PrincipalType.SharePointGroup,
-                  PrincipalType.SecurityGroup,
-                  PrincipalType.DistributionList,
-                ]}
-                description={strings.CreateAlertPeoplePickerDescription}
-              />
-            </SharePointSection>
+            <>
+              <SharePointSection
+                title={strings.CreateAlertSectionUserTargetingTitle}
+              >
+                <SharePointPeoplePicker
+                  context={context}
+                  titleText={strings.CreateAlertPeoplePickerLabel}
+                  personSelectionLimit={50}
+                  groupName={""}
+                  showtooltip={true}
+                  required={false}
+                  disabled={isBusy}
+                  onChange={handlePeoplePickerChange}
+                  defaultSelectedUsers={[
+                    ...(alert.targetUsers?.map(
+                      (u) => u.email || u.loginName || u.displayName,
+                    ) || []),
+                    ...(alert.targetGroups?.map(
+                      (g) => g.loginName || g.displayName,
+                    ) || []),
+                  ]}
+                  principalTypes={[
+                    PrincipalType.User,
+                    PrincipalType.SharePointGroup,
+                    PrincipalType.SecurityGroup,
+                    PrincipalType.DistributionList,
+                  ]}
+                  description={strings.CreateAlertPeoplePickerDescription}
+                />
+              </SharePointSection>
+
+              <SharePointSection
+                title="Dynamic Audience Rules"
+              >
+                <p style={{ margin: "0 0 16px 0", color: "#666", fontSize: "12px" }}>
+                  Define target criteria based on user Azure AD profile fields. Leave blank to show to everyone.
+                </p>
+                
+                {(() => {
+                  const metadataObj = typeof alert.metadata === "object" && alert.metadata !== null ? alert.metadata : {};
+                  const rules = Array.isArray(metadataObj.targetingRules) ? metadataObj.targetingRules : [];
+                  
+                  const handleRuleChange = (index: number, updatedRule: any) => {
+                    const newRules = [...rules];
+                    newRules[index] = { ...newRules[index], ...updatedRule };
+                    setAlert((prev) => ({
+                      ...prev,
+                      metadata: { ...metadataObj, targetingRules: newRules }
+                    }));
+                  };
+                  
+                  const handleAddRule = () => {
+                    const newRules = [...rules, { attribute: "department", operator: "equals", value: "" }];
+                    setAlert((prev) => ({
+                      ...prev,
+                      metadata: { ...metadataObj, targetingRules: newRules }
+                    }));
+                  };
+                  
+                  const handleRemoveRule = (index: number) => {
+                    const newRules = rules.filter((_: any, i: number) => i !== index);
+                    setAlert((prev) => ({
+                      ...prev,
+                      metadata: { ...metadataObj, targetingRules: newRules }
+                    }));
+                  };
+                  
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {rules.map((rule: any, index: number) => (
+                        <div key={index} style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                          <div style={{ flex: 1 }}>
+                            <SharePointSelect
+                              label="User Profile Field"
+                              value={rule.attribute || "department"}
+                              onChange={(val) => handleRuleChange(index, { attribute: val })}
+                              options={[
+                                { value: "department", label: "Department" },
+                                { value: "jobTitle", label: "Job Title" },
+                                { value: "officeLocation", label: "Office Location" },
+                                { value: "email", label: "Email Address" }
+                              ]}
+                            />
+                          </div>
+                          
+                          <div style={{ flex: 1 }}>
+                            <SharePointSelect
+                              label="Condition"
+                              value={rule.operator || "equals"}
+                              onChange={(val) => handleRuleChange(index, { operator: val })}
+                              options={[
+                                { value: "equals", label: "Equals" },
+                                { value: "notEquals", label: "Does Not Equal" },
+                                { value: "contains", label: "Contains" },
+                                { value: "startsWith", label: "Starts With" }
+                              ]}
+                            />
+                          </div>
+                          
+                          <div style={{ flex: 2 }}>
+                            <SharePointInput
+                              label="Value"
+                              value={rule.value || ""}
+                              onChange={(val) => handleRuleChange(index, { value: val })}
+                              placeholder="e.g. HR, Sales, London"
+                            />
+                          </div>
+                          
+                          <SharePointButton
+                            variant="secondary"
+                            onClick={() => handleRemoveRule(index)}
+                            disabled={isBusy}
+                            style={{ height: "32px", minWidth: "auto", padding: "0 12px" }}
+                          >
+                            Remove
+                          </SharePointButton>
+                        </div>
+                      ))}
+                      
+                      <div style={{ marginTop: "8px" }}>
+                        <SharePointButton
+                          variant="secondary"
+                          onClick={handleAddRule}
+                          disabled={isBusy}
+                        >
+                          + Add Rule
+                        </SharePointButton>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </SharePointSection>
+            </>
           )}
 
           {shouldRenderStep("content") &&

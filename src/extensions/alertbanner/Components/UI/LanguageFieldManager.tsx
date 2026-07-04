@@ -364,6 +364,13 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     loadSupportedLanguages();
   }, [loadSupportedLanguages]);
 
+  React.useEffect(() => {
+    const activeLanguages = languages
+      .filter((l) => l.isAdded && !l.isPending)
+      .map((l) => l.code);
+    onLanguageChange?.(activeLanguages);
+  }, [languages, onLanguageChange]);
+
   const handleLanguageToggle = async (
     languageCode: string,
     checked: boolean,
@@ -413,18 +420,13 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         );
       }
 
-      setLanguages((prev) => {
-        const next = prev.map((lang) =>
+      setLanguages((prev) =>
+        prev.map((lang) =>
           lang.code === languageCode
             ? { ...lang, isPending: false, isAdded: checked }
             : lang,
-        );
-        const activeLanguages = next
-          .filter((l) => l.isAdded && !l.isPending)
-          .map((l) => l.code);
-        onLanguageChange?.(activeLanguages);
-        return next;
-      });
+        )
+      );
     } catch (error) {
       logger.error(
         "LanguageFieldManager",
@@ -436,18 +438,13 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         CoreText.format(strings.LanguageManagerUpdateFailed, language.name),
       );
 
-      setLanguages((prev) => {
-        const next = prev.map((lang) =>
+      setLanguages((prev) =>
+        prev.map((lang) =>
           lang.code === languageCode
             ? { ...lang, isPending: false, isAdded: !checked }
             : lang,
-        );
-        const activeLanguages = next
-          .filter((l) => l.isAdded && !l.isPending)
-          .map((l) => l.code);
-        onLanguageChange?.(activeLanguages);
-        return next;
-      });
+        )
+      );
     } finally {
       setIsTogglingLanguage(false);
     }

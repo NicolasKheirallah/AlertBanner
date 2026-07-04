@@ -79,7 +79,7 @@ export class UserTargetingService {
             {
               id: "1",
               method: "GET",
-              url: "me?$select=id,displayName,mail,jobTitle,department,userPrincipalName",
+              url: "me?$select=id,displayName,mail,jobTitle,department,userPrincipalName,officeLocation",
             },
             {
               id: "2",
@@ -105,6 +105,7 @@ export class UserTargetingService {
             email: userBody.mail,
             jobTitle: userBody.jobTitle,
             department: userBody.department,
+            officeLocation: userBody.officeLocation,
             userGroups: [],
           };
           this.storageService.setUserId(this.currentUser.id);
@@ -158,7 +159,7 @@ export class UserTargetingService {
         if (!this.currentUser) {
           const userResponse = await this.graphClient
             .api("/me")
-            .select("id,displayName,mail,jobTitle,department,userPrincipalName")
+            .select("id,displayName,mail,jobTitle,department,userPrincipalName,officeLocation")
             .get();
 
           this.currentUser = {
@@ -167,6 +168,7 @@ export class UserTargetingService {
             email: userResponse.mail,
             jobTitle: userResponse.jobTitle,
             department: userResponse.department,
+            officeLocation: userResponse.officeLocation,
             userGroups: [],
           };
           this.storageService.setUserId(this.currentUser.id);
@@ -247,11 +249,74 @@ export class UserTargetingService {
     }
 
     return alerts.filter((alert) => {
-      if (!alert.targetUsers || alert.targetUsers.length === 0) {
-        return true;
+      // 1. Evaluate explicit targeting (targetUsers) if it exists
+      if (alert.targetUsers && alert.targetUsers.length > 0) {
+        if (!this.isUserTargeted(alert.targetUsers)) {
+          return false;
+        }
       }
 
-      return this.isUserTargeted(alert.targetUsers);
+      // 2. Evaluate dynamic targeting rules in metadata if it exists
+      if (alert.metadata && typeof alert.metadata === "object") {
+        const metadataObj = alert.metadata as Record<string, any>;
+        if (metadataObj.targetingRules) {
+          const rules = metadataObj.targetingRules;
+          if (Array.isArray(rules) && rules.length > 0) {
+            const match = this.evaluateDynamicTargetingRules(rules);
+            if (!match) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }
+
+  private evaluateDynamicTargetingRules(rules: any[]): boolean {
+    const user = this.currentUser;
+    if (!user) return false;
+
+    return rules.every((rule) => {
+      let userValue: string | undefined = undefined;
+      const attribute = String(rule.attribute || "").toLowerCase().replace(/\s+/g, "");
+
+      switch (attribute) {
+        case "department":
+          userValue = user.department;
+          break;
+        case "jobtitle":
+          userValue = user.jobTitle;
+          break;
+        case "officelocation":
+          userValue = user.officeLocation;
+          break;
+        case "email":
+          userValue = user.email;
+          break;
+        default:
+          userValue = (user as any)[rule.attribute];
+          break;
+      }
+
+      if (userValue === undefined || userValue === null) {
+        return rule.operator === "notEquals";
+      }
+
+      const userValStr = String(userValue).toLowerCase().trim();
+      const ruleValStr = String(rule.value || "").toLowerCase().trim();
+
+      switch (rule.operator) {
+        case "equals":
+          return userValStr === ruleValStr;
+        case "notEquals":
+          return userValStr !== ruleValStr;
+        case "contains":
+          return userValStr.indexOf(ruleValStr) !== -1;
+        case "startsWith":
+          return userValStr.startsWith(ruleValStr);
+        default:
+          return false;
+      }
     });
   }
 

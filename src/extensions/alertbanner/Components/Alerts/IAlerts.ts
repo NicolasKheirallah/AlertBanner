@@ -177,6 +177,7 @@ export interface IAlertsBannerApplicationCustomizerProperties {
   enableTargetSite: boolean;
   emailServiceAccount?: string;
   copilotEnabled?: boolean;
+  layout?: "carousel" | "stacked";
 }
 
 export interface IAlertsProps {
@@ -189,6 +190,7 @@ export interface IAlertsProps {
   enableTargetSite?: boolean;
   emailServiceAccount?: string;
   copilotEnabled?: boolean;
+  layout?: "carousel" | "stacked";
   onSettingsChange?: (settings: {
     alertTypesJson: string;
     userTargetingEnabled: boolean;
@@ -196,6 +198,7 @@ export interface IAlertsProps {
     enableTargetSite: boolean;
     emailServiceAccount?: string;
     copilotEnabled?: boolean;
+    layout?: "carousel" | "stacked";
   }) => void;
 }
 
@@ -217,6 +220,7 @@ export interface IUser {
   email: string;
   jobTitle?: string;
   department?: string;
+  officeLocation?: string;
   userGroups?: string[];
 }
 

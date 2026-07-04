@@ -189,10 +189,66 @@ export interface AlertsContextOptions {
   enableTargetSite?: boolean;
 }
 
-export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [state, dispatch] = useReducer(alertsReducer, initialState);
+export const AlertsProvider: React.FC<{
+  siteIds?: string[];
+  context?: ApplicationCustomizerContext;
+  children: React.ReactNode;
+}> = ({ siteIds, context, children }) => {
+  const [state, dispatch] = useReducer(
+    alertsReducer,
+    initialState,
+    (initial) => {
+      if (typeof window !== "undefined" && siteIds && context) {
+        try {
+          const user = context.pageContext?.user;
+          const userLogin = user?.loginName || "anonymous";
+
+          // Seed the StorageService with Entra ID Object ID immediately
+          const storage = StorageService.getInstance();
+          const aadUserId = (user as any)?.aadUserId;
+          if (aadUserId) {
+            storage.setUserId(String(aadUserId));
+          }
+
+          const uniqueSorted = Array.from(
+            new Set(
+              (siteIds || [])
+                .map((s) => SiteIdUtils.createDedupKey(s))
+                .filter((s) => s.length > 0)
+            )
+          ).sort();
+          const siteScope = uniqueSorted.join("|") || "none";
+          const cacheKey = `AllAlerts:${userLogin}:${siteScope}`;
+
+          const raw = window.localStorage.getItem(cacheKey);
+          if (raw) {
+            const cached = JSON.parse(raw);
+            if (Array.isArray(cached) && cached.length > 0) {
+              // Retrieve dismissed & hidden alerts synchronously
+              const dismissed = storage.getDismissedAlerts() || [];
+              const hidden = storage.getHiddenAlerts() || [];
+
+              // Filter them out of cached alerts synchronously
+              const filtered = cached.filter(
+                (alert) => !dismissed.includes(alert.id) && !hidden.includes(alert.id)
+              );
+
+              return {
+                ...initial,
+                alerts: filtered,
+                userDismissedAlerts: dismissed,
+                userHiddenAlerts: hidden,
+                isLoading: false,
+              };
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return initial;
+    }
+  );
 
   const stateRef = React.useRef(state);
   React.useEffect(() => {

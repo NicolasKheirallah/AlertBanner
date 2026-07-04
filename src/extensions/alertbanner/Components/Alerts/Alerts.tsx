@@ -320,34 +320,61 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
         </div>
       )}
       {hasAlerts && (
-        <div
-          className={styles.carousel}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <ErrorBoundary
-            componentName="AlertItem"
-            onError={(error) =>
-              logger.error("Alerts", "Alert rendering failed", error)
-            }
+        props.layout === "stacked" ? (
+          <div className={styles.stackedLayout}>
+            {alerts.map((alert, index) => (
+              <ErrorBoundary
+                key={alert.id}
+                componentName="AlertItem"
+                onError={(error) =>
+                  logger.error("Alerts", "Alert rendering failed", error)
+                }
+              >
+                <AlertItem
+                  item={alert}
+                  remove={removeAlert}
+                  hideForever={hideAlertForever}
+                  alertType={
+                    alertTypes[alert.AlertType] || defaultAlertType
+                  }
+                  isCarousel={false}
+                  currentIndex={index + 1}
+                  totalAlerts={alerts.length}
+                  userTargetingEnabled={props.userTargetingEnabled || false}
+                />
+              </ErrorBoundary>
+            ))}
+          </div>
+        ) : (
+          <div
+            className={styles.carousel}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
-            <AlertItem
-              key={alerts[currentIndex].id}
-              item={alerts[currentIndex]}
-              remove={removeAlert}
-              hideForever={hideAlertForever}
-              alertType={
-                alertTypes[alerts[currentIndex].AlertType] || defaultAlertType
+            <ErrorBoundary
+              componentName="AlertItem"
+              onError={(error) =>
+                logger.error("Alerts", "Alert rendering failed", error)
               }
-              isCarousel={true}
-              currentIndex={currentIndex + 1}
-              totalAlerts={alerts.length}
-              onNext={goToNext}
-              onPrevious={goToPrevious}
-              userTargetingEnabled={props.userTargetingEnabled || false}
-            />
-          </ErrorBoundary>
-        </div>
+            >
+              <AlertItem
+                key={alerts[currentIndex].id}
+                item={alerts[currentIndex]}
+                remove={removeAlert}
+                hideForever={hideAlertForever}
+                alertType={
+                  alertTypes[alerts[currentIndex].AlertType] || defaultAlertType
+                }
+                isCarousel={true}
+                currentIndex={currentIndex + 1}
+                totalAlerts={alerts.length}
+                onNext={goToNext}
+                onPrevious={goToPrevious}
+                userTargetingEnabled={props.userTargetingEnabled || false}
+              />
+            </ErrorBoundary>
+          </div>
+        )
       )}
       {isInEditMode && (
         <AlertSettingsTabs
