@@ -278,6 +278,7 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
 
     this._persistCustomProperties();
     this._scheduleSettingsPersistence();
+    void this._renderAlertsComponent();
   };
 
   private _getSettingsSnapshotKey(): string {

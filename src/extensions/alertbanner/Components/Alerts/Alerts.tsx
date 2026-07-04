@@ -76,7 +76,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
     const nextInitProps = {
       siteIds: uniqueSortedSiteIds,
       alertTypesJson: props.alertTypesJson,
-      userTargetingEnabled: !!props.userTargetingEnabled,
+      userTargetingEnabled: props.userTargetingEnabled !== false,
       notificationsEnabled: !!props.notificationsEnabled,
       graphClient: props.graphClient,
       context: props.context,
@@ -108,7 +108,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
         context: props.context,
         siteIds: uniqueSortedSiteIds,
         alertTypesJson: props.alertTypesJson,
-        userTargetingEnabled: !!props.userTargetingEnabled,
+        userTargetingEnabled: props.userTargetingEnabled !== false,
         notificationsEnabled: !!props.notificationsEnabled,
         enableTargetSite: !!props.enableTargetSite,
       });
@@ -340,7 +340,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
                   isCarousel={false}
                   currentIndex={index + 1}
                   totalAlerts={alerts.length}
-                  userTargetingEnabled={props.userTargetingEnabled || false}
+                  userTargetingEnabled={props.userTargetingEnabled !== false}
                 />
               </ErrorBoundary>
             ))}
@@ -370,7 +370,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
                 totalAlerts={alerts.length}
                 onNext={goToNext}
                 onPrevious={goToPrevious}
-                userTargetingEnabled={props.userTargetingEnabled || false}
+                userTargetingEnabled={props.userTargetingEnabled !== false}
               />
             </ErrorBoundary>
           </div>
@@ -380,7 +380,7 @@ const Alerts: React.FC<IAlertsProps> = (props) => {
         <AlertSettingsTabs
           isInEditMode={isInEditMode}
           alertTypesJson={props.alertTypesJson}
-          userTargetingEnabled={props.userTargetingEnabled || false}
+          userTargetingEnabled={props.userTargetingEnabled !== false}
           notificationsEnabled={props.notificationsEnabled || false}
           enableTargetSite={props.enableTargetSite || false}
           emailServiceAccount={props.emailServiceAccount}

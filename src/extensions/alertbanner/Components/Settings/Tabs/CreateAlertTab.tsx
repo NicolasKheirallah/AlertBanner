@@ -1048,7 +1048,10 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
       <div className={styles.templateActions}>
         <SharePointButton
           variant={currentEntryMode === "scratch" ? "primary" : "secondary"}
-          onClick={() => setEntryMode("scratch")}
+          onClick={() => {
+            resetForm();
+            setEntryMode("scratch");
+          }}
         >
           {strings.CreateAlertStartFromScratchButton}
         </SharePointButton>

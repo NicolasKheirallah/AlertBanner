@@ -12,6 +12,7 @@ export interface ISharePointDialogProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  contentClassName?: string;
 }
 
 const BODY_SCROLL_LOCK_ATTR = "data-sharepoint-dialog-lock-count";
@@ -54,6 +55,7 @@ const SharePointDialog: React.FC<ISharePointDialogProps> = ({
   children,
   footer,
   className,
+  contentClassName,
 }) => {
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const [dialogTitleId] = React.useState(() => {
@@ -177,7 +179,7 @@ const SharePointDialog: React.FC<ISharePointDialogProps> = ({
           data-alert-banner-dialog-notification-host="true"
         />
 
-        <div className={styles.content}>{children}</div>
+        <div className={`${styles.content} ${contentClassName || ""}`}>{children}</div>
 
         {footer && <div className={styles.footer}>{footer}</div>}
       </div>

@@ -409,8 +409,10 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
         }
         width={1200}
         height="80vh"
+        contentClassName={styles.dialogContentOverride}
       >
-        <div className={styles.settingsContainer}>
+        {isOpen && (
+          <div className={styles.settingsContainer}>
           {!editingAlert && (
             <div
               className={styles.tabs}
@@ -582,6 +584,7 @@ const AlertSettingsTabs: React.FC<IAlertSettingsTabsProps> = ({
             )}
           </div>
         </div>
+      )}
       </SharePointDialog>
       {dialogs}
     </>

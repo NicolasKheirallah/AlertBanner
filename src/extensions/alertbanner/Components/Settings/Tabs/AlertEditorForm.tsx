@@ -352,7 +352,8 @@ const AlertEditorForm = <T extends IAlertEditorState>({
       : strings.CreateAlertEndDateDescription;
 
   const isCreateMode = mode === "create";
-  const currentCreateStep: CreateWizardStep = isCreateMode
+  const useWizardSteps = !!(createStep && onCreateStepChange);
+  const currentCreateStep: CreateWizardStep = useWizardSteps
     ? createStep || "content"
     : "content";
   const canUseCopilot = !!copilotEnabled && copilotAvailability === "available";
@@ -377,8 +378,8 @@ const AlertEditorForm = <T extends IAlertEditorState>({
 
   const shouldRenderStep = React.useCallback(
     (step: CreateWizardStep): boolean =>
-      !isCreateMode || currentCreateStep === step,
-    [currentCreateStep, isCreateMode],
+      !useWizardSteps || currentCreateStep === step,
+    [currentCreateStep, useWizardSteps],
   );
 
   const getValidationErrors = React.useCallback(
@@ -476,7 +477,7 @@ const AlertEditorForm = <T extends IAlertEditorState>({
 
   return (
     <div
-      className={`${styles.alertForm} ${isCreateMode ? styles.createEditorForm : ""}`}
+      className={`${styles.alertForm} ${useWizardSteps ? styles.createEditorForm : ""}`}
       ref={editorRootRef}
       tabIndex={-1}
       aria-label={
@@ -485,7 +486,7 @@ const AlertEditorForm = <T extends IAlertEditorState>({
     >
       <div className={styles.formWithPreview}>
         <div className={styles.formColumn}>
-          {isCreateMode && (
+          {useWizardSteps && (
             <div className={styles.createWizardSteps}>
               {wizardSteps.map((step) => {
                 const isActive = currentCreateStep === step.id;
@@ -1095,7 +1096,7 @@ const AlertEditorForm = <T extends IAlertEditorState>({
           )}
 
           <div
-            className={`${styles.formActions} ${isCreateMode ? styles.createActionBar : ""}`}
+            className={`${styles.formActions} ${useWizardSteps ? styles.createActionBar : ""}`}
           >
             <div className={styles.formActionsPrimary}>{actionButtons}</div>
             <div className={styles.formActionsUtility}>

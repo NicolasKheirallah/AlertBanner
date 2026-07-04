@@ -47,6 +47,13 @@
   }
 }
 
+.dialogContentOverride {
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
 // Fixed height container for tab content to prevent dialog resizing
 .tabContentContainer {
   flex: 1;
@@ -199,7 +206,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
   gap: 32px;
-  align-items: start;
+  align-items: stretch;
   flex: 1;
   min-height: 0;
   overflow: hidden;

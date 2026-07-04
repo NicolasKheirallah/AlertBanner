@@ -6,6 +6,8 @@ import {
   Filter24Regular,
   ChevronDown24Regular,
   ChevronUp24Regular,
+  ArrowLeft24Regular,
+  ArrowRight24Regular,
 } from "@fluentui/react-icons";
 import {
   SharePointButton,
@@ -51,7 +53,7 @@ import { useFluentDialogs } from "../../Hooks/useFluentDialogs";
 import { CopilotService } from "../../Services/CopilotService";
 import * as strings from "AlertBannerApplicationCustomizerStrings";
 import { Text } from "@microsoft/sp-core-library";
-import AlertEditorForm from "./AlertEditorForm";
+import AlertEditorForm, { CreateWizardStep } from "./AlertEditorForm";
 import EmptyState from "../../UI/EmptyState";
 import AlertListShimmer from "../../UI/AlertListShimmer";
 import { AlertMutationService } from "../../Services/AlertMutationService";
@@ -203,7 +205,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   );
 
   const [manageSortMode, setManageSortMode] = React.useState<
-    "priority" | "manual"
+    "priority" | "manual" | "name" | "created" | "updated" | "status"
   >("priority");
   const [alertsListId, setAlertsListId] = React.useState<string>("");
   const [editingAlertSiteId, setEditingAlertSiteId] =
@@ -216,6 +218,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
   const searchInputContainerRef = React.useRef<HTMLDivElement>(null);
   const initialEditSnapshotRef = React.useRef<string>("");
   const didHydrateFiltersRef = React.useRef(false);
+  const [editStep, setEditStep] = React.useState<CreateWizardStep>("content");
 
   const filtersStorageKey = React.useMemo(() => {
     const siteId = context.pageContext.site.id
@@ -901,6 +904,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             editingAlertType: editingData.AlertType,
           });
           setEditingAlert(editingData);
+          setEditStep("content");
           initialEditSnapshotRef.current = captureEditSnapshot(editingData);
           setUseMultiLanguage(true);
         } else {
@@ -925,6 +929,7 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             },
           );
           setEditingAlert(editingData);
+          setEditStep("content");
           initialEditSnapshotRef.current = captureEditSnapshot(editingData);
           setUseMultiLanguage(false);
         }
@@ -1518,6 +1523,54 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     [setEditingAlert],
   );
 
+  const editStepOrder = React.useMemo<CreateWizardStep[]>(
+    () => ["content", "audience", "publish"],
+    [],
+  );
+  const editStepIndex = editStepOrder.indexOf(editStep);
+  const canGoBackEdit = editStepIndex > 0;
+  const canGoForwardEdit = editStepIndex < editStepOrder.length - 1;
+
+  const editStepCompletion = React.useMemo<
+    Record<CreateWizardStep, boolean>
+  >(() => {
+    if (!editingAlert) {
+      return { content: false, audience: false, publish: false };
+    }
+    return {
+      content:
+        !!editingAlert.title?.trim() &&
+        !!editingAlert.description?.replace(/<[^>]*>/g, " ").trim() &&
+        !!editingAlert.AlertType,
+      audience: true,
+      publish: true,
+    };
+  }, [editingAlert]);
+
+  const handleEditStepChange = React.useCallback(
+    (nextStep: CreateWizardStep) => {
+      if (editStep === nextStep) {
+        return;
+      }
+      setEditStep(nextStep);
+    },
+    [editStep],
+  );
+
+  const handleEditBackStep = React.useCallback(() => {
+    if (!canGoBackEdit) {
+      return;
+    }
+    setEditStep(editStepOrder[editStepIndex - 1]);
+  }, [canGoBackEdit, editStepIndex, editStepOrder]);
+
+  const handleEditNextStep = React.useCallback(() => {
+    if (!canGoForwardEdit) {
+      return;
+    }
+    setEditStep(editStepOrder[editStepIndex + 1]);
+  }, [canGoForwardEdit, editStepIndex, editStepOrder]);
+
   const normalizeSiteId = React.useCallback((value?: string): string => {
     if (!value) return "";
     return value.toLowerCase().replace(/[{}]/g, "");
@@ -1679,6 +1732,35 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     });
 
     displayItems.push(...ungrouped);
+
+    if (manageSortMode === "manual") {
+      displayItems.sort((a, b) => {
+        const orderA = typeof a.sortOrder === "number" ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+        const orderB = typeof b.sortOrder === "number" ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+      });
+    } else if (manageSortMode === "priority") {
+      const priorityOrder: Record<string, number> = { critical: 1, high: 2, medium: 3, low: 4 };
+      displayItems.sort((a, b) => {
+        const pA = priorityOrder[String(a.priority).toLowerCase()] || 99;
+        const pB = priorityOrder[String(b.priority).toLowerCase()] || 99;
+        if (pA !== pB) return pA - pB;
+        return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+      });
+    } else if (manageSortMode === "name") {
+      displayItems.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    } else if (manageSortMode === "created") {
+      displayItems.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+    } else if (manageSortMode === "updated") {
+      displayItems.sort((a, b) => {
+        const timeA = new Date(a.modified || a.createdDate).getTime();
+        const timeB = new Date(b.modified || b.createdDate).getTime();
+        return timeB - timeA;
+      });
+    } else if (manageSortMode === "status") {
+      displayItems.sort((a, b) => (a.status || "").localeCompare(b.status || ""));
+    }
 
     return displayItems;
   }, [
@@ -1941,6 +2023,38 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
                   title="Sort by priority"
                 >
                   Priority
+                </button>
+                <button
+                  type="button"
+                  className={`${(styles as any).sortModeButton} ${manageSortMode === "name" ? (styles as any).active : ""}`}
+                  onClick={() => setManageSortMode("name")}
+                  title="Sort alphabetically by title"
+                >
+                  Name
+                </button>
+                <button
+                  type="button"
+                  className={`${(styles as any).sortModeButton} ${manageSortMode === "created" ? (styles as any).active : ""}`}
+                  onClick={() => setManageSortMode("created")}
+                  title="Sort by creation date (newest first)"
+                >
+                  Created Date
+                </button>
+                <button
+                  type="button"
+                  className={`${(styles as any).sortModeButton} ${manageSortMode === "updated" ? (styles as any).active : ""}`}
+                  onClick={() => setManageSortMode("updated")}
+                  title="Sort by modified date (newest first)"
+                >
+                  Updated Date
+                </button>
+                <button
+                  type="button"
+                  className={`${(styles as any).sortModeButton} ${manageSortMode === "status" ? (styles as any).active : ""}`}
+                  onClick={() => setManageSortMode("status")}
+                  title="Sort by status"
+                >
+                  Status
                 </button>
                 <button
                   type="button"
@@ -2520,6 +2634,9 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             setShowPreview={setShowPreview}
             imageFolderName={editingAlert.languageGroup || editingAlert.title}
             disableImageUpload={isCrossSiteAlert}
+            createStep={editStep}
+            onCreateStepChange={handleEditStepChange}
+            stepCompletion={editStepCompletion}
             renderMiddleSections={
               <AttachmentManager
                 context={context}
@@ -2539,15 +2656,36 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
             actionButtons={
               <>
                 <SharePointButton
-                  variant="primary"
-                  onClick={handleSaveEdit}
-                  disabled={isEditingAlert}
-                  icon={<Save24Regular />}
+                  variant="secondary"
+                  onClick={handleEditBackStep}
+                  disabled={!canGoBackEdit || isEditingAlert}
+                  icon={<ArrowLeft24Regular />}
                 >
-                  {isEditingAlert
-                    ? strings.ManageAlertsSavingChangesLabel
-                    : strings.ManageAlertsSaveChangesButton}
+                  {strings.CreateAlertWizardBackButton}
                 </SharePointButton>
+
+                {canGoForwardEdit ? (
+                  <SharePointButton
+                    variant="primary"
+                    onClick={handleEditNextStep}
+                    disabled={isEditingAlert}
+                    icon={<ArrowRight24Regular />}
+                  >
+                    {strings.CreateAlertWizardNextButton}
+                  </SharePointButton>
+                ) : (
+                  <SharePointButton
+                    variant="primary"
+                    onClick={handleSaveEdit}
+                    disabled={isEditingAlert}
+                    icon={<Save24Regular />}
+                  >
+                    {isEditingAlert
+                      ? strings.ManageAlertsSavingChangesLabel
+                      : strings.ManageAlertsSaveChangesButton}
+                  </SharePointButton>
+                )}
+
                 <SharePointButton
                   variant="secondary"
                   onClick={handleCancelEdit}
