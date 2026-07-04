@@ -1682,6 +1682,89 @@ export class AlertOperationsService {
     items: IGraphListItem[],
     alerts: IAlertItem[],
   ): Promise<IAlertItem[]> {
+    const itemsWithAttachments = items.filter(item => Boolean(item?.fields?.Attachments));
+    if (itemsWithAttachments.length === 0) {
+      return alerts;
+    }
+
+    try {
+      const siteIdentifier = await this.locator.ensureGraphSiteIdentifier(siteId);
+      const chunks: IGraphListItem[][] = [];
+      const chunkSize = 20; // Graph batch limit is 20
+      for (let i = 0; i < itemsWithAttachments.length; i += chunkSize) {
+        chunks.push(itemsWithAttachments.slice(i, i + chunkSize));
+      }
+
+      for (const chunk of chunks) {
+        const batchRequest = {
+          requests: chunk.map(item => ({
+            id: item.id.toString(),
+            method: "GET",
+            url: `/sites/${siteIdentifier}/lists/${listId}/items/${item.id}/attachments`
+          }))
+        };
+
+        const batchResponse = await this.graphClient
+          .api("/$batch")
+          .version("v1.0")
+          .post(batchRequest);
+
+        if (batchResponse && Array.isArray(batchResponse.responses)) {
+          for (const res of batchResponse.responses) {
+            const itemId = res.id;
+            const status = res.status;
+            if (status === 200 && res.body) {
+              const files = res.body.value || [];
+              const mappedAttachments = files.map((file: any) => {
+                let serverRelativeUrl = "";
+                try {
+                  if (file.webUrl) {
+                    serverRelativeUrl = new URL(file.webUrl).pathname;
+                  }
+                } catch {
+                  // Fallback if URL parsing fails
+                }
+                return {
+                  fileName: file.name || "",
+                  serverRelativeUrl: serverRelativeUrl || file.serverRelativeUrl || "",
+                  size: file.size || undefined
+                };
+              });
+
+              // Find alert by itemId
+              const alert = alerts.find(a => {
+                const parsed = this.parseAlertId(a.id);
+                return parsed.itemId === itemId;
+              });
+              if (alert) {
+                alert.attachments = mappedAttachments;
+              }
+            } else {
+              logger.warn(
+                "AlertOperationsService",
+                `Batch attachment fetch returned status ${status} for item ${itemId}`
+              );
+            }
+          }
+        }
+      }
+      return alerts;
+    } catch (batchError) {
+      logger.warn(
+        "AlertOperationsService",
+        "Graph batch attachment fetch failed, falling back to sequential REST queries",
+        batchError
+      );
+      return this.attachAttachmentsSequentialFallback(siteId, listId, items, alerts);
+    }
+  }
+
+  private async attachAttachmentsSequentialFallback(
+    siteId: string,
+    listId: string,
+    items: IGraphListItem[],
+    alerts: IAlertItem[],
+  ): Promise<IAlertItem[]> {
     for (let i = 0; i < items.length; i += this.attachmentFetchConcurrency) {
       const batch = items.slice(i, i + this.attachmentFetchConcurrency);
       const batchTasks = batch.map(
@@ -1702,7 +1785,7 @@ export class AlertOperationsService {
           } catch (error) {
             logger.warn(
               "AlertOperationsService",
-              "Failed to fetch attachments",
+              "Failed to fetch attachments in fallback",
               {
                 itemId: item.id,
                 siteId,

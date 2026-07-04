@@ -29,12 +29,13 @@ export interface IAuditableOperation {
 }
 
 export class PermissionService {
-  private static instance: PermissionService;
+  private static instance: PermissionService | null = null;
   private context: ApplicationCustomizerContext;
   private graphClient: MSGraphClientV3 | undefined;
   private permissionCache: Map<GraphPermission, IPermissionStatus> = new Map();
   private lastPermissionCheck: number = 0;
   private readonly PERMISSION_CACHE_TTL = 5 * 60 * 1000;
+  private decodedScopes: Set<string> | null = null;
 
   private constructor(context: ApplicationCustomizerContext) {
     this.context = context;
@@ -46,7 +47,16 @@ export class PermissionService {
     if (!PermissionService.instance) {
       PermissionService.instance = new PermissionService(context);
     }
-    return PermissionService.instance;
+    return PermissionService.instance!;
+  }
+
+  public dispose(): void {
+    this.context = null as any;
+    this.graphClient = undefined;
+    this.permissionCache.clear();
+    this.lastPermissionCheck = 0;
+    this.decodedScopes = null;
+    PermissionService.instance = null;
   }
 
   public async initialize(): Promise<void> {
@@ -90,6 +100,9 @@ export class PermissionService {
       return Array.from(this.permissionCache.values());
     }
 
+    // Reset token cache for re-validation
+    this.decodedScopes = null;
+
     const permissions = [
       GraphPermission.SitesReadWriteAll,
       GraphPermission.UserRead,
@@ -106,6 +119,53 @@ export class PermissionService {
     return results;
   }
 
+  private async getDecodedScopes(): Promise<Set<string> | null> {
+    if (this.decodedScopes) {
+      return this.decodedScopes;
+    }
+
+    try {
+      if (!this.context.aadTokenProviderFactory) {
+        return null;
+      }
+      const tokenProvider = await this.context.aadTokenProviderFactory.getTokenProvider();
+      const token = await tokenProvider.getToken("https://graph.microsoft.com");
+      if (!token) {
+        return null;
+      }
+
+      const parts = token.split(".");
+      if (parts.length !== 3) {
+        return null;
+      }
+
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+
+      const parsed = JSON.parse(jsonPayload);
+      const scopes = new Set<string>();
+
+      if (typeof parsed.scp === "string") {
+        parsed.scp.split(" ").forEach((s: string) => scopes.add(s.toLowerCase()));
+      }
+      if (Array.isArray(parsed.roles)) {
+        parsed.roles.forEach((r: string) => scopes.add(r.toLowerCase()));
+      }
+
+      this.decodedScopes = scopes;
+      return scopes;
+    } catch (e) {
+      logger.warn("PermissionService", "Unable to decode Graph access token scopes", e);
+      return null;
+    }
+  }
+
   private async checkPermission(
     scope: GraphPermission,
   ): Promise<IPermissionStatus> {
@@ -114,12 +174,29 @@ export class PermissionService {
       return { scope, granted: false, error: "Graph client not initialized" };
     }
 
+    // Try verifying scope via JWT claims first (robust validation)
+    try {
+      const decoded = await this.getDecodedScopes();
+      if (decoded) {
+        const isGranted = decoded.has(scope.toLowerCase());
+        const status: IPermissionStatus = isGranted
+          ? { scope, granted: true }
+          : { scope, granted: false, error: "Permission not granted (not found in Graph token claims)" };
+        this.permissionCache.set(scope, status);
+        return status;
+      }
+    } catch (tokenError) {
+      logger.warn("PermissionService", "Scope verification via JWT failed, falling back to API probing", tokenError);
+    }
+
+    // Fallback: API Probing (useful in mock / local workbench environments)
     try {
       switch (scope) {
         case GraphPermission.SitesReadWriteAll:
           await graphClient.api("/sites/root").select("id").get();
           break;
         case GraphPermission.MailSend:
+          // Mail.Send has no read-equivalent API probe; in mock environments we assume granted
           break;
         case GraphPermission.UserRead:
           await graphClient.api("/me").select("id").get();
@@ -179,7 +256,14 @@ export class PermissionService {
     return status.granted;
   }
 
-  public logAuditableOperation(operation: {
+  private async hashEmail(email: string): Promise<string> {
+    const msgUint8 = new TextEncoder().encode(email.toLowerCase().trim());
+    const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  public async logAuditableOperation(operation: {
     operation: string;
     targetSite?: string;
     targetSiteUrl?: string;
@@ -188,14 +272,21 @@ export class PermissionService {
     itemCount?: number;
     justification?: string;
     error?: string;
-  }): void {
+  }): Promise<void> {
+    let hashedEmail: string | undefined = undefined;
+    if (this.context.pageContext.user.email) {
+      try {
+        hashedEmail = await this.hashEmail(this.context.pageContext.user.email);
+      } catch (e) {
+        hashedEmail = "error-hashing-email";
+      }
+    }
+
     const auditEntry = {
       timestamp: new Date().toISOString(),
       userId: this.context.pageContext.user.loginName,
       userDisplayName: this.context.pageContext.user.displayName,
-      userEmail: this.context.pageContext.user.email
-        ? btoa(this.context.pageContext.user.email)
-        : undefined,
+      userEmail: hashedEmail,
       correlationId: this.getCorrelationId(),
       currentSite: this.context.pageContext.web.absoluteUrl,
       ...operation,
@@ -245,7 +336,7 @@ export class PermissionService {
       throw error;
     }
 
-    this.logAuditableOperation({
+    await this.logAuditableOperation({
       ...enrichedAudit,
       operation: `${audit.operation}_START`,
     });
@@ -253,7 +344,7 @@ export class PermissionService {
     try {
       const result = await operation();
 
-      this.logAuditableOperation({
+      await this.logAuditableOperation({
         ...enrichedAudit,
         operation: `${audit.operation}_SUCCESS`,
       });
@@ -269,7 +360,7 @@ export class PermissionService {
         `Operation ${audit.operation} failed on site "${siteContext}": ${errorMessage}`,
       );
 
-      this.logAuditableOperation({
+      await this.logAuditableOperation({
         ...enrichedAudit,
         operation: `${audit.operation}_FAILED`,
         error: enrichedError.message,
@@ -279,11 +370,9 @@ export class PermissionService {
     }
   }
 
-  public getAdminConsentUrl(): string {
+  public getAdminConsentUrl(customClientId?: string): string {
     const tenantId = this.context.pageContext.aadInfo?.tenantId;
-    const clientId =
-      this.context.pageContext.aadInfo?.instanceId ||
-      "00000003-0000-0ff1-ce00-000000000000";
+    const clientId = customClientId || "00000003-0000-0ff1-ce00-000000000000";
 
     const scopes = [
       GraphPermission.SitesReadWriteAll,

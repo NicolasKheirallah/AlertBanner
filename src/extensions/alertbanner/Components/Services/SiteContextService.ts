@@ -147,15 +147,22 @@ export class SiteContextService {
   }
 
   private async _detectHomeSiteWithTimeout(): Promise<ISiteInfo | null> {
-    return Promise.race([
-      this._detectHomeSiteFast(),
-      new Promise<null>((resolve) =>
-        setTimeout(() => {
-          logger.warn("SiteContextService", "Home site detection timed out");
-          resolve(null);
-        }, 1500),
-      ),
-    ]);
+    let timeoutId: number | null = null;
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+        logger.warn("SiteContextService", "Home site detection timed out");
+        resolve(null);
+      }, 1500);
+    });
+
+    try {
+      return await Promise.race([this._detectHomeSiteFast(), timeoutPromise]);
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    }
   }
 
   private async _detectHomeSiteFast(): Promise<ISiteInfo | null> {
@@ -217,15 +224,22 @@ export class SiteContextService {
   }
 
   private async _detectHubSiteWithTimeout(): Promise<ISiteInfo | null> {
-    return Promise.race([
-      this._detectHubSite(),
-      new Promise<null>((resolve) =>
-        setTimeout(() => {
-          logger.warn("SiteContextService", "Hub site detection timed out");
-          resolve(null);
-        }, 1000),
-      ),
-    ]);
+    let timeoutId: number | null = null;
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+        logger.warn("SiteContextService", "Hub site detection timed out");
+        resolve(null);
+      }, 1000);
+    });
+
+    try {
+      return await Promise.race([this._detectHubSite(), timeoutPromise]);
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    }
   }
 
   private async _detectHubSite(): Promise<ISiteInfo | null> {
@@ -236,8 +250,8 @@ export class SiteContextService {
       }
 
       const hubResponse = await this._graphClient
-        .api(`/sites/${hubSiteId}`)
-        .get();
+          .api(`/sites/${hubSiteId}`)
+          .get();
 
       return {
         id: hubSiteId,
@@ -262,17 +276,30 @@ export class SiteContextService {
       this._homeSiteInfo,
     ].filter((s): s is ISiteInfo => s !== null);
 
+    const uniqueSites = sites.filter(
+      (site, index, self) => self.findIndex((s) => s.id === site.id) === index,
+    );
+
     await Promise.all(
-      sites.map(async (site) => {
+      uniqueSites.map(async (site) => {
         try {
-          site.hasAlertsList = await this._checkAlertListExists(site);
+          const hasAlertsList = await this._checkAlertListExists(site);
+          sites.forEach((s) => {
+            if (s.id === site.id) {
+              s.hasAlertsList = hasAlertsList;
+            }
+          });
         } catch (error) {
           logger.warn(
             "SiteContextService",
             `Failed to check alerts list for ${site.name}`,
             error,
           );
-          site.hasAlertsList = false;
+          sites.forEach((s) => {
+            if (s.id === site.id) {
+              s.hasAlertsList = false;
+            }
+          });
         }
       }),
     );

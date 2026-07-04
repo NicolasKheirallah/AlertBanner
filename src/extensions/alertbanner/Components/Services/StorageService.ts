@@ -168,11 +168,14 @@ export class StorageService {
     }
     this.saveToLocalStorage<IAlertItem[]>("AllAlerts", alerts, {
       expirationTime: this.defaultExpirationTime,
+      userSpecific: true,
     });
   }
 
   public getAlerts(): IAlertItem[] | null {
-    return this.getFromLocalStorage<IAlertItem[]>("AllAlerts");
+    return this.getFromLocalStorage<IAlertItem[]>("AllAlerts", {
+      userSpecific: true,
+    });
   }
 
   public saveDismissedAlerts(alertIds: string[]): void {
@@ -204,7 +207,7 @@ export class StorageService {
   }
 
   public clearAllAlertData(): void {
-    this.removeFromLocalStorage("AllAlerts");
+    this.removeFromLocalStorage("AllAlerts", { userSpecific: true });
     this.removeFromSessionStorage("DismissedAlerts", { userSpecific: true });
     this.removeFromLocalStorage("HiddenAlerts", { userSpecific: true });
   }

@@ -92,6 +92,31 @@ export class LoggerService {
     }
   }
 
+  public initializeGlobalHandlers(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+    this.removeGlobalHandlers();
+    if (this._unhandledRejectionHandler) {
+      window.addEventListener("unhandledrejection", this._unhandledRejectionHandler);
+    }
+    if (this._errorHandler) {
+      window.addEventListener("error", this._errorHandler);
+    }
+  }
+
+  public removeGlobalHandlers(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (this._unhandledRejectionHandler) {
+      window.removeEventListener("unhandledrejection", this._unhandledRejectionHandler);
+    }
+    if (this._errorHandler) {
+      window.removeEventListener("error", this._errorHandler);
+    }
+  }
+
   private setupGlobalErrorHandling(): void {
     this._unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
       const stack = (event.reason as { stack?: string })?.stack || "";
@@ -121,11 +146,7 @@ export class LoggerService {
       }
     };
 
-    window.addEventListener(
-      "unhandledrejection",
-      this._unhandledRejectionHandler,
-    );
-    window.addEventListener("error", this._errorHandler);
+    this.initializeGlobalHandlers();
   }
 
   private setupLogCleanup(): void {
@@ -147,17 +168,7 @@ export class LoggerService {
       window.clearInterval(this._cleanupIntervalId);
       this._cleanupIntervalId = null;
     }
-    if (this._unhandledRejectionHandler) {
-      window.removeEventListener(
-        "unhandledrejection",
-        this._unhandledRejectionHandler,
-      );
-      this._unhandledRejectionHandler = null;
-    }
-    if (this._errorHandler) {
-      window.removeEventListener("error", this._errorHandler);
-      this._errorHandler = null;
-    }
+    this.removeGlobalHandlers();
     this.logEntries = [];
     this.performanceMetrics = [];
   }

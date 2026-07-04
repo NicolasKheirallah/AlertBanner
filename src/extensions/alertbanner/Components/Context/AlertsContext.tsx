@@ -818,18 +818,26 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({
               alertsToShow,
             );
 
+          let targetingTimeoutId: number | null = null;
+          const targetingTimeoutPromise = new Promise<IAlertItem[]>((resolve) => {
+            targetingTimeoutId = window.setTimeout(() => {
+              targetingTimeoutId = null;
+              logger.warn(
+                "AlertsContext",
+                "User targeting timed out, showing all alerts",
+              );
+              resolve(alertsToShow);
+            }, 2000);
+          });
+
           alertsToShow = await Promise.race([
             targetingPromise,
-            new Promise<IAlertItem[]>((resolve) =>
-              setTimeout(() => {
-                logger.warn(
-                  "AlertsContext",
-                  "User targeting timed out, showing all alerts",
-                );
-                resolve(alertsToShow);
-              }, 2000),
-            ),
+            targetingTimeoutPromise,
           ]);
+
+          if (targetingTimeoutId) {
+            window.clearTimeout(targetingTimeoutId);
+          }
         } catch (targetingError) {
           logger.warn(
             "AlertsContext",

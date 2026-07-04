@@ -270,6 +270,16 @@ export const CopilotSentimentControl: React.FC<
   );
   const [calculatedScore, setCalculatedScore] = React.useState<number>(0);
   const lastCheckedRef = React.useRef<string>("");
+  const fixCheckTimeoutRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (fixCheckTimeoutRef.current) {
+        window.clearTimeout(fixCheckTimeoutRef.current);
+        fixCheckTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const readingStats = React.useMemo(() => {
     if (!textToAnalyze) return null;
@@ -337,7 +347,11 @@ export const CopilotSentimentControl: React.FC<
       onApplyFix(fixedText);
       setAppliedFixes((prev) => new Set(prev).add(issue.id));
 
-      setTimeout(() => {
+      if (fixCheckTimeoutRef.current) {
+        window.clearTimeout(fixCheckTimeoutRef.current);
+      }
+      fixCheckTimeoutRef.current = window.setTimeout(() => {
+        fixCheckTimeoutRef.current = null;
         lastCheckedRef.current = "";
         void performCheck(true);
       }, 500);

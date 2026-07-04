@@ -109,11 +109,21 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
   const [isDragOver, setIsDragOver] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const dropZoneRef = React.useRef<HTMLDivElement>(null);
+  const uploadProgressTimeoutRef = React.useRef<number | null>(null);
   const notificationService = React.useMemo(
     () => NotificationService.getInstance(context),
     [context],
   );
   const { confirm, dialogs } = useFluentDialogs();
+
+  React.useEffect(() => {
+    return () => {
+      if (uploadProgressTimeoutRef.current) {
+        window.clearTimeout(uploadProgressTimeoutRef.current);
+        uploadProgressTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const handleButtonClick = React.useCallback(() => {
     if (fileInputRef.current) {
@@ -316,7 +326,11 @@ const AttachmentManager: React.FC<IAttachmentManagerProps> = ({
         );
       } finally {
         setIsUploading(false);
-        setTimeout(() => {
+        if (uploadProgressTimeoutRef.current) {
+          window.clearTimeout(uploadProgressTimeoutRef.current);
+        }
+        uploadProgressTimeoutRef.current = window.setTimeout(() => {
+          uploadProgressTimeoutRef.current = null;
           setUploadProgress([]);
         }, 2000);
         if (fileInputRef.current) {

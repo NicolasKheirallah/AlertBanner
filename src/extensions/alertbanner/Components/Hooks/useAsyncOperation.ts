@@ -83,6 +83,11 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
     optionsRef.current = options;
   });
 
+  const operationRef = useRef(operation);
+  useEffect(() => {
+    operationRef.current = operation;
+  });
+
   const execute = useCallback(
     async (...args: TArgs): Promise<T | null> => {
       if (abortControllerRef.current) {
@@ -101,7 +106,7 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
       const currentOptions = optionsRef.current;
 
       try {
-        const result = await operation(...args);
+        const result = await operationRef.current(...args);
 
         if (isMountedRef.current) {
           setState({
@@ -149,7 +154,7 @@ export function useAsyncOperation<T, TArgs extends any[] = []>(
         return null;
       }
     },
-    [operation],
+    [],
   );
 
   const reset = useCallback(() => {

@@ -56,9 +56,9 @@ export class JsonUtils {
       return { success: false, data: null, errors };
     }
 
-    const depth = this.getObjectDepth(parsed);
+    const depth = this.getObjectDepth(parsed, 0, maxDepth);
     if (depth > maxDepth) {
-      errors.push(`JSON structure is too deeply nested (max depth: ${maxDepth}, actual: ${depth})`);
+      errors.push(`JSON structure is too deeply nested (max depth: ${maxDepth})`);
     }
 
     const success = errors.length === 0;
@@ -69,7 +69,11 @@ export class JsonUtils {
     };
   }
 
-  private static getObjectDepth(obj: any, currentDepth: number = 0): number {
+  private static getObjectDepth(obj: any, currentDepth: number = 0, maxDepth: number = 10): number {
+    if (currentDepth > maxDepth) {
+      return currentDepth;
+    }
+
     if (obj === null || typeof obj !== 'object') {
       return currentDepth;
     }
@@ -78,7 +82,7 @@ export class JsonUtils {
       if (obj.length === 0) {
         return currentDepth + 1;
       }
-      return Math.max(...obj.map(item => this.getObjectDepth(item, currentDepth + 1)));
+      return Math.max(...obj.map(item => this.getObjectDepth(item, currentDepth + 1, maxDepth)));
     }
 
     const keys = Object.keys(obj);
@@ -86,7 +90,7 @@ export class JsonUtils {
       return currentDepth + 1;
     }
 
-    return Math.max(...keys.map(key => this.getObjectDepth(obj[key], currentDepth + 1)));
+    return Math.max(...keys.map(key => this.getObjectDepth(obj[key], currentDepth + 1, maxDepth)));
   }
 
   public static deepClone<T>(obj: T): T | null {

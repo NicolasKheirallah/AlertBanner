@@ -563,6 +563,12 @@ const ManageAlertsTab: React.FC<IManageAlertsTabProps> = ({
     };
   }, [copilotEnabled, copilotService]);
 
+  React.useEffect(() => {
+    return () => {
+      copilotService.dispose();
+    };
+  }, [copilotService]);
+
   const priorityOptions = usePriorityOptions();
 
   const notificationOptions: ISharePointSelectOption[] = React.useMemo(

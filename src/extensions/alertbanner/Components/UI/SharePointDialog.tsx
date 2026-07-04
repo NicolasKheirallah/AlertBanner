@@ -56,10 +56,10 @@ const SharePointDialog: React.FC<ISharePointDialogProps> = ({
   className,
 }) => {
   const dialogRef = React.useRef<HTMLDivElement>(null);
-  const dialogTitleId = React.useMemo(() => {
+  const [dialogTitleId] = React.useState(() => {
     dialogIdCounter += 1;
     return `alert-dialog-title-${dialogIdCounter}`;
-  }, []);
+  });
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

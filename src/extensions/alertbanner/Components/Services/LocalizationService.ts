@@ -27,7 +27,7 @@ const LANGUAGE_STRINGS: { [key: string]: ILocalizationStrings } = {
 };
 
 export class LocalizationService {
-  private static _instance: LocalizationService;
+  private static _instance: LocalizationService | null = null;
   private _currentLanguage: string = 'en-us';
   private _strings: ILocalizationStrings = {};
   private _context: ApplicationCustomizerContext;
@@ -88,7 +88,14 @@ export class LocalizationService {
     if (!LocalizationService._instance) {
       LocalizationService._instance = new LocalizationService(context);
     }
-    return LocalizationService._instance;
+    return LocalizationService._instance!;
+  }
+
+  public dispose(): void {
+    this._context = null as any;
+    this._strings = {};
+    this._fallbackStrings = {};
+    LocalizationService._instance = null;
   }
 
   private constructor(context?: ApplicationCustomizerContext) {
@@ -230,17 +237,16 @@ export class LocalizationService {
     let language = 'en-us';
 
     try {
+      const stored = localStorage.getItem('alertbanner-language');
+      if (stored) {
+        return stored.toLowerCase();
+      }
+
       if (this._context?.pageContext?.cultureInfo?.currentUICultureName) {
         language = this._context.pageContext.cultureInfo.currentUICultureName.toLowerCase();
       }
       else if (navigator.language) {
         language = navigator.language.toLowerCase();
-      }
-      else {
-        const stored = localStorage.getItem('alertbanner-language');
-        if (stored) {
-          language = stored;
-        }
       }
     } catch (error) {
       logger.warn('LocalizationService', 'Error detecting user language', error);

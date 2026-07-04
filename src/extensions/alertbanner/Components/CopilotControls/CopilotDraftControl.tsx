@@ -196,11 +196,15 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
   const [showCursor, setShowCursor] = React.useState(true);
   const typingRef = React.useRef<number | null>(null);
   const isTypingRef = React.useRef(false);
+  const cursorTimeoutRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     return () => {
       if (typingRef.current) {
         cancelAnimationFrame(typingRef.current);
+      }
+      if (cursorTimeoutRef.current) {
+        window.clearTimeout(cursorTimeoutRef.current);
       }
       isTypingRef.current = false;
     };
@@ -234,7 +238,11 @@ export const CopilotDraftControl: React.FC<ICopilotDraftControlProps> = ({
         if (index <= generatedDraft.length) {
           typingRef.current = requestAnimationFrame(typeChar);
         } else {
-          setTimeout(() => {
+          if (cursorTimeoutRef.current) {
+            window.clearTimeout(cursorTimeoutRef.current);
+          }
+          cursorTimeoutRef.current = window.setTimeout(() => {
+            cursorTimeoutRef.current = null;
             if (isTypingRef.current) {
               setShowCursor(false);
             }

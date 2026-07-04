@@ -157,6 +157,18 @@ const SharePointRichTextEditor: React.FC<ISharePointRichTextEditorProps> = ({
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+      if (editorRef.current) {
+        try {
+          if (typeof editorRef.current.destruct === 'function') {
+            editorRef.current.destruct();
+          } else if (typeof editorRef.current.destroy === 'function') {
+            editorRef.current.destroy();
+          }
+        } catch {
+          /* ignore cleanup errors */
+        }
+        editorRef.current = null;
+      }
     };
   }, []);
 

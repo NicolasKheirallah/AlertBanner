@@ -24,12 +24,14 @@ export interface INotificationOptions {
 }
 
 export class NotificationService {
-  private static instance: NotificationService;
+  private static instance: NotificationService | null = null;
   private static readonly DIALOG_HOST_SELECTOR =
     '[data-alert-banner-dialog-notification-host="true"]';
   private static readonly NOTIFICATION_CONTAINER_SELECTOR =
     '[data-alert-banner-notification-container="true"]';
   private context: ApplicationCustomizerContext;
+  private _activeTimeouts: Set<number> = new Set();
+  private _activeListeners: WeakMap<HTMLElement, Array<{ type: string; handler: EventListenerOrEventListenerObject }>> = new WeakMap();
 
   constructor(context: ApplicationCustomizerContext) {
     this.context = context;
@@ -39,7 +41,15 @@ export class NotificationService {
     if (!NotificationService.instance && context) {
       NotificationService.instance = new NotificationService(context);
     }
-    return NotificationService.instance;
+    return NotificationService.instance!;
+  }
+
+  public dispose(): void {
+    this._activeTimeouts.forEach((id) => window.clearTimeout(id));
+    this._activeTimeouts.clear();
+    this._activeListeners = new WeakMap();
+    this.context = null as any;
+    NotificationService.instance = null;
   }
 
   public showSuccess(message: string, title?: string, actions?: INotificationAction[]): void {
@@ -102,19 +112,23 @@ export class NotificationService {
     container.appendChild(notification);
 
     if (options.duration && options.duration > 0) {
-      setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
+        this._activeTimeouts.delete(timeoutId);
         this.removeNotification(notification);
       }, options.duration);
+      this._activeTimeouts.add(timeoutId);
     }
 
     if (options.actions) {
       options.actions.forEach((action, index) => {
         const actionButton = notification.querySelector(`[data-action="${index}"]`);
         if (actionButton) {
-          actionButton.addEventListener('click', () => {
+          const handler = () => {
             action.onClick();
             this.removeNotification(notification);
-          });
+          };
+          actionButton.addEventListener('click', handler);
+          this._trackListener(actionButton as HTMLElement, 'click', handler);
         }
       });
     }
@@ -122,9 +136,11 @@ export class NotificationService {
     if (options.dismissible) {
       const dismissButton = notification.querySelector('[data-dismiss]');
       if (dismissButton) {
-        dismissButton.addEventListener('click', () => {
+        const handler = () => {
           this.removeNotification(notification);
-        });
+        };
+        dismissButton.addEventListener('click', handler);
+        this._trackListener(dismissButton as HTMLElement, 'click', handler);
       }
     }
   }
@@ -260,11 +276,13 @@ export class NotificationService {
 
   private removeNotification(notification: HTMLElement): void {
     notification.style.animation = 'slideOutRight 0.3s ease-in';
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
+      this._activeTimeouts.delete(timeoutId);
       if (notification.parentNode) {
         notification.parentNode.removeChild(notification);
       }
     }, UI_CONFIG.FADE_OUT_DURATION_MS + 100);
+    this._activeTimeouts.add(timeoutId);
   }
 
   private getBackgroundColor(type: NotificationType): string {
@@ -365,5 +383,11 @@ export class NotificationService {
     containers.forEach((container) => {
       container.innerHTML = '';
     });
+  }
+
+  private _trackListener(element: HTMLElement, type: string, handler: EventListenerOrEventListenerObject): void {
+    const listeners = this._activeListeners.get(element) || [];
+    listeners.push({ type, handler });
+    this._activeListeners.set(element, listeners);
   }
 }

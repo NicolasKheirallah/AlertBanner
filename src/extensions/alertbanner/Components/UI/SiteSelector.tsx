@@ -30,6 +30,15 @@ interface IFilterOptions {
   searchTerm: string;
 }
 
+const formatSiteUrl = (urlStr: string): string => {
+  try {
+    const url = new URL(urlStr);
+    return url.hostname + url.pathname;
+  } catch {
+    return urlStr;
+  }
+};
+
 const SiteSelector: React.FC<{
   selectedSites: string[];
   onSitesChange: (siteIds: string[]) => void;
@@ -426,7 +435,7 @@ const SiteSelector: React.FC<{
               <div className={styles.siteInfo}>
                 <h4 className={styles.siteName}>{site.name}</h4>
                 <p className={styles.siteUrl}>
-                  {new URL(site.url).hostname + new URL(site.url).pathname}
+                  {formatSiteUrl(site.url)}
                 </p>
                 {getPermissionBadge(site)}
               </div>

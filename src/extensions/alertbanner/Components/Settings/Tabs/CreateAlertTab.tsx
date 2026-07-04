@@ -141,6 +141,7 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
   const { confirm, dialogs } = useFluentDialogs();
 
   const autoSaveStatusDebounceRef = React.useRef<number | null>(null);
+  const creationProgressTimeoutRef = React.useRef<number | null>(null);
 
   const copilotService = React.useMemo(
     () => new CopilotService(graphClient),
@@ -193,6 +194,12 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
       copilotService.cancelActiveOperation();
     };
   }, [copilotEnabled, copilotService, dispatch]);
+
+  React.useEffect(() => {
+    return () => {
+      copilotService.dispose();
+    };
+  }, [copilotService]);
 
   const languageOptions = useLanguageOptions(supportedLanguages);
 
@@ -832,7 +839,11 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
       dispatch({ type: "SET_LAST_CREATE_FAILED", failed: false });
 
       await loadDrafts();
-      setTimeout(() => {
+      if (creationProgressTimeoutRef.current) {
+        window.clearTimeout(creationProgressTimeoutRef.current);
+      }
+      creationProgressTimeoutRef.current = window.setTimeout(() => {
+        creationProgressTimeoutRef.current = null;
         resetForm();
         dispatch({ type: "SET_CREATION_PROGRESS", progress: [] });
       }, 2000);
@@ -951,6 +962,15 @@ const CreateAlertTabInner: React.FC<ICreateAlertTabProps> = ({
   const resetForm = React.useCallback(() => {
     dispatch({ type: "RESET_FORM" });
   }, [dispatch]);
+
+  React.useEffect(() => {
+    return () => {
+      if (creationProgressTimeoutRef.current) {
+        window.clearTimeout(creationProgressTimeoutRef.current);
+        creationProgressTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     if (currentEntryMode !== "scratch") {

@@ -3,10 +3,12 @@ import { ApplicationCustomizerContext } from "@microsoft/sp-application-base";
 import { LIST_NAMES } from "../Utils/AppConstants";
 import { logger } from "./LoggerService";
 import { SiteIdUtils } from "../Utils/SiteIdUtils";
+import StorageService from "./StorageService";
 
 export class SharePointListLocator {
   private graphClient: MSGraphClientV3;
   private context: ApplicationCustomizerContext;
+  private storageService: StorageService;
   
   private listIdCache: Map<string, string> = new Map();
   private graphSiteIdentifierCache: Map<string, string> = new Map();
@@ -15,6 +17,7 @@ export class SharePointListLocator {
   constructor(graphClient: MSGraphClientV3, context: ApplicationCustomizerContext) {
     this.graphClient = graphClient;
     this.context = context;
+    this.storageService = StorageService.getInstance();
   }
 
   private enforceCacheLimit<T>(cache: Map<string, T>): void {
@@ -133,6 +136,18 @@ export class SharePointListLocator {
       return cachedId;
     }
 
+    const sessionCacheKey = `ListId_${cacheKey}`;
+    try {
+      const cachedSessionId = this.storageService.getFromSessionStorage<string>(sessionCacheKey);
+      if (cachedSessionId) {
+        this.enforceCacheLimit(this.listIdCache);
+        this.listIdCache.set(cacheKey, cachedSessionId);
+        return cachedSessionId;
+      }
+    } catch (e) {
+      logger.warn("SharePointListLocator", "Failed to retrieve list ID from sessionStorage", e);
+    }
+
     try {
       const response = await this.graphClient
         .api(`/sites/${graphSiteIdentifier}/lists`)
@@ -145,6 +160,13 @@ export class SharePointListLocator {
         const list = response.value[0];
         this.enforceCacheLimit(this.listIdCache);
         this.listIdCache.set(cacheKey, list.id);
+        
+        try {
+          this.storageService.saveToSessionStorage(sessionCacheKey, list.id);
+        } catch (e) {
+          logger.warn("SharePointListLocator", "Failed to cache list ID to sessionStorage", e);
+        }
+
         return list.id;
       }
     } catch (error) {
@@ -176,11 +198,16 @@ export class SharePointListLocator {
     }
 
     const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
+    const cacheKey = this.getListCacheKey(graphSiteIdentifier, listTitle);
     this.enforceCacheLimit(this.listIdCache);
-    this.listIdCache.set(
-      this.getListCacheKey(graphSiteIdentifier, listTitle),
-      listId
-    );
+    this.listIdCache.set(cacheKey, listId);
+
+    try {
+      const sessionCacheKey = `ListId_${cacheKey}`;
+      this.storageService.saveToSessionStorage(sessionCacheKey, listId);
+    } catch (e) {
+      logger.warn("SharePointListLocator", "Failed to cache registered list ID to sessionStorage", e);
+    }
   }
 
   public async invalidateListId(siteId: string, listTitle: string): Promise<void> {
@@ -188,6 +215,9 @@ export class SharePointListLocator {
       const graphSiteIdentifier = await this.ensureGraphSiteIdentifier(siteId);
       const cacheKey = this.getListCacheKey(graphSiteIdentifier, listTitle);
       this.listIdCache.delete(cacheKey);
+
+      const sessionCacheKey = `ListId_${cacheKey}`;
+      this.storageService.removeFromSessionStorage(sessionCacheKey);
     } catch (error) {
       logger.warn("SharePointListLocator", "Failed to invalidate list cache entry", { siteId, listTitle, error });
     }

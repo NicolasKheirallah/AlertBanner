@@ -59,13 +59,21 @@ export const useFluentDialogs = (): IUseFluentDialogsResult => {
     });
   }, []);
 
+  const confirmTimeoutRef = React.useRef<number | null>(null);
+
   const closeConfirm = React.useCallback((value: boolean) => {
     setConfirmState((prev) => (prev ? { ...prev, open: false } : null));
     if (confirmResolverRef.current) {
       confirmResolverRef.current(value);
       confirmResolverRef.current = null;
     }
-    setTimeout(() => setConfirmState(null), 0);
+    if (confirmTimeoutRef.current) {
+      window.clearTimeout(confirmTimeoutRef.current);
+    }
+    confirmTimeoutRef.current = window.setTimeout(() => {
+      confirmTimeoutRef.current = null;
+      setConfirmState(null);
+    }, 0);
   }, []);
 
   const prompt = React.useCallback((options: IPromptDialogOptions): Promise<string | null> => {
@@ -87,13 +95,21 @@ export const useFluentDialogs = (): IUseFluentDialogsResult => {
     });
   }, []);
 
+  const promptTimeoutRef = React.useRef<number | null>(null);
+
   const closePrompt = React.useCallback((value: string | null) => {
     setPromptState((prev) => (prev ? { ...prev, open: false } : null));
     if (promptResolverRef.current) {
       promptResolverRef.current(value);
       promptResolverRef.current = null;
     }
-    setTimeout(() => setPromptState(null), 0);
+    if (promptTimeoutRef.current) {
+      window.clearTimeout(promptTimeoutRef.current);
+    }
+    promptTimeoutRef.current = window.setTimeout(() => {
+      promptTimeoutRef.current = null;
+      setPromptState(null);
+    }, 0);
   }, []);
 
   const dialogs = (
@@ -156,6 +172,19 @@ export const useFluentDialogs = (): IUseFluentDialogsResult => {
       </Dialog>
     </>
   );
+
+  React.useEffect(() => {
+    return () => {
+      if (confirmTimeoutRef.current) {
+        window.clearTimeout(confirmTimeoutRef.current);
+        confirmTimeoutRef.current = null;
+      }
+      if (promptTimeoutRef.current) {
+        window.clearTimeout(promptTimeoutRef.current);
+        promptTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     confirm,

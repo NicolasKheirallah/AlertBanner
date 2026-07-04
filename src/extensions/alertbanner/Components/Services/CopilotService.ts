@@ -321,6 +321,12 @@ Requirements:
     this.activeAbortControllers.clear();
   }
 
+  public dispose(): void {
+    this.cancelActiveOperation();
+    this.cachedConversation = null;
+    this.graphClient = null as unknown as MSGraphClientV3;
+  }
+
   public resetConversation(): void {
     this.cachedConversation = null;
   }

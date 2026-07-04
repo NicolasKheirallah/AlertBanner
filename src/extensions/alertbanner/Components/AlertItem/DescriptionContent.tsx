@@ -11,6 +11,54 @@ interface IDescriptionContentProps {
   isAlertExpanded?: boolean;
 }
 
+interface IHtmlContentProps {
+  html: string;
+  isAlertExpanded?: boolean;
+  onImageClick: (url: string, alt: string) => void;
+}
+
+const HtmlContent: React.FC<IHtmlContentProps> = React.memo(({ html, isAlertExpanded, onImageClick }) => {
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const handleClickRef = React.useRef(onImageClick);
+
+  React.useEffect(() => {
+    handleClickRef.current = onImageClick;
+  });
+
+  React.useEffect(() => {
+    if (!contentRef.current || !isAlertExpanded) return;
+
+    const images = contentRef.current.querySelectorAll("img");
+
+    const handleClick = (e: Event): void => {
+      const img = e.currentTarget as HTMLImageElement;
+      e.preventDefault();
+      e.stopPropagation();
+      handleClickRef.current(img.src, img.alt || "Image");
+    };
+
+    images.forEach((img) => {
+      img.addEventListener("click", handleClick);
+    });
+
+    return () => {
+      images.forEach((img) => {
+        img.removeEventListener("click", handleClick);
+      });
+    };
+  }, [html, isAlertExpanded]);
+
+  return (
+    <div
+      ref={contentRef}
+      className={styles.descriptionListContainer}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+});
+
+HtmlContent.displayName = "HtmlContent";
+
 const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(
   ({ description, isAlertExpanded = true }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
@@ -45,53 +93,10 @@ const DescriptionContent: React.FC<IDescriptionContentProps> = React.memo(
       return htmlSanitizer.sanitizeAlertContent(description);
     }, [containsHtml, description]);
 
-    const HtmlContent: React.FC<{ html: string }> = React.memo(({ html }) => {
-      const contentRef = React.useRef<HTMLDivElement>(null);
-      const handleClickRef = React.useRef(handleImageClick);
-
-      React.useEffect(() => {
-        handleClickRef.current = handleImageClick;
-      });
-
-      React.useEffect(() => {
-        if (!contentRef.current || !isAlertExpanded) return;
-
-        const images = contentRef.current.querySelectorAll("img");
-
-        const handleClick = (e: Event): void => {
-          const img = e.currentTarget as HTMLImageElement;
-          e.preventDefault();
-          e.stopPropagation();
-          handleClickRef.current(img.src, img.alt || "Image");
-        };
-
-        images.forEach((img) => {
-          img.addEventListener("click", handleClick);
-        });
-
-        return () => {
-          images.forEach((img) => {
-            img.removeEventListener("click", handleClick);
-          });
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- isAlertExpanded is a prop of the outer DescriptionContent; the effect correctly depends on it and html
-      }, [html, isAlertExpanded]);
-
-      return (
-        <div
-          ref={contentRef}
-          className={styles.descriptionListContainer}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      );
-    });
-
-    HtmlContent.displayName = "HtmlContent";
-
     if (containsHtml) {
       return (
         <>
-          <HtmlContent html={sanitizedHtml} />
+          <HtmlContent html={sanitizedHtml} isAlertExpanded={isAlertExpanded} onImageClick={handleImageClick} />
           <ImagePreviewDialog
             isOpen={imageDialogOpen}
             imageUrl={selectedImage.url}

@@ -238,7 +238,7 @@ export class SharePointAlertService {
             : s.replace(/[{}]/g, "").toLowerCase(),
         ),
       );
-      return hierarchy;
+      return Array.from(unique);
     } catch (e) {
       return [this.context.pageContext.site.id.toString()];
     }

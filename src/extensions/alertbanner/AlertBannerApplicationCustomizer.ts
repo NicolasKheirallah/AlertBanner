@@ -15,7 +15,10 @@ import Alerts from "./Components/Alerts/Alerts";
 import { logger } from "./Components/Services/LoggerService";
 import { SiteContextService } from "./Components/Services/SiteContextService";
 import { PermissionService } from "./Components/Services/PermissionService";
+import { UserTargetingService } from "./Components/Services/UserTargetingService";
+import { NotificationService } from "./Components/Services/NotificationService";
 import { setIconOptions } from "@fluentui/style-utilities";
+import StorageService from "./Components/Services/StorageService";
 
 export default class AlertsBannerApplicationCustomizer extends BaseApplicationCustomizer<IAlertsBannerApplicationCustomizerProperties> {
   private static readonly COMPONENT_ID = "4b274e80-896b-4c87-9a78-d751d9dff522";
@@ -31,6 +34,13 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
   @override
   public async onInit(): Promise<void> {
     setIconOptions({ disableWarnings: true });
+
+    logger.initializeGlobalHandlers();
+    
+    // Initialize StorageService synchronously with the logged-in user's loginName
+    if (this.context.pageContext?.user?.loginName) {
+      StorageService.getInstance().setUserId(this.context.pageContext.user.loginName);
+    }
 
     const localizationService = LocalizationService.getInstance(this.context);
     await localizationService.initialize(this.context);
@@ -171,11 +181,31 @@ export default class AlertsBannerApplicationCustomizer extends BaseApplicationCu
     try {
       SiteContextService.getInstance().dispose();
     } catch {
+      /* no-op */
     }
     try {
-      PermissionService.getInstance(this.context).clearCache();
+      PermissionService.getInstance(this.context).dispose();
     } catch {
+      /* no-op */
     }
+    try {
+      UserTargetingService.getInstance(null as any)?.dispose?.();
+    } catch {
+      /* no-op */
+    }
+    try {
+      NotificationService.getInstance()?.dispose?.();
+    } catch {
+      /* no-op */
+    }
+    try {
+      LocalizationService.getInstance()?.dispose?.();
+    } catch {
+      /* no-op */
+    }
+    this._customProperties = null as any;
+    this._siteIds = null;
+    this._lastRenderedSiteId = null;
     super.onDispose();
   }
 

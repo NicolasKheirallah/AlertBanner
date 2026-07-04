@@ -223,6 +223,16 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
     text: string;
   } | null>(null);
   const [isTogglingLanguage, setIsTogglingLanguage] = React.useState(false);
+  const messageTimeoutRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current) {
+        window.clearTimeout(messageTimeoutRef.current);
+        messageTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const getSiteDefaultLanguage = React.useCallback((): string => {
     const spLanguage = (window as any).SPClientContext?.web?.language;
@@ -264,7 +274,13 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
 
   const showMessage = (type: "success" | "error" | "warning", text: string) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 5000);
+    if (messageTimeoutRef.current) {
+      window.clearTimeout(messageTimeoutRef.current);
+    }
+    messageTimeoutRef.current = window.setTimeout(() => {
+      messageTimeoutRef.current = null;
+      setMessage(null);
+    }, 5000);
   };
 
   const { loading, execute: loadSupportedLanguages } = useAsyncOperation(
@@ -397,21 +413,18 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         );
       }
 
-      setLanguages((prev) =>
-        prev.map((lang) =>
+      setLanguages((prev) => {
+        const next = prev.map((lang) =>
           lang.code === languageCode
             ? { ...lang, isPending: false, isAdded: checked }
             : lang,
-        ),
-      );
-
-      const activeLanguages = languages
-        .filter(
-          (l) =>
-            (l.code === languageCode ? checked : l.isAdded) && !l.isPending,
-        )
-        .map((l) => l.code);
-      onLanguageChange?.(activeLanguages);
+        );
+        const activeLanguages = next
+          .filter((l) => l.isAdded && !l.isPending)
+          .map((l) => l.code);
+        onLanguageChange?.(activeLanguages);
+        return next;
+      });
     } catch (error) {
       logger.error(
         "LanguageFieldManager",
@@ -423,13 +436,18 @@ const LanguageFieldManager: React.FC<ILanguageFieldManagerProps> = ({
         CoreText.format(strings.LanguageManagerUpdateFailed, language.name),
       );
 
-      setLanguages((prev) =>
-        prev.map((lang) =>
+      setLanguages((prev) => {
+        const next = prev.map((lang) =>
           lang.code === languageCode
             ? { ...lang, isPending: false, isAdded: !checked }
             : lang,
-        ),
-      );
+        );
+        const activeLanguages = next
+          .filter((l) => l.isAdded && !l.isPending)
+          .map((l) => l.code);
+        onLanguageChange?.(activeLanguages);
+        return next;
+      });
     } finally {
       setIsTogglingLanguage(false);
     }
