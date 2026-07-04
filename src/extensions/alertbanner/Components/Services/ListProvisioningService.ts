@@ -374,10 +374,12 @@ export class ListProvisioningService {
       {
         name: "ScheduledStart",
         dateTime: { displayAs: "default", format: "dateTime" },
+        indexed: true,
       },
       {
         name: "ScheduledEnd",
         dateTime: { displayAs: "default", format: "dateTime" },
+        indexed: true,
       },
       { name: "Metadata", text: { allowMultipleLines: true, maxLength: 4000 } },
       {
@@ -422,6 +424,7 @@ export class ListProvisioningService {
           choices: ["Draft", "PendingReview", "Approved", "Rejected"],
           displayAs: "dropdown",
         },
+        indexed: true,
       },
       {
         name: "Reviewer",
@@ -788,7 +791,7 @@ export class ListProvisioningService {
 
       progressCallback?.("Ensuring indexes and settings...", 85);
 
-      await this.ensureItemTypeIndex(siteId, alertsListApi);
+      await this.ensureRequiredIndexes(siteId, alertsListApi);
       await this.enableListAttachments(siteId, alertsListId);
 
       result.success = true;
@@ -802,7 +805,7 @@ export class ListProvisioningService {
     }
   }
 
-  private async ensureItemTypeIndex(
+  private async ensureRequiredIndexes(
     siteId: string,
     alertsListApi: string,
   ): Promise<void> {
@@ -811,18 +814,23 @@ export class ListProvisioningService {
         .api(`${alertsListApi}/columns`)
         .select("id,name,indexed")
         .get();
-      const itemType = columns.value?.find(
-        (c: { name: string }) => c.name === "ItemType",
-      );
 
-      if (itemType && !itemType.indexed) {
-        await this.graphClient
-          .api(`${alertsListApi}/columns/${itemType.id}`)
-          .patch({ indexed: true });
-        logger.info("ListProvisioningService", "Indexed ItemType column");
+      const requiredIndexColumns = ["ItemType", "ScheduledStart", "ScheduledEnd", "ContentStatus"];
+
+      for (const colName of requiredIndexColumns) {
+        const col = columns.value?.find(
+          (c: { name: string }) => c.name === colName,
+        );
+
+        if (col && !col.indexed) {
+          await this.graphClient
+            .api(`${alertsListApi}/columns/${col.id}`)
+            .patch({ indexed: true });
+          logger.info("ListProvisioningService", `Indexed ${colName} column`);
+        }
       }
     } catch (e) {
-      logger.warn("ListProvisioningService", "Failed to index ItemType", e);
+      logger.warn("ListProvisioningService", "Failed to ensure required indexes", e);
     }
   }
 

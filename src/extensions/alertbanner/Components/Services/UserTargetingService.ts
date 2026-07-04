@@ -22,7 +22,7 @@ interface ISharePointGroup {
 }
 
 export class UserTargetingService {
-  private static instance: UserTargetingService;
+  private static instance: UserTargetingService | null = null;
   private context: ApplicationCustomizerContext;
   private graphClient: MSGraphClientV3;
   private spGroupIds: number[] = [];
@@ -51,45 +51,143 @@ export class UserTargetingService {
         context,
       );
     }
-    return UserTargetingService.instance;
+    return UserTargetingService.instance!;
+  }
+
+  public dispose(): void {
+    this.context = null as any;
+    this.graphClient = null as any;
+    this.spGroupIds = [];
+    this.currentUser = null;
+    this.userGroups = [];
+    this.userGroupIds = [];
+    this.isInitialized = false;
+    this.storageService = null as any;
+    UserTargetingService.instance = null;
   }
 
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     try {
-      const userResponse = await this.graphClient
-        .api("/me")
-        .select("id,displayName,mail,jobTitle,department,userPrincipalName")
-        .get();
-
-      this.currentUser = {
-        id: userResponse.id,
-        displayName: userResponse.displayName,
-        email: userResponse.mail,
-        jobTitle: userResponse.jobTitle,
-        department: userResponse.department,
-        userGroups: [],
-      };
-
-      this.storageService.setUserId(this.currentUser.id);
-
+      let isBatchSuccess = false;
       const groups: IGraphGroup[] = [];
-      let requestPath = "/me/memberOf?$select=id,displayName&$top=100";
 
-      while (requestPath) {
-        const response = await this.graphClient.api(requestPath).get();
-        if (Array.isArray(response?.value)) {
-          groups.push(...response.value);
+      try {
+        const batchRequest = {
+          requests: [
+            {
+              id: "1",
+              method: "GET",
+              url: "me?$select=id,displayName,mail,jobTitle,department,userPrincipalName",
+            },
+            {
+              id: "2",
+              method: "GET",
+              url: "me/transitiveMemberOf?$select=id,displayName&$top=100",
+            },
+          ],
+        };
+
+        const batchResponse = await this.graphClient
+          .api("/$batch")
+          .post(batchRequest);
+
+        const responses = batchResponse.responses || [];
+        const userRes = responses.find((r: any) => r.id === "1");
+        const groupsRes = responses.find((r: any) => r.id === "2");
+
+        if (userRes && userRes.status === 200) {
+          const userBody = userRes.body;
+          this.currentUser = {
+            id: userBody.id,
+            displayName: userBody.displayName,
+            email: userBody.mail,
+            jobTitle: userBody.jobTitle,
+            department: userBody.department,
+            userGroups: [],
+          };
+          this.storageService.setUserId(this.currentUser.id);
+        } else {
+          throw new Error(`User profile batch request failed. Status: ${userRes?.status}`);
         }
 
-        if (response["@odata.nextLink"]) {
-          requestPath = response["@odata.nextLink"].replace(
-            "https://graph.microsoft.com/v1.0",
-            "",
-          );
+        let requestPath = "";
+        if (groupsRes && groupsRes.status === 200) {
+          const groupsBody = groupsRes.body;
+          if (Array.isArray(groupsBody?.value)) {
+            groups.push(...groupsBody.value);
+          }
+          if (groupsBody?.["@odata.nextLink"]) {
+            requestPath = groupsBody["@odata.nextLink"].replace(
+              "https://graph.microsoft.com/v1.0",
+              "",
+            );
+          }
+          isBatchSuccess = true;
         } else {
-          requestPath = "";
+          logger.warn(
+            "UserTargetingService",
+            `transitiveMemberOf query failed in batch (Status: ${groupsRes?.status}). Falling back to separate calls.`,
+          );
+        }
+
+        while (requestPath) {
+          const response = await this.graphClient.api(requestPath).get();
+          if (Array.isArray(response?.value)) {
+            groups.push(...response.value);
+          }
+          if (response["@odata.nextLink"]) {
+            requestPath = response["@odata.nextLink"].replace(
+              "https://graph.microsoft.com/v1.0",
+              "",
+            );
+          } else {
+            requestPath = "";
+          }
+        }
+      } catch (batchError) {
+        logger.warn(
+          "UserTargetingService",
+          "Graph batch operation failed, attempting fallback to separate sequential calls",
+          batchError,
+        );
+      }
+
+      if (!isBatchSuccess || !this.currentUser) {
+        if (!this.currentUser) {
+          const userResponse = await this.graphClient
+            .api("/me")
+            .select("id,displayName,mail,jobTitle,department,userPrincipalName")
+            .get();
+
+          this.currentUser = {
+            id: userResponse.id,
+            displayName: userResponse.displayName,
+            email: userResponse.mail,
+            jobTitle: userResponse.jobTitle,
+            department: userResponse.department,
+            userGroups: [],
+          };
+          this.storageService.setUserId(this.currentUser.id);
+        }
+
+        if (groups.length === 0) {
+          let requestPath = "/me/memberOf?$select=id,displayName&$top=100";
+          while (requestPath) {
+            const response = await this.graphClient.api(requestPath).get();
+            if (Array.isArray(response?.value)) {
+              groups.push(...response.value);
+            }
+            if (response["@odata.nextLink"]) {
+              requestPath = response["@odata.nextLink"].replace(
+                "https://graph.microsoft.com/v1.0",
+                "",
+              );
+            } else {
+              requestPath = "";
+            }
+          }
         }
       }
 
